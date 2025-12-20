@@ -145,7 +145,7 @@ model Station {
 model Card {
   id           String     @id @map("card_id") @db.Uuid
   serial       String     @unique @map("serial_number")
-  customerId   String     @map("customer_id") @db.Uuid
+  memberId     String     @map("member_id") @db.Uuid
   categoryId   String     @map("category_id") @db.Uuid
   typeId       String     @map("type_id") @db.Uuid
   quotaTicket  Int        @default(0) @map("quota_ticket")
@@ -165,7 +165,7 @@ model Card {
   // Relation
   category      CardCategory   @relation(fields: [categoryId], references: [id])
   type          CardType       @relation(fields: [typeId], references: [id])
-  customer      Customer       @relation(fields: [customerId], references: [id])
+  member        Member         @relation(fields: [memberId], references: [id])
   cardUsageLogs CardUsageLog[]
   transactions  Transaction[]
 
@@ -193,10 +193,10 @@ model CardInventory {
   @@map("card_inventory")
 }
 
-// Model Customer
-model Customer {
-  id          String    @id @map("customer_id") @db.Uuid
-  name        String    @map("customer_name")
+// Model Member
+model Member {
+  id          String    @id @map("member_id") @db.Uuid
+  name        String    @map("member_name")
   identity    String    @unique @map("identity_number")
   nationality String    @default("INDONESIA")
   email       String?
@@ -212,7 +212,7 @@ model Customer {
   // Relation
   cards Card[]
 
-  @@map("customers")
+  @@map("members")
 }
 
 // Model Transaction
