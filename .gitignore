@@ -1,0 +1,40 @@
+# * Frontend Gitignore
+
+
+# * Backend Gitignore
+# Dependencies
+backend/node_modules/
+
+# Environment variables
+backend/.env
+backend/.env.*
+backend/!.env.example
+
+# Build outputs
+backend/dist/
+backend/build/
+
+# Logs
+backend/logs/
+backend/*.log
+backend/npm-debug.log*
+backend/yarn-debug.log*
+backend/yarn-error.log*
+
+# IDE & OS
+backend/.vscode/
+backend/.idea/
+backend/.DS_Store
+backend/Thumbs.db
+backend/*.swp
+
+**/*.trace
+**/*.zip
+**/*.tar.gz
+**/*.tgz
+**/*.log
+package-lock.json
+**/*.bun
+
+# Prisma
+backend/prisma/generated/*
