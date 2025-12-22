@@ -16,3 +16,4 @@ export const passwordResetConfig = {
   tokenLength: 32, // Length of random token
 };
 
+
