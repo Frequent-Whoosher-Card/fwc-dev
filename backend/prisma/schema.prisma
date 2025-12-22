@@ -78,7 +78,7 @@ model User {
   deletedBy    String?   @map("deleted_by") @db.Uuid
 
   // Relation
-  role         Role          @relation(fields: [roleId], references: [id])
+  role         Role          @relation(fields: [roleId], references: [id], onDelete: Restrict)
   transactions Transaction[]
 
   @@map("users")
@@ -192,10 +192,10 @@ model Card {
   deletedBy     String?    @map("deleted_by") @db.Uuid
 
   // Relation
-  category      CardCategory   @relation(fields: [categoryId], references: [id])
-  type          CardType       @relation(fields: [typeId], references: [id])
-  member        Member         @relation(fields: [memberId], references: [id])
-  cardProduct   CardProduct    @relation(fields: [cardProductId], references: [id])
+  category      CardCategory   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  type          CardType       @relation(fields: [typeId], references: [id], onDelete: Restrict)
+  member        Member         @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  cardProduct   CardProduct    @relation(fields: [cardProductId], references: [id], onDelete: Restrict)
   cardUsageLogs CardUsageLog[]
   transactions  Transaction[]
 
@@ -281,7 +281,7 @@ model CardUsageLog {
   createdBy      String?  @map("created_by")
 
   // Relation
-  card Card @relation(fields: [cardId], references: [id])
+  card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
 
   @@map("card_usage_logs")
 }
