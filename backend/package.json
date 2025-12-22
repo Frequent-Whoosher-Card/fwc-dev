@@ -1,0 +1,22 @@
+{
+  "name": "backend-fwc",
+  "version": "1.0.50",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "bun run --watch src/index.ts"
+  },
+  "dependencies": {
+    "@elysiajs/cookie": "^0.8.0",
+    "@elysiajs/cors": "^1.0.1",
+    "@elysiajs/jwt": "^1.4.0",
+    "@prisma/adapter-pg": "^7.2.0",
+    "@prisma/client": "^7.2.0",
+    "elysia": "latest",
+    "prismabox": "^1.1.26"
+  },
+  "devDependencies": {
+    "bun-types": "latest",
+    "prisma": "^7.2.0"
+  },
+  "module": "src/index.js"
+}
