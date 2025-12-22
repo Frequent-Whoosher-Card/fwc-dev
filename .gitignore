@@ -88,19 +88,21 @@ frontend/*.tsbuildinfo
 frontend/next-env.d.ts
 
 # dependencies
-node_modules/
-.next/
+frontend/node_modules/
+frontend/.next/
 
 out
 
 # env
-.env*
-.env.local
+frontend/.env*
+frontend/.env.local
 
 # logs
-npm-debug.log*
-yarn-debug.log*
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
 
 # OS
 .DS_Store
 Thumbs.db
+frontend/.DS_Store
+frontend/Thumbs.db
