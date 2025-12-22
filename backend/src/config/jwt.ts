@@ -15,5 +15,3 @@ export const passwordResetConfig = {
   tokenExpiresIn: 60 * 60 * 1000, // 1 hour in milliseconds
   tokenLength: 32, // Length of random token
 };
-
-
