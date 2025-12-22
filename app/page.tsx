@@ -1,89 +1,158 @@
 "use client";
 
 import Image from "next/image";
-import { Poppins, Inter } from "next/font/google";
-
-const poppins = Poppins({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-poppins",
-});
-
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-inter",
-});
+import { useState } from "react";
 
 export default function LoginPage() {
-  return (
-    <div
-      className={`relative min-h-screen flex justify-end items-center ${poppins.variable} font-sans`}
-    >
-      {/* ===== LAYER 1: BORDER MERAH ===== */}
-      <div className="absolute inset-0 bg-[#8D1231]" />
+  const [showPassword, setShowPassword] = useState(false);
 
-      {/* ===== LAYER 2: BACKGROUND IMAGE ===== */}
-      <div className="absolute inset-0 m-6 rounded-xl overflow-hidden">
+  // contoh error (nanti dari BE)
+  const emailError = "";
+  const passwordError = "";
+
+  return (
+    <div className="min-h-screen flex bg-white">
+      {/* LEFT PANEL (DESKTOP ONLY) */}
+      <div className="hidden md:flex w-1/2 bg-[var(--kcic)] items-center justify-center">
         <Image
-          src="/assets/images/login2-bg.jpg"
-          alt="Login Background"
-          fill
+          src="/assets/images/login3-bg.png"
+          alt="Whoosh"
+          width={320}
+          height={120}
           priority
-          className="object-cover"
         />
       </div>
 
-      <div className="absolute" style={{ top: "120px", left: "120px" }}>
-  <span className={`block text-3xl md:text-4xl  text-white leading-snug ${inter.variable}`}>
-    WHOOSH CARD
-  </span>
-  <span className={`block text-3xl md:text-4xl  text-white leading-snug ${inter.variable}`}>
-    MEMBER ACCESS
-  </span>
-</div>
+      {/* RIGHT PANEL */}
+      <div className="flex w-full md:w-1/2 items-center justify-center">
+        <div className="w-full max-w-md px-6 py-10 md:py-0">
+          
+          {/* MOBILE LOGO */}
+          <div className="md:hidden flex justify-center mb-8">
+            <Image
+              src="/assets/images/login3-bg.png"
+              alt="Whoosh"
+              width={180}
+              height={70}
+            />
+          </div>
 
-
-      {/* ===== LAYER 4: LOGIN CARD ===== */}
-      <div className="relative z-10 flex w-full justify-end items-center p-8">
-        <div
-          className="bg-white/30 backdrop-blur-md rounded-2xl shadow-xl flex flex-col"
-          style={{
-            width: 517,
-            height: 609,
-            maxWidth: "90vw",
-            padding: "55px 61px",
-          }}
-        >
           {/* HEADER */}
-          <div className="flex flex-col gap-2 mb-4">
-            <h1 className="text-2xl font-bold text-center">Welcome Back!</h1>
-            <p className="text-center text-gray-700 text-sm">Sign in to continue</p>
+          <div className="text-center mb-10 md:mb-12">
+            <h1 className="text-[28px] md:text-[32px] font-bold text-gray-900 tracking-tight">
+              Welcome Back!
+            </h1>
+            <p className="text-sm text-gray-500 mt-2">
+              Sign in to continue
+            </p>
           </div>
 
           {/* FORM */}
-          <form className="flex flex-col gap-3 bg-">
-            <input
-              type="text"
-              placeholder="example@gmail.com"
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#8D1231] bg-white"
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#8D1231] bg-white"
-            />
+          <form className="space-y-6">
+            {/* EMAIL */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-2">
+                Email
+              </label>
+              <input
+                type="email"
+                placeholder="username@gmail.com"
+                className={`h-11 w-full rounded-md border px-3 text-sm
+                focus:outline-none focus:ring-2
+                ${
+                  emailError
+                    ? "border-red-500 focus:ring-red-500"
+                    : "border-gray-300 focus:ring-[var(--kcic)]"
+                }`}
+              />
+
+              {emailError && (
+                <p className="mt-2 text-xs text-red-500">
+                  {emailError}
+                </p>
+              )}
+            </div>
+
+            {/* PASSWORD */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-2">
+                Password
+              </label>
+
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password"
+                  className={`h-11 w-full rounded-md border px-3 pr-11 text-sm
+                  focus:outline-none focus:ring-2
+                  ${
+                    passwordError
+                      ? "border-red-500 focus:ring-red-500"
+                      : "border-gray-300 focus:ring-[var(--kcic)]"
+                  }`}
+                />
+
+                {/* Eye icon */}
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={1.8}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M3 3l18 18M10.7 10.7a3 3 0 104.24 4.24M2 12s4.48 7 10 7c1.55 0 3.03-.37 4.38-1.03M6.61 6.61A18.2 18.2 0 002 12"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={1.8}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M1.5 12S6 5 12 5s10.5 7 10.5 7-4.5 7-10.5 7S1.5 12 1.5 12z"
+                      />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+
+              {passwordError && (
+                <p className="mt-2 text-xs text-red-500">
+                  {passwordError}
+                </p>
+              )}
+            </div>
+
+            {/* BUTTON */}
             <button
-              type="submit"
-              className="w-full bg-[#8D1231] text-white py-2 rounded-lg hover:bg-[#701027] transition"
+              type="button"
+              className="h-12 w-full bg-[var(--kcic)] text-white rounded-md
+              font-semibold text-sm tracking-wide hover:opacity-90 transition"
             >
               Sign In
             </button>
           </form>
 
           {/* FOOTER */}
-          <p className="text-center text-xs text-gray-400 mt-auto">
-            © {new Date().getFullYear()} PT. KCIC
+          <p className="mt-12 md:mt-14 text-xs text-gray-400 text-center">
+            copyright PT.KCIC
           </p>
         </div>
       </div>
