@@ -45,19 +45,32 @@ export default function LoginPage() {
     }
 
     // 3️⃣ DUMMY AUTH CHECK
-    if (email !== "admin@kcic.co.id" || password !== "admin123") {
-      setShowAuthError(true);
-      return;
-    }
+    let role = "";
+let name = "";
 
-    // 4️⃣ LOGIN SUKSES
-    localStorage.setItem(
-      "auth",
-      JSON.stringify({
-        token: "dummy-token",
-        email,
-      })
-    );
+if (email === "admin@fwc.id" && password === "admin123") {
+  role = "admin";
+  name = "Admin FWC";
+} else if (email === "petugas@fwc.id" && password === "petugas123") {
+  role = "petugas";
+  name = "Petugasname";
+} else {
+  setShowAuthError(true);
+  return;
+}
+
+localStorage.setItem(
+  "auth",
+  JSON.stringify({
+    token: "dummy-token",
+    role,
+    name,
+    email,
+  })
+);
+
+// setelah ini redirect ke /dashboard
+
 
     router.push("/dashboard");
   };
