@@ -13,8 +13,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={poppins.variable}>
+    <html lang="en" className={poppins.variable}>
+      <body className="font-[var(--font-poppins)]">
         {children}
       </body>
     </html>
