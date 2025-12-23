@@ -105,8 +105,25 @@ export class StockService {
     typeId: string,
     stationId: string,
     quantity: number,
-    userId: string
+    updatedBy?: string
   ) {
+    // Validate inputs exist
+    const [category, type, station] = await Promise.all([
+      db.cardCategory.findUnique({ where: { id: categoryId } }),
+      db.cardType.findUnique({ where: { id: typeId } }),
+      db.station.findUnique({ where: { id: stationId } }),
+    ]);
+
+    if (!category) {
+      throw new ValidationError("Card Category not found");
+    }
+    if (!type) {
+      throw new ValidationError("Card Type not found");
+    }
+    if (!station) {
+      throw new ValidationError("Station not found");
+    }
+
     await db.cardInventory.upsert({
       where: {
         unique_category_type_station: {
@@ -123,7 +140,7 @@ export class StockService {
           increment: quantity,
         },
         lastUpdated: new Date(),
-        updatedBy: userId,
+        updatedBy: updatedBy || null,
       },
       create: {
         categoryId,
