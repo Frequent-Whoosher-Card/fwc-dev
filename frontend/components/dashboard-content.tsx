@@ -2,6 +2,8 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CreditCard, Users, Receipt, TrendingUp } from 'lucide-react';
+import TicketStatusDonut from './chart/ticket-status-donut';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const stats = [
   {
@@ -68,6 +70,13 @@ const recentActivities = [
   },
 ];
 
+const data = [
+  { name: 'Halim', gold: 120, silver: 80, kai: 40 },
+  { name: 'Karawang', gold: 90, silver: 60, kai: 30 },
+  { name: 'Padalarang', gold: 150, silver: 110, kai: 55 },
+  { name: 'Tegalluar', gold: 70, silver: 40, kai: 20 },
+];
+
 export function DashboardContent() {
   return (
     <div className="space-y-6">
@@ -96,71 +105,123 @@ export function DashboardContent() {
       </Card>
 
       {/* Recent Activities */}
-      <Card>
+      <Card className="mt-6">
         <CardHeader>
-          <CardTitle className="text-foreground">Aktivitas Terkini</CardTitle>
+          <CardTitle className="text-foreground">Dashboard Penjualan & Ticket</CardTitle>
         </CardHeader>
+
         <CardContent>
-          <div className="space-y-4">
-            {recentActivities.map((activity) => (
-              <div key={activity.id} className="flex items-center justify-between border-b border-border pb-4 last:border-0 last:pb-0">
-                <div>
-                  <p className="font-medium text-foreground">{activity.action}</p>
-                  <p className="text-sm text-muted-foreground">{activity.user}</p>
-                </div>
-                <span className="text-xs text-muted-foreground">{activity.time}</span>
-              </div>
-            ))}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* LEFT COLUMN */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* TABEL PENJUALAN */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Tabel Penjualan Card Harian</CardTitle>
+                </CardHeader>
+
+                <CardContent className="space-y-4">
+                  {/* Tabs */}
+                  <div className="flex gap-4">
+                    {['Halim', 'Karawang', 'Padalarang', 'Tegalluar'].map((item) => (
+                      <button key={item} className="px-4 py-2 rounded-md bg-muted text-sm font-medium hover:bg-primary hover:text-white transition">
+                        {item}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Table */}
+                  <div className="overflow-auto rounded-lg border">
+                    <table className="w-full text-sm border-collapse">
+                      <thead className="bg-muted">
+                        <tr>
+                          <th rowSpan={2} className="border px-3 py-2 text-center align-middle">
+                            Tanggal
+                          </th>
+                          <th colSpan={3} className="border px-3 py-2 text-center">
+                            GOLD
+                          </th>
+                          <th colSpan={3} className="border px-3 py-2 text-center">
+                            SILVER
+                          </th>
+                          <th rowSpan={2} className="border px-3 py-2 text-center ">
+                            KAI
+                          </th>
+                          <th rowSpan={2} className="border px-3 py-2 text-center align-middle">
+                            Total
+                          </th>
+                        </tr>
+
+                        <tr className="bg-muted/70">
+                          {['JaBan', 'JaKa', 'KaBan', 'JaBan', 'JaKa', 'KaBan'].map((h, i) => (
+                            <th key={i} className="border px-3 py-2 text-center">
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...Array(6)].map((_, i) => (
+                          <tr key={i}>
+                            {[...Array(9)].map((_, j) => (
+                              <td key={j} className="border px-3 py-2">
+                                &nbsp;
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* EXPIRED TICKET */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Expired Ticket Table</CardTitle>
+                </CardHeader>
+                <CardContent className="h-[180px] flex items-center justify-center text-muted-foreground">(isi tabel expired ticket)</CardContent>
+              </Card>
+            </div>
+
+            {/* RIGHT COLUMN */}
+            <div className="space-y-6">
+              {/* STATUS TICKET */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Status Ticket</CardTitle>
+                </CardHeader>
+
+                <CardContent className="relative h-[280px]">
+                  <TicketStatusDonut />
+                </CardContent>
+              </Card>
+
+              {/* GRAFIK PENJUALAN */}
+              <Card>
+                <CardHeader className="text-center">
+                  <CardTitle>Grafik Penjualan Card</CardTitle>
+                </CardHeader>
+
+                <CardContent className="h-[180px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data}>
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="gold" fill="#facc15" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="silver" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="kai" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </CardContent>
       </Card>
-
-      {/* Quick Stats */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-foreground">Stock Kartu Tersedia</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Kartu Gold</span>
-                <span className="font-semibold text-foreground">450</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Kartu Silver</span>
-                <span className="font-semibold text-foreground">680</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Kartu Bronze</span>
-                <span className="font-semibold text-foreground">890</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-foreground">Petugas Aktif</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Shift Pagi</span>
-                <span className="font-semibold text-foreground">8 Petugas</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Shift Siang</span>
-                <span className="font-semibold text-foreground">6 Petugas</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Shift Malam</span>
-                <span className="font-semibold text-foreground">4 Petugas</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }
