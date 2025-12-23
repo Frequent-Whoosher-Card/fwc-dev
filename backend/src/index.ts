@@ -3,9 +3,21 @@ import { cors } from "@elysiajs/cors";
 import { auth } from "./modules/auth";
 import { stock } from "./modules/stock";
 import { openapi } from "@elysiajs/openapi";
+import { users } from "./modules/users";
 
 const app = new Elysia()
-  .use(openapi({ path: "/docs" }))
+  .use(
+    openapi({
+      path: "/docs",
+      documentation: {
+        info: {
+          title: "FWC API",
+          version: "1.0.0",
+        },
+        servers: [{ url: "http://localhost:3000" }],
+      },
+    })
+  )
   .use(cors())
   .get("/", () => ({
     success: true,
@@ -15,6 +27,7 @@ const app = new Elysia()
   // Routes
   .use(auth)
   .use(stock)
+  .use(users)
   .onError(({ code, error, set }) => {
     // Global error handler
     if (code === "VALIDATION") {

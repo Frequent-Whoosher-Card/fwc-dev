@@ -1,40 +1,55 @@
-# * Frontend Gitignore
+############################
+# GLOBAL
+############################
+node_modules/
+.env
+.env.*
+!.env.example
 
+.DS_Store
+Thumbs.db
+*.swp
 
-# * Backend Gitignore
-# Dependencies
-backend/node_modules/
-
-# Environment variables
-backend/.env
-backend/.env.*
-backend/!.env.example
-
-# Build outputs
-backend/dist/
-backend/build/
-
-# Logs
-backend/logs/
-backend/*.log
-backend/npm-debug.log*
-backend/yarn-debug.log*
-backend/yarn-error.log*
-
-# IDE & OS
-backend/.vscode/
-backend/.idea/
-backend/.DS_Store
-backend/Thumbs.db
-backend/*.swp
-
+**/*.log
 **/*.trace
 **/*.zip
 **/*.tar.gz
 **/*.tgz
-**/*.log
-package-lock.json
 **/*.bun
+package-lock.json
+
+############################
+# BACKEND
+############################
+backend/node_modules/
+backend/dist/
+backend/build/
+backend/logs/
+backend/*.log
+
+backend/.vscode/
+backend/.idea/
 
 # Prisma
 backend/prisma/generated/*
+
+############################
+# FRONTEND (Next.js)
+############################
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/coverage/
+
+frontend/.pnp
+frontend/.pnp.*
+frontend/.yarn/*
+!frontend/.yarn/patches
+!frontend/.yarn/plugins
+!frontend/.yarn/releases
+!frontend/.yarn/versions
+
+frontend/.vercel
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
