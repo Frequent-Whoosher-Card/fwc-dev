@@ -4,7 +4,10 @@ import { cookie } from "@elysiajs/cookie";
 import { AuthService } from "./service";
 import { AuthModel } from "./model";
 import { jwtConfig } from "../../config/jwt";
-import { formatErrorResponse } from "../../utils/errors";
+import {
+  formatErrorResponse,
+  AuthenticationError,
+} from "../../utils/errors";
 import { authMiddleware } from "../../middleware/auth";
 
 export const auth = new Elysia({ prefix: "/auth" })
@@ -175,9 +178,61 @@ export const auth = new Elysia({ prefix: "/auth" })
   .get(
     "/me",
     async (context) => {
-      const { user, set } = context as typeof context & { user: { id: string; username: string; fullName: string; email: string | null; role: { id: string; roleCode: string; roleName: string } } };
+      const {
+        user,
+        set,
+        jwt,
+        request,
+        cookie: { session },
+      } = context as typeof context & {
+        user?: {
+          id: string;
+          username: string;
+          fullName: string;
+          email: string | null;
+          role: { id: string; roleCode: string; roleName: string };
+        };
+        jwt: {
+          verify: (token: string) => Promise<unknown>;
+        };
+        request: Request;
+        cookie: { session: { value?: unknown } };
+      };
       try {
-        const profile = await AuthService.getUserProfile(user.id);
+        let userId = user?.id;
+        if (!userId) {
+          const headerAuth = request.headers.get("authorization");
+          const bearerToken =
+            headerAuth && headerAuth.toLowerCase().startsWith("bearer ")
+              ? headerAuth.slice(7)
+              : null;
+          const token =
+            typeof session?.value === "string" && session.value.length > 0
+              ? session.value
+              : bearerToken;
+
+          if (!token) {
+            set.status = 401;
+            return formatErrorResponse(new AuthenticationError("Unauthorized"));
+          }
+
+          const payload = await jwt.verify(token);
+          const extractedUserId =
+            payload && typeof payload === "object"
+              ? (payload as { userId?: string }).userId
+              : undefined;
+
+          if (!extractedUserId) {
+            set.status = 401;
+            return formatErrorResponse(
+              new AuthenticationError("Invalid token payload")
+            );
+          }
+
+          userId = extractedUserId;
+        }
+
+        const profile = await AuthService.getUserProfile(userId);
 
         return {
           success: true,

@@ -13,10 +13,19 @@ export const authMiddleware = new Elysia({ name: "authMiddleware" })
     })
   )
   .use(cookie())
-  .derive(async ({ jwt, cookie: { session }, set }) => {
-    // Check if session cookie exists
-    const token = session.value;
-    if (!token || typeof token !== "string") {
+  .derive(async ({ jwt, cookie: { session }, set, request }) => {
+    // Accept token from cookie (session) or Authorization: Bearer <token> header
+    const headerAuth = request.headers.get("authorization");
+    const bearerToken =
+      headerAuth && headerAuth.toLowerCase().startsWith("bearer ")
+        ? headerAuth.slice(7)
+        : null;
+    const token =
+      typeof session.value === "string" && session.value.length > 0
+        ? session.value
+        : bearerToken;
+
+    if (!token) {
       set.status = 401;
       throw new AuthenticationError("No session found. Please login.");
     }
