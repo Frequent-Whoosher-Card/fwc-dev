@@ -1,11 +1,10 @@
 "use client";
 
-import Image from "next/image";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { API_BASE_URL } from "../lib/apiConfig";
-import toast from "react-hot-toast";
-
+import Image from 'next/image';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { API_BASE_URL } from '../lib/apiConfig';
+import toast from 'react-hot-toast';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -179,11 +178,8 @@ export default function LoginPage() {
                     }}
                     className={`h-11 w-full rounded-md border px-3 text-sm
                     focus:outline-none focus:ring-2
-                    ${
-                      usernameError
-                        ? "border-red-500 focus:ring-red-500"
-                        : "border-gray-300 focus:ring-[var(--kcic)]"
-                    }`}
+                    ${usernameError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[var(--kcic)]'}
+}`}
                   />
                   {usernameError && (
                     <p className="mt-2 text-xs text-red-500">
