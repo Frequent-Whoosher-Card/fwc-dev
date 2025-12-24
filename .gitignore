@@ -34,6 +34,7 @@ backend/*.swp
 **/*.tgz
 **/*.log
 package-lock.json
+bun.lock
 **/*.bun
 
 # Prisma
