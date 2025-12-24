@@ -4,6 +4,8 @@ import { auth } from "./modules/auth";
 import { stock } from "./modules/stock";
 import { openapi } from "@elysiajs/openapi";
 import { users } from "./modules/users";
+import { cardCategory } from "./modules/cards/category";
+import { cardTypes } from "./modules/cards/type";
 
 const app = new Elysia()
   .use(
@@ -28,6 +30,8 @@ const app = new Elysia()
   .use(auth)
   .use(stock)
   .use(users)
+  .use(cardCategory)
+  .use(cardTypes)
   .onError(({ code, error, set }) => {
     // Global error handler
     if (code === "VALIDATION") {
