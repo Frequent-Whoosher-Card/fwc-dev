@@ -4,7 +4,7 @@ import { cookie } from "@elysiajs/cookie";
 import { AuthService } from "./service";
 import { AuthModel } from "./model";
 import { jwtConfig } from "../../config/jwt";
-import { formatErrorResponse } from "../../utils/errors";
+import { formatErrorResponse, AuthenticationError } from "../../utils/errors";
 import { authMiddleware } from "../../middleware/auth";
 
 export const auth = new Elysia({ prefix: "/auth" })

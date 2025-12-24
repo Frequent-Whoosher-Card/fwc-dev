@@ -103,5 +103,3 @@ export namespace AuthModel {
     }),
   });
 }
-
-

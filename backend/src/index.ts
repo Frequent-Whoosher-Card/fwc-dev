@@ -21,6 +21,18 @@ const app = new Elysia()
     })
   )
   .use(cors())
+  .use(
+    openapi({
+      path: "/docs",
+      documentation: {
+        info: {
+          title: "FWC API",
+          version: "1.0.0",
+        },
+        servers: [{ url: "http://localhost:3000" }],
+      },
+    })
+  )
   .get("/", () => ({
     success: true,
     message: "FWC API is running",
