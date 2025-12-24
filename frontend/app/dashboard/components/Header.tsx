@@ -27,7 +27,7 @@ const handleLogout = async () => {
     localStorage.removeItem("auth");
     document.cookie = "fwc_role=; path=/; max-age=0";
 
-    toast.success("Berhasil logout 👋");
+    toast.success("Berhasil logout");
 
     router.replace("/");
   }

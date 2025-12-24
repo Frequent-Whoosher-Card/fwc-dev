@@ -21,6 +21,11 @@ export default function LoginPage() {
   const [showAuthError, setShowAuthError] = useState(false);
   const [authErrorMessage, setAuthErrorMessage] = useState<string | null>(null);
 
+  const [isLoading, setIsLoading] = useState(false);
+
+  const delay = (ms: number) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+  
   const handleLogin = async () => {
     let valid = true;
 
@@ -95,7 +100,9 @@ export default function LoginPage() {
         })
       );
 
-      toast.success("Login berhasil, selamat datang 👋");
+      setIsLoading(true);
+      toast.success("Login berhasil, selamat datang");
+      await delay(2000);
       router.push("/dashboard");
     } catch (error) {
       if (process.env.NODE_ENV === "development") {
@@ -243,7 +250,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* POPUP LOGIN GAGAL */}
+            {/* POPUP LOGIN GAGAL */}
       {showAuthError && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-[320px] rounded-xl bg-white p-6 text-center shadow-lg">
@@ -269,6 +276,18 @@ export default function LoginPage() {
           </div>
         </div>
       )}
+
+      {/* LOADING OVERLAY */}
+{isLoading && (
+  <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black">
+    <div className="flex flex-col items-center gap-4">
+<div className="h-14 w-14 animate-spin-ease rounded-full border-[6px] border-gray-700 border-t-[var(--kcic)]" />
+      <span className="text-sm text-gray-400 tracking-wide">
+        Loading
+      </span>
+    </div>
+  </div>
+)}
     </div>
   );
 }
