@@ -69,6 +69,7 @@ model User {
   phone        String?
   roleId       String    @map("role_id") @db.Uuid
   isActive     Boolean   @default(true) @map("is_active")
+  isActive     Boolean   @default(false) @map("is_active")
   lastLogin    DateTime? @map("last_login")
   createdAt    DateTime  @default(now()) @map("created_at")
   createdBy    String?   @map("created_by") @db.Uuid
@@ -80,6 +81,8 @@ model User {
   // Relation
   role                Role                 @relation(fields: [roleId], references: [id], onDelete: Restrict)
   transactions        Transaction[]
+  role              Role                @relation(fields: [roleId], references: [id])
+  transactions      Transaction[]
   passwordResetTokens PasswordResetToken[]
 
   @@map("users")
@@ -88,6 +91,7 @@ model User {
 // Model Card Category
 model CardCategory {
   id           String    @id @default(uuid()) @map("category_id") @db.Uuid
+  id           String    @id @map("category_id") @db.Uuid
   categoryCode String    @unique @map("category_code")
   categoryName String    @map("category_name")
   description  String?
@@ -108,6 +112,7 @@ model CardCategory {
 // Model Card Type
 model CardType {
   id               String    @id @default(uuid()) @map("type_id") @db.Uuid
+  id               String    @id @map("type_id") @db.Uuid
   typeCode         String    @unique @map("type_code")
   typeName         String    @map("type_name")
   routeDescription String?   @map("route_description")
@@ -128,6 +133,7 @@ model CardType {
 // Model Station
 model Station {
   id          String    @id @default(uuid()) @map("station_id") @db.Uuid
+  id          String    @id @map("station_id") @db.Uuid
   stationCode String    @unique @map("station_code")
   stationName String    @map("station_name")
   location    String?
@@ -148,6 +154,7 @@ model Station {
 // Model Card Product
 model CardProduct {
   id          String    @id @default(uuid()) @map("card_product_id") @db.Uuid
+  id          String    @id @map("card_product_id") @db.Uuid
   categoryId  String    @map("category_id") @db.Uuid
   typeId      String    @map("type_id") @db.Uuid
   totalQuota  Int       @map("total_quota")
@@ -175,6 +182,9 @@ model Card {
   id            String     @id @default(uuid()) @map("card_id") @db.Uuid
   serialNumber  String     @unique @map("serial_number")
   memberId      String?    @map("member_id") @db.Uuid
+  id            String     @id @map("card_id") @db.Uuid
+  serialNumber  String     @unique @map("serial_number")
+  memberId      String     @map("member_id") @db.Uuid
   cardProductId String     @map("card_product_id") @db.Uuid
   categoryId    String     @map("category_id") @db.Uuid
   typeId        String     @map("type_id") @db.Uuid
@@ -184,6 +194,9 @@ model Card {
   purchaseDate  DateTime?  @map("purchase_date")
   masaBerlaku   Int        @map("masa_berlaku")
   expiredDate   DateTime?  @map("expired_date")
+  purchaseDate  DateTime   @map("purchase_date")
+  masaBerlaku   Int        @map("masa_berlaku")
+  expiredDate   DateTime   @map("expired_date")
   status        CardStatus @default(Aktif) @map("status_card")
   createdAt     DateTime   @default(now()) @map("created_at")
   createdBy     String?    @map("created_by") @db.Uuid
@@ -197,6 +210,10 @@ model Card {
   type          CardType       @relation(fields: [typeId], references: [id], onDelete: Restrict)
   member        Member?        @relation(fields: [memberId], references: [id], onDelete: Restrict)
   cardProduct   CardProduct    @relation(fields: [cardProductId], references: [id], onDelete: Restrict)
+  category      CardCategory   @relation(fields: [categoryId], references: [id])
+  type          CardType       @relation(fields: [typeId], references: [id])
+  member        Member         @relation(fields: [memberId], references: [id])
+  cardProduct   CardProduct    @relation(fields: [cardProductId], references: [id])
   cardUsageLogs CardUsageLog[]
   transactions  Transaction[]
 
@@ -206,6 +223,7 @@ model Card {
 // Model Card Inventory
 model CardInventory {
   id               String   @id @default(uuid()) @map("inventory_id") @db.Uuid
+  id               String   @id @map("inventory_id") @db.Uuid
   categoryId       String   @map("category_id") @db.Uuid
   typeId           String   @map("type_id") @db.Uuid
   stationId        String?  @map("station_id") @db.Uuid
@@ -228,6 +246,7 @@ model CardInventory {
 // Model Member
 model Member {
   id             String    @id @default(uuid()) @map("member_id") @db.Uuid
+  id             String    @id @map("member_id") @db.Uuid
   name           String    @map("member_name")
   identityNumber String    @unique @map("identity_number")
   nationality    String    @default("INDONESIA")
@@ -250,6 +269,7 @@ model Member {
 // Model Transaction
 model Transaction {
   id                String            @id @default(uuid()) @map("transaction_id") @db.Uuid
+  id                String            @id @map("transaction_id") @db.Uuid
   cardId            String            @map("card_id") @db.Uuid
   transactionNumber String            @unique @map("transaction_number")
   operatorId        String            @map("operator_id") @db.Uuid
@@ -274,6 +294,7 @@ model Transaction {
 
 model CardUsageLog {
   id             String   @id @default(uuid()) @map("log_id") @db.Uuid
+  id             String   @id @map("log_id") @db.Uuid
   cardId         String   @map("card_id") @db.Uuid
   quotaUsed      Int      @default(0) @map("quota_used")
   remainingQuota Int      @map("remaining_quota")
@@ -283,6 +304,7 @@ model CardUsageLog {
 
   // Relation
   card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  card Card @relation(fields: [cardId], references: [id])
 
   @@map("card_usage_logs")
 }
