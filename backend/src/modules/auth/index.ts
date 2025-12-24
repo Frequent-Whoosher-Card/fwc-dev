@@ -4,10 +4,7 @@ import { cookie } from "@elysiajs/cookie";
 import { AuthService } from "./service";
 import { AuthModel } from "./model";
 import { jwtConfig } from "../../config/jwt";
-import {
-  formatErrorResponse,
-  AuthenticationError,
-} from "../../utils/errors";
+import { formatErrorResponse, AuthenticationError } from "../../utils/errors";
 import { authMiddleware } from "../../middleware/auth";
 
 export const auth = new Elysia({ prefix: "/auth" })
@@ -52,9 +49,10 @@ export const auth = new Elysia({ prefix: "/auth" })
           message: "Login successful",
         };
       } catch (error) {
-        set.status = error instanceof Error && "statusCode" in error
-          ? (error as any).statusCode
-          : 500;
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
         return formatErrorResponse(error);
       }
     },
@@ -115,9 +113,10 @@ export const auth = new Elysia({ prefix: "/auth" })
           message: result.message,
         };
       } catch (error) {
-        set.status = error instanceof Error && "statusCode" in error
-          ? (error as any).statusCode
-          : 500;
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
         return formatErrorResponse(error);
       }
     },
@@ -152,9 +151,10 @@ export const auth = new Elysia({ prefix: "/auth" })
           message: result.message,
         };
       } catch (error) {
-        set.status = error instanceof Error && "statusCode" in error
-          ? (error as any).statusCode
-          : 500;
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
         return formatErrorResponse(error);
       }
     },
@@ -173,90 +173,47 @@ export const auth = new Elysia({ prefix: "/auth" })
       },
     }
   )
-  // Get current user profile (protected route)
-  .use(authMiddleware)
-  .get(
-    "/me",
-    async (context) => {
-      const {
-        user,
-        set,
-        jwt,
-        request,
-        cookie: { session },
-      } = context as typeof context & {
-        user?: {
-          id: string;
-          username: string;
-          fullName: string;
-          email: string | null;
-          role: { id: string; roleCode: string; roleName: string };
+  .group("", (app) =>
+    app.use(authMiddleware).get(
+      "/me",
+      async (context) => {
+        const { user, set } = context as typeof context & {
+          user: {
+            id: string;
+            username: string;
+            fullName: string;
+            email: string | null;
+            role: { id: string; roleCode: string; roleName: string };
+          };
         };
-        jwt: {
-          verify: (token: string) => Promise<unknown>;
-        };
-        request: Request;
-        cookie: { session: { value?: unknown } };
-      };
-      try {
-        let userId = user?.id;
-        if (!userId) {
-          const headerAuth = request.headers.get("authorization");
-          const bearerToken =
-            headerAuth && headerAuth.toLowerCase().startsWith("bearer ")
-              ? headerAuth.slice(7)
-              : null;
-          const token =
-            typeof session?.value === "string" && session.value.length > 0
-              ? session.value
-              : bearerToken;
+        try {
+          const profile = await AuthService.getUserProfile(user.id);
 
-          if (!token) {
-            set.status = 401;
-            return formatErrorResponse(new AuthenticationError("Unauthorized"));
-          }
-
-          const payload = await jwt.verify(token);
-          const extractedUserId =
-            payload && typeof payload === "object"
-              ? (payload as { userId?: string }).userId
-              : undefined;
-
-          if (!extractedUserId) {
-            set.status = 401;
-            return formatErrorResponse(
-              new AuthenticationError("Invalid token payload")
-            );
-          }
-
-          userId = extractedUserId;
+          return {
+            success: true,
+            data: profile,
+          };
+        } catch (error) {
+          set.status =
+            error instanceof Error && "statusCode" in error
+              ? (error as any).statusCode
+              : 500;
+          return formatErrorResponse(error);
         }
-
-        const profile = await AuthService.getUserProfile(userId);
-
-        return {
-          success: true,
-          data: profile,
-        };
-      } catch (error) {
-        set.status = error instanceof Error && "statusCode" in error
-          ? (error as any).statusCode
-          : 500;
-        return formatErrorResponse(error);
+      },
+      {
+        response: {
+          200: AuthModel.meResponse,
+          401: AuthModel.errorResponse,
+          404: AuthModel.errorResponse,
+          500: AuthModel.errorResponse,
+        },
+        detail: {
+          tags: ["Authentication"],
+          summary: "Get current user profile",
+          description: "Returns authenticated user information",
+        },
       }
-    },
-    {
-      response: {
-        200: AuthModel.meResponse,
-        401: AuthModel.errorResponse,
-        404: AuthModel.errorResponse,
-        500: AuthModel.errorResponse,
-      },
-      detail: {
-        tags: ["Authentication"],
-        summary: "Get current user profile",
-        description: "Returns authenticated user information",
-      },
-    }
+    )
   );
-
+// // Get current user profile (protected route)
