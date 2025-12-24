@@ -162,4 +162,7 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+  :root {
+    --kcic: #8d1231;
+  }
 }

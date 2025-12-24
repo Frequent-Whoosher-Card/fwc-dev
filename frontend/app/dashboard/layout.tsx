@@ -1,11 +1,7 @@
-import Sidebar from "./components/Sidebar";
-import Header from "./components/Header";
+import Sidebar from './components/Sidebar';
+import Header from './components/Header';
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
