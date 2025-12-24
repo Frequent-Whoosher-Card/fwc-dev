@@ -1,5 +1,6 @@
 import "./globals.css";
 import { Poppins } from "next/font/google";
+import { Toaster } from "react-hot-toast";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -13,9 +14,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={poppins.variable}>
+    <html lang="en" className={poppins.variable}>
+      <body className="font-[var(--font-poppins)]">
         {children}
+
+        {/* GLOBAL TOAST */}
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 3000,
+            style: {
+              fontSize: "14px",
+            },
+          }}
+        />
       </body>
     </html>
   );
