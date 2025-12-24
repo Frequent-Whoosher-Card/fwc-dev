@@ -2,20 +2,22 @@ import { Elysia } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { auth } from "./modules/auth";
 import { users } from "./modules/users";
-import { swagger } from "@elysiajs/swagger";
+import { openapi } from "@elysiajs/openapi";
 
 const app = new Elysia()
   .use(cors())
-  .use(swagger({
-    path: "/docs",              
-    documentation: {
-      info: {
-        title: "FWC API",
-        version: "1.0.0",
+  .use(
+    openapi({
+      path: "/docs",
+      documentation: {
+        info: {
+          title: "FWC API",
+          version: "1.0.0",
+        },
+        servers: [{ url: "http://localhost:3000" }],
       },
-      servers: [{ url: "http://localhost:3000" }],
-    },
-  }))
+    })
+  )
   .get("/", () => ({
     success: true,
     message: "FWC API is running",

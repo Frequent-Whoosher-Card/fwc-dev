@@ -3,30 +3,32 @@
 import Image from "next/image";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { API_BASE_URL } from "../lib/apiConfig";
 
 export default function LoginPage() {
   const router = useRouter();
 
   const [showPassword, setShowPassword] = useState(false);
 
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  const [emailError, setEmailError] = useState("");
+  const [usernameError, setUsernameError] = useState("");
   const [passwordError, setPasswordError] = useState("");
 
   const [showAuthError, setShowAuthError] = useState(false);
+  const [authErrorMessage, setAuthErrorMessage] = useState<string | null>(null);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     let valid = true;
 
     // reset error
-    setEmailError("");
+    setUsernameError("");
     setPasswordError("");
 
     // 1️⃣ VALIDASI FIELD KOSONG
-    if (!email.trim()) {
-      setEmailError("Please enter your email");
+    if (!username.trim()) {
+      setUsernameError("Please enter your username");
       valid = false;
     }
 
@@ -37,42 +39,81 @@ export default function LoginPage() {
 
     if (!valid) return;
 
-    // 2️⃣ VALIDASI FORMAT EMAIL (CUSTOM, BUKAN BROWSER)
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setEmailError("Please enter a valid email address");
-      return;
+    // 3️⃣ CALL BACKEND AUTH
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username, // backend expects username/email in this field
+          password,
+        }),
+      });
+
+      if (!response.ok) {
+        // Try to read error message from backend
+        try {
+          const errorJson = await response.json();
+          const message =
+            errorJson?.error?.message ||
+            "Login gagal. Periksa kembali username dan password Anda.";
+          setAuthErrorMessage(message);
+        } catch {
+          setAuthErrorMessage(
+            "Login gagal. Periksa kembali username dan password Anda."
+          );
+        }
+        setShowAuthError(true);
+        return;
+      }
+
+      const json = await response.json();
+
+      if (!json.success || !json.data) {
+        const message =
+          json?.error?.message ||
+          "Login gagal. Periksa kembali username dan password Anda.";
+        setAuthErrorMessage(message);
+        setShowAuthError(true);
+        return;
+      }
+
+      const { user, token } = json.data as {
+        user: {
+          id: string;
+          username: string;
+          fullName: string;
+          email: string | null;
+          role: { id: string; roleCode: string; roleName: string };
+        };
+        token: string;
+      };
+
+      const role =
+        (user.role.roleCode && user.role.roleCode.toLowerCase()) || "";
+
+      // Note: token disimpan di HTTP-only cookie oleh backend.
+      // Frontend hanya menyimpan info ringan untuk kebutuhan UI & routing.
+      document.cookie = `fwc_role=${role}; path=/;`;
+      localStorage.setItem(
+        "auth",
+        JSON.stringify({
+          role,
+          name: user.fullName || user.username,
+          email: user.email,
+          username: user.username,
+        })
+      );
+
+      router.push("/dashboard");
+    } catch (error) {
+      setAuthErrorMessage(
+        "Terjadi kesalahan jaringan atau server. Silakan coba beberapa saat lagi."
+      );
+      setShowAuthError(true);
     }
-
-    // 3️⃣ DUMMY AUTH CHECK
-    let role = "";
-let name = "";
-
-if (email === "admin@fwc.id" && password === "admin123") {
-  role = "admin";
-  name = "Admin FWC";
-} else if (email === "petugas@fwc.id" && password === "petugas123") {
-  role = "petugas";
-  name = "Petugasname";
-} else {
-  setShowAuthError(true);
-  return;
-}
-
-localStorage.setItem(
-  "auth",
-  JSON.stringify({
-    token: "dummy-token",
-    role,
-    name,
-    email,
-  })
-);
-
-// setelah ini redirect ke /dashboard
-
-
-    router.push("/dashboard");
   };
 
   return (
@@ -123,30 +164,30 @@ localStorage.setItem(
                   handleLogin();
                 }}
               >
-                {/* EMAIL */}
+                {/* USERNAME */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-800 mb-2">
-                    Email
+                    Username
                   </label>
                   <input
                     type="text"
-                    placeholder="username@gmail.com"
-                    value={email}
+                    placeholder="username"
+                    value={username}
                     onChange={(e) => {
-                      setEmail(e.target.value);
-                      setEmailError("");
+                      setUsername(e.target.value);
+                      setUsernameError("");
                     }}
                     className={`h-11 w-full rounded-md border px-3 text-sm
                     focus:outline-none focus:ring-2
                     ${
-                      emailError
+                      usernameError
                         ? "border-red-500 focus:ring-red-500"
                         : "border-gray-300 focus:ring-[var(--kcic)]"
                     }`}
                   />
-                  {emailError && (
+                  {usernameError && (
                     <p className="mt-2 text-xs text-red-500">
-                      {emailError}
+                      {usernameError}
                     </p>
                   )}
                 </div>
@@ -220,10 +261,14 @@ localStorage.setItem(
               Login Gagal
             </h2>
             <p className="mt-2 text-sm text-gray-500">
-              Maaf, email atau password yang Anda masukkan salah.
+              {authErrorMessage ||
+                "Maaf, username atau password yang Anda masukkan salah."}
             </p>
             <button
-              onClick={() => setShowAuthError(false)}
+              onClick={() => {
+                setShowAuthError(false);
+                setAuthErrorMessage(null);
+              }}
               className="mt-6 h-10 w-full rounded-md bg-black text-white text-sm font-semibold"
             >
               Kembali

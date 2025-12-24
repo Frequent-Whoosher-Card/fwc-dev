@@ -2,26 +2,39 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { API_BASE_URL } from "../../../lib/apiConfig";
+import { useAuthClient } from "../../../hooks/useAuthClient";
 
 export default function Header() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
-  const auth =
-    typeof window !== "undefined"
-      ? JSON.parse(localStorage.getItem("auth") || "{}")
-      : {};
+  const auth = useAuthClient();
 
-  const handleLogout = () => {
-    localStorage.removeItem("auth");
-    router.replace("/");
+  const handleLogout = async () => {
+    try {
+      await fetch(`${API_BASE_URL}/auth/logout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+      });
+    } catch (error) {
+    } finally {
+      localStorage.removeItem("auth");
+      document.cookie = "fwc_role=; path=/; max-age=0";
+      router.replace("/");
+    }
   };
 
   return (
     <header className="h-20 bg-white border-b border-gray-200 flex items-center justify-between px-8">
       {/* TITLE */}
       <h1 className="text-lg font-semibold text-gray-800">
-        Dashboard Petugas
+        {auth?.role?.toLowerCase() === "petugas"
+          ? "Dashboard Petugas"
+          : "Dashboard Admin"}
       </h1>
 
       {/* USER DROPDOWN */}
@@ -32,16 +45,16 @@ export default function Header() {
         >
           {/* Avatar */}
           <div className="h-9 w-9 rounded-full bg-gray-200 flex items-center justify-center text-sm font-semibold">
-            {auth.name?.charAt(0) || "P"}
+            {(auth?.name || auth?.username)?.charAt(0) || "P"}
           </div>
 
           {/* Name */}
           <div className="text-left">
             <div className="text-sm font-medium">
-              {auth.name || "Petugasname"}
+              {auth?.name || auth?.username || "Petugasname"}
             </div>
             <div className="text-xs text-gray-500 capitalize">
-              {auth.role}
+              {auth?.role}
             </div>
           </div>
         </button>
