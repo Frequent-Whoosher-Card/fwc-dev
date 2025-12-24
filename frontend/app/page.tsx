@@ -4,6 +4,8 @@ import Image from "next/image";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "../lib/apiConfig";
+import toast from "react-hot-toast";
+
 
 export default function LoginPage() {
   const router = useRouter();
@@ -93,6 +95,7 @@ export default function LoginPage() {
         })
       );
 
+      toast.success("Login berhasil, selamat datang 👋");
       router.push("/dashboard");
     } catch (error) {
       if (process.env.NODE_ENV === "development") {

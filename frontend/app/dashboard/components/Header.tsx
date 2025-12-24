@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "../../../lib/apiConfig";
 import { useAuthClient } from "../../../hooks/useAuthClient";
+import toast from "react-hot-toast";
 
 export default function Header() {
   const router = useRouter();
@@ -11,22 +12,27 @@ export default function Header() {
 
   const auth = useAuthClient();
 
-  const handleLogout = async () => {
-    try {
-      await fetch(`${API_BASE_URL}/auth/logout`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-      });
-    } catch (error) {
-    } finally {
-      localStorage.removeItem("auth");
-      document.cookie = "fwc_role=; path=/; max-age=0";
-      router.replace("/");
-    }
-  };
+const handleLogout = async () => {
+  try {
+    await fetch(`${API_BASE_URL}/auth/logout`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+    });
+  } catch (error) {
+    // silent fail, tetap logout FE
+  } finally {
+    localStorage.removeItem("auth");
+    document.cookie = "fwc_role=; path=/; max-age=0";
+
+    toast.success("Berhasil logout 👋");
+
+    router.replace("/");
+  }
+};
+
 
   return (
     <header className="h-20 bg-white border-b border-gray-200 flex items-center justify-between px-8">
