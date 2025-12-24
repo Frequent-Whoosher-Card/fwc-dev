@@ -1,9 +1,9 @@
 import { Elysia } from "elysia";
 import { StockModel } from "./model";
-import { formatErrorResponse } from "../../utils/errors";
+import { formatErrorResponse } from "../../../utils/errors";
 import { StockService } from "./service";
-import { authMiddleware } from "../../middleware/auth";
-import { rbacMiddleware } from "../../middleware/rbac";
+import { authMiddleware } from "../../../middleware/auth";
+import { rbacMiddleware } from "../../../middleware/rbac";
 
 type AuthContextUser = {
   user: {
@@ -19,14 +19,14 @@ type AuthContextUser = {
   };
 };
 
-export const stock = new Elysia({ prefix: "/stock" })
+export const stock = new Elysia({ prefix: "/stock/in" })
   // Use Middleware
   .use(authMiddleware)
   .use(rbacMiddleware(["superadmin", "admin"]))
   //   Inventory Endpoints
   .get("/", () => "Hello world!", {
     detail: {
-      tags: ["Stock"],
+      tags: ["Stock In"],
       summary: "Get stock inventory",
       description: "This endpoint is used to get stock inventory",
     },
@@ -35,20 +35,14 @@ export const stock = new Elysia({ prefix: "/stock" })
     "/batch",
     async ({ body, set }) => {
       try {
-        const {
-          categoryId,
-          typeId,
-          stationId,
-          startSerialNumber,
-          endSerialNumber,
-        } = body;
+        const { categoryId, typeId, stationId, startSerialNumber, quantity } =
+          body;
 
         const { totalCardsAdded } = await StockService.addStocks(
           categoryId,
           typeId,
-          stationId,
           startSerialNumber,
-          endSerialNumber
+          quantity
         );
 
         return {
@@ -73,10 +67,9 @@ export const stock = new Elysia({ prefix: "/stock" })
         500: StockModel.errorResponse,
       },
       detail: {
-        tags: ["Stock"],
+        tags: ["Stock In"],
         summary: "Add stock cards batch",
         description: "This endpoint is used to add stock cards batch",
-        deprecated: true,
       },
     }
   )
@@ -118,7 +111,7 @@ export const stock = new Elysia({ prefix: "/stock" })
         500: StockModel.errorResponse,
       },
       detail: {
-        tags: ["Stock"],
+        tags: ["Stock In"],
         summary: "Add stock quantity",
         description: "This endpoint is used to add stock quantity",
       },

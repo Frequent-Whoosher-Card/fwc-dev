@@ -10,6 +10,7 @@ export default defineConfig({
   },
   datasource: {
     url: process.env["DATABASE_URL"],
+    shadowDatabaseUrl: process.env["SHADOW_DATABASE_URL"],
   },
   // Disable shadow database untuk development (optional)
   // Shadow database akan tetap dibuat jika diperlukan untuk validasi migration

@@ -13,18 +13,13 @@ export namespace StockModel {
       maxLength: 100,
       description: "Type ID Card",
     }),
-    stationId: t.String({
-      minLength: 3,
-      maxLength: 100,
-      description: "Station ID Card",
-    }),
     startSerialNumber: t.Integer({
       minimum: 1,
       description: "Start Serial Number",
     }),
-    endSerialNumber: t.Integer({
+    quantity: t.Integer({
       minimum: 1,
-      description: "End Serial Number",
+      description: "Quantity",
     }),
   });
 

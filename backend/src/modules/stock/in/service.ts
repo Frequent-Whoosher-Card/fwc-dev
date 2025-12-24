@@ -1,5 +1,5 @@
-import db from "../../config/db";
-import { ValidationError } from "../../utils/errors";
+import db from "../../../config/db";
+import { ValidationError } from "../../../utils/errors";
 
 export class StockService {
   /**
@@ -8,22 +8,14 @@ export class StockService {
   static async addStocks(
     categoryId: string,
     typeId: string,
-    stationId: string,
     startSerialNumber: number,
-    endSerialNumber: number
+    quantity: number
   ) {
-    if (endSerialNumber < startSerialNumber) {
-      throw new ValidationError(
-        "End serial number must be greater than start serial number"
-      );
+    if (quantity < 1) {
+      throw new ValidationError("Quantity must be greater than 0");
     }
 
-    const totalCards = endSerialNumber - startSerialNumber + 1;
-
-    const serials: string[] = [];
-    for (let i = startSerialNumber; i <= endSerialNumber; i++) {
-      serials.push(i.toString().padStart(5, "0"));
-    }
+    const totalCards = quantity;
 
     // Check Card Product is exist
     const cardProduct = await db.cardProduct.findFirst({
@@ -46,8 +38,8 @@ export class StockService {
     }
 
     await db.card.createMany({
-      data: serials.map((serial) => ({
-        serialNumber: serial,
+      data: Array.from({ length: totalCards }, (_, i) => ({
+        serialNumber: (i + 1).toString().padStart(5, "0"),
         memberId: null,
         cardProductId: cardProduct.id,
         categoryId,
@@ -64,32 +56,6 @@ export class StockService {
         deletedBy: null,
       })),
       skipDuplicates: true,
-    });
-
-    await db.cardInventory.upsert({
-      where: {
-        unique_category_type_station: {
-          categoryId,
-          typeId,
-          stationId,
-        },
-      },
-      create: {
-        categoryId,
-        typeId,
-        stationId,
-        cardBeredar: totalCards,
-        cardBelumTerjual: totalCards,
-      },
-      update: {
-        cardBeredar: {
-          increment: totalCards,
-        },
-        cardBelumTerjual: {
-          increment: totalCards,
-        },
-        lastUpdated: new Date(),
-      },
     });
 
     return {
