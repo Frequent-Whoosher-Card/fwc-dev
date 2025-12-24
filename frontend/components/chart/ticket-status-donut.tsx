@@ -1,55 +1,74 @@
 'use client';
 
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+
 type DonutItem = {
-  label: string;
+  name: string;
   value: number;
   color: string;
 };
 
-const data: DonutItem[] = [
-  { label: 'Redeemed', value: 45, color: 'stroke-green-500' },
-  { label: 'Active', value: 70, color: 'stroke-blue-500' },
-  { label: 'Expired', value: 20, color: 'stroke-red-500' },
-];
+interface TicketStatusDonutProps {
+  title: string;
+  data: DonutItem[];
+  legends?: string[]; // optional
+}
 
-export default function TicketStatusDonut() {
-  const radius = 45;
-  const circumference = 2 * Math.PI * radius;
-
-  let offset = 0;
+export default function TicketStatusDonut({ title, data, legends }: TicketStatusDonutProps) {
+  const total = data.reduce((sum, item) => sum + item.value, 0);
 
   return (
-    <div className="flex flex-col items-center justify-center h-full">
-      <svg width="160" height="160" viewBox="0 0 120 120">
-        {/* Background circle */}
-        <circle cx="60" cy="60" r={radius} fill="none" strokeWidth="12" className="stroke-muted" />
+    <div className="flex flex-col items-center gap-4">
+      {/* Title */}
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
 
-        {data.map((item, i) => {
-          const dash = (item.value / 100) * circumference;
-          const dashArray = `${dash} ${circumference - dash}`;
-          const dashOffset = -offset;
+      {/* Donut */}
+      <div className="relative h-[150px] w-[150px]">
+        <ResponsiveContainer>
+          <PieChart>
+            <Pie data={data} innerRadius={45} outerRadius={65} paddingAngle={2} dataKey="value">
+              {data.map((item, index) => (
+                <Cell key={index} fill={item.color} />
+              ))}
+            </Pie>
 
-          offset += dash;
+            {/* Tooltip (hover) */}
+            <Tooltip
+              formatter={(value: number, name: string) => {
+                const percent = ((value / total) * 100).toFixed(1);
+                return [`${value} (${percent}%)`, name];
+              }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
 
-          return <circle key={i} cx="60" cy="60" r={radius} fill="none" strokeWidth="12" strokeDasharray={dashArray} strokeDashoffset={dashOffset} className={`${item.color}`} transform="rotate(-90 60 60)" strokeLinecap="round" />;
-        })}
-      </svg>
-
-      {/* Center text */}
-      <div className="absolute text-center">
-        <p className="text-xl font-bold text-foreground">100%</p>
-        <p className="text-xs text-muted-foreground">Ticket</p>
+        {/* Center total */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-lg font-bold">{total}</span>
+          <span className="text-[10px] text-muted-foreground">Total</span>
+        </div>
       </div>
 
       {/* Legend */}
-      <div className="mt-4 flex gap-4 text-xs">
-        {data.map((item) => (
-          <div key={item.label} className="flex items-center gap-1">
-            <span className={`w-2 h-2 rounded-full ${item.color.replace('stroke', 'bg')}`} />
-            {item.label}
-          </div>
-        ))}
-      </div>
+      <ul className="w-2/3 space-y-1 text-xs">
+        {data.map((item, index) => {
+          const percent = ((item.value / total) * 100).toFixed(1);
+
+          return (
+            <li key={index} className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {/* Kotak warna sesuai chart */}
+                <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: item.color }} />
+                <span className="text-muted-foreground">{legends?.[index] ?? item.name}</span>
+              </div>
+
+              <span className="font-medium">
+                {item.value} ({percent}%)
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

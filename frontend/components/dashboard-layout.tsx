@@ -5,7 +5,8 @@ import type React from 'react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, CreditCard, UserPlus, Receipt, Users, Menu, X } from 'lucide-react';
+import { LayoutDashboard, CreditCard, UserPlus, Receipt, Users, Menu, X, Bell, User, LogOut } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
@@ -53,7 +54,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           {/* Header */}
           <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-6">
             <div className="flex items-center gap-2">
-              <div className="flex h-30 w-30 items-center justify-center rounded-lg ">
+              <div className="flex h-30 w-50 items-center justify-center rounded-lg ">
                 <Image src="/logo-putih.svg" alt="logo" width={200} height={200} />
               </div>
               {/* <span className=" text-xl font-semibold text-sidebar-foreground items-center justify-center">FWC</span> */}
@@ -81,7 +82,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             })}
           </nav>
 
-          {/* Footer */}
+          {/* Footer
           <div className="border-t border-sidebar-border p-4">
             <div className="flex items-center gap-3 rounded-lg bg-sidebar-accent/50 p-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">AD</div>
@@ -90,7 +91,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 <p className="text-xs text-muted-foreground">admin@kcic.id</p>
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
       </aside>
 
@@ -98,14 +99,57 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       <div className="lg:pl-64">
         {/* Top bar */}
         <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-6">
+          {/* Sidebar Button */}
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
             <Menu className="h-5 w-5" />
           </Button>
+
+          {/* Title */}
           <div className="flex-1">
             <h1 className="text-lg font-semibold text-foreground">Frequent Whoosher Card Membership</h1>
           </div>
-        </header>
 
+          {/* RIGHT ACTIONS */}
+          <div className="flex items-center gap-4">
+            {/* Notification */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className="h-5 w-5" />
+                  {/* Badge */}
+                  <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-500" />
+                </Button>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel>Notifikasi</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>Ticket GOLD hampir expired</DropdownMenuItem>
+                <DropdownMenuItem>Penjualan hari ini meningkat</DropdownMenuItem>
+                <DropdownMenuItem>Data laporan berhasil diperbarui</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* User */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  <span className="text-sm font-medium">Hilmi Ali</span>
+                </Button>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuLabel>Akun</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-red-600">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </header>
         {/* Page content */}
         <main className="p-6">{children}</main>
       </div>

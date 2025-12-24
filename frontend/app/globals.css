@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+@import 'flowbite/src/themes/default';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -123,3 +124,7 @@
     @apply bg-background text-foreground;
   }
 }
+
+@plugin "flowbite/plugin";
+
+@source "../node_modules/flowbite";

@@ -6,15 +6,14 @@ import './globals.css';
 import { Poppins } from 'next/font/google';
 const poppins = Poppins({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-poppins',
-  display: 'swap',
+  weight: ['300', '400', '500', '600', '700', '800'],
+  variable: '--font-poppins', // optional (buat Tailwind)
 });
 
 export const metadata: Metadata = {
   title: 'Frequent Whoosher Card',
   description: 'App for Frequent Whoosher Card',
-  generator: 'v0.app',
+  generator: 'frequentwhoosher.app',
   icons: {
     icon: [
       {
@@ -36,11 +35,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={poppins.variable}>
-      <body className={'font-poppins'}>
-        {children}
-        <Analytics />
-      </body>
+    <html lang="en" className={poppins.className}>
+      <body className={'font-poppins'}>{children}</body>
     </html>
   );
 }

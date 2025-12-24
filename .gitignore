@@ -56,4 +56,58 @@ frontend/yarn-debug.log*
 
 # OS
 frontend/.DS_Store
-frontend/Thumbs.db
+frontend/Thumbs.db############################
+# GLOBAL
+############################
+node_modules/
+.env
+.env.*
+!.env.example
+
+.DS_Store
+Thumbs.db
+*.swp
+
+**/*.log
+**/*.trace
+**/*.zip
+**/*.tar.gz
+**/*.tgz
+**/*.bun
+package-lock.json
+
+############################
+# BACKEND
+############################
+backend/node_modules/
+backend/dist/
+backend/build/
+backend/logs/
+backend/*.log
+
+backend/.vscode/
+backend/.idea/
+
+# Prisma
+backend/prisma/generated/*
+
+############################
+# FRONTEND (Next.js)
+############################
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/coverage/
+
+frontend/.pnp
+frontend/.pnp.*
+frontend/.yarn/*
+!frontend/.yarn/patches
+!frontend/.yarn/plugins
+!frontend/.yarn/releases
+!frontend/.yarn/versions
+
+frontend/.vercel
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts

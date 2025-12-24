@@ -12,31 +12,31 @@ export class AppError extends Error {
 
 export class ValidationError extends AppError {
   constructor(message: string, code?: string) {
-    super(message, 400, code || "VALIDATION_ERROR");
+    super(message, 400, code || 'VALIDATION_ERROR');
   }
 }
 
 export class AuthenticationError extends AppError {
-  constructor(message: string = "Authentication failed", code?: string) {
-    super(message, 401, code || "AUTH_ERROR");
+  constructor(message: string = 'Authentication failed', code?: string) {
+    super(message, 401, code || 'AUTH_ERROR');
   }
 }
 
 export class AuthorizationError extends AppError {
-  constructor(message: string = "Unauthorized access", code?: string) {
-    super(message, 403, code || "AUTHORIZATION_ERROR");
+  constructor(message: string = 'Unauthorized access', code?: string) {
+    super(message, 403, code || 'AUTHORIZATION_ERROR');
   }
 }
 
 export class NotFoundError extends AppError {
-  constructor(message: string = "Resource not found", code?: string) {
-    super(message, 404, code || "NOT_FOUND");
+  constructor(message: string = 'Resource not found', code?: string) {
+    super(message, 404, code || 'NOT_FOUND');
   }
 }
 
 export class ConflictError extends AppError {
   constructor(message: string, code?: string) {
-    super(message, 409, code || "CONFLICT");
+    super(message, 409, code || 'CONFLICT');
   }
 }
 
@@ -59,10 +59,9 @@ export function formatErrorResponse(error: unknown) {
   return {
     success: false,
     error: {
-      message: error instanceof Error ? error.message : "Internal server error",
-      code: "INTERNAL_ERROR",
+      message: error instanceof Error ? error.message : 'Internal server error',
+      code: 'INTERNAL_ERROR',
       statusCode: 500,
     },
   };
 }
-
