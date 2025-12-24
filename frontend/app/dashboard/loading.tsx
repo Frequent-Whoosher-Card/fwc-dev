@@ -1,12 +1,21 @@
-export default function DashboardLoading() {
+export default function Loading() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <div className="flex flex-col items-center gap-3 text-gray-500">
-        <div className="h-10 w-10 animate-spin rounded-full border-2 border-gray-300 border-t-[var(--kcic)]" />
-        <p className="text-sm font-medium">Loading dashboard...</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black">
+      <div className="flex flex-col items-center gap-6">
+        <span className="text-sm text-gray-400 tracking-wide">
+          Loading
+        </span>
+
+        <div className="flex flex-col gap-4">
+          {[0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="h-12 w-12 rounded-full border-4 border-gray-700 border-t-[var(--kcic)] animate-spin"
+              style={{ animationDelay: `${i * 150}ms` }}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
 }
-
-

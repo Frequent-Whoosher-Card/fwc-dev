@@ -2,13 +2,112 @@
 
 import Image from 'next/image';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { API_BASE_URL } from '../lib/apiConfig';
+import toast from 'react-hot-toast';
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
 
-  // contoh error (nanti dari BE)
-  const emailError = '';
-  const passwordError = '';
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+
+  const [usernameError, setUsernameError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+
+  const [showAuthError, setShowAuthError] = useState(false);
+  const [authErrorMessage, setAuthErrorMessage] = useState<string | null>(null);
+
+  const [isLoading, setIsLoading] = useState(false);
+
+  const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const handleLogin = async () => {
+    let valid = true;
+
+    // reset error
+    setUsernameError('');
+    setPasswordError('');
+    setAuthErrorMessage(null);
+    setShowAuthError(false);
+
+    // VALIDASI FIELD
+    if (!username.trim()) {
+      setUsernameError('Please enter your username');
+      valid = false;
+    }
+
+    if (!password.trim()) {
+      setPasswordError('Please enter your password');
+      valid = false;
+    }
+
+    if (!valid) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const json = await response.json();
+
+      // ❌ LOGIN GAGAL (AMAN UNTUK USER)
+      if (!response.ok || !json?.success) {
+        let message = 'Login gagal. Periksa kembali username dan password Anda.';
+
+        // mapping aman (jangan bocorin error backend)
+        if (json?.error?.code === 'AUTH_INVALID') {
+          message = 'Username atau password salah.';
+        } else if (json?.error?.code === 'ACCOUNT_INACTIVE') {
+          message = 'Akun belum aktif. Hubungi administrator.';
+        }
+
+        setAuthErrorMessage(message);
+        setShowAuthError(true);
+        return;
+      }
+
+      // ✅ LOGIN SUKSES
+      const { user } = json.data as {
+        user: {
+          id: string;
+          username: string;
+          fullName: string;
+          email: string | null;
+          role: { id: string; roleCode: string; roleName: string };
+        };
+      };
+
+      const role = user.role?.roleCode?.toLowerCase() || '';
+
+      // token disimpan backend via http-only cookie
+      document.cookie = `fwc_role=${role}; path=/;`;
+
+      localStorage.setItem(
+        'auth',
+        JSON.stringify({
+          role,
+          name: user.fullName || user.username,
+          email: user.email,
+          username: user.username,
+        })
+      );
+
+      setIsLoading(true);
+      toast.success('Login berhasil, selamat datang');
+      await delay(2000);
+      router.push('/dashboard');
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Login error:', error);
+      }
+
+      setAuthErrorMessage('Terjadi gangguan sistem. Silakan coba beberapa saat lagi.');
+      setShowAuthError(true);
+    }
+  };
 
   return (
     <div className="min-h-screen flex bg-white">
@@ -97,6 +196,36 @@ export default function LoginPage() {
           <p className="text-xs text-gray-400 text-center">© 2026 PT KCIC. All rights reserved</p>
         </div>
       </div>
+
+      {/* POPUP LOGIN GAGAL */}
+      {showAuthError && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-[320px] rounded-xl bg-white p-6 text-center shadow-lg">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">❌</div>
+            <h2 className="text-lg font-semibold text-gray-900">Login Gagal</h2>
+            <p className="mt-2 text-sm text-gray-500">{authErrorMessage || 'Maaf, username atau password yang Anda masukkan salah.'}</p>
+            <button
+              onClick={() => {
+                setShowAuthError(false);
+                setAuthErrorMessage(null);
+              }}
+              className="mt-6 h-10 w-full rounded-md bg-black text-white text-sm font-semibold"
+            >
+              Kembali
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* LOADING OVERLAY */}
+      {isLoading && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black">
+          <div className="flex flex-col items-center gap-4">
+            <div className="h-14 w-14 animate-spin-ease rounded-full border-[6px] border-gray-700 border-t-[var(--kcic)]" />
+            <span className="text-sm text-gray-400 tracking-wide">Loading</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
