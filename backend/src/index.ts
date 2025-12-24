@@ -1,25 +1,10 @@
 import { Elysia } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { auth } from "./modules/auth";
-import { stock } from "./modules/stock";
-import { openapi } from "@elysiajs/openapi";
 import { users } from "./modules/users";
-import { cardCategory } from "./modules/cards/category";
-import { cardTypes } from "./modules/cards/type";
+import { openapi } from "@elysiajs/openapi";
 
 const app = new Elysia()
-  .use(
-    openapi({
-      path: "/docs",
-      documentation: {
-        info: {
-          title: "FWC API",
-          version: "1.0.0",
-        },
-        servers: [{ url: "http://localhost:3000" }],
-      },
-    })
-  )
   .use(cors())
   .use(
     openapi({
@@ -38,12 +23,8 @@ const app = new Elysia()
     message: "FWC API is running",
     version: "1.0.0",
   }))
-  // Routes
   .use(auth)
-  .use(stock)
   .use(users)
-  .use(cardCategory)
-  .use(cardTypes)
   .onError(({ code, error, set }) => {
     // Global error handler
     if (code === "VALIDATION") {
@@ -74,8 +55,7 @@ const app = new Elysia()
     return {
       success: false,
       error: {
-        message:
-          error instanceof Error ? error.message : "Internal server error",
+        message: error instanceof Error ? error.message : "Internal server error",
         code: "INTERNAL_ERROR",
         statusCode: 500,
       },
