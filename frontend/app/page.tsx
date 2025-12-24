@@ -1,86 +1,78 @@
 "use client";
 
-import Image from "next/image";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { API_BASE_URL } from "../lib/apiConfig";
+import Image from 'next/image';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { API_BASE_URL } from '../lib/apiConfig';
+import toast from 'react-hot-toast';
 
 export default function LoginPage() {
   const router = useRouter();
 
   const [showPassword, setShowPassword] = useState(false);
 
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
 
-  const [usernameError, setUsernameError] = useState("");
-  const [passwordError, setPasswordError] = useState("");
+  const [usernameError, setUsernameError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   const [showAuthError, setShowAuthError] = useState(false);
   const [authErrorMessage, setAuthErrorMessage] = useState<string | null>(null);
+
+  const [isLoading, setIsLoading] = useState(false);
+
+  const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
   const handleLogin = async () => {
     let valid = true;
 
     // reset error
-    setUsernameError("");
-    setPasswordError("");
+    setUsernameError('');
+    setPasswordError('');
+    setAuthErrorMessage(null);
+    setShowAuthError(false);
 
-    // 1️⃣ VALIDASI FIELD KOSONG
+    // VALIDASI FIELD
     if (!username.trim()) {
-      setUsernameError("Please enter your username");
+      setUsernameError('Please enter your username');
       valid = false;
     }
 
     if (!password.trim()) {
-      setPasswordError("Please enter your password");
+      setPasswordError('Please enter your password');
       valid = false;
     }
 
     if (!valid) return;
 
-    // 3️⃣ CALL BACKEND AUTH
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username, // backend expects username/email in this field
-          password,
-        }),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
       });
-
-      if (!response.ok) {
-        // Try to read error message from backend
-        try {
-          const errorJson = await response.json();
-          const message =
-            errorJson?.error?.message ||
-            "Login gagal. Periksa kembali username dan password Anda.";
-          setAuthErrorMessage(message);
-        } catch {
-          setAuthErrorMessage(
-            "Login gagal. Periksa kembali username dan password Anda."
-          );
-        }
-        setShowAuthError(true);
-        return;
-      }
 
       const json = await response.json();
 
-      if (!json.success || !json.data) {
-        const message =
-          json?.error?.message ||
-          "Login gagal. Periksa kembali username dan password Anda.";
+      // ❌ LOGIN GAGAL (AMAN UNTUK USER)
+      if (!response.ok || !json?.success) {
+        let message = 'Login gagal. Periksa kembali username dan password Anda.';
+
+        // mapping aman (jangan bocorin error backend)
+        if (json?.error?.code === 'AUTH_INVALID') {
+          message = 'Username atau password salah.';
+        } else if (json?.error?.code === 'ACCOUNT_INACTIVE') {
+          message = 'Akun belum aktif. Hubungi administrator.';
+        }
+
         setAuthErrorMessage(message);
         setShowAuthError(true);
         return;
       }
 
-      const { user, token } = json.data as {
+      // ✅ LOGIN SUKSES
+      const { user } = json.data as {
         user: {
           id: string;
           username: string;
@@ -88,17 +80,15 @@ export default function LoginPage() {
           email: string | null;
           role: { id: string; roleCode: string; roleName: string };
         };
-        token: string;
       };
 
-      const role =
-        (user.role.roleCode && user.role.roleCode.toLowerCase()) || "";
+      const role = user.role?.roleCode?.toLowerCase() || '';
 
-      // Note: token disimpan di HTTP-only cookie oleh backend.
-      // Frontend hanya menyimpan info ringan untuk kebutuhan UI & routing.
+      // token disimpan backend via http-only cookie
       document.cookie = `fwc_role=${role}; path=/;`;
+
       localStorage.setItem(
-        "auth",
+        'auth',
         JSON.stringify({
           role,
           name: user.fullName || user.username,
@@ -107,11 +97,16 @@ export default function LoginPage() {
         })
       );
 
-      router.push("/dashboard");
+      setIsLoading(true);
+      toast.success('Login berhasil, selamat datang');
+      await delay(2000);
+      router.push('/dashboard');
     } catch (error) {
-      setAuthErrorMessage(
-        "Terjadi kesalahan jaringan atau server. Silakan coba beberapa saat lagi."
-      );
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Login error:', error);
+      }
+
+      setAuthErrorMessage('Terjadi gangguan sistem. Silakan coba beberapa saat lagi.');
       setShowAuthError(true);
     }
   };
@@ -120,13 +115,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex bg-white">
       {/* LEFT PANEL */}
       <div className="hidden md:flex w-1/2 bg-[var(--kcic)] items-center justify-center">
-        <Image
-          src="/assets/images/login3-bg.png"
-          alt="Whoosh"
-          width={420}
-          height={160}
-          priority
-        />
+        <Image src="/assets/images/login3-bg.png" alt="Whoosh" width={420} height={160} priority />
       </div>
 
       {/* RIGHT PANEL */}
@@ -137,22 +126,13 @@ export default function LoginPage() {
             <div className="w-full max-w-md -translate-y-6 md:-translate-y-10">
               {/* MOBILE LOGO */}
               <div className="md:hidden flex justify-center mb-8">
-                <Image
-                  src="/assets/images/login3-bg.png"
-                  alt="Whoosh"
-                  width={180}
-                  height={70}
-                />
+                <Image src="/assets/images/login3-bg.png" alt="Whoosh" width={180} height={70} />
               </div>
 
               {/* HEADER */}
               <div className="text-center mb-10 md:mb-12">
-                <h1 className="text-[34px] md:text-[38px] font-bold text-gray-900 tracking-tight">
-                  Welcome Back!
-                </h1>
-                <p className="text-sm md:text-base text-gray-500 mt-2">
-                  Sign in to continue
-                </p>
+                <h1 className="text-[34px] md:text-[38px] font-bold text-gray-900 tracking-tight">Welcome Back!</h1>
+                <p className="text-sm md:text-base text-gray-500 mt-2">Sign in to continue</p>
               </div>
 
               {/* FORM */}
@@ -166,76 +146,53 @@ export default function LoginPage() {
               >
                 {/* USERNAME */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-2">
-                    Username
-                  </label>
+                  <label className="block text-sm font-semibold text-gray-800 mb-2">Username</label>
                   <input
                     type="text"
                     placeholder="username"
                     value={username}
                     onChange={(e) => {
                       setUsername(e.target.value);
-                      setUsernameError("");
+                      setUsernameError('');
                     }}
                     className={`h-11 w-full rounded-md border px-3 text-sm
                     focus:outline-none focus:ring-2
-                    ${
-                      usernameError
-                        ? "border-red-500 focus:ring-red-500"
-                        : "border-gray-300 focus:ring-[var(--kcic)]"
-                    }`}
+                    ${usernameError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[var(--kcic)]'}
+}`}
                   />
-                  {usernameError && (
-                    <p className="mt-2 text-xs text-red-500">
-                      {usernameError}
-                    </p>
-                  )}
+                  {usernameError && <p className="mt-2 text-xs text-red-500">{usernameError}</p>}
                 </div>
 
                 {/* PASSWORD */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-2">
-                    Password
-                  </label>
+                  <label className="block text-sm font-semibold text-gray-800 mb-2">Password</label>
                   <div className="relative">
                     <input
-                      type={showPassword ? "text" : "password"}
+                      type={showPassword ? 'text' : 'password'}
                       placeholder="Password"
                       value={password}
                       onChange={(e) => {
                         setPassword(e.target.value);
-                        setPasswordError("");
+                        setPasswordError('');
                       }}
                       className={`h-11 w-full rounded-md border px-3 pr-11 text-sm
                       focus:outline-none focus:ring-2
-                      ${
-                        passwordError
-                          ? "border-red-500 focus:ring-red-500"
-                          : "border-gray-300 focus:ring-[var(--kcic)]"
-                      }`}
+                      ${passwordError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[var(--kcic)]'}`}
                     />
 
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600"
-                    >
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600">
                       👁
                     </button>
                   </div>
 
-                  {passwordError && (
-                    <p className="mt-2 text-xs text-red-500">
-                      {passwordError}
-                    </p>
-                  )}
+                  {passwordError && <p className="mt-2 text-xs text-red-500">{passwordError}</p>}
                 </div>
 
                 {/* BUTTON */}
                 <button
                   type="submit"
                   className="h-12 w-full bg-[var(--kcic)] text-white rounded-md
-                  font-semibold text-sm tracking-wide hover:opacity-90 transition"
+  font-semibold text-sm tracking-wide hover:opacity-90 transition"
                 >
                   Sign In
                 </button>
@@ -244,9 +201,7 @@ export default function LoginPage() {
           </div>
 
           {/* FOOTER */}
-          <p className="text-xs text-gray-400 text-center">
-            © 2026 PT KCIC. All rights reserved
-          </p>
+          <p className="text-xs text-gray-400 text-center">© 2026 PT KCIC. All rights reserved</p>
         </div>
       </div>
 
@@ -254,16 +209,9 @@ export default function LoginPage() {
       {showAuthError && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-[320px] rounded-xl bg-white p-6 text-center shadow-lg">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-              ❌
-            </div>
-            <h2 className="text-lg font-semibold text-gray-900">
-              Login Gagal
-            </h2>
-            <p className="mt-2 text-sm text-gray-500">
-              {authErrorMessage ||
-                "Maaf, username atau password yang Anda masukkan salah."}
-            </p>
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">❌</div>
+            <h2 className="text-lg font-semibold text-gray-900">Login Gagal</h2>
+            <p className="mt-2 text-sm text-gray-500">{authErrorMessage || 'Maaf, username atau password yang Anda masukkan salah.'}</p>
             <button
               onClick={() => {
                 setShowAuthError(false);
@@ -273,6 +221,16 @@ export default function LoginPage() {
             >
               Kembali
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* LOADING OVERLAY */}
+      {isLoading && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black">
+          <div className="flex flex-col items-center gap-4">
+            <div className="h-14 w-14 animate-spin-ease rounded-full border-[6px] border-gray-700 border-t-[var(--kcic)]" />
+            <span className="text-sm text-gray-400 tracking-wide">Loading</span>
           </div>
         </div>
       )}

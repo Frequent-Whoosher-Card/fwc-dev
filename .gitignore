@@ -1,4 +1,63 @@
-############################
+# * Frontend Gitignore
+
+
+# * Backend Gitignore
+# Dependencies
+backend/node_modules/
+
+# Environment variables
+backend/.env
+backend/.env.*
+backend/!.env.example
+
+# Build outputs
+backend/dist/
+backend/build/
+
+# Logs
+backend/logs/
+backend/*.log
+backend/npm-debug.log*
+backend/yarn-debug.log*
+backend/yarn-error.log*
+
+# IDE & OS
+backend/.vscode/
+backend/.idea/
+backend/.DS_Store
+backend/Thumbs.db
+backend/*.swp
+
+**/*.trace
+**/*.zip
+**/*.tar.gz
+**/*.tgz
+**/*.log
+package-lock.json
+bun.lock
+**/*.bun
+
+# Prisma
+backend/prisma/generated/*
+
+
+# dependencies
+frontend/node_modules/
+frontend/.next/
+
+out
+
+# env
+frontend/.env*
+frontend/.env.local
+
+# logs
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+
+# OS
+frontend/.DS_Store
+frontend/Thumbs.db############################
 # GLOBAL
 ############################
 node_modules/
@@ -11,6 +70,36 @@ Thumbs.db
 *.swp
 
 **/*.log
+# * Frontend Gitignore
+
+
+# * Backend Gitignore
+# Dependencies
+backend/node_modules/
+
+# Environment variables
+backend/.env
+backend/.env.*
+backend/!.env.example
+
+# Build outputs
+backend/dist/
+backend/build/
+
+# Logs
+backend/logs/
+backend/*.log
+backend/npm-debug.log*
+backend/yarn-debug.log*
+backend/yarn-error.log*
+
+# IDE & OS
+backend/.vscode/
+backend/.idea/
+backend/.DS_Store
+backend/Thumbs.db
+backend/*.swp
+
 **/*.trace
 **/*.zip
 **/*.tar.gz
@@ -29,6 +118,9 @@ backend/*.log
 
 backend/.vscode/
 backend/.idea/
+**/*.log
+package-lock.json
+**/*.bun
 
 # Prisma
 backend/prisma/generated/*
@@ -53,3 +145,23 @@ frontend/.yarn/*
 frontend/.vercel
 frontend/*.tsbuildinfo
 frontend/next-env.d.ts
+
+# dependencies
+frontend/node_modules/
+frontend/.next/
+
+out
+
+# env
+frontend/.env*
+frontend/.env.local
+
+# logs
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+frontend/.DS_Store
+frontend/Thumbs.db

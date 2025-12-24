@@ -28,7 +28,6 @@ const app = new Elysia()
     message: "FWC API is running",
     version: "1.0.0",
   }))
-  // Routes
   .use(auth)
   .use(stock)
   .use(users)
