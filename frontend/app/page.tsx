@@ -5,12 +5,16 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { API_BASE_URL } from '../lib/apiConfig';
 import toast from 'react-hot-toast';
+import router from 'next/router';
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+
+  const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
 
   const [usernameError, setUsernameError] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -144,7 +148,8 @@ export default function LoginPage() {
                     placeholder="username@gmail.com"
                     className={`h-11 w-full rounded-md border px-3 text-sm
                     focus:outline-none focus:ring-2
-                    ${emailError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[var(--kcic)]'}`}
+                    ${usernameError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[var(--kcic)]'}
+}`}
                   />
 
                   {emailError && <p className="mt-2 text-xs text-red-500">{emailError}</p>}
