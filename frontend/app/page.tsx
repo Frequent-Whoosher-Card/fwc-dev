@@ -25,8 +25,10 @@ export default function LoginPage() {
     // reset error
     setUsernameError("");
     setPasswordError("");
+    setAuthErrorMessage(null);
+    setShowAuthError(false);
 
-    // 1️⃣ VALIDASI FIELD KOSONG
+    // VALIDASI FIELD
     if (!username.trim()) {
       setUsernameError("Please enter your username");
       valid = false;
@@ -39,48 +41,34 @@ export default function LoginPage() {
 
     if (!valid) return;
 
-    // 3️⃣ CALL BACKEND AUTH
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username, // backend expects username/email in this field
-          password,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
       });
-
-      if (!response.ok) {
-        // Try to read error message from backend
-        try {
-          const errorJson = await response.json();
-          const message =
-            errorJson?.error?.message ||
-            "Login gagal. Periksa kembali username dan password Anda.";
-          setAuthErrorMessage(message);
-        } catch {
-          setAuthErrorMessage(
-            "Login gagal. Periksa kembali username dan password Anda."
-          );
-        }
-        setShowAuthError(true);
-        return;
-      }
 
       const json = await response.json();
 
-      if (!json.success || !json.data) {
-        const message =
-          json?.error?.message ||
+      // ❌ LOGIN GAGAL (AMAN UNTUK USER)
+      if (!response.ok || !json?.success) {
+        let message =
           "Login gagal. Periksa kembali username dan password Anda.";
+
+        // mapping aman (jangan bocorin error backend)
+        if (json?.error?.code === "AUTH_INVALID") {
+          message = "Username atau password salah.";
+        } else if (json?.error?.code === "ACCOUNT_INACTIVE") {
+          message = "Akun belum aktif. Hubungi administrator.";
+        }
+
         setAuthErrorMessage(message);
         setShowAuthError(true);
         return;
       }
 
-      const { user, token } = json.data as {
+      // ✅ LOGIN SUKSES
+      const { user } = json.data as {
         user: {
           id: string;
           username: string;
@@ -88,15 +76,13 @@ export default function LoginPage() {
           email: string | null;
           role: { id: string; roleCode: string; roleName: string };
         };
-        token: string;
       };
 
-      const role =
-        (user.role.roleCode && user.role.roleCode.toLowerCase()) || "";
+      const role = user.role?.roleCode?.toLowerCase() || "";
 
-      // Note: token disimpan di HTTP-only cookie oleh backend.
-      // Frontend hanya menyimpan info ringan untuk kebutuhan UI & routing.
+      // token disimpan backend via http-only cookie
       document.cookie = `fwc_role=${role}; path=/;`;
+
       localStorage.setItem(
         "auth",
         JSON.stringify({
@@ -109,8 +95,12 @@ export default function LoginPage() {
 
       router.push("/dashboard");
     } catch (error) {
+      if (process.env.NODE_ENV === "development") {
+        console.error("Login error:", error);
+      }
+
       setAuthErrorMessage(
-        "Terjadi kesalahan jaringan atau server. Silakan coba beberapa saat lagi."
+        "Terjadi gangguan sistem. Silakan coba beberapa saat lagi."
       );
       setShowAuthError(true);
     }
