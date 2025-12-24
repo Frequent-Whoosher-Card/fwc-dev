@@ -5,10 +5,10 @@ export default function DashboardRedirectPage() {
   return null;
 }
 
-export function DashboardPage() {
-  return (
-    <DashboardLayout>
-      <DashboardContent />
-    </DashboardLayout>
-  );
-}
+// export function DashboardPage() {
+//   return (
+//     <DashboardLayout>
+//       <DashboardContent />
+//     </DashboardLayout>
+//   );
+// }
