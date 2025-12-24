@@ -28,12 +28,6 @@ export class AuthorizationError extends AppError {
   }
 }
 
-export class ForbiddenError extends AppError {
-  constructor(message: string = "Forbidden access", code?: string) {
-    super(message, 403, code || "FORBIDDEN_ERROR");
-  }
-}
-
 export class NotFoundError extends AppError {
   constructor(message: string = "Resource not found", code?: string) {
     super(message, 404, code || "NOT_FOUND");
@@ -71,5 +65,3 @@ export function formatErrorResponse(error: unknown) {
     },
   };
 }
-
-
