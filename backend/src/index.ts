@@ -65,8 +65,6 @@ const app = new Elysia()
       error: {
         message: error instanceof Error ? error.message : 'Internal server error',
         code: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Internal server error',
-        code: 'INTERNAL_ERROR',
         statusCode: 500,
       },
     };
