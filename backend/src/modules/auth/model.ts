@@ -1,4 +1,4 @@
-import { t } from "elysia";
+import { t } from 'elysia';
 
 export namespace AuthModel {
   // Login Request
@@ -6,11 +6,11 @@ export namespace AuthModel {
     username: t.String({
       minLength: 3,
       maxLength: 100,
-      description: "Username or email",
+      description: 'Username or email',
     }),
     password: t.String({
       minLength: 6,
-      description: "Password",
+      description: 'Password',
     }),
   });
 
@@ -47,8 +47,8 @@ export namespace AuthModel {
   // Forgot Password Request
   export const forgotPasswordBody = t.Object({
     email: t.String({
-      format: "email",
-      description: "Email address",
+      format: 'email',
+      description: 'Email address',
     }),
   });
 
@@ -61,14 +61,14 @@ export namespace AuthModel {
   // Reset Password Request
   export const resetPasswordBody = t.Object({
     token: t.String({
-      description: "Password reset token",
+      description: 'Password reset token',
     }),
     newPassword: t.String({
       minLength: 8,
-      description: "New password (min 8 characters)",
+      description: 'New password (min 8 characters)',
     }),
     confirmPassword: t.String({
-      description: "Confirm new password",
+      description: 'Confirm new password',
     }),
   });
 
