@@ -83,9 +83,9 @@ export default function LoginPage() {
 
                 {/* BUTTON */}
                 <button
-                  type="button"
+                  type="submit"
                   className="h-12 w-full bg-[var(--kcic)] text-white rounded-md
-                  font-semibold text-sm tracking-wide hover:opacity-90 transition"
+  font-semibold text-sm tracking-wide hover:opacity-90 transition"
                 >
                   Sign In
                 </button>
