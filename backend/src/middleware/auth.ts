@@ -5,21 +5,31 @@ import { AuthenticationError } from "../utils/errors";
 import db from "../config/db";
 import { jwtConfig } from "../config/jwt";
 
-export const authMiddleware = new Elysia({ name: "authMiddleware" })
-  .use(
-    jwt({
-      name: "jwt",
-      secret: jwtConfig.secret,
-    })
-  )
-  .use(cookie())
-  .derive(async ({ jwt, cookie: { session }, set }) => {
-    // Check if session cookie exists
-    const token = session.value;
-    if (!token || typeof token !== "string") {
-      set.status = 401;
-      throw new AuthenticationError("No session found. Please login.");
-    }
+export const authMiddleware = (app: Elysia) =>
+  app
+    .use(
+      jwt({
+        name: "jwt",
+        secret: jwtConfig.secret,
+      })
+    )
+    .use(cookie())
+    .derive(async ({ jwt, cookie: { session }, headers, set }) => {
+      // Try to get token from Authorization header first (for API testing)
+      const authHeader = headers.authorization;
+      let token: string | undefined;
+
+      if (authHeader?.startsWith("Bearer ")) {
+        token = authHeader.slice(7);
+      } else {
+        // Fallback to session cookie (for browser)
+        token = typeof session.value === "string" ? session.value : undefined;
+      }
+
+      if (!token || typeof token !== "string") {
+        set.status = 401;
+        throw new AuthenticationError("No authentication token found. Please login.");
+      }
 
     try {
       // Verify JWT token

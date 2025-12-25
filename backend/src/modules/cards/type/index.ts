@@ -20,8 +20,6 @@ type AuthContextUser = {
 };
 
 const baseRoutes = new Elysia()
-  .use(authMiddleware)
-  .use(authMiddleware)
   .get(
     "/",
     async (context) => {
@@ -98,7 +96,6 @@ const baseRoutes = new Elysia()
   );
 
 const adminRoutes = new Elysia()
-  .use(authMiddleware)
   .use(rbacMiddleware(["admin", "superadmin"]))
   .post(
     "/",
@@ -191,7 +188,6 @@ const adminRoutes = new Elysia()
   );
 
 const superadminRoutes = new Elysia()
-  .use(authMiddleware)
   .use(rbacMiddleware(["superadmin"]))
   .delete(
     "/:id",
@@ -236,6 +232,7 @@ const superadminRoutes = new Elysia()
   );
 
 export const cardTypes = new Elysia({ prefix: "/card/types" })
+  .use(authMiddleware)
   .use(baseRoutes)
   .use(adminRoutes)
   .use(superadminRoutes);

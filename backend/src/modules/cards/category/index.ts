@@ -20,7 +20,6 @@ type AuthContextUser = {
 };
 
 const baseRoutes = new Elysia()
-  .use(authMiddleware)
   // Get All Card Category
   .get(
     "/",
@@ -101,7 +100,6 @@ const baseRoutes = new Elysia()
   );
 
 const adminRoutes = new Elysia()
-  .use(authMiddleware)
   .use(rbacMiddleware(["admin", "superadmin"]))
   // Create Card Category
   .post(
@@ -197,7 +195,6 @@ const adminRoutes = new Elysia()
 
 // Superadmin only
 const superadminRoutes = new Elysia()
-  .use(authMiddleware)
   .use(rbacMiddleware(["superadmin"]))
   // Delete Card Category
   .delete(
@@ -244,6 +241,7 @@ const superadminRoutes = new Elysia()
   );
 
 export const cardCategory = new Elysia({ prefix: "/card/category" })
+  .use(authMiddleware)
   .use(baseRoutes)
   .use(adminRoutes)
   .use(superadminRoutes);
