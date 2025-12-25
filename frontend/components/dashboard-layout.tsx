@@ -1,5 +1,6 @@
 'use client';
 
+import toast from 'react-hot-toast';
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
@@ -40,11 +41,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   // 🚪 LOGOUT
-  const handleLogout = () => {
+const handleLogout = () => {
+  toast.success('Logout berhasil');
+
+  setTimeout(() => {
     localStorage.removeItem('auth');
     document.cookie = 'fwc_role=; Max-Age=0; path=/;';
     router.replace('/');
-  };
+  }, 300);
+};
+
 
   return (
     <div className="min-h-screen bg-background">
