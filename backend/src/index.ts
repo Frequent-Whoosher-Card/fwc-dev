@@ -1,8 +1,14 @@
 import { Elysia } from "elysia";
 import { cors } from "@elysiajs/cors";
+import { docsConfig } from "./docs";
 import { auth } from "./modules/auth";
+import { users } from "./modules/users";
+import { stock } from "./modules/stock";
+import { cardCategory } from "./modules/cards/category";
+import { cardTypes } from "./modules/cards/type";
 
 const app = new Elysia()
+  .use(docsConfig)
   .use(cors())
   .get("/", () => ({
     success: true,
@@ -10,6 +16,10 @@ const app = new Elysia()
     version: "1.0.0",
   }))
   .use(auth)
+  .use(users)
+  .use(stock)
+  .use(cardCategory)
+  .use(cardTypes)
   .onError(({ code, error, set }) => {
     // Global error handler
     if (code === "VALIDATION") {
@@ -47,7 +57,7 @@ const app = new Elysia()
       },
     };
   })
-  .listen(3000);
+  .listen(3001);
 
 console.log(
   `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`
