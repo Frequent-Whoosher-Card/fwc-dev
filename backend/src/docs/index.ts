@@ -1,0 +1,74 @@
+import { swagger } from "@elysiajs/swagger";
+
+/**
+ * API Documentation Configuration
+ * 
+ * This configuration provides interactive API documentation
+ * accessible at /docs endpoint
+ */
+export const docsConfig = swagger({
+  path: "/docs",
+  documentation: {
+    info: {
+      title: "FWC API Documentation",
+      description: "API Documentation for FWC (Fuel Card Management System)",
+      version: "1.0.0",
+      contact: {
+        name: "FWC API Support",
+      },
+    },
+    tags: [
+      {
+        name: "General",
+        description: "General API endpoints",
+      },
+      {
+        name: "Authentication",
+        description: "Authentication endpoints for user login, logout, and password management",
+      },
+      {
+        name: "Users & Roles",
+        description: "User and role management endpoints",
+      },
+      {
+        name: "Stock",
+        description: "Stock management endpoints for card inventory",
+      },
+      {
+        name: "Card Category",
+        description: "Card category management endpoints",
+      },
+      {
+        name: "Card Type",
+        description: "Card type management endpoints",
+      },
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+          description: "JWT token authentication. Include token in Authorization header as 'Bearer <token>'",
+        },
+        cookieAuth: {
+          type: "apiKey",
+          in: "cookie",
+          name: "session",
+          description: "Session cookie authentication. Cookie is set automatically after login",
+        },
+      },
+    },
+    servers: [
+      {
+        url: "http://localhost:3001",
+        description: "Development server",
+      },
+      {
+        url: "https://api.fwc.example.com",
+        description: "Production server",
+      },
+    ],
+  },
+});
+

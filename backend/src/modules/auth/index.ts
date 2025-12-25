@@ -7,6 +7,52 @@ import { jwtConfig } from "../../config/jwt";
 import { formatErrorResponse } from "../../utils/errors";
 import { authMiddleware } from "../../middleware/auth";
 
+// Protected routes (require authentication)
+const protectedAuthRoutes = new Elysia()
+  .use(authMiddleware)
+  .get(
+    "/me",
+    async (context) => {
+      const { user, set } = context as typeof context & {
+        user: {
+          id: string;
+          username: string;
+          fullName: string;
+          email: string | null;
+          role: { id: string; roleCode: string; roleName: string };
+        };
+      };
+      try {
+        const profile = await AuthService.getUserProfile(user.id);
+
+        return {
+          success: true,
+          data: profile,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      response: {
+        200: AuthModel.meResponse,
+        401: AuthModel.errorResponse,
+        404: AuthModel.errorResponse,
+        500: AuthModel.errorResponse,
+      },
+      detail: {
+        tags: ["Authentication"],
+        summary: "Get current user profile",
+        description: "Returns authenticated user information",
+      },
+    }
+  );
+
+// Combine public and protected routes
 export const auth = new Elysia({ prefix: "/auth" })
   // Setup JWT and Cookie plugins
   .use(
@@ -17,7 +63,7 @@ export const auth = new Elysia({ prefix: "/auth" })
     })
   )
   .use(cookie())
-  // Login endpoint
+  // Public routes
   .post(
     "/login",
     async ({ body, jwt, cookie: { session }, set }) => {
@@ -173,46 +219,5 @@ export const auth = new Elysia({ prefix: "/auth" })
       },
     }
   )
-  // Get current user profile (protected route)
-  .use(authMiddleware)
-  .get(
-    "/me",
-    async (context) => {
-      const { user, set } = context as typeof context & {
-        user: {
-          id: string;
-          username: string;
-          fullName: string;
-          email: string | null;
-          role: { id: string; roleCode: string; roleName: string };
-        };
-      };
-      try {
-        const profile = await AuthService.getUserProfile(user.id);
-
-        return {
-          success: true,
-          data: profile,
-        };
-      } catch (error) {
-        set.status =
-          error instanceof Error && "statusCode" in error
-            ? (error as any).statusCode
-            : 500;
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      response: {
-        200: AuthModel.meResponse,
-        401: AuthModel.errorResponse,
-        404: AuthModel.errorResponse,
-        500: AuthModel.errorResponse,
-      },
-      detail: {
-        tags: ["Authentication"],
-        summary: "Get current user profile",
-        description: "Returns authenticated user information",
-      },
-    }
-  );
+  // Protected routes
+  .use(protectedAuthRoutes);
