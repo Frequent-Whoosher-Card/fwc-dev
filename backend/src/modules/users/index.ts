@@ -21,7 +21,6 @@ type AuthContextUser = {
 
 // Base routes with authentication
 const baseRoutes = new Elysia()
-  .use(authMiddleware)
   // Get All Roles - All authenticated users
   .get(
     "/roles",
@@ -204,7 +203,6 @@ const baseRoutes = new Elysia()
 
 // Admin routes (superadmin and admin only)
 const adminRoutes = new Elysia()
-  .use(authMiddleware)
   .use(rbacMiddleware(["superadmin", "admin"]))
   // Create Role
   .post(
@@ -352,7 +350,6 @@ const adminRoutes = new Elysia()
 
 // Superadmin routes (superadmin only)
 const superadminRoutes = new Elysia()
-  .use(authMiddleware)
   .use(rbacMiddleware(["superadmin"]))
   // Delete Role
   .delete(
@@ -424,6 +421,7 @@ const superadminRoutes = new Elysia()
 
 // Combine all routes
 export const users = new Elysia({ prefix: "/users" })
+  .use(authMiddleware)
   .use(baseRoutes)
   .use(adminRoutes)
   .use(superadminRoutes);

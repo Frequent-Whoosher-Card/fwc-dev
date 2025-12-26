@@ -1,27 +1,15 @@
 import { Elysia } from "elysia";
 import { cors } from "@elysiajs/cors";
+import { docsConfig } from "./docs";
 import { auth } from "./modules/auth";
-import { stock } from "./modules/stock/in";
-import { openapi } from "@elysiajs/openapi";
 import { users } from "./modules/users";
 import { cardCategory } from "./modules/cards/category";
 import { cardTypes } from "./modules/cards/type";
 import { cardProducts } from "./modules/cards/product";
+import { stockIn } from "./modules/stock/in";
 
 const app = new Elysia()
-  .use(
-    openapi({
-      path: "/docs",
-      documentation: {
-        info: {
-          title: "FWC API",
-          version: "1.0.0",
-          description: "FWC API Documentation",
-        },
-        servers: [{ url: "http://localhost:3000" }],
-      },
-    })
-  )
+  .use(docsConfig)
   .use(cors())
   .get("/", () => ({
     success: true,
@@ -29,11 +17,11 @@ const app = new Elysia()
     version: "1.0.0",
   }))
   .use(auth)
-  .use(stock)
   .use(users)
   .use(cardCategory)
   .use(cardTypes)
   .use(cardProducts)
+  .use(stockIn)
   .onError(({ code, error, set }) => {
     // Global error handler
     if (code === "VALIDATION") {
@@ -71,7 +59,7 @@ const app = new Elysia()
       },
     };
   })
-  .listen(3000);
+  .listen(3001);
 
 console.log(
   `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`

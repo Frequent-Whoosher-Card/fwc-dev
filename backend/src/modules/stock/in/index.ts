@@ -1,9 +1,9 @@
 import { Elysia } from "elysia";
-import { StockModel } from "./model";
-import { formatErrorResponse } from "../../../utils/errors";
-import { StockService } from "./service";
 import { authMiddleware } from "../../../middleware/auth";
 import { rbacMiddleware } from "../../../middleware/rbac";
+import { formatErrorResponse } from "../../../utils/errors";
+import { StockInService } from "./service";
+import { StockInModel } from "./model";
 
 type AuthContextUser = {
   user: {
@@ -19,80 +19,27 @@ type AuthContextUser = {
   };
 };
 
-export const stock = new Elysia({ prefix: "/stock/in" })
-  // Use Middleware
+export const stockIn = new Elysia({ prefix: "/stock/in" })
   .use(authMiddleware)
   .use(rbacMiddleware(["superadmin", "admin"]))
-  //   Inventory Endpoints
-  .get("/", () => "Hello world!", {
-    detail: {
-      tags: ["Stock In"],
-      summary: "Get stock inventory",
-      description: "This endpoint is used to get stock inventory",
-    },
-  })
   .post(
-    "/batch",
-    async ({ body, set }) => {
-      try {
-        const { categoryId, typeId, stationId, startSerialNumber, quantity } =
-          body;
-
-        const { totalCardsAdded } = await StockService.addStocks(
-          categoryId,
-          typeId,
-          startSerialNumber,
-          quantity
-        );
-
-        return {
-          success: true,
-          message: "Stocks added successfully",
-          data: totalCardsAdded,
-        };
-      } catch (error) {
-        set.status =
-          error instanceof Error && "statusCode" in error
-            ? (error as any).statusCode
-            : 500;
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      body: StockModel.addStocksBody,
-      response: {
-        200: StockModel.addStocksResponse,
-        400: StockModel.errorResponse,
-        401: StockModel.errorResponse,
-        500: StockModel.errorResponse,
-      },
-      detail: {
-        tags: ["Stock In"],
-        summary: "Add stock cards batch",
-        description: "This endpoint is used to add stock cards batch",
-      },
-    }
-  )
-  .post(
-    "/add",
+    "/",
     async (context) => {
       const { body, set, user } = context as typeof context & AuthContextUser;
-
       try {
-        const { categoryId, typeId, stationId, quantity } = body;
-
-        const { totalCardsAdded } = await StockService.addStock(
-          categoryId,
-          typeId,
-          stationId,
-          quantity,
-          user.id
+        const stockIn = await StockInService.createStockIn(
+          body.movementAt,
+          body.categoryId,
+          body.typeId,
+          body.quantity,
+          user.id,
+          body.note
         );
 
         return {
           success: true,
-          message: "Stock added successfully",
-          data: totalCardsAdded,
+          message: "Stock in created successfully",
+          data: stockIn,
         };
       } catch (error) {
         set.status =
@@ -103,17 +50,18 @@ export const stock = new Elysia({ prefix: "/stock/in" })
       }
     },
     {
-      body: StockModel.addStockQuantityBody,
+      body: StockInModel.stockInRequest,
       response: {
-        200: StockModel.addStockQuantityResponse,
-        400: StockModel.errorResponse,
-        401: StockModel.errorResponse,
-        500: StockModel.errorResponse,
+        200: StockInModel.stockInResponse,
+        400: StockInModel.errorResponse,
+        401: StockInModel.errorResponse,
+        403: StockInModel.errorResponse,
+        500: StockInModel.errorResponse,
       },
       detail: {
         tags: ["Stock In"],
-        summary: "Add stock quantity",
-        description: "This endpoint is used to add stock quantity",
+        summary: "Create stock in",
+        description: "This endpoint is used to create stock in (superadmin)",
       },
     }
   );

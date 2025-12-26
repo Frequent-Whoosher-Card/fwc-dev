@@ -39,9 +39,15 @@ export namespace CardTypeModel {
 
   //   Create Card Type Request
   export const createCardTypeRequest = t.Object({
-    typeCode: t.String(),
-    typeName: t.String(),
-    routeDescription: t.String(),
+    typeCode: t.String({
+      description: "Kode tipe kartu",
+    }),
+    typeName: t.String({
+      description: "Nama tipe kartu",
+    }),
+    routeDescription: t.String({
+      description: "Deskripsi rute",
+    }),
   });
 
   // Create Card Type Response
@@ -64,9 +70,15 @@ export namespace CardTypeModel {
 
   // Edit Card Type Request
   export const editCardTypeRequest = t.Object({
-    typeCode: t.String(),
-    typeName: t.String(),
-    routeDescription: t.String(),
+    typeCode: t.String({
+      description: "Kode tipe kartu",
+    }),
+    typeName: t.String({
+      description: "Nama tipe kartu",
+    }),
+    routeDescription: t.String({
+      description: "Deskripsi rute",
+    }),
   });
 
   // Edit Card Type Response

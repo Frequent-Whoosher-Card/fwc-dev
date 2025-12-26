@@ -47,11 +47,23 @@ export namespace CardProductModel {
 
   // Create Card Product Request
   export const createCardProductRequest = t.Object({
-    categoryId: t.String(),
-    typeId: t.String(),
-    totalQuota: t.Number(),
-    masaBerlaku: t.Number(),
-    price: t.Number(),
+    categoryId: t.String({
+      format: "uuid",
+      description: "Category ID",
+    }),
+    typeId: t.String({
+      format: "uuid",
+      description: "Type ID",
+    }),
+    totalQuota: t.Number({
+      description: "Total quota",
+    }),
+    masaBerlaku: t.Number({
+      description: "Masa berlaku",
+    }),
+    price: t.Number({
+      description: "Harga",
+    }),
   });
 
   // Create Card Product Response
@@ -77,11 +89,23 @@ export namespace CardProductModel {
 
   // Update Card Product Request
   export const updateCardProductRequest = t.Object({
-    categoryId: t.String(),
-    typeId: t.String(),
-    totalQuota: t.Number(),
-    masaBerlaku: t.Number(),
-    price: t.Number(),
+    categoryId: t.String({
+      format: "uuid",
+      description: "Category ID",
+    }),
+    typeId: t.String({
+      format: "uuid",
+      description: "Type ID",
+    }),
+    totalQuota: t.Number({
+      description: "Total quota",
+    }),
+    masaBerlaku: t.Number({
+      description: "Masa berlaku",
+    }),
+    price: t.Number({
+      description: "Harga",
+    }),
   });
 
   // Update Card Product Response
