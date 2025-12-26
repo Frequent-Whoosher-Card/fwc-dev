@@ -45,6 +45,7 @@ backend/*.swp
 **/*.tar.gz
 **/*.tgz
 **/*.bun
+backend/bun.lock
 package-lock.json
 
 ############################

@@ -34,6 +34,7 @@ export class CardProductService {
     totalQuota: number,
     masaBerlaku: number,
     price: number,
+    serialTemplate: string,
     userId: string
   ) {
     const [cardCategory, cardType] = await Promise.all([
@@ -67,6 +68,7 @@ export class CardProductService {
         totalQuota,
         masaBerlaku,
         price,
+        serialTemplate,
         isActive: true,
         createdAt: new Date(),
         createdBy: userId,

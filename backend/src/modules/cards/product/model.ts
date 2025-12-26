@@ -64,6 +64,9 @@ export namespace CardProductModel {
     price: t.Number({
       description: "Harga",
     }),
+    serialTemplate: t.String({
+      description: "Template serial untuk produk ini",
+    }),
   });
 
   // Create Card Product Response
