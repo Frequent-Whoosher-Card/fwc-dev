@@ -3,9 +3,10 @@ import { cors } from "@elysiajs/cors";
 import { docsConfig } from "./docs";
 import { auth } from "./modules/auth";
 import { users } from "./modules/users";
-import { stock } from "./modules/stock";
 import { cardCategory } from "./modules/cards/category";
 import { cardTypes } from "./modules/cards/type";
+import { cardProducts } from "./modules/cards/product";
+import { stockIn } from "./modules/stock/in";
 
 const app = new Elysia()
   .use(docsConfig)
@@ -17,9 +18,10 @@ const app = new Elysia()
   }))
   .use(auth)
   .use(users)
-  .use(stock)
   .use(cardCategory)
   .use(cardTypes)
+  .use(cardProducts)
+  .use(stockIn)
   .onError(({ code, error, set }) => {
     // Global error handler
     if (code === "VALIDATION") {
