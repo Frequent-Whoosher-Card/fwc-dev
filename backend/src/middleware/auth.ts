@@ -7,29 +7,29 @@ import { jwtConfig } from "../config/jwt";
 
 export const authMiddleware = (app: Elysia) =>
   app
-    .use(
-      jwt({
-        name: "jwt",
-        secret: jwtConfig.secret,
-      })
-    )
-    .use(cookie())
-    .derive(async ({ jwt, cookie: { session }, headers, set }) => {
+  .use(
+    jwt({
+      name: "jwt",
+      secret: jwtConfig.secret,
+    })
+  )
+  .use(cookie())
+  .derive(async ({ jwt, cookie: { session }, headers, set }) => {
       // Try to get token from Authorization header first (for API testing)
       const authHeader = headers.authorization;
-      let token: string | undefined;
-
+    let token: string | undefined;
+    
       if (authHeader?.startsWith("Bearer ")) {
-        token = authHeader.slice(7);
+      token = authHeader.slice(7);
       } else {
         // Fallback to session cookie (for browser)
-        token = typeof session.value === "string" ? session.value : undefined;
-      }
-
-      if (!token || typeof token !== "string") {
-        set.status = 401;
-        throw new AuthenticationError("No authentication token found. Please login.");
-      }
+      token = typeof session.value === "string" ? session.value : undefined;
+    }
+    
+    if (!token || typeof token !== "string") {
+      set.status = 401;
+      throw new AuthenticationError("No authentication token found. Please login.");
+    }
 
     try {
       // Verify JWT token
