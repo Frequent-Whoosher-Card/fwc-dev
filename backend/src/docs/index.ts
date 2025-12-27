@@ -55,6 +55,10 @@ export const docsConfig = swagger({
         name: "Stock Out",
         description: "Stock out management endpoints for card inventory",
       },
+      {
+        name: "Sales",
+        description: "Sales endpoints for card sales data and analytics",
+      },
     ],
     components: {
       securitySchemes: {

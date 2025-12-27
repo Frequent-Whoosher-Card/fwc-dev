@@ -156,6 +156,33 @@ export function calculateTotalsFromRows(rows: Array<{
 }
 
 /**
+ * Parse date string (YYYY-MM-DD) to Date object in local timezone
+ * This avoids timezone conversion issues when using new Date("YYYY-MM-DD")
+ */
+export function parseDateString(dateString: string): Date {
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day, 0, 0, 0, 0);
+}
+
+/**
+ * Parse date string (YYYY-MM-DD) to Date object in local timezone for end of day
+ */
+export function parseDateStringEnd(dateString: string): Date {
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day, 23, 59, 59, 999);
+}
+
+/**
+ * Format date to YYYY-MM-DD string in local timezone
+ */
+export function formatDateString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * Get date keys for today, yesterday, and dayBeforeYesterday
  */
 export function getDateKeys(): {
@@ -178,8 +205,8 @@ export function getDateKeys(): {
     today,
     yesterday,
     dayBeforeYesterday,
-    todayKey: today.toISOString().split("T")[0],
-    yesterdayKey: yesterday.toISOString().split("T")[0],
+    todayKey: formatDateString(today),
+    yesterdayKey: formatDateString(yesterday),
   };
 }
 

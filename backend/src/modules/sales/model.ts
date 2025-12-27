@@ -79,6 +79,27 @@ export namespace SalesModel {
     }),
   });
 
+  // Daily Totals Query Params (reuse same structure as daily sales)
+  export const getDailyTotalsQuery = getDailySalesQuery;
+
+  // Daily Total Item
+  export const dailyTotalItem = t.Object({
+    date: t.String({
+      description: "Date in ISO format (YYYY-MM-DD)",
+      examples: ["2025-12-01"],
+    }),
+    total: t.Number({
+      description: "Total number of cards sold on this date",
+    }),
+  });
+
+  // Daily Totals Response
+  export const getDailyTotalsResponse = t.Object({
+    success: t.Boolean(),
+    message: t.String(),
+    data: t.Array(dailyTotalItem),
+  });
+
   // Error Response
   export const errorResponse = t.Object({
     success: t.Boolean(),

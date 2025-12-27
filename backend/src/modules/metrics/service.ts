@@ -25,6 +25,7 @@ interface MetricsQueryParams {
 export class MetricsService {
   /**
    * Build where clause for purchase date filter
+   * Uses local timezone to avoid timezone conversion issues
    */
   private static buildPurchaseDateFilter(
     startDate?: string,
@@ -37,13 +38,15 @@ export class MetricsService {
     if (startDate || endDate) {
       where.purchaseDate = {};
       if (startDate) {
-        const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
+        // Parse date string in local timezone
+        const [year, month, day] = startDate.split('-').map(Number);
+        const start = new Date(year, month - 1, day, 0, 0, 0, 0);
         where.purchaseDate.gte = start;
       }
       if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
+        // Parse date string in local timezone for end of day
+        const [year, month, day] = endDate.split('-').map(Number);
+        const end = new Date(year, month - 1, day, 23, 59, 59, 999);
         where.purchaseDate.lte = end;
       }
     }
@@ -335,7 +338,7 @@ export class MetricsService {
     const where = this.buildPurchaseDateFilter(startDate, endDate);
     
     // Add active card conditions
-    where.status = "Aktif";
+    where.status = "SOLD_ACTIVE";
     where.OR = [
       {
         expiredDate: {
@@ -362,7 +365,7 @@ export class MetricsService {
   /**
    * Get total revenue from remaining active tickets
    * Revenue = sum of (price * (quotaTicket / totalQuota)) for each active card
-   * Where active card = card with status "Aktif", not expired, and quotaTicket > 0
+   * Where active card = card with status "SOLD_ACTIVE", not expired, and quotaTicket > 0
    */
   static async getRemainingActiveTicketsRevenue(
     startDate?: string,
@@ -372,7 +375,7 @@ export class MetricsService {
     const where = this.buildPurchaseDateFilter(startDate, endDate);
     
     // Add active card conditions
-    where.status = "Aktif";
+    where.status = "SOLD_ACTIVE";
     where.OR = [
       {
         expiredDate: {
