@@ -193,6 +193,86 @@ const baseRoutes = new Elysia()
           "This endpoint returns daily card sales totals in simple format: array of { date, total }. Data is based on purchaseDate. Optional stationId filter available.",
       },
     }
+  )
+  // Get Active Cards
+  .get(
+    "/active-cards",
+    async (context) => {
+      const { query, set } = context;
+
+      try {
+        const { startDate, endDate, stationId } = query;
+
+        // Validate dates if provided
+        if (startDate || endDate) {
+          if (startDate) {
+            const start = new Date(startDate);
+            if (isNaN(start.getTime())) {
+              set.status = 400;
+              return formatErrorResponse(
+                new Error("Invalid startDate format. Please use YYYY-MM-DD format")
+              );
+            }
+          }
+
+          if (endDate) {
+            const end = new Date(endDate);
+            if (isNaN(end.getTime())) {
+              set.status = 400;
+              return formatErrorResponse(
+                new Error("Invalid endDate format. Please use YYYY-MM-DD format")
+              );
+            }
+          }
+
+          // Validate startDate <= endDate if both provided
+          if (startDate && endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            if (start > end) {
+              set.status = 400;
+              return formatErrorResponse(
+                new Error("Start date must be before or equal to end date")
+              );
+            }
+          }
+        }
+
+        const activeCards = await SalesService.getActiveCards({
+          startDate,
+          endDate,
+          stationId,
+        });
+
+        return {
+          success: true,
+          message: "Active cards data fetched successfully",
+          data: activeCards,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      query: SalesModel.getActiveCardsQuery,
+      response: {
+        200: SalesModel.getActiveCardsResponse,
+        400: SalesModel.errorResponse,
+        401: SalesModel.errorResponse,
+        403: SalesModel.errorResponse,
+        500: SalesModel.errorResponse,
+      },
+      detail: {
+        tags: ["Sales"],
+        summary: "Get active cards count and quota ticket issued",
+        description:
+          "This endpoint returns the total number of active cards and total quota ticket issued from those cards. Active cards are defined as: status SOLD_ACTIVE, not expired (expiredDate > now or null), and quotaTicket > 0. Optional filters: startDate, endDate (filter by purchaseDate), and stationId (filter by station).",
+      },
+    }
   );
 
 export const sales = new Elysia({ prefix: "/sales" })

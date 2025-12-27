@@ -172,6 +172,41 @@ export namespace SalesModel {
     }),
   });
 
+  // Active Cards Query Params (all optional)
+  export const getActiveCardsQuery = t.Object({
+    startDate: t.Optional(
+      t.String({
+        description: "Start date in ISO format (YYYY-MM-DD) - filter by purchase date",
+        examples: ["2025-01-01"],
+      })
+    ),
+    endDate: t.Optional(
+      t.String({
+        description: "End date in ISO format (YYYY-MM-DD) - filter by purchase date",
+        examples: ["2025-12-31"],
+      })
+    ),
+    stationId: t.Optional(
+      t.String({
+        description: "Station ID (UUID) - optional filter by station",
+      })
+    ),
+  });
+
+  // Active Cards Response
+  export const getActiveCardsResponse = t.Object({
+    success: t.Boolean(),
+    message: t.String(),
+    data: t.Object({
+      activeCardsCount: t.Number({
+        description: "Total number of active cards (status SOLD_ACTIVE, not expired, quotaTicket > 0)",
+      }),
+      activeCardsQuotaIssued: t.Number({
+        description: "Total quota ticket issued from all active cards (sum of totalQuota from cardProduct)",
+      }),
+    }),
+  });
+
   // Error Response
   export const errorResponse = t.Object({
     success: t.Boolean(),

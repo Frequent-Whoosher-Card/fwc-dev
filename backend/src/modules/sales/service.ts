@@ -84,6 +84,17 @@ interface ExpiredDailySalesAggregated {
   totals: ExpiredDailySalesRow;
 }
 
+interface ActiveCardsQueryParams {
+  startDate?: string;
+  endDate?: string;
+  stationId?: string;
+}
+
+interface ActiveCardsData {
+  activeCardsCount: number;
+  activeCardsQuotaIssued: number;
+}
+
 export class SalesService {
   static async getDailySales(params: DailySalesQueryParams) {
     const { startDate, endDate, stationId } = params;
@@ -601,5 +612,85 @@ export class SalesService {
       .sort((a, b) => a.date.localeCompare(b.date));
 
     return dailyTotals;
+  }
+
+  /**
+   * Get active cards count and quota ticket issued
+   * Active cards = status SOLD_ACTIVE, not expired, and quotaTicket > 0
+   */
+  static async getActiveCards(
+    params: ActiveCardsQueryParams
+  ): Promise<ActiveCardsData> {
+    const { startDate, endDate, stationId } = params;
+    const now = new Date();
+
+    // Build where clause
+    const whereClause: any = {
+      status: "SOLD_ACTIVE",
+      deletedAt: null,
+      quotaTicket: {
+        gt: 0,
+      },
+      OR: [
+        {
+          expiredDate: {
+            gt: now,
+          },
+        },
+        {
+          expiredDate: null,
+        },
+      ],
+    };
+
+    // Add purchase date filter if provided
+    if (startDate || endDate) {
+      whereClause.purchaseDate = {};
+      if (startDate) {
+        const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+        const start = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
+        whereClause.purchaseDate.gte = start;
+      }
+      if (endDate) {
+        const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+        const end = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
+        whereClause.purchaseDate.lte = end;
+      }
+    }
+
+    // Add station filter if provided
+    if (stationId) {
+      whereClause.transactions = {
+        some: {
+          stationId: stationId,
+          deletedAt: null,
+        },
+      };
+    }
+
+    // Query active cards with cardProduct relation to get totalQuota
+    const cards = await db.card.findMany({
+      where: whereClause,
+      include: {
+        cardProduct: {
+          select: {
+            totalQuota: true,
+          },
+        },
+      },
+    });
+
+    // Calculate active cards count
+    const activeCardsCount = cards.length;
+
+    // Calculate total quota ticket issued (sum of totalQuota from cardProduct)
+    const activeCardsQuotaIssued = cards.reduce((sum, card) => {
+      return sum + (card.cardProduct?.totalQuota || 0);
+    }, 0);
+
+    return {
+      activeCardsCount,
+      activeCardsQuotaIssued,
+    };
   }
 }
