@@ -28,62 +28,65 @@ export const authMiddleware = (app: Elysia) =>
 
       if (!token || typeof token !== "string") {
         set.status = 401;
-        throw new AuthenticationError("No authentication token found. Please login.");
+        throw new AuthenticationError(
+          "No authentication token found. Please login."
+        );
       }
 
-    try {
-      // Verify JWT token
-      const payload = await jwt.verify(token);
+      try {
+        // Verify JWT token
+        const payload = await jwt.verify(token);
 
-      if (!payload || typeof payload !== "object") {
-        set.status = 401;
-        throw new AuthenticationError("Invalid session token");
-      }
+        if (!payload || typeof payload !== "object") {
+          set.status = 401;
+          throw new AuthenticationError("Invalid session token");
+        }
 
-      const userId = (payload as { userId?: string }).userId;
+        const userId = (payload as { userId?: string }).userId;
 
-      if (!userId) {
-        set.status = 401;
-        throw new AuthenticationError("Invalid session token");
-      }
+        if (!userId) {
+          set.status = 401;
+          throw new AuthenticationError("Invalid session token");
+        }
 
-      // Verify user still exists and is active
-      const user = await db.user.findFirst({
-        where: {
-          id: userId,
-          deletedAt: null,
-          isActive: true,
-        },
-        include: {
-          role: true,
-        },
-      });
-
-      if (!user) {
-        set.status = 401;
-        throw new AuthenticationError("User not found or inactive");
-      }
-
-      // Attach user to context
-      return {
-        user: {
-          id: user.id,
-          username: user.username,
-          fullName: user.fullName,
-          email: user.email,
-          role: {
-            id: user.role.id,
-            roleCode: user.role.roleCode,
-            roleName: user.role.roleName,
+        // Verify user still exists and is active
+        const user = await db.user.findFirst({
+          where: {
+            id: userId,
+            deletedAt: null,
+            isActive: true,
           },
-        },
-      };
-    } catch (error) {
-      // If JWT verification fails
-      if (error instanceof AuthenticationError) {
-        throw error;
+          include: {
+            role: true,
+          },
+        });
+
+        if (!user) {
+          set.status = 401;
+          throw new AuthenticationError("User not found or inactive");
+        }
+
+        // Attach user to context
+        return {
+          user: {
+            id: user.id,
+            username: user.username,
+            fullName: user.fullName,
+            email: user.email,
+            role: {
+              id: user.role.id,
+              roleCode: user.role.roleCode,
+              roleName: user.role.roleName,
+            },
+            stationId: user.stationId,
+          },
+        };
+      } catch (error) {
+        // If JWT verification fails
+        if (error instanceof AuthenticationError) {
+          throw error;
+        }
+        set.status = 401;
+        throw new AuthenticationError("Invalid or expired session");
       }
-      set.status = 401;
-      throw new AuthenticationError("Invalid or expired session");
-    }
-  });
+    });
