@@ -12,38 +12,22 @@ const baseRoutes = new Elysia()
       try {
         const { startDate, endDate } = query;
 
-        // Validate dates if provided
-        if (startDate || endDate) {
-          if (startDate) {
-            const start = new Date(startDate);
-            if (isNaN(start.getTime())) {
-              set.status = 400;
-              return formatErrorResponse(
-                new Error("Invalid start date format. Please use YYYY-MM-DD format")
-              );
-            }
-          }
+        // Validate dates
+        const start = new Date(startDate);
+        const end = new Date(endDate);
 
-          if (endDate) {
-            const end = new Date(endDate);
-            if (isNaN(end.getTime())) {
-              set.status = 400;
-              return formatErrorResponse(
-                new Error("Invalid end date format. Please use YYYY-MM-DD format")
-              );
-            }
-          }
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("Invalid date format. Please use YYYY-MM-DD format")
+          );
+        }
 
-          if (startDate && endDate) {
-            const start = new Date(startDate);
-            const end = new Date(endDate);
-            if (start > end) {
-              set.status = 400;
-              return formatErrorResponse(
-                new Error("Start date must be before or equal to end date")
-              );
-            }
-          }
+        if (start > end) {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("Start date must be before or equal to end date")
+          );
         }
 
         const metrics = await MetricsService.getMetrics({
@@ -76,7 +60,7 @@ const baseRoutes = new Elysia()
         tags: ["Metrics"],
         summary: "Get all metrics",
         description:
-          "Returns all metrics including: card issued, quota ticket issued, redeem, expired ticket, and remaining active tickets. Supports optional date range filter by purchase date.",
+          "Returns all metrics including: card issued, quota ticket issued, redeem, expired ticket, and remaining active tickets. Requires startDate and endDate parameters to filter by purchase date.",
       },
     }
   );

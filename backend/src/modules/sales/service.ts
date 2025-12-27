@@ -63,20 +63,24 @@ export class SalesService {
 
 
 
-    // Query cards with category and type information
+    // Query cards with category and type information via cardProduct relation
     const cards = await db.card.findMany({
       where: whereClause,
       include: {
-        category: {
-          select: {
-            categoryCode: true,
-            categoryName: true,
-          },
-        },
-        type: {
-          select: {
-            typeCode: true,
-            typeName: true,
+        cardProduct: {
+          include: {
+            category: {
+              select: {
+                categoryCode: true,
+                categoryName: true,
+              },
+            },
+            type: {
+              select: {
+                typeCode: true,
+                typeName: true,
+              },
+            },
           },
         },
       },
@@ -89,15 +93,15 @@ export class SalesService {
     const salesMap = new Map<string, SalesData>();
 
     cards.forEach((card) => {
-      // Skip if purchaseDate is null
-      if (!card.purchaseDate) return;
+      // Skip if purchaseDate is null or cardProduct is null
+      if (!card.purchaseDate || !card.cardProduct) return;
 
       const date = new Date(card.purchaseDate);
       date.setHours(0, 0, 0, 0); 
 
       const dateKey = date.toISOString().split("T")[0]; // YYYY-MM-DD
-      const categoryCode = card.category.categoryCode;
-      const typeCode = card.type.typeCode;
+      const categoryCode = card.cardProduct.category.categoryCode;
+      const typeCode = card.cardProduct.type.typeCode;
 
       const key = `${dateKey}_${categoryCode}_${typeCode}`;
 
