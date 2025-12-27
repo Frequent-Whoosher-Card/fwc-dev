@@ -5,7 +5,7 @@ ALTER TABLE "public"."cards" ALTER COLUMN "status_card" DROP DEFAULT;
 ALTER TABLE "cards" ALTER COLUMN "status_card" TYPE "CardStatus_new" USING (
   CASE "status_card"::text
     WHEN 'Non_Aktif' THEN 'SOLD_INACTIVE'::"CardStatus_new"
-    WHEN 'Aktif' THEN 'SOLD_ACTIVE'::"CardStatus_new"
+    WHEN 'Aktif' THEN 'IN_STATION'::"CardStatus_new"
     ELSE "status_card"::text::"CardStatus_new"
   END
 );
