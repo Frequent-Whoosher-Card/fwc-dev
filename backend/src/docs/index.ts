@@ -19,10 +19,6 @@ export const docsConfig = swagger({
     },
     tags: [
       {
-        name: "General",
-        description: "General API endpoints",
-      },
-      {
         name: "Authentication",
         description:
           "Authentication endpoints for user login, logout, and password management",

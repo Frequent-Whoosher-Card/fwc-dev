@@ -144,13 +144,8 @@ model Card {
   serialNumber  String         @unique @map("serial_number")
   memberId      String?        @map("member_id") @db.Uuid
   cardProductId String         @map("card_product_id") @db.Uuid
-  categoryId    String         @map("category_id") @db.Uuid
-  typeId        String         @map("type_id") @db.Uuid
   quotaTicket   Int            @default(0) @map("quota_ticket")
-  totalQuota    Int            @map("total_quota")
-  fwPrice       Decimal        @map("fw_price")
   purchaseDate  DateTime?      @map("purchase_date")
-  masaBerlaku   Int            @map("masa_berlaku")
   expiredDate   DateTime?      @map("expired_date")
   status        CardStatus     @default(IN_OFFICE) @map("status_card")
   createdAt     DateTime       @default(now()) @map("created_at")
@@ -161,9 +156,7 @@ model Card {
   deletedBy     String?        @map("deleted_by") @db.Uuid
   cardUsageLogs CardUsageLog[]
   cardProduct   CardProduct    @relation(fields: [cardProductId], references: [id])
-  category      CardCategory   @relation(fields: [categoryId], references: [id])
   member        Member?        @relation(fields: [memberId], references: [id], onDelete: Restrict)
-  type          CardType       @relation(fields: [typeId], references: [id])
   transactions  Transaction[]
 
   @@map("cards")
