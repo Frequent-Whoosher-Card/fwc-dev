@@ -3,13 +3,36 @@ import { t } from "elysia";
 export namespace MetricsModel {
   // Get Metrics Query Params
   export const getMetricsQuery = t.Object({
-    startDate: t.String({
-      description: "Start date in ISO format (YYYY-MM-DD) - filter by purchase date",
-      examples: ["2025-01-01"],
+    startDate: t.Optional(
+      t.String({
+        description: "Start date in ISO format (YYYY-MM-DD) - filter by purchase date",
+        examples: ["2025-01-01"],
+      })
+    ),
+    endDate: t.Optional(
+      t.String({
+        description: "End date in ISO format (YYYY-MM-DD) - filter by purchase date",
+        examples: ["2025-12-31"],
+      })
+    ),
+  });
+
+  // Revenue Data
+  export const revenueData = t.Object({
+    cardIssued: t.Number({
+      description: "Total harga penjualan dari semua card yang sudah diterbitkan",
     }),
-    endDate: t.String({
-      description: "End date in ISO format (YYYY-MM-DD) - filter by purchase date",
-      examples: ["2025-12-31"],
+    quotaTicketIssued: t.Number({
+      description: "Total harga penjualan dari quota ticket yang sudah diterbitkan",
+    }),
+    redeem: t.Number({
+      description: "Total harga penjualan dari ticket yang sudah di-redeem/digunakan",
+    }),
+    expiredTicket: t.Number({
+      description: "Total harga penjualan dari ticket yang sudah expired",
+    }),
+    remainingActiveTickets: t.Number({
+      description: "Total harga penjualan dari sisa ticket yang masih aktif",
     }),
   });
 
@@ -30,6 +53,7 @@ export namespace MetricsModel {
     remainingActiveTickets: t.Number({
       description: "Sisa kuota ticket yang masih aktif dan bisa digunakan",
     }),
+    revenue: revenueData,
   });
 
   // Get Metrics Response

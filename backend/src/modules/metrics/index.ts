@@ -12,21 +12,23 @@ const baseRoutes = new Elysia()
       try {
         const { startDate, endDate } = query;
 
-        // Validate dates
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-
-        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        // Validate dates if provided
+        if (startDate && isNaN(new Date(startDate).getTime())) {
           set.status = 400;
           return formatErrorResponse(
-            new Error("Invalid date format. Please use YYYY-MM-DD format")
+            new Error("Invalid startDate format. Please use YYYY-MM-DD.")
           );
         }
-
-        if (start > end) {
+        if (endDate && isNaN(new Date(endDate).getTime())) {
           set.status = 400;
           return formatErrorResponse(
-            new Error("Start date must be before or equal to end date")
+            new Error("Invalid endDate format. Please use YYYY-MM-DD.")
+          );
+        }
+        if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("Start date cannot be after end date.")
           );
         }
 
