@@ -6,6 +6,7 @@ import { users } from "./modules/users";
 import { cardCategory } from "./modules/cards/category";
 import { cardTypes } from "./modules/cards/type";
 import { sales } from "./modules/sales";
+import { metrics } from "./modules/metrics";
 
 const app = new Elysia()
   .use(docsConfig)
@@ -20,6 +21,7 @@ const app = new Elysia()
   .use(cardCategory)
   .use(cardTypes)
   .use(sales)
+  .use(metrics)
   .onError(({ code, error, set }) => {
     // Global error handler
     if (code === "VALIDATION") {

@@ -64,7 +64,7 @@ const baseRoutes = new Elysia()
         tags: ["Sales"],
         summary: "Get daily sales data grouped for dashboard table",
         description:
-          "This endpoint returns daily sales data grouped into 4 rows: range (1 to dayBeforeYesterday), yesterday, today, and totals. Data is aggregated by category (GOLD, SILVER, KAI) and type (JaBan, JaKa, KaBan). Supports optional station filter.",
+          "This endpoint returns daily card sales data (based on purchaseDate) grouped into 4 rows: range (1 to dayBeforeYesterday), yesterday, today, and totals. Data is aggregated by category (GOLD, SILVER, KAI) and type (JaBan, JaKa, KaBan). Counts cards sold, not transactions/redeem.",
       },
     }
   );

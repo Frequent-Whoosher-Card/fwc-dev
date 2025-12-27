@@ -44,71 +44,60 @@ interface DailySalesAggregated {
 }
 
 export class SalesService {
-  /**
-   * Get daily sales data grouped by date, category, and type
-   */
   static async getDailySales(params: DailySalesQueryParams) {
     const { startDate, endDate, stationId } = params;
 
     // Parse dates
     const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0); 
     const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999); // End of day
+    end.setHours(23, 59, 59, 999);
 
-    // Build where clause
     const whereClause: any = {
-      shiftDate: {
+      purchaseDate: {
         gte: start,
         lte: end,
       },
-      status: "Success",
       deletedAt: null,
-      card: {
-        deletedAt: null,
-      },
     };
 
-    // Add station filter if provided
-    if (stationId) {
-      whereClause.stationId = stationId;
-    }
 
-    // Query transactions with card, category, and type information
-    const transactions = await db.transaction.findMany({
+
+    // Query cards with category and type information
+    const cards = await db.card.findMany({
       where: whereClause,
       include: {
-        card: {
-          include: {
-            category: {
-              select: {
-                categoryCode: true,
-                categoryName: true,
-              },
-            },
-            type: {
-              select: {
-                typeCode: true,
-                typeName: true,
-              },
-            },
+        category: {
+          select: {
+            categoryCode: true,
+            categoryName: true,
+          },
+        },
+        type: {
+          select: {
+            typeCode: true,
+            typeName: true,
           },
         },
       },
       orderBy: {
-        shiftDate: "asc",
+        purchaseDate: "asc",
       },
     });
 
     // Group by date, category, and type
     const salesMap = new Map<string, SalesData>();
 
-    transactions.forEach((transaction) => {
-      const date = new Date(transaction.shiftDate);
-      date.setHours(0, 0, 0, 0); // Normalize to start of day
+    cards.forEach((card) => {
+      // Skip if purchaseDate is null
+      if (!card.purchaseDate) return;
+
+      const date = new Date(card.purchaseDate);
+      date.setHours(0, 0, 0, 0); 
 
       const dateKey = date.toISOString().split("T")[0]; // YYYY-MM-DD
-      const categoryCode = transaction.card.category.categoryCode;
-      const typeCode = transaction.card.type.typeCode;
+      const categoryCode = card.category.categoryCode;
+      const typeCode = card.type.typeCode;
 
       const key = `${dateKey}_${categoryCode}_${typeCode}`;
 
