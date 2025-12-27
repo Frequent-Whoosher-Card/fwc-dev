@@ -59,38 +59,38 @@ model User {
 }
 
 model CardCategory {
-  id                 String              @id @default(uuid()) @map("category_id") @db.Uuid
-  categoryCode       String              @unique @map("category_code")
-  categoryName       String              @map("category_name")
-  description        String?
-  createdAt          DateTime            @default(now()) @map("created_at")
-  createdBy          String?             @map("created_by") @db.Uuid
-  updatedAt          DateTime            @default(now()) @map("updated_at")
-  updatedBy          String?             @map("updated_by") @db.Uuid
-  deletedAt          DateTime?           @map("deleted_at")
-  deletedBy          String?             @map("deleted_by") @db.Uuid
-  cardInventories    CardInventory[]
-  cardProducts       CardProduct[]
-  cards              Card[]
+  id              String          @id @default(uuid()) @map("category_id") @db.Uuid
+  categoryCode    String          @unique @map("category_code")
+  categoryName    String          @map("category_name")
+  description     String?
+  createdAt       DateTime        @default(now()) @map("created_at")
+  createdBy       String?         @map("created_by") @db.Uuid
+  updatedAt       DateTime        @default(now()) @map("updated_at")
+  updatedBy       String?         @map("updated_by") @db.Uuid
+  deletedAt       DateTime?       @map("deleted_at")
+  deletedBy       String?         @map("deleted_by") @db.Uuid
+  cardInventories CardInventory[]
+  cardProducts    CardProduct[]
+
   cardStockMovements CardStockMovement[]
 
   @@map("card_categories")
 }
 
 model CardType {
-  id                 String              @id @default(uuid()) @map("type_id") @db.Uuid
-  typeCode           String              @unique @map("type_code")
-  typeName           String              @map("type_name")
-  routeDescription   String?             @map("route_description")
-  createdAt          DateTime            @default(now()) @map("created_at")
-  createdBy          String?             @map("created_by") @db.Uuid
-  updatedAt          DateTime            @default(now()) @map("updated_at")
-  updatedBy          String?             @map("updated_by") @db.Uuid
-  deletedAt          DateTime?           @map("deleted_at")
-  deletedBy          String?             @map("deleted_by") @db.Uuid
-  cardInventories    CardInventory[]
-  cardProducts       CardProduct[]
-  cards              Card[]
+  id               String          @id @default(uuid()) @map("type_id") @db.Uuid
+  typeCode         String          @unique @map("type_code")
+  typeName         String          @map("type_name")
+  routeDescription String?         @map("route_description")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  createdBy        String?         @map("created_by") @db.Uuid
+  updatedAt        DateTime        @default(now()) @map("updated_at")
+  updatedBy        String?         @map("updated_by") @db.Uuid
+  deletedAt        DateTime?       @map("deleted_at")
+  deletedBy        String?         @map("deleted_by") @db.Uuid
+  cardInventories  CardInventory[]
+  cardProducts     CardProduct[]
+
   cardStockMovements CardStockMovement[]
 
   @@map("card_types")
