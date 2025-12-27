@@ -68,6 +68,69 @@ const baseRoutes = new Elysia()
       },
     }
   )
+  // Get Daily Expired Sales Grouped (for dashboard table)
+  .get(
+    "/daily-grouped-expired",
+    async (context) => {
+      const { query, set } = context;
+
+      try {
+        const { startDate, endDate, stationId } = query;
+
+        // Validate dates
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("Invalid date format. Please use YYYY-MM-DD format")
+          );
+        }
+
+        if (start > end) {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("Start date must be before or equal to end date")
+          );
+        }
+
+        const expiredDailySales = await SalesService.getExpiredDailySalesAggregated({
+          startDate,
+          endDate,
+          stationId,
+        });
+
+        return {
+          success: true,
+          message: "Daily expired sales data fetched successfully",
+          data: expiredDailySales,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      query: SalesModel.getExpiredDailySalesQuery,
+      response: {
+        200: SalesModel.getExpiredDailySalesResponse,
+        400: SalesModel.errorResponse,
+        401: SalesModel.errorResponse,
+        403: SalesModel.errorResponse,
+        500: SalesModel.errorResponse,
+      },
+      detail: {
+        tags: ["Sales"],
+        summary: "Get daily expired sales data grouped for dashboard table",
+        description:
+          "This endpoint returns daily expired card sales data (based on purchaseDate) grouped into 4 rows: range (1 to dayBeforeYesterday), yesterday, today, and totals. Data is aggregated by category (GOLD, SILVER, KAI) and type (JaBan, JaKa, KaBan). Includes expired count and expired price. Only includes cards that are already expired (expiredDate < now).",
+      },
+    }
+  )
   // Get Daily Totals (simple format)
   .get(
     "/daily-totals",

@@ -210,3 +210,108 @@ export function getDateKeys(): {
   };
 }
 
+/**
+ * Create an empty expired sales row
+ * Includes expired count and expiredPrice fields
+ */
+export function createEmptyExpiredRow(): {
+  tanggal: string;
+  gold: { jaBan: number; jaKa: number; kaBan: number };
+  silver: { jaBan: number; jaKa: number; kaBan: number };
+  kai: number;
+  total: number;
+  expired: number;
+  expiredPrice: number;
+} {
+  return {
+    tanggal: "",
+    gold: { jaBan: 0, jaKa: 0, kaBan: 0 },
+    silver: { jaBan: 0, jaKa: 0, kaBan: 0 },
+    kai: 0,
+    total: 0,
+    expired: 0,
+    expiredPrice: 0,
+  };
+}
+
+/**
+ * Add expired sales data to appropriate row field based on category and type
+ * Also updates expired count and expiredPrice
+ */
+export function addExpiredToRow(
+  row: {
+    gold: { jaBan: number; jaKa: number; kaBan: number };
+    silver: { jaBan: number; jaKa: number; kaBan: number };
+    kai: number;
+    expired: number;
+    expiredPrice: number;
+  },
+  categoryCode: string,
+  typeCode: string,
+  count: number,
+  price: number
+): void {
+  const normalizedCategory = normalizeCategoryCode(categoryCode);
+  const normalizedType = normalizeTypeCode(typeCode);
+
+  // Add to sales count (same as regular sales)
+  if (normalizedCategory === "GOLD") {
+    if (normalizedType === "JaBan") row.gold.jaBan += count;
+    else if (normalizedType === "JaKa") row.gold.jaKa += count;
+    else if (normalizedType === "KaBan") row.gold.kaBan += count;
+  } else if (normalizedCategory === "SILVER") {
+    if (normalizedType === "JaBan") row.silver.jaBan += count;
+    else if (normalizedType === "JaKa") row.silver.jaKa += count;
+    else if (normalizedType === "KaBan") row.silver.kaBan += count;
+  } else if (normalizedCategory === "KAI" || normalizedCategory === "FWC-KAI") {
+    row.kai += count;
+  }
+
+  // Add to expired count and price
+  row.expired += count;
+  row.expiredPrice += price;
+}
+
+/**
+ * Calculate totals from multiple expired rows
+ * Includes expired count and expiredPrice in totals
+ */
+export function calculateExpiredTotalsFromRows(rows: Array<{
+  gold: { jaBan: number; jaKa: number; kaBan: number };
+  silver: { jaBan: number; jaKa: number; kaBan: number };
+  kai: number;
+  expired: number;
+  expiredPrice: number;
+}>): {
+  gold: { jaBan: number; jaKa: number; kaBan: number };
+  silver: { jaBan: number; jaKa: number; kaBan: number };
+  kai: number;
+  total: number;
+  expired: number;
+  expiredPrice: number;
+} {
+  const totals = {
+    gold: { jaBan: 0, jaKa: 0, kaBan: 0 },
+    silver: { jaBan: 0, jaKa: 0, kaBan: 0 },
+    kai: 0,
+    total: 0,
+    expired: 0,
+    expiredPrice: 0,
+  };
+
+  rows.forEach((row) => {
+    totals.gold.jaBan += row.gold.jaBan;
+    totals.gold.jaKa += row.gold.jaKa;
+    totals.gold.kaBan += row.gold.kaBan;
+    totals.silver.jaBan += row.silver.jaBan;
+    totals.silver.jaKa += row.silver.jaKa;
+    totals.silver.kaBan += row.silver.kaBan;
+    totals.kai += row.kai;
+    totals.expired += row.expired;
+    totals.expiredPrice += row.expiredPrice;
+  });
+
+  totals.total = calculateRowTotal(totals);
+  return totals;
+}
+

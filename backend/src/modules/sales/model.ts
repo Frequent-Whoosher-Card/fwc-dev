@@ -100,6 +100,78 @@ export namespace SalesModel {
     data: t.Array(dailyTotalItem),
   });
 
+  // Expired Daily Sales Query Params (reuse same structure as daily sales)
+  export const getExpiredDailySalesQuery = getDailySalesQuery;
+
+  // Expired Daily Sales Row Data (same as dailySalesRow but with expired fields)
+  export const expiredDailySalesRow = t.Object({
+    tanggal: t.String({
+      description: "Date or date range (e.g., '1-15 dec 2025' or '16 dec 2025')",
+    }),
+    gold: t.Object({
+      jaBan: t.Number({
+        description: "GOLD JaBan count",
+      }),
+      jaKa: t.Number({
+        description: "GOLD JaKa count",
+      }),
+      kaBan: t.Number({
+        description: "GOLD KaBan count",
+      }),
+    }),
+    silver: t.Object({
+      jaBan: t.Number({
+        description: "SILVER JaBan count",
+      }),
+      jaKa: t.Number({
+        description: "SILVER JaKa count",
+      }),
+      kaBan: t.Number({
+        description: "SILVER KaBan count",
+      }),
+    }),
+    kai: t.Number({
+      description: "KAI count",
+    }),
+    total: t.Number({
+      description: "Total count for this row",
+    }),
+    expired: t.Number({
+      description: "Total count of expired cards for this row",
+    }),
+    expiredPrice: t.Number({
+      description: "Total price of expired cards for this row",
+    }),
+  });
+
+  // Expired Daily Sales Response
+  export const getExpiredDailySalesResponse = t.Object({
+    success: t.Boolean(),
+    message: t.String(),
+    data: t.Object({
+      rows: t.Array(expiredDailySalesRow),
+      totals: t.Object({
+        tanggal: t.String({
+          description: "Label for totals row (e.g., 'TOTAL')",
+        }),
+        gold: t.Object({
+          jaBan: t.Number(),
+          jaKa: t.Number(),
+          kaBan: t.Number(),
+        }),
+        silver: t.Object({
+          jaBan: t.Number(),
+          jaKa: t.Number(),
+          kaBan: t.Number(),
+        }),
+        kai: t.Number(),
+        total: t.Number(),
+        expired: t.Number(),
+        expiredPrice: t.Number(),
+      }),
+    }),
+  });
+
   // Error Response
   export const errorResponse = t.Object({
     success: t.Boolean(),
