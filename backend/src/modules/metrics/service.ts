@@ -37,9 +37,6 @@ export class MetricsService {
         end.setHours(23, 59, 59, 999);
         where.purchaseDate.lte = end;
       }
-    } else {
-      // If no date filter, only filter deletedAt
-      where.deletedAt = null;
     }
 
     return where;
@@ -61,24 +58,38 @@ export class MetricsService {
 
   /**
    * Get total quota ticket issued (sum of totalQuota from all cards)
+   * Now gets totalQuota from cardProduct relation
    */
   static async getQuotaTicketIssued(
     startDate?: string,
     endDate?: string
   ): Promise<number> {
     const where = this.buildPurchaseDateFilter(startDate, endDate);
-    const result = await db.card.aggregate({
+    
+    // Get all cards with cardProduct relation
+    const cards = await db.card.findMany({
       where,
-      _sum: {
-        totalQuota: true,
+      include: {
+        cardProduct: {
+          select: {
+            totalQuota: true,
+          },
+        },
       },
     });
-    return result._sum.totalQuota || 0;
+
+    // Sum totalQuota from cardProduct
+    const total = cards.reduce((sum, card) => {
+      return sum + (card.cardProduct?.totalQuota || 0);
+    }, 0);
+
+    return total;
   }
 
   /**
    * Get total tickets redeemed (sum of totalQuota - quotaTicket from cards)
    * Redeem = totalQuota - quotaTicket (selisih antara total dan sisa)
+   * Now gets totalQuota from cardProduct relation
    */
   static async getRedeem(
     startDate?: string,
@@ -86,23 +97,26 @@ export class MetricsService {
   ): Promise<number> {
     const where = this.buildPurchaseDateFilter(startDate, endDate);
     
-    // Get sum of totalQuota and quotaTicket separately
-    const totalQuotaResult = await db.card.aggregate({
+    // Get all cards with cardProduct relation
+    const cards = await db.card.findMany({
       where,
-      _sum: {
-        totalQuota: true,
+      include: {
+        cardProduct: {
+          select: {
+            totalQuota: true,
+          },
+        },
       },
     });
 
-    const quotaTicketResult = await db.card.aggregate({
-      where,
-      _sum: {
-        quotaTicket: true,
-      },
-    });
+    // Calculate totalQuota from cardProduct and quotaTicket from card
+    let totalQuota = 0;
+    let quotaTicket = 0;
 
-    const totalQuota = totalQuotaResult._sum.totalQuota || 0;
-    const quotaTicket = quotaTicketResult._sum.quotaTicket || 0;
+    cards.forEach((card) => {
+      totalQuota += card.cardProduct?.totalQuota || 0;
+      quotaTicket += card.quotaTicket || 0;
+    });
 
     // Redeem = totalQuota - quotaTicket (yang sudah digunakan)
     return totalQuota - quotaTicket;
@@ -168,9 +182,9 @@ export class MetricsService {
    * Get all metrics in one call
    */
   static async getMetrics(
-    params?: MetricsQueryParams
+    params: MetricsQueryParams
   ): Promise<MetricsData> {
-    const { startDate, endDate } = params || {};
+    const { startDate, endDate } = params;
 
     const [
       cardIssued,

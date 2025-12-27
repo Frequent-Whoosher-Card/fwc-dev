@@ -3,18 +3,14 @@ import { t } from "elysia";
 export namespace MetricsModel {
   // Get Metrics Query Params
   export const getMetricsQuery = t.Object({
-    startDate: t.Optional(
-      t.String({
-        description: "Start date in ISO format (YYYY-MM-DD) - filter by purchase date",
-        examples: ["2025-01-01"],
-      })
-    ),
-    endDate: t.Optional(
-      t.String({
-        description: "End date in ISO format (YYYY-MM-DD) - filter by purchase date",
-        examples: ["2025-12-31"],
-      })
-    ),
+    startDate: t.String({
+      description: "Start date in ISO format (YYYY-MM-DD) - filter by purchase date",
+      examples: ["2025-01-01"],
+    }),
+    endDate: t.String({
+      description: "End date in ISO format (YYYY-MM-DD) - filter by purchase date",
+      examples: ["2025-12-31"],
+    }),
   });
 
   // Metrics Data

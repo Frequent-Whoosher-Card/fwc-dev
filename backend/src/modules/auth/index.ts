@@ -114,6 +114,16 @@ export const auth = new Elysia({ prefix: "/auth" })
         tags: ["Authentication"],
         summary: "Login with username/email and password",
         description: "Authenticate user and create session",
+        requestBody: {
+          content: {
+            "application/json": {
+              example: {
+                username: "rama",
+                password: "ramaPassword",
+              },
+            },
+          },
+        },
       },
     }
   )
