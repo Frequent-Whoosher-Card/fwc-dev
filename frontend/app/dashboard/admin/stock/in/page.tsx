@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { StockSummary } from '@/app/dashboard/admin/stock/components/StockSummary';
 import { StockTabs } from '@/app/dashboard/admin/stock/components/StockTabs';
@@ -16,6 +17,7 @@ interface StockIn {
 }
 
 export default function StockInPage() {
+  const router = useRouter(); 
   const [showForm, setShowForm] = useState(false);
   const [stockData, setStockData] = useState<StockIn[]>([]);
 
@@ -132,26 +134,39 @@ export default function StockInPage() {
               <th className="p-4 text-left">Category</th>
               <th className="p-4 text-left">Type</th>
               <th className="p-4 text-left">Stock Masuk</th>
+                  <th className="p-4 text-center">Aksi</th>
+
             </tr>
           </thead>
           <tbody>
-            {stockData.map((row) => (
-              <tr key={row.id} className="border-b">
-                <td className="p-4">{row.tanggal}</td>
-                <td className="p-4">{row.category}</td>
-                <td className="p-4">{row.type || '-'}</td>
-                <td className="p-4">{row.stock.toLocaleString()}</td>
-              </tr>
-            ))}
+  {stockData.map((row) => (
+    <tr key={row.id} className="border-b">
+      <td className="p-4">{row.tanggal}</td>
+      <td className="p-4">{row.category}</td>
+      <td className="p-4">{row.type || '-'}</td>
+      <td className="p-4">{row.stock.toLocaleString()}</td>
 
-            {stockData.length === 0 && (
-              <tr>
-                <td colSpan={4} className="p-6 text-center text-gray-500">
-                  Belum ada data stock masuk
-                </td>
-              </tr>
-            )}
-          </tbody>
+      {/* AKSI */}
+      <td className="p-4 text-center">
+        <button
+          onClick={() => router.push(`/dashboard/admin/stock/in/${row.id}/edit`)}
+          className="rounded-md border px-3 py-1 text-sm hover:bg-gray-100"
+        >
+          Edit
+        </button>
+      </td>
+    </tr>
+  ))}
+
+  {stockData.length === 0 && (
+    <tr>
+      <td colSpan={5} className="p-6 text-center text-gray-500">
+        Belum ada data stock masuk
+      </td>
+    </tr>
+  )}
+</tbody>
+
         </table>
       </div>
     </div>
