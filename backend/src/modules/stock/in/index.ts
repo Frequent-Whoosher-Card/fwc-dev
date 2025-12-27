@@ -31,6 +31,7 @@ export const stockIn = new Elysia({ prefix: "/stock/in" })
           body.movementAt,
           body.categoryId,
           body.typeId,
+          body.startSerial,
           body.quantity,
           user.id,
           body.note
@@ -38,7 +39,7 @@ export const stockIn = new Elysia({ prefix: "/stock/in" })
 
         return {
           success: true,
-          message: "Stock in created successfully",
+          message: "Stock masuk (produksi batch) berhasil dicatat",
           data: stockIn,
         };
       } catch (error) {
@@ -50,9 +51,9 @@ export const stockIn = new Elysia({ prefix: "/stock/in" })
       }
     },
     {
-      body: StockInModel.stockInRequest,
+      body: StockInModel.stockInBatchBody,
       response: {
-        200: StockInModel.stockInResponse,
+        200: StockInModel.stockInBatchResponse,
         400: StockInModel.errorResponse,
         401: StockInModel.errorResponse,
         403: StockInModel.errorResponse,
@@ -60,8 +61,9 @@ export const stockIn = new Elysia({ prefix: "/stock/in" })
       },
       detail: {
         tags: ["Stock In"],
-        summary: "Create stock in",
-        description: "This endpoint is used to create stock in (superadmin)",
+        summary: "Stock In Batch (Produksi Office)",
+        description:
+          "Menyimpan kartu produksi ke tabel cards dengan serialNumber = serialTemplate + suffix berurutan. Role: superadmin/admin.",
       },
     }
   );

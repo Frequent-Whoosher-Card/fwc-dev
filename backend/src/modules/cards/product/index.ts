@@ -110,6 +110,7 @@ const adminRoutes = new Elysia()
           body.totalQuota,
           body.masaBerlaku,
           body.price,
+          body.serialTemplate,
           user.id
         );
 

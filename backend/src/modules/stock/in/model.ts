@@ -2,46 +2,43 @@ import { t } from "elysia";
 
 export namespace StockInModel {
   // Stock In Request
-  export const stockInRequest = t.Object({
+  export const stockInBatchBody = t.Object({
     movementAt: t.String({
       format: "date-time",
       description: "Tanggal produksi / stok masuk (ISO date-time)",
     }),
-    categoryId: t.String({
-      format: "uuid",
-      description: "Category ID",
+
+    categoryId: t.String({ format: "uuid" }),
+    typeId: t.String({ format: "uuid" }),
+
+    // contoh: "000123" atau "123"
+    startSerial: t.String({
+      pattern: "^[0-9]+$",
+      description:
+        "Nomor serial awal (digit). Leading zero akan dipertahankan.",
     }),
-    typeId: t.String({
-      format: "uuid",
-      description: "Type ID",
-    }),
+
     quantity: t.Number({
       minimum: 1,
-      description: "Jumlah stok masuk",
+      maximum: 10000,
+      description: "Jumlah kartu yang diproduksi",
     }),
-    note: t.Optional(
-      t.String({
-        description: "Catatan stok masuk",
-      })
-    ),
+
+    note: t.Optional(t.String({ maxLength: 500 })),
   });
 
   // Stock In Response
-  export const stockInResponse = t.Object({
+  export const stockInBatchResponse = t.Object({
     success: t.Boolean(),
     message: t.String(),
     data: t.Object({
-      movementId: t.String({
-        format: "uuid",
-        description: "Movement ID",
-      }),
-      quantity: t.Number({
-        description: "Jumlah stok masuk",
-      }),
-      officeInventoryId: t.String({
-        format: "uuid",
-        description: "Office Inventory ID",
-      }),
+      movementId: t.String(),
+      startSerial: t.Integer(),
+      endSerial: t.Integer(),
+      quantity: t.Integer(),
+      // contoh serial full (template + suffix)
+      startSerialNumber: t.String(),
+      endSerialNumber: t.String(),
     }),
   });
 

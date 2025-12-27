@@ -7,6 +7,8 @@ import { cardCategory } from "./modules/cards/category";
 import { cardTypes } from "./modules/cards/type";
 import { sales } from "./modules/sales";
 import { metrics } from "./modules/metrics";
+import { stockOut } from "./modules/stock/out";
+import { stockIn } from "./modules/stock/in";
 
 const app = new Elysia()
   .use(docsConfig)
@@ -20,6 +22,8 @@ const app = new Elysia()
   .use(users)
   .use(cardCategory)
   .use(cardTypes)
+  .use(stockIn)
+  .use(stockOut)
   .use(sales)
   .use(metrics)
   .onError(({ code, error, set }) => {
