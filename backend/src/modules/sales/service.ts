@@ -84,15 +84,19 @@ interface ExpiredDailySalesAggregated {
   totals: ExpiredDailySalesRow;
 }
 
-interface ActiveCardsQueryParams {
+interface CardsSummaryQueryParams {
   startDate?: string;
   endDate?: string;
   stationId?: string;
 }
 
-interface ActiveCardsData {
+interface CardsSummaryData {
   activeCardsCount: number;
   activeCardsQuotaIssued: number;
+  redeemedTickets: number;
+  unredeemedTickets: number;
+  redeemedPercentage: number;
+  unredeemedPercentage: number;
 }
 
 export class SalesService {
@@ -615,12 +619,12 @@ export class SalesService {
   }
 
   /**
-   * Get active cards count and quota ticket issued
+   * Get cards summary (count, quota issued, redeemed and unredeemed tickets)
    * Active cards = status SOLD_ACTIVE, not expired, and quotaTicket > 0
    */
-  static async getActiveCards(
-    params: ActiveCardsQueryParams
-  ): Promise<ActiveCardsData> {
+  static async getCardsSummary(
+    params: CardsSummaryQueryParams
+  ): Promise<CardsSummaryData> {
     const { startDate, endDate, stationId } = params;
     const now = new Date();
 
@@ -684,13 +688,34 @@ export class SalesService {
     const activeCardsCount = cards.length;
 
     // Calculate total quota ticket issued (sum of totalQuota from cardProduct)
-    const activeCardsQuotaIssued = cards.reduce((sum, card) => {
-      return sum + (card.cardProduct?.totalQuota || 0);
-    }, 0);
+    let activeCardsQuotaIssued = 0;
+    let totalRedeemed = 0;
+    let totalUnredeemed = 0;
+
+    cards.forEach((card) => {
+      const totalQuota = card.cardProduct?.totalQuota || 0;
+      const quotaTicket = card.quotaTicket || 0;
+      
+      activeCardsQuotaIssued += totalQuota;
+      totalRedeemed += totalQuota - quotaTicket; // Redeemed = total - remaining
+      totalUnredeemed += quotaTicket; // Unredeemed = remaining
+    });
+
+    // Calculate percentages (rounded to 2 decimal places)
+    const redeemedPercentage = activeCardsQuotaIssued > 0
+      ? Number(((totalRedeemed / activeCardsQuotaIssued) * 100).toFixed(2))
+      : 0;
+    const unredeemedPercentage = activeCardsQuotaIssued > 0
+      ? Number(((totalUnredeemed / activeCardsQuotaIssued) * 100).toFixed(2))
+      : 0;
 
     return {
       activeCardsCount,
       activeCardsQuotaIssued,
+      redeemedTickets: totalRedeemed,
+      unredeemedTickets: totalUnredeemed,
+      redeemedPercentage,
+      unredeemedPercentage,
     };
   }
 }

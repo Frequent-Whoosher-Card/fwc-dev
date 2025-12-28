@@ -172,8 +172,8 @@ export namespace SalesModel {
     }),
   });
 
-  // Active Cards Query Params (all optional)
-  export const getActiveCardsQuery = t.Object({
+  // Cards Summary Query Params (all optional)
+  export const getCardsSummaryQuery = t.Object({
     startDate: t.Optional(
       t.String({
         description: "Start date in ISO format (YYYY-MM-DD) - filter by purchase date",
@@ -193,8 +193,8 @@ export namespace SalesModel {
     ),
   });
 
-  // Active Cards Response
-  export const getActiveCardsResponse = t.Object({
+  // Cards Summary Response
+  export const getCardsSummaryResponse = t.Object({
     success: t.Boolean(),
     message: t.String(),
     data: t.Object({
@@ -203,6 +203,18 @@ export namespace SalesModel {
       }),
       activeCardsQuotaIssued: t.Number({
         description: "Total quota ticket issued from all active cards (sum of totalQuota from cardProduct)",
+      }),
+      redeemedTickets: t.Number({
+        description: "Total tickets that have been redeemed (totalQuota - quotaTicket)",
+      }),
+      unredeemedTickets: t.Number({
+        description: "Total tickets that have not been redeemed yet (quotaTicket)",
+      }),
+      redeemedPercentage: t.Number({
+        description: "Percentage of redeemed tickets (redeemedTickets / activeCardsQuotaIssued * 100), rounded to 2 decimal places",
+      }),
+      unredeemedPercentage: t.Number({
+        description: "Percentage of unredeemed tickets (unredeemedTickets / activeCardsQuotaIssued * 100), rounded to 2 decimal places",
       }),
     }),
   });

@@ -194,9 +194,9 @@ const baseRoutes = new Elysia()
       },
     }
   )
-  // Get Active Cards
+  // Get Cards Summary
   .get(
-    "/active-cards",
+    "/cards-summary",
     async (context) => {
       const { query, set } = context;
 
@@ -238,7 +238,7 @@ const baseRoutes = new Elysia()
           }
         }
 
-        const activeCards = await SalesService.getActiveCards({
+        const cardsSummary = await SalesService.getCardsSummary({
           startDate,
           endDate,
           stationId,
@@ -246,8 +246,8 @@ const baseRoutes = new Elysia()
 
         return {
           success: true,
-          message: "Active cards data fetched successfully",
-          data: activeCards,
+          message: "Cards summary data fetched successfully",
+          data: cardsSummary,
         };
       } catch (error) {
         set.status =
@@ -258,9 +258,9 @@ const baseRoutes = new Elysia()
       }
     },
     {
-      query: SalesModel.getActiveCardsQuery,
+      query: SalesModel.getCardsSummaryQuery,
       response: {
-        200: SalesModel.getActiveCardsResponse,
+        200: SalesModel.getCardsSummaryResponse,
         400: SalesModel.errorResponse,
         401: SalesModel.errorResponse,
         403: SalesModel.errorResponse,
@@ -268,9 +268,9 @@ const baseRoutes = new Elysia()
       },
       detail: {
         tags: ["Sales"],
-        summary: "Get active cards count and quota ticket issued",
+        summary: "Get cards summary (count, quota issued, redeemed and unredeemed tickets)",
         description:
-          "This endpoint returns the total number of active cards and total quota ticket issued from those cards. Active cards are defined as: status SOLD_ACTIVE, not expired (expiredDate > now or null), and quotaTicket > 0. Optional filters: startDate, endDate (filter by purchaseDate), and stationId (filter by station).",
+          "This endpoint returns summary of active cards including: total number of active cards, total quota ticket issued, redeemed tickets, and unredeemed tickets. Active cards are defined as: status SOLD_ACTIVE, not expired (expiredDate > now or null), and quotaTicket > 0. Optional filters: startDate, endDate (filter by purchaseDate), and stationId (filter by station).",
       },
     }
   );
