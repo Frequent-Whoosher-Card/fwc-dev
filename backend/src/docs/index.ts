@@ -11,7 +11,7 @@ export const docsConfig = swagger({
   documentation: {
     info: {
       title: "FWC API Documentation",
-      description: "API Documentation for FWC (Fuel Card Management System)",
+      description: "API Documentation for FWC (Frequent Whoosher Card)",
       version: "1.0.0",
       contact: {
         name: "FWC API Support",
@@ -54,6 +54,14 @@ export const docsConfig = swagger({
       {
         name: "Stock Out",
         description: "Stock out management endpoints for card inventory",
+      },
+      {
+        name: "Sales",
+        description: "Sales endpoints for card sales data and analytics",
+      },
+      {
+        name: "Metrics",
+        description: "Metrics endpoints for card metrics data and analytics",
       },
     ],
     components: {

@@ -4,8 +4,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "bun run --watch src/index.ts",
-    "db:update": "bunx prisma migrate deploy && bunx prisma generate",
-    "seed:excel": "bun run src/scripts/importExcel.ts"
+    "db:update": "bunx prisma migrate deploy && bunx prisma generate"
   },
   "dependencies": {
     "@elysiajs/cookie": "^0.8.0",

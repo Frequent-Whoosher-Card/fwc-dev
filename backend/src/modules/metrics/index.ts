@@ -12,21 +12,23 @@ const baseRoutes = new Elysia()
       try {
         const { startDate, endDate } = query;
 
-        // Validate dates
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-
-        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        // Validate dates if provided
+        if (startDate && isNaN(new Date(startDate).getTime())) {
           set.status = 400;
           return formatErrorResponse(
-            new Error("Invalid date format. Please use YYYY-MM-DD format")
+            new Error("Invalid startDate format. Please use YYYY-MM-DD.")
           );
         }
-
-        if (start > end) {
+        if (endDate && isNaN(new Date(endDate).getTime())) {
           set.status = 400;
           return formatErrorResponse(
-            new Error("Start date must be before or equal to end date")
+            new Error("Invalid endDate format. Please use YYYY-MM-DD.")
+          );
+        }
+        if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("Start date cannot be after end date.")
           );
         }
 
@@ -61,6 +63,67 @@ const baseRoutes = new Elysia()
         summary: "Get all metrics",
         description:
           "Returns all metrics including: card issued, quota ticket issued, redeem, expired ticket, and remaining active tickets. Requires startDate and endDate parameters to filter by purchase date.",
+      },
+    }
+  )
+  // Get Metrics Summary
+  .get(
+    "/summary",
+    async ({ query, set }) => {
+      try {
+        const { startDate, endDate } = query;
+
+        // Validate dates if provided
+        if (startDate && isNaN(new Date(startDate).getTime())) {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("Invalid startDate format. Please use YYYY-MM-DD.")
+          );
+        }
+        if (endDate && isNaN(new Date(endDate).getTime())) {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("Invalid endDate format. Please use YYYY-MM-DD.")
+          );
+        }
+        if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("Start date cannot be after end date.")
+          );
+        }
+
+        const summary = await MetricsService.getMetricsSummary(
+          startDate,
+          endDate
+        );
+
+        return {
+          success: true,
+          message: "Metrics summary retrieved successfully",
+          data: summary,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      query: MetricsModel.getMetricsQuery,
+      response: {
+        200: MetricsModel.getMetricsSummaryResponse,
+        400: MetricsModel.errorResponse,
+        401: MetricsModel.errorResponse,
+        500: MetricsModel.errorResponse,
+      },
+      detail: {
+        tags: ["Metrics"],
+        summary: "Get metrics summary",
+        description:
+          "Returns metrics summary including: total card issued and total quota ticket issued. Optional startDate and endDate parameters can be used to filter by purchase date.",
       },
     }
   );
