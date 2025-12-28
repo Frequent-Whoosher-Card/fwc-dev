@@ -63,6 +63,7 @@ export function createEmptyRow(): {
   silver: { jaBan: number; jaKa: number; kaBan: number };
   kai: number;
   total: number;
+  soldPrice: number;
 } {
   return {
     tanggal: "",
@@ -70,6 +71,7 @@ export function createEmptyRow(): {
     silver: { jaBan: 0, jaKa: 0, kaBan: 0 },
     kai: 0,
     total: 0,
+    soldPrice: 0,
   };
 }
 
@@ -94,16 +96,19 @@ export function calculateRowTotal(row: {
 
 /**
  * Add sales count to appropriate row field based on category and type
+ * Also updates soldPrice
  */
 export function addSalesToRow(
   row: {
     gold: { jaBan: number; jaKa: number; kaBan: number };
     silver: { jaBan: number; jaKa: number; kaBan: number };
     kai: number;
+    soldPrice: number;
   },
   categoryCode: string,
   typeCode: string,
-  count: number
+  count: number,
+  price: number
 ): void {
   const normalizedCategory = normalizeCategoryCode(categoryCode);
   const normalizedType = normalizeTypeCode(typeCode);
@@ -119,26 +124,33 @@ export function addSalesToRow(
   } else if (normalizedCategory === "KAI" || normalizedCategory === "FWC-KAI") {
     row.kai += count;
   }
+
+  // Add to sold price
+  row.soldPrice += price;
 }
 
 /**
  * Calculate totals from multiple rows
+ * Includes soldPrice in totals
  */
 export function calculateTotalsFromRows(rows: Array<{
   gold: { jaBan: number; jaKa: number; kaBan: number };
   silver: { jaBan: number; jaKa: number; kaBan: number };
   kai: number;
+  soldPrice: number;
 }>): {
   gold: { jaBan: number; jaKa: number; kaBan: number };
   silver: { jaBan: number; jaKa: number; kaBan: number };
   kai: number;
   total: number;
+  soldPrice: number;
 } {
   const totals = {
     gold: { jaBan: 0, jaKa: 0, kaBan: 0 },
     silver: { jaBan: 0, jaKa: 0, kaBan: 0 },
     kai: 0,
     total: 0,
+    soldPrice: 0,
   };
 
   rows.forEach((row) => {
@@ -149,6 +161,7 @@ export function calculateTotalsFromRows(rows: Array<{
     totals.silver.jaKa += row.silver.jaKa;
     totals.silver.kaBan += row.silver.kaBan;
     totals.kai += row.kai;
+    totals.soldPrice += row.soldPrice;
   });
 
   totals.total = calculateRowTotal(totals);

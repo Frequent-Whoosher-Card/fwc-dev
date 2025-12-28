@@ -24,6 +24,7 @@ interface SalesData {
   categoryCode: string;
   typeCode: string;
   count: number;
+  totalPrice: number; // Total price dari semua kartu sold dalam group ini
 }
 
 interface DailySalesRow {
@@ -40,6 +41,21 @@ interface DailySalesRow {
   };
   kai: number;
   total: number;
+  soldPrice: number; // Total harga dari kartu sold
+  percentage?: {
+    gold: {
+      jaBan: number;
+      jaKa: number;
+      kaBan: number;
+    };
+    silver: {
+      jaBan: number;
+      jaKa: number;
+      kaBan: number;
+    };
+    kai: number;
+    total: number;
+  };
 }
 
 interface DailySalesAggregated {
@@ -99,6 +115,13 @@ interface CardsSummaryData {
   unredeemedPercentage: number;
 }
 
+interface StationSalesData {
+  stationId: string;
+  stationCode: string;
+  stationName: string;
+  cardIssued: number;
+}
+
 export class SalesService {
   static async getDailySales(params: DailySalesQueryParams) {
     const { startDate, endDate, stationId } = params;
@@ -138,6 +161,7 @@ export class SalesService {
                 typeName: true,
               },
             },
+            // Include price for calculating total sold price
           },
         },
       },
@@ -164,15 +188,21 @@ export class SalesService {
 
       const key = `${dateKey}_${categoryCode}_${typeCode}`;
 
+      // Get price from cardProduct
+      const price = card.cardProduct.price;
+      const priceNumber = typeof price === 'number' ? price : Number(price);
+
       if (salesMap.has(key)) {
         const existing = salesMap.get(key)!;
         existing.count += 1;
+        existing.totalPrice += priceNumber;
       } else {
         salesMap.set(key, {
           date,
           categoryCode,
           typeCode,
           count: 1,
+          totalPrice: priceNumber,
         });
       }
     });
@@ -441,59 +471,83 @@ export class SalesService {
       getDateKeys();
 
     // Initialize grouped rows
-    const rangeRow = createEmptyRow();
-    const yesterdayRow = createEmptyRow();
-    const todayRow = createEmptyRow();
+    const rangeRow = createEmptyRow(); // 1 to dayBeforeYesterday
+    const rangeToTodayRow = createEmptyRow(); // 1 to today (KUMULATIF)
+    const yesterdayRow = createEmptyRow(); // yesterday only
+    const todayRow = createEmptyRow(); // today only
 
     // Process each date group
     dateGroups.forEach((dateItems, dateKey) => {
       const date = new Date(dateKey + "T00:00:00");
 
-      // Determine which row this date belongs to
-      let targetRow: DailySalesRow | null = null;
+      // Determine which row(s) this date belongs to
+      const targetRows: DailySalesRow[] = [];
       let rowTanggal = "";
 
       if (dateKey === todayKey) {
-        targetRow = todayRow;
+        targetRows.push(todayRow);
+        targetRows.push(rangeToTodayRow); // Also add to range 1-today (kumulatif)
         rowTanggal = formatDate(date);
       } else if (dateKey === yesterdayKey) {
-        targetRow = yesterdayRow;
+        targetRows.push(yesterdayRow);
+        targetRows.push(rangeToTodayRow); // Also add to range 1-today (kumulatif)
         rowTanggal = formatDate(date);
       } else if (date < yesterday) {
-        targetRow = rangeRow;
+        targetRows.push(rangeRow); // Add to range 1-dayBeforeYesterday
+        targetRows.push(rangeToTodayRow); // Also add to range 1-today (kumulatif)
         // Don't set tanggal here, will be set later as range
       }
 
-      if (!targetRow) return;
+      if (targetRows.length === 0) return;
 
-      // Aggregate data for this date
+      // Aggregate data for this date to all relevant rows
       dateItems.forEach((item) => {
-        addSalesToRow(
-          targetRow!,
-          item.categoryCode,
-          item.typeCode,
-          item.count
-        );
+        targetRows.forEach((targetRow) => {
+          addSalesToRow(
+            targetRow,
+            item.categoryCode,
+            item.typeCode,
+            item.count,
+            item.totalPrice
+          );
+        });
       });
 
-      // Calculate row total
-      targetRow.total = calculateRowTotal(targetRow);
+      // Calculate row totals for all affected rows
+      targetRows.forEach((targetRow) => {
+        targetRow.total = calculateRowTotal(targetRow);
+      });
 
-      // Set tanggal if not range row
-      if (targetRow !== rangeRow && rowTanggal) {
-        targetRow.tanggal = rowTanggal;
+      // Set tanggal if not range rows
+      if (rowTanggal) {
+        targetRows.forEach((targetRow) => {
+          if (targetRow !== rangeRow && targetRow !== rangeToTodayRow) {
+            targetRow.tanggal = rowTanggal;
+          }
+        });
       }
     });
 
     // Format row tanggals
     const startDay = 1;
     const endDay = dayBeforeYesterday.getDate();
+    const todayDay = today.getDate();
 
     // Format range tanggal (1 to dayBeforeYesterday)
     if (endDay >= startDay) {
       rangeRow.tanggal = formatDateRange(
         startDay,
         endDay,
+        today.getMonth(),
+        today.getFullYear()
+      );
+    }
+
+    // Format range to today tanggal (1 to today) - KUMULATIF
+    if (todayDay >= startDay) {
+      rangeToTodayRow.tanggal = formatDateRange(
+        startDay,
+        todayDay,
         today.getMonth(),
         today.getFullYear()
       );
@@ -509,11 +563,40 @@ export class SalesService {
       todayRow.tanggal = formatDate(today);
     }
 
-    // Calculate totals only from the 3 displayed rows (range, yesterday, today)
-    const totalsData = calculateTotalsFromRows([rangeRow, yesterdayRow, todayRow]);
+    // Calculate totals from rangeToToday (already includes all data up to today)
+    // This avoids double counting since rangeToTodayRow already includes all previous data
+    const totalsData = calculateTotalsFromRows([rangeToTodayRow]);
     const totals: DailySalesRow = {
       tanggal: "TOTAL",
       ...totalsData,
+    };
+
+    // Calculate percentage for each row based on grand total
+    const grandTotal = totals.total;
+    const calculatePercentage = (value: number): number => {
+      if (grandTotal === 0) return 0;
+      return Number(((value / grandTotal) * 100).toFixed(2));
+    };
+
+    // Helper function to add percentage to a row
+    const addPercentageToRow = (row: DailySalesRow): DailySalesRow => {
+      return {
+        ...row,
+        percentage: {
+          gold: {
+            jaBan: calculatePercentage(row.gold.jaBan),
+            jaKa: calculatePercentage(row.gold.jaKa),
+            kaBan: calculatePercentage(row.gold.kaBan),
+          },
+          silver: {
+            jaBan: calculatePercentage(row.silver.jaBan),
+            jaKa: calculatePercentage(row.silver.jaKa),
+            kaBan: calculatePercentage(row.silver.kaBan),
+          },
+          kai: calculatePercentage(row.kai),
+          total: calculatePercentage(row.total),
+        },
+      };
     };
 
     // Build result array - show rows based on valid dates
@@ -521,16 +604,37 @@ export class SalesService {
 
     // Add range row (only if valid date range exists)
     if (rangeRow.tanggal && endDay >= startDay) {
-      rows.push(rangeRow);
+      rows.push(addPercentageToRow(rangeRow));
+    }
+
+    // Add range to today row (kumulatif 1 sampai hari ini) - always show if valid
+    if (rangeToTodayRow.tanggal && todayDay >= startDay) {
+      rows.push(addPercentageToRow(rangeToTodayRow));
     }
 
     // Add yesterday row (only if valid date)
     if (yesterdayRow.tanggal && yesterday.getDate() >= 1) {
-      rows.push(yesterdayRow);
+      rows.push(addPercentageToRow(yesterdayRow));
     }
 
     // Add today row (always show)
-    rows.push(todayRow);
+    rows.push(addPercentageToRow(todayRow));
+
+    // Add percentage to totals (always 100% for total)
+    totals.percentage = {
+      gold: {
+        jaBan: calculatePercentage(totals.gold.jaBan),
+        jaKa: calculatePercentage(totals.gold.jaKa),
+        kaBan: calculatePercentage(totals.gold.kaBan),
+      },
+      silver: {
+        jaBan: calculatePercentage(totals.silver.jaBan),
+        jaKa: calculatePercentage(totals.silver.jaKa),
+        kaBan: calculatePercentage(totals.silver.kaBan),
+      },
+      kai: calculatePercentage(totals.kai),
+      total: 100, // Grand total is always 100%
+    };
 
     return {
       rows,
@@ -717,5 +821,103 @@ export class SalesService {
       redeemedPercentage,
       unredeemedPercentage,
     };
+  }
+
+  /**
+   * Build where clause for purchase date filter (reusable)
+   */
+  private static buildPurchaseDateFilter(
+    startDate?: string,
+    endDate?: string
+  ): any {
+    const where: any = {
+      deletedAt: null,
+      purchaseDate: {
+        not: null, // Only cards that have been sold
+      },
+    };
+
+    if (startDate || endDate) {
+      if (startDate) {
+        const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+        const start = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
+        where.purchaseDate.gte = start;
+      }
+      if (endDate) {
+        const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+        const end = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
+        where.purchaseDate.lte = end;
+      }
+    }
+
+    return where;
+  }
+
+  /**
+   * Get sales data per station (total penjualan per stasiun)
+   * Groups cards by station from transactions and counts cards sold per station
+   */
+  static async getSalesPerStation(
+    startDate?: string,
+    endDate?: string
+  ): Promise<StationSalesData[]> {
+    const whereClause = this.buildPurchaseDateFilter(startDate, endDate);
+
+    // Get all stations
+    const stations = await db.station.findMany({
+      where: {
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        stationCode: true,
+        stationName: true,
+      },
+    });
+
+    // Get all cards that have been sold with their transactions
+    const cards = await db.card.findMany({
+      where: whereClause,
+      include: {
+        transactions: {
+          where: {
+            deletedAt: null,
+          },
+          select: {
+            stationId: true,
+          },
+          take: 1, // Take first transaction (purchase transaction)
+        },
+      },
+    });
+
+    // Group cards by stationId
+    const stationMap = new Map<string, typeof cards>();
+    
+    cards.forEach((card) => {
+      // Get stationId from first transaction (purchase transaction)
+      const stationId = card.transactions[0]?.stationId;
+      if (!stationId) return; // Skip if no station
+
+      if (!stationMap.has(stationId)) {
+        stationMap.set(stationId, []);
+      }
+      stationMap.get(stationId)!.push(card);
+    });
+
+    // Calculate cardIssued (total penjualan) per station
+    const result: StationSalesData[] = stations.map((station) => {
+      const stationCards = stationMap.get(station.id) || [];
+      const cardIssued = stationCards.length;
+
+      return {
+        stationId: station.id,
+        stationCode: station.stationCode,
+        stationName: station.stationName,
+        cardIssued,
+      };
+    });
+
+    return result;
   }
 }

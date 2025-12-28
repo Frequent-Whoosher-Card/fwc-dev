@@ -63,6 +63,44 @@ export namespace MetricsModel {
     data: metricsData,
   });
 
+  // Metrics Summary Data
+  export const metricsSummaryData = t.Object({
+    cardIssued: t.Number({
+      description: "Total jumlah kartu yang sudah diterbitkan",
+    }),
+    quotaTicketIssued: t.Number({
+      description: "Total kuota ticket yang sudah diterbitkan",
+    }),
+    redeem: t.Number({
+      description: "Jumlah ticket yang sudah di-redeem/digunakan",
+    }),
+    remainingActiveTickets: t.Number({
+      description: "Sisa kuota ticket yang masih aktif dan bisa digunakan",
+    }),
+    expiredTicket: t.Number({
+      description: "Jumlah ticket dari kartu yang sudah expired",
+    }),
+    redeemPercentage: t.Number({
+      description:
+        "Persentase ticket yang sudah di-redeem terhadap total quota ticket issued (rounded to 2 decimal places)",
+    }),
+    remainingActiveTicketsPercentage: t.Number({
+      description:
+        "Persentase sisa ticket aktif terhadap total quota ticket issued (rounded to 2 decimal places)",
+    }),
+    expiredTicketPercentage: t.Number({
+      description:
+        "Persentase ticket expired terhadap total quota ticket issued (rounded to 2 decimal places)",
+    }),
+  });
+
+  // Get Metrics Summary Response
+  export const getMetricsSummaryResponse = t.Object({
+    success: t.Boolean(),
+    message: t.String(),
+    data: metricsSummaryData,
+  });
+
   // Error Response
   export const errorResponse = t.Object({
     success: t.Boolean(),

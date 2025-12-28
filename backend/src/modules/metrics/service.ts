@@ -22,6 +22,17 @@ interface MetricsQueryParams {
   endDate?: string;
 }
 
+interface MetricsSummaryData {
+  cardIssued: number;
+  quotaTicketIssued: number;
+  redeem: number;
+  remainingActiveTickets: number;
+  expiredTicket: number;
+  redeemPercentage: number;
+  remainingActiveTicketsPercentage: number;
+  expiredTicketPercentage: number;
+}
+
 export class MetricsService {
   /**
    * Build where clause for purchase date filter
@@ -420,6 +431,57 @@ export class MetricsService {
     }, 0);
 
     return totalRevenue;
+  }
+
+  /**
+   * Get metrics summary (card issued, quota ticket issued, redeem, remaining active tickets, and expired tickets)
+   * Optional date filters can be applied
+   * Includes percentage calculations for redeem, remaining active tickets, and expired tickets
+   */
+  static async getMetricsSummary(
+    startDate?: string,
+    endDate?: string
+  ): Promise<MetricsSummaryData> {
+    const [
+      cardIssued,
+      quotaTicketIssued,
+      redeem,
+      remainingActiveTickets,
+      expiredTicket,
+    ] = await Promise.all([
+      this.getCardIssued(startDate, endDate),
+      this.getQuotaTicketIssued(startDate, endDate),
+      this.getRedeem(startDate, endDate),
+      this.getRemainingActiveTickets(startDate, endDate),
+      this.getExpiredTicket(startDate, endDate),
+    ]);
+
+    // Calculate percentages (rounded to 2 decimal places)
+    const redeemPercentage =
+      quotaTicketIssued > 0
+        ? Number(((redeem / quotaTicketIssued) * 100).toFixed(2))
+        : 0;
+    const remainingActiveTicketsPercentage =
+      quotaTicketIssued > 0
+        ? Number(
+            ((remainingActiveTickets / quotaTicketIssued) * 100).toFixed(2)
+          )
+        : 0;
+    const expiredTicketPercentage =
+      quotaTicketIssued > 0
+        ? Number(((expiredTicket / quotaTicketIssued) * 100).toFixed(2))
+        : 0;
+
+    return {
+      cardIssued,
+      quotaTicketIssued,
+      redeem,
+      remainingActiveTickets,
+      expiredTicket,
+      redeemPercentage,
+      remainingActiveTicketsPercentage,
+      expiredTicketPercentage,
+    };
   }
 
   /**

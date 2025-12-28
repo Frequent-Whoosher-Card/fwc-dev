@@ -62,7 +62,7 @@ const baseRoutes = new Elysia()
       },
       detail: {
         tags: ["Sales"],
-        summary: "Get daily sales data grouped for dashboard table",
+        summary: "Get daily sales data grouped",
         description:
           "This endpoint returns daily card sales data (based on purchaseDate) grouped into 4 rows: range (1 to dayBeforeYesterday), yesterday, today, and totals. Data is aggregated by category (GOLD, SILVER, KAI) and type (JaBan, JaKa, KaBan). Counts cards sold, not transactions/redeem.",
       },
@@ -125,7 +125,7 @@ const baseRoutes = new Elysia()
       },
       detail: {
         tags: ["Sales"],
-        summary: "Get daily expired sales data grouped for dashboard table",
+        summary: "Get daily expired sales data grouped",
         description:
           "This endpoint returns daily expired card sales data (based on purchaseDate) grouped into 4 rows: range (1 to dayBeforeYesterday), yesterday, today, and totals. Data is aggregated by category (GOLD, SILVER, KAI) and type (JaBan, JaKa, KaBan). Includes expired count and expired price. Only includes cards that are already expired (expiredDate < now).",
       },
@@ -271,6 +271,67 @@ const baseRoutes = new Elysia()
         summary: "Get cards summary (count, quota issued, redeemed and unredeemed tickets)",
         description:
           "This endpoint returns summary of active cards including: total number of active cards, total quota ticket issued, redeemed tickets, and unredeemed tickets. Active cards are defined as: status SOLD_ACTIVE, not expired (expiredDate > now or null), and quotaTicket > 0. Optional filters: startDate, endDate (filter by purchaseDate), and stationId (filter by station).",
+      },
+    }
+  )
+  // Get Sales Per Station
+  .get(
+    "/per-station",
+    async ({ query, set }) => {
+      try {
+        const { startDate, endDate } = query;
+
+        // Validate dates if provided
+        if (startDate && isNaN(new Date(startDate).getTime())) {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("Invalid startDate format. Please use YYYY-MM-DD format")
+          );
+        }
+        if (endDate && isNaN(new Date(endDate).getTime())) {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("Invalid endDate format. Please use YYYY-MM-DD format")
+          );
+        }
+        if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("Start date must be before or equal to end date")
+          );
+        }
+
+        const salesPerStation = await SalesService.getSalesPerStation(
+          startDate,
+          endDate
+        );
+
+        return {
+          success: true,
+          message: "Sales per station data fetched successfully",
+          data: salesPerStation,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      query: SalesModel.getSalesPerStationQuery,
+      response: {
+        200: SalesModel.getSalesPerStationResponse,
+        400: SalesModel.errorResponse,
+        401: SalesModel.errorResponse,
+        500: SalesModel.errorResponse,
+      },
+      detail: {
+        tags: ["Sales"],
+        summary: "Get sales data per station",
+        description:
+          "Returns sales metrics grouped by station including: card issued, quota ticket issued, redeem, remaining active tickets, and expired tickets. Optional startDate and endDate parameters can be used to filter by purchase date.",
       },
     }
   );

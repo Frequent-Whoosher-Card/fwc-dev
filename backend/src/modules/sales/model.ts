@@ -51,6 +51,41 @@ export namespace SalesModel {
     total: t.Number({
       description: "Total count for this row",
     }),
+    soldPrice: t.Number({
+      description: "Total price of sold cards for this row",
+    }),
+    percentage: t.Optional(
+      t.Object({
+        gold: t.Object({
+          jaBan: t.Number({
+            description: "Percentage of GOLD JaBan from grand total",
+          }),
+          jaKa: t.Number({
+            description: "Percentage of GOLD JaKa from grand total",
+          }),
+          kaBan: t.Number({
+            description: "Percentage of GOLD KaBan from grand total",
+          }),
+        }),
+        silver: t.Object({
+          jaBan: t.Number({
+            description: "Percentage of SILVER JaBan from grand total",
+          }),
+          jaKa: t.Number({
+            description: "Percentage of SILVER JaKa from grand total",
+          }),
+          kaBan: t.Number({
+            description: "Percentage of SILVER KaBan from grand total",
+          }),
+        }),
+        kai: t.Number({
+          description: "Percentage of KAI from grand total",
+        }),
+        total: t.Number({
+          description: "Percentage of total from grand total",
+        }),
+      })
+    ),
   });
 
   // Daily Sales Response
@@ -75,6 +110,23 @@ export namespace SalesModel {
         }),
         kai: t.Number(),
         total: t.Number(),
+        soldPrice: t.Number(),
+        percentage: t.Optional(
+          t.Object({
+            gold: t.Object({
+              jaBan: t.Number(),
+              jaKa: t.Number(),
+              kaBan: t.Number(),
+            }),
+            silver: t.Object({
+              jaBan: t.Number(),
+              jaKa: t.Number(),
+              kaBan: t.Number(),
+            }),
+            kai: t.Number(),
+            total: t.Number(),
+          })
+        ),
       }),
     }),
   });
@@ -217,6 +269,45 @@ export namespace SalesModel {
         description: "Percentage of unredeemed tickets (unredeemedTickets / activeCardsQuotaIssued * 100), rounded to 2 decimal places",
       }),
     }),
+  });
+
+  // Sales Per Station Query Params (optional dates)
+  export const getSalesPerStationQuery = t.Object({
+    startDate: t.Optional(
+      t.String({
+        description: "Start date in ISO format (YYYY-MM-DD) - filter by purchase date",
+        examples: ["2025-01-01"],
+      })
+    ),
+    endDate: t.Optional(
+      t.String({
+        description: "End date in ISO format (YYYY-MM-DD) - filter by purchase date",
+        examples: ["2025-12-31"],
+      })
+    ),
+  });
+
+  // Station Sales Data
+  export const stationSalesData = t.Object({
+    stationId: t.String({
+      description: "Station ID (UUID)",
+    }),
+    stationCode: t.String({
+      description: "Station code",
+    }),
+    stationName: t.String({
+      description: "Station name",
+    }),
+    cardIssued: t.Number({
+      description: "Total jumlah kartu yang sudah terjual di stasiun ini (total penjualan)",
+    }),
+  });
+
+  // Get Sales Per Station Response
+  export const getSalesPerStationResponse = t.Object({
+    success: t.Boolean(),
+    message: t.String(),
+    data: t.Array(stationSalesData),
   });
 
   // Error Response
