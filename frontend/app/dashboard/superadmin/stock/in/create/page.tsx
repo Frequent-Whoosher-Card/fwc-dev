@@ -9,7 +9,7 @@ export default function CreateStockInPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     toast.success('Stock berhasil ditambahkan');
-    router.push('/dashboard/admin/stock/in');
+    router.push('/dashboard/superadmin/stock/in');
   };
 
   return (
