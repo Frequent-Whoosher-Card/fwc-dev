@@ -6,6 +6,48 @@ import { swagger } from "@elysiajs/swagger";
  * This configuration provides interactive API documentation
  * accessible at /docs endpoint
  */
+
+// Get server URL from environment or use relative URL
+const getServerUrl = () => {
+  // Priority: SWAGGER_SERVER_URL > API_BASE_URL > relative URL
+  if (process.env.SWAGGER_SERVER_URL) {
+    return process.env.SWAGGER_SERVER_URL;
+  }
+  if (process.env.API_BASE_URL) {
+    return process.env.API_BASE_URL;
+  }
+  // Use relative URL to match current origin (fixes CSP issues)
+  return "";
+};
+
+const serverUrl = getServerUrl();
+
+// Build servers array based on environment
+const servers = [];
+if (serverUrl) {
+  // If explicit URL is provided, use it
+  servers.push({
+    url: serverUrl,
+    description:
+      process.env.NODE_ENV === "production"
+        ? "Production server"
+        : "Development server",
+  });
+} else {
+  // Use relative URL (empty string means same origin)
+  servers.push({
+    url: "",
+    description: "Current server",
+  });
+  // Add localhost as fallback for development
+  if (process.env.NODE_ENV !== "production") {
+    servers.push({
+      url: "http://localhost:3001",
+      description: "Local development server",
+    });
+  }
+}
+
 export const docsConfig = swagger({
   path: "/docs",
   documentation: {
@@ -82,15 +124,6 @@ export const docsConfig = swagger({
         },
       },
     },
-    servers: [
-      {
-        url: "http://localhost:3001",
-        description: "Development server",
-      },
-      {
-        url: "https://api.fwc.example.com",
-        description: "Production server",
-      },
-    ],
+    servers,
   },
 });
