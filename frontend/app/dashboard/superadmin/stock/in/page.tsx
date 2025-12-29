@@ -3,8 +3,8 @@
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { StockSummary } from '@/app/dashboard/admin/stock/components/StockSummary';
-import { StockTabs } from '@/app/dashboard/admin/stock/components/StockTabs';
+import { StockSummary } from '@/app/dashboard/superadmin/stock/components/StockSummary';
+import { StockTabs } from '@/app/dashboard/superadmin/stock/components/StockTabs';
 
 type CardCategory = 'Gold' | 'Silver' | 'KAI';
 type CardType = 'JaBan' | 'JaKa' | 'KaBan' | '';

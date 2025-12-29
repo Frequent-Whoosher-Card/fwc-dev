@@ -14,7 +14,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 
 const menuItems = [
   { title: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
-{ title: 'Stock Kartu', icon: CreditCard, href: '/dashboard/admin/stock' },
+{ title: 'Stock Kartu', icon: CreditCard, href: '/dashboard/superadmin/stock' },
   { title: 'Pendaftaran Membership', icon: UserPlus, href: '/pendaftaran' },
   { title: 'Transaksi', icon: Receipt, href: '/transaksi' },
   { title: 'Petugas', icon: Users, href: '/petugas' },
