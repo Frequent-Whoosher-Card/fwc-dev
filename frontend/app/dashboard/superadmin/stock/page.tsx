@@ -13,7 +13,7 @@ export default function AdminStockPage() {
 
       {/* TAB + FILTER */}
       <div className="flex items-center justify-between">
-        {/* <StockTabs /> */}
+        <StockTabs />
         <StockFilter />
       </div>
 

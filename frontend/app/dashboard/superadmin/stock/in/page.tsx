@@ -33,7 +33,10 @@ export default function StockInPage() {
   // ========================
   // HANDLERS
   // ========================
-  const handleChange = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
+  const handleChange = <K extends keyof typeof form>(
+    key: K,
+    value: (typeof form)[K]
+  ) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -62,17 +65,18 @@ export default function StockInPage() {
   };
 
   const handleDelete = (id: string) => {
-    const confirmDelete = confirm('Yakin ingin menghapus data stock ini?');
+  const confirmDelete = confirm('Yakin ingin menghapus data stock ini?');
 
-    if (!confirmDelete) {
-      toast('Penghapusan dibatalkan');
-      return;
-    }
+  if (!confirmDelete) {
+    toast('Penghapusan dibatalkan');
+    return;
+  }
 
-    setStockData((prev) => prev.filter((item) => item.id !== id));
+  setStockData((prev) => prev.filter((item) => item.id !== id));
 
-    toast.success('Stock berhasil dihapus');
-  };
+  toast.success('Stock berhasil dihapus');
+};
+
 
   // ========================
   // RENDER
@@ -83,12 +87,15 @@ export default function StockInPage() {
       <StockSummary />
 
       {/* TABS */}
-      {/* <StockTabs /> */}
+      <StockTabs />
 
       {/* HEADER */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Stock In (Vendor → Admin)</h2>
-        <button onClick={() => setShowForm(!showForm)} className="rounded-md bg-[#8D1231] px-4 py-2 text-sm font-medium text-white">
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="rounded-md bg-[#8D1231] px-4 py-2 text-sm font-medium text-white"
+        >
           Tambah
         </button>
       </div>
@@ -99,14 +106,34 @@ export default function StockInPage() {
           <div className="grid grid-cols-2 gap-4">
             {/* TANGGAL */}
             <div>
-              <label className="mb-1 block text-sm font-medium">Tanggal Masuk</label>
-              <input type="date" className="w-full rounded border px-3 py-2" value={form.tanggal} onChange={(e) => handleChange('tanggal', e.target.value)} />
+              <label className="mb-1 block text-sm font-medium">
+                Tanggal Masuk
+              </label>
+              <input
+                type="date"
+                className="w-full rounded border px-3 py-2"
+                value={form.tanggal}
+                onChange={(e) =>
+                  handleChange('tanggal', e.target.value)
+                }
+              />
             </div>
 
             {/* CATEGORY */}
             <div>
-              <label className="mb-1 block text-sm font-medium">Card Category</label>
-              <select className="w-full rounded border px-3 py-2" value={form.category} onChange={(e) => handleChange('category', e.target.value as CardCategory)}>
+              <label className="mb-1 block text-sm font-medium">
+                Card Category
+              </label>
+              <select
+                className="w-full rounded border px-3 py-2"
+                value={form.category}
+                onChange={(e) =>
+                  handleChange(
+                    'category',
+                    e.target.value as CardCategory
+                  )
+                }
+              >
                 <option value="Gold">Gold</option>
                 <option value="Silver">Silver</option>
                 <option value="KAI">KAI</option>
@@ -115,29 +142,58 @@ export default function StockInPage() {
 
             {/* CARD TYPE */}
             <div className="col-span-2">
-              <label className="mb-1 block text-sm font-medium">Card Type</label>
-              <select className="w-full rounded border px-3 py-2 disabled:bg-gray-100" disabled={form.category === 'KAI'} value={form.type} onChange={(e) => handleChange('type', e.target.value as CardType)}>
+              <label className="mb-1 block text-sm font-medium">
+                Card Type
+              </label>
+              <select
+                className="w-full rounded border px-3 py-2 disabled:bg-gray-100"
+                disabled={form.category === 'KAI'}
+                value={form.type}
+                onChange={(e) =>
+                  handleChange('type', e.target.value as CardType)
+                }
+              >
                 <option value="">Pilih Card Type</option>
                 <option value="JaBan">JaBan</option>
                 <option value="JaKa">JaKa</option>
                 <option value="KaBan">KaBan</option>
               </select>
-              {form.category === 'KAI' && <p className="mt-1 text-xs text-gray-500">Card Type tidak diperlukan untuk KAI</p>}
+              {form.category === 'KAI' && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Card Type tidak diperlukan untuk KAI
+                </p>
+              )}
             </div>
 
             {/* STOCK */}
             <div className="col-span-2">
-              <label className="mb-1 block text-sm font-medium">Jumlah Stock</label>
-              <input type="number" min={1} className="w-full rounded border px-3 py-2" value={form.stock || ''} onChange={(e) => handleChange('stock', Number(e.target.value))} />
+              <label className="mb-1 block text-sm font-medium">
+                Jumlah Stock
+              </label>
+              <input
+                type="number"
+                min={1}
+                className="w-full rounded border px-3 py-2"
+                value={form.stock || ''}
+                onChange={(e) =>
+                  handleChange('stock', Number(e.target.value))
+                }
+              />
             </div>
           </div>
 
           {/* ACTION */}
           <div className="flex justify-end gap-2">
-            <button onClick={() => setShowForm(false)} className="rounded border px-4 py-2 text-sm">
+            <button
+              onClick={() => setShowForm(false)}
+              className="rounded border px-4 py-2 text-sm"
+            >
               Batal
             </button>
-            <button onClick={handleSubmit} className="rounded bg-[#8D1231] px-4 py-2 text-sm text-white">
+            <button
+              onClick={handleSubmit}
+              className="rounded bg-[#8D1231] px-4 py-2 text-sm text-white"
+            >
               Simpan
             </button>
           </div>
@@ -145,41 +201,42 @@ export default function StockInPage() {
       )}
 
       {/* TABLE */}
-      <div className="rounded-lg border bg-white overflow-x-auto">
-        <table className="w-full min-w-[640px] text-sm">
-          {/* ===== HEADER ===== */}
-          <thead className="border-b bg-gray-50">
+      <div className="rounded-lg border bg-white">
+        <table className="w-full text-sm">
+          <thead className="border-b">
             <tr>
-              <th className="p-3 md:p-4 text-left text-xs md:text-sm whitespace-nowrap">Tanggal</th>
-              <th className="p-3 md:p-4 text-left text-xs md:text-sm whitespace-nowrap">Category</th>
-              <th className="p-3 md:p-4 text-left text-xs md:text-sm whitespace-nowrap">Type</th>
-              <th className="p-3 md:p-4 text-left text-xs md:text-sm whitespace-nowrap">
-                <span className="hidden sm:inline">Stock Masuk</span>
-                <span className="sm:hidden">Masuk</span>
-              </th>
-              <th className="p-3 md:p-4 text-center text-xs md:text-sm whitespace-nowrap">Aksi</th>
+              <th className="p-4 text-left">Tanggal</th>
+              <th className="p-4 text-left">Category</th>
+              <th className="p-4 text-left">Type</th>
+              <th className="p-4 text-left">Stock Masuk</th>
+              <th className="p-4 text-center">Aksi</th>
             </tr>
           </thead>
-
-          {/* ===== BODY ===== */}
           <tbody>
             {stockData.map((row) => (
-              <tr key={row.id} className="border-b hover:bg-gray-50">
-                <td className="p-3 md:p-4 whitespace-nowrap">{row.tanggal}</td>
-
-                <td className="p-3 md:p-4 whitespace-nowrap">{row.category}</td>
-
-                <td className="p-3 md:p-4 whitespace-nowrap">{row.type || '-'}</td>
-
-                <td className="p-3 md:p-4 whitespace-nowrap">{row.stock.toLocaleString()}</td>
-
-                <td className="p-3 md:p-4 text-center whitespace-nowrap">
+              <tr key={row.id} className="border-b">
+                <td className="p-4">{row.tanggal}</td>
+                <td className="p-4">{row.category}</td>
+                <td className="p-4">{row.type || '-'}</td>
+                <td className="p-4">
+                  {row.stock.toLocaleString()}
+                </td>
+                <td className="p-4 text-center">
                   <div className="flex justify-center gap-2">
-                    <button onClick={() => router.push(`/dashboard/admin/stock/in/${row.id}/edit`)} className="rounded-md border px-2 md:px-3 py-1 text-xs md:text-sm hover:bg-gray-100">
+                    <button
+                      onClick={() =>
+                        router.push(
+                          `/dashboard/admin/stock/in/${row.id}/edit`
+                        )
+                      }
+                      className="rounded-md border px-3 py-1 text-sm hover:bg-gray-100"
+                    >
                       Edit
                     </button>
-
-                    <button onClick={() => handleDelete(row.id)} className="rounded-md border border-red-500 px-2 md:px-3 py-1 text-xs md:text-sm text-red-500 hover:bg-red-500 hover:text-white transition">
+                    <button
+                      onClick={() => handleDelete(row.id)}
+                      className="rounded-md border border-red-500 px-3 py-1 text-sm text-red-500 hover:bg-red-500 hover:text-white transition"
+                    >
                       Hapus
                     </button>
                   </div>
@@ -187,10 +244,12 @@ export default function StockInPage() {
               </tr>
             ))}
 
-            {/* ===== EMPTY STATE ===== */}
             {stockData.length === 0 && (
               <tr>
-                <td colSpan={5} className="p-6 text-center text-gray-500">
+                <td
+                  colSpan={5}
+                  className="p-6 text-center text-gray-500"
+                >
                   Belum ada data stock masuk
                 </td>
               </tr>
