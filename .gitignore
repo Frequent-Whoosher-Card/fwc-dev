@@ -91,7 +91,7 @@ frontend/next-env.d.ts
 frontend/node_modules/
 frontend/.next/
 
-out
+
 
 # env
 frontend/.env*
