@@ -7,10 +7,14 @@ export namespace AuthModel {
       minLength: 3,
       maxLength: 100,
       description: 'Username or email',
+      default: 'rama',
+      examples: ['rama'],
     }),
     password: t.String({
       minLength: 6,
       description: 'Password',
+      default: 'ramaPassword',
+      examples: ['ramaPassword'],
     }),
   });
 

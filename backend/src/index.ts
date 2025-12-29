@@ -5,7 +5,9 @@ import { auth } from "./modules/auth";
 import { users } from "./modules/users";
 import { cardCategory } from "./modules/cards/category";
 import { cardTypes } from "./modules/cards/type";
-import { cardProducts } from "./modules/cards/product";
+import { sales } from "./modules/sales";
+import { metrics } from "./modules/metrics";
+import { stockOut } from "./modules/stock/out";
 import { stockIn } from "./modules/stock/in";
 
 const app = new Elysia()
@@ -20,8 +22,10 @@ const app = new Elysia()
   .use(users)
   .use(cardCategory)
   .use(cardTypes)
-  .use(cardProducts)
   .use(stockIn)
+  .use(stockOut)
+  .use(sales)
+  .use(metrics)
   .onError(({ code, error, set }) => {
     // Global error handler
     if (code === "VALIDATION") {

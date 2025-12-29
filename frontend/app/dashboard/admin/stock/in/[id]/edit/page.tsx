@@ -24,12 +24,21 @@ export default function EditStockInPage() {
         <input className="w-full rounded border p-2" defaultValue="Halim" />
         <input className="w-full rounded border p-2" defaultValue="12000" />
 
-        <div className="flex justify-end">
+        {/* ⬇️ TOMBOLNYA DI SINI */}
+        <div className="flex justify-end gap-2 pt-4">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="rounded-md border px-4 py-2 text-sm"
+          >
+            Batal
+          </button>
+
           <button
             type="submit"
             className="rounded-md bg-[#8D1231] px-4 py-2 text-sm text-white"
           >
-            Edit
+            Simpan
           </button>
         </div>
       </form>
