@@ -6,7 +6,6 @@ import toast from 'react-hot-toast';
 export default function EditStockInPage() {
   const router = useRouter();
   const { id } = useParams();
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     toast.success('Stock berhasil diupdate');
@@ -26,18 +25,11 @@ export default function EditStockInPage() {
 
         {/* ⬇️ TOMBOLNYA DI SINI */}
         <div className="flex justify-end gap-2 pt-4">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="rounded-md border px-4 py-2 text-sm"
-          >
+          <button type="button" onClick={() => router.back()} className="rounded-md border px-4 py-2 text-sm">
             Batal
           </button>
 
-          <button
-            type="submit"
-            className="rounded-md bg-[#8D1231] px-4 py-2 text-sm text-white"
-          >
+          <button type="submit" className="rounded-md bg-[#8D1231] px-4 py-2 text-sm text-white">
             Simpan
           </button>
         </div>
