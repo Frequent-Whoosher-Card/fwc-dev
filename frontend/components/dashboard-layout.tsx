@@ -9,7 +9,7 @@ import Image from 'next/image';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, CreditCard, UserPlus, Receipt, Users, Menu, X, Bell, User, LogOut, ArrowDownToLine, ArrowUpNarrowWide, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, CreditCard, UserPlus, Receipt, Users, Menu, X, Bell, User, LogOut, IdCard, ArrowDownToLine, ArrowUpNarrowWide, ChevronDown } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const menuItems = [
@@ -31,9 +31,11 @@ const menuItems = [
       },
     ],
   },
+  { title: 'Redeem Kuota', icon: IdCard, href: '/redeemkuota' },
+  { title: 'Stock Kartu', icon: CreditCard, href: '/dashboard/superadmin/stock' },
   { title: 'Pendaftaran Membership', icon: UserPlus, href: '/pendaftaran' },
   { title: 'Transaksi', icon: Receipt, href: '/transaksi' },
-  { title: 'Petugas', icon: Users, href: '/petugas' },
+  { title: 'User', icon: Users, href: '/user' },
 ];
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
