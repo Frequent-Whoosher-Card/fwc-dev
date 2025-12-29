@@ -5,7 +5,7 @@ import { DashboardContent } from '@/components/dashboard-content';
 //   return null;
 // }
 
-export function DashboardPage() {
+export default function DashboardPage() {
   return (
     <DashboardLayout>
       <DashboardContent />
