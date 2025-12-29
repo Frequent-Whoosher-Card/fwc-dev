@@ -39,9 +39,15 @@ export namespace CardCategoryModel {
 
   //   Create Card Category Request
   export const createCardCategoryRequest = t.Object({
-    categoryCode: t.String(),
-    categoryName: t.String(),
-    description: t.String(),
+    categoryCode: t.String({
+      description: "Kode kategori kartu",
+    }),
+    categoryName: t.String({
+      description: "Nama kategori kartu",
+    }),
+    description: t.String({
+      description: "Deskripsi kategori kartu",
+    }),
   });
 
   // Create Card Category Response
@@ -64,9 +70,15 @@ export namespace CardCategoryModel {
 
   // Edit Card Category Request
   export const editCardCategoryRequest = t.Object({
-    categoryCode: t.String(),
-    categoryName: t.String(),
-    description: t.String(),
+    categoryCode: t.String({
+      description: "Kode kategori kartu",
+    }),
+    categoryName: t.String({
+      description: "Nama kategori kartu",
+    }),
+    description: t.String({
+      description: "Deskripsi kategori kartu",
+    }),
   });
 
   // Edit Card Category Response

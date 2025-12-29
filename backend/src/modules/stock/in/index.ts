@@ -1,0 +1,69 @@
+import { Elysia } from "elysia";
+import { authMiddleware } from "../../../middleware/auth";
+import { rbacMiddleware } from "../../../middleware/rbac";
+import { formatErrorResponse } from "../../../utils/errors";
+import { StockInService } from "./service";
+import { StockInModel } from "./model";
+
+type AuthContextUser = {
+  user: {
+    id: string;
+    username: string;
+    fullName: string;
+    email: string | null;
+    role: {
+      id: string;
+      roleCode: string;
+      roleName: string;
+    };
+  };
+};
+
+export const stockIn = new Elysia({ prefix: "/stock/in" })
+  .use(authMiddleware)
+  .use(rbacMiddleware(["superadmin", "admin"]))
+  .post(
+    "/",
+    async (context) => {
+      const { body, set, user } = context as typeof context & AuthContextUser;
+      try {
+        const stockIn = await StockInService.createStockIn(
+          body.movementAt,
+          body.categoryId,
+          body.typeId,
+          body.startSerial,
+          body.quantity,
+          user.id,
+          body.note
+        );
+
+        return {
+          success: true,
+          message: "Stock masuk (produksi batch) berhasil dicatat",
+          data: stockIn,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      body: StockInModel.stockInBatchBody,
+      response: {
+        200: StockInModel.stockInBatchResponse,
+        400: StockInModel.errorResponse,
+        401: StockInModel.errorResponse,
+        403: StockInModel.errorResponse,
+        500: StockInModel.errorResponse,
+      },
+      detail: {
+        tags: ["Stock In"],
+        summary: "Stock In Batch (Produksi Office)",
+        description:
+          "Menyimpan kartu produksi ke tabel cards dengan serialNumber = serialTemplate + suffix berurutan. Role: superadmin/admin.",
+      },
+    }
+  );
