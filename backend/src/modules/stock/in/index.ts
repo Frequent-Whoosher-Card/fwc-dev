@@ -32,7 +32,7 @@ export const stockIn = new Elysia({ prefix: "/stock/in" })
           body.categoryId,
           body.typeId,
           body.startSerial,
-          body.quantity,
+          body.endSerial,
           user.id,
           body.note
         );

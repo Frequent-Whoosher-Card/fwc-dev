@@ -77,7 +77,8 @@ const adminRoutes = new Elysia()
           new Date(body.movementAt),
           body.cardProductId,
           body.stationId,
-          body.serialNumbers,
+          body.startSerial,
+          body.endSerial,
           user.id,
           body.note
         );

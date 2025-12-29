@@ -7,11 +7,9 @@ export namespace StockOutModel {
     cardProductId: t.String({ format: "uuid" }),
     stationId: t.String({ format: "uuid" }),
 
-    // full string serialNumber (serialTemplate + suffix)
-    sentSerialNumbers: t.Array(t.String({ minLength: 1 }), {
-      minItems: 1,
-      maxItems: 10000,
-    }),
+    // start and end serial numbers (e.g., FWC2500001)
+    startSerial: t.String({ minLength: 1 }),
+    endSerial: t.String({ minLength: 1 }),
 
     note: t.Optional(t.String({ maxLength: 500 })),
   });

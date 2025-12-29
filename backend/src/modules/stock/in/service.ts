@@ -10,26 +10,47 @@ export class StockInService {
     categoryId: string,
     typeId: string,
     startSerial: string,
-    quantity: number,
+    endSerial: string,
     userId: string,
     note?: string | null
   ) {
-    if (!/^\d+$/.test(startSerial)) {
-      throw new ValidationError("startSerial harus berupa digit string");
+    // 1. Validasi Input: Pastikan HANYA angka (bukan full serial number)
+    if (!/^\d+$/.test(startSerial) || !/^\d+$/.test(endSerial)) {
+      // Jika user tidak sengaja input full serial (ada huruf), berikan pesan helper
+      if (/[a-zA-Z]/.test(startSerial) || /[a-zA-Z]/.test(endSerial)) {
+        throw new ValidationError(
+          "Input harus berupa angka urutan (contoh: '1', '25'), JANGAN masukkan serial number lengkap (contoh: 'FWC...')."
+        );
+      }
+      throw new ValidationError(
+        "startSerial dan endSerial harus berupa digit string (angka saja)."
+      );
     }
 
-    if (!Number.isInteger(quantity) || quantity <= 0) {
-      throw new ValidationError("quantity harus lebih dari 0");
-    }
-
-    const width = startSerial.length;
     const startNum = Number(startSerial);
-    if (!Number.isSafeInteger(startNum)) {
-      throw new ValidationError("startSerial terlalu besar");
+    const endNum = Number(endSerial);
+
+    if (!Number.isSafeInteger(startNum) || !Number.isSafeInteger(endNum)) {
+      throw new ValidationError("Nomor serial terlalu besar");
     }
 
-    const endNum = startNum + quantity - 1;
-    const endSerial = String(endNum).padStart(width, "0");
+    if (endNum < startNum) {
+      throw new ValidationError(
+        "endSerial harus lebih besar atau sama dengan startSerial"
+      );
+    }
+
+    const quantity = endNum - startNum + 1;
+
+    if (quantity > 10000) {
+      throw new ValidationError("Maksimal produksi 10.000 kartu per batch");
+    }
+
+    const width = 5; // Fixed 5-digit padding as requested
+    const endSerialFormatted = String(endNum).padStart(width, "0");
+
+    // Extract YY from movementAt
+    const yearSuffix = movementAt.getFullYear().toString().slice(-2);
 
     const transaction = await db.$transaction(async (tx) => {
       const product = await tx.cardProduct.findUnique({
@@ -54,14 +75,14 @@ export class StockInService {
         );
       }
 
-      // 2) Generate suffix serial berurutan (tetap leading zero)
+      // 2) Generate suffix serial berurutan
       const suffixSerials = Array.from({ length: quantity }, (_, i) =>
         String(startNum + i).padStart(width, "0")
       );
 
-      // 3) Bentuk serialNumber final: serialTemplate + suffix
+      // 3) Bentuk serialNumber final: serialTemplate + YY + suffix
       const serialNumbers = suffixSerials.map(
-        (sfx) => `${product.serialTemplate}${sfx}`
+        (sfx) => `${product.serialTemplate}${yearSuffix}${sfx}`
       );
 
       // 4) Validasi serialNumber belum ada
@@ -95,6 +116,7 @@ export class StockInService {
       });
 
       // 6) Catat stock movement IN
+      const formattedStartSerial = String(startNum).padStart(width, "0");
       const movement = await tx.cardStockMovement.create({
         data: {
           movementAt: new Date(),
@@ -109,7 +131,7 @@ export class StockInService {
           lostSerialNumbers: [],
           note:
             note ??
-            `Batch ${product.serialTemplate}${startSerial} - ${product.serialTemplate}${endSerial}`,
+            `Batch ${product.serialTemplate}${yearSuffix}${formattedStartSerial} - ${product.serialTemplate}${yearSuffix}${endSerialFormatted}`,
           createdAt: new Date(),
           createdBy: userId,
         },
@@ -147,11 +169,11 @@ export class StockInService {
 
       return {
         movementId: movement.id,
-        startSerial,
-        endSerial,
+        startSerial: formattedStartSerial,
+        endSerial: endSerialFormatted,
         quantity,
-        startSerialNumber: `${product.serialTemplate}${startSerial}`,
-        endSerialNumber: `${product.serialTemplate}${endSerial}`,
+        startSerialNumber: `${product.serialTemplate}${yearSuffix}${formattedStartSerial}`,
+        endSerialNumber: `${product.serialTemplate}${yearSuffix}${endSerialFormatted}`,
       };
     });
 

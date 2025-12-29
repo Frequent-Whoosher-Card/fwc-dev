@@ -21,30 +21,64 @@ export class StockOutService {
     movementAt: Date,
     cardProductId: string,
     stationId: string,
-    sentSerialNumbers: string[],
+    startSerial: string,
+    endSerial: string,
     userId: string,
     note?: string
   ) {
-    if (!sentSerialNumbers?.length)
-      throw new ValidationError("sentSerialNumbers wajib diisi");
+    // 1. Validate Input
+    if (!startSerial || !endSerial) {
+      throw new ValidationError("startSerial dan endSerial wajib diisi");
+    }
 
-    // Deduplicate & trim
-    const sent = normalizeSerials(sentSerialNumbers);
+    // CHECK: Only Numeric Allowed
+    if (!/^\d+$/.test(startSerial) || !/^\d+$/.test(endSerial)) {
+      if (/[a-zA-Z]/.test(startSerial) || /[a-zA-Z]/.test(endSerial)) {
+        throw new ValidationError(
+          "Input harus berupa angka urutan (contoh: '1', '25'), JANGAN masukkan serial number lengkap."
+        );
+      }
+      throw new ValidationError(
+        "startSerial dan endSerial harus berupa digit string"
+      );
+    }
 
-    if (!sent.length)
-      throw new ValidationError("sentSerialNumbers kosong/invalid");
+    const startNum = Number(startSerial);
+    const endNum = Number(endSerial);
+
+    if (endNum < startNum) {
+      throw new ValidationError(
+        "endSerial harus lebih besar atau sama dengan startSerial"
+      );
+    }
+
+    const count = endNum - startNum + 1;
+    if (count > 10000) {
+      throw new ValidationError(
+        "Maksimal distribusi 10.000 kartu per transaksi"
+      );
+    }
+
+    const suffixLength = 5;
+    const yearSuffix = movementAt.getFullYear().toString().slice(-2);
 
     const transaction = await db.$transaction(async (tx) => {
       const cardProduct = await tx.cardProduct.findUnique({
         where: { id: cardProductId },
-        select: { categoryId: true, typeId: true },
+        select: { categoryId: true, typeId: true, serialTemplate: true },
       });
 
       if (!cardProduct) {
         throw new ValidationError("Produk kartu tidak ditemukan");
       }
 
-      const { categoryId, typeId } = cardProduct;
+      const { categoryId, typeId, serialTemplate } = cardProduct;
+
+      // 2. Generate Full List
+      const sent = Array.from({ length: count }, (_, i) => {
+        const sfx = String(startNum + i).padStart(suffixLength, "0");
+        return `${serialTemplate}${yearSuffix}${sfx}`;
+      });
 
       // 1) Soft Validation: Cek ketersediaan Inventory Office
       // Kita ambil ID-nya untuk locking di langkah selanjutnya

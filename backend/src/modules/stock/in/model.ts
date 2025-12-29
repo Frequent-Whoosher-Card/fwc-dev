@@ -18,10 +18,11 @@ export namespace StockInModel {
         "Nomor serial awal (digit). Leading zero akan dipertahankan.",
     }),
 
-    quantity: t.Number({
-      minimum: 1,
-      maximum: 10000,
-      description: "Jumlah kartu yang diproduksi",
+    // contoh: "000125" atau "125"
+    endSerial: t.String({
+      pattern: "^[0-9]+$",
+      description:
+        "Nomor serial akhir (digit). Harus lebih besar atau sama dengan startSerial.",
     }),
 
     note: t.Optional(t.String({ maxLength: 500 })),
