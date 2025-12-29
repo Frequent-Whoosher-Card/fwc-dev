@@ -165,7 +165,7 @@ export default function StockInPage() {
                 <td className="p-4">{row.stock.toLocaleString()}</td>
                 <td className="p-4 text-center">
                   <div className="flex justify-center gap-2">
-                    <button onClick={() => router.push(`/dashboard/admin/stock/in/${row.id}/edit`)} className="rounded-md border px-3 py-1 text-sm hover:bg-gray-100">
+                    <button onClick={() => router.push(`/dashboard/superadmin/stock/in/${row.id}/edit`)} className="rounded-md border px-3 py-1 text-sm hover:bg-gray-100">
                       Edit
                     </button>
                     <button onClick={() => handleDelete(row.id)} className="rounded-md border border-red-500 px-3 py-1 text-sm text-red-500 hover:bg-red-500 hover:text-white transition">

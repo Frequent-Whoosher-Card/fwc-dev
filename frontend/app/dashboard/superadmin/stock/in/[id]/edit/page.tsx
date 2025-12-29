@@ -9,7 +9,7 @@ export default function EditStockInPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     toast.success('Stock berhasil diupdate');
-    router.push('/dashboard/admin/stock/in');
+    router.push('/dashboard/superadmin/stock/in');
   };
 
   return (
