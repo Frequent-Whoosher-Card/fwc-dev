@@ -26,34 +26,41 @@ export function StockTable() {
   });
 
   return (
-    <div className="rounded-lg border bg-white overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="border-b bg-gray-50">
-          <tr>
-            <th className="p-4 text-left">Category</th>
-            <th className="p-4 text-left">Type</th>
-            <th className="p-4 text-right">Stock Available</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {rows.map((row, i) => (
-            <tr key={i} className="border-b">
-              <td className="p-4">{row.category}</td>
-              <td className="p-4">{row.type || '-'}</td>
-              <td className="p-4 text-right font-medium">{row.stock.toLocaleString()}</td>
-            </tr>
-          ))}
-
-          {rows.length === 0 && (
+    <div className="rounded-lg border bg-white">
+      <div className="overflow-x-auto">
+        <table className="min-w-120 w-full text-sm">
+          <thead className="border-b bg-gray-50">
             <tr>
-              <td colSpan={3} className="p-6 text-center text-gray-500">
-                Belum ada data stock
-              </td>
+              <th className="p-3 md:p-4 text-left text-xs md:text-sm whitespace-nowrap">Category</th>
+
+              <th className="p-3 md:p-4 text-left text-xs md:text-sm whitespace-nowrap">Type</th>
+
+              <th className="p-3 md:p-4 text-right text-xs md:text-sm">
+                <span className="hidden sm:inline">Stock Available</span>
+                <span className="sm:hidden">Stock</span>
+              </th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={`${row.category}-${row.type}-${i}`} className="border-b last:border-b-0">
+                <td className="p-3 md:p-4">{row.category}</td>
+                <td className="p-3 md:p-4">{row.type || '-'}</td>
+                <td className="p-3 md:p-4 text-right font-medium">{row.stock.toLocaleString()}</td>
+              </tr>
+            ))}
+
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={3} className="p-6 text-center text-gray-500">
+                  Belum ada data stock
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

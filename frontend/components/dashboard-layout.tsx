@@ -9,12 +9,28 @@ import Image from 'next/image';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, CreditCard, UserPlus, Receipt, Users, Menu, X, Bell, User, LogOut } from 'lucide-react';
+import { LayoutDashboard, CreditCard, UserPlus, Receipt, Users, Menu, X, Bell, User, LogOut, ArrowDownToLine, ArrowUpNarrowWide, ChevronDown } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const menuItems = [
   { title: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
-{ title: 'Stock Kartu', icon: CreditCard, href: '/dashboard/admin/stock' },
+  {
+    title: 'Stock Kartu',
+    icon: CreditCard,
+    href: '/dashboard/admin/stock',
+    children: [
+      {
+        title: 'Stock In',
+        href: '/dashboard/admin/stock/in',
+        icon: ArrowDownToLine,
+      },
+      {
+        title: 'Stock Out',
+        href: '/dashboard/admin/stock/out',
+        icon: ArrowUpNarrowWide,
+      },
+    ],
+  },
   { title: 'Pendaftaran Membership', icon: UserPlus, href: '/pendaftaran' },
   { title: 'Transaksi', icon: Receipt, href: '/transaksi' },
   { title: 'Petugas', icon: Users, href: '/petugas' },
@@ -26,6 +42,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userName, setUserName] = useState('Admin');
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const toggleMenu = (title: string) => {
+    setOpenMenu((prev) => (prev === title ? null : title));
+  };
 
   // 🔐 AUTH CHECK
   useEffect(() => {
@@ -41,16 +61,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   // 🚪 LOGOUT
-const handleLogout = () => {
-  toast.success('Logout berhasil');
+  const handleLogout = () => {
+    toast.success('Logout berhasil');
 
-  setTimeout(() => {
-    localStorage.removeItem('auth');
-    document.cookie = 'fwc_role=; Max-Age=0; path=/;';
-    router.replace('/');
-  }, 300);
-};
-
+    setTimeout(() => {
+      localStorage.removeItem('auth');
+      document.cookie = 'fwc_role=; Max-Age=0; path=/;';
+      router.replace('/');
+    }, 300);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -71,17 +90,66 @@ const handleLogout = () => {
           {/* Menu */}
           <nav className="flex-1 space-y-1 p-4">
             {menuItems.map((item) => {
-              const isActive = pathname === item.href;
+              const hasChildren = !!item.children;
+
+              const isParentActive = pathname === item.href || item.children?.some((child) => pathname.startsWith(child.href));
+
+              const isOpen = openMenu === item.title || item.children?.some((child) => pathname.startsWith(child.href));
+
               return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setSidebarOpen(false)}
-                  className={cn('flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium', isActive ? 'bg-white/20 text-white' : 'text-white hover:bg-white/10')}
-                >
-                  <item.icon className="h-5 w-5" />
-                  {item.title}
-                </Link>
+                <div key={`menu-${item.title}`}>
+                  {/* ===== PARENT MENU ===== */}
+                  <div className={cn('flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium', isParentActive ? 'bg-white/20 text-white' : 'text-white hover:bg-white/10')}>
+                    {/* 👉 TITLE (NAVIGATE KE STOCK ALL) */}
+                    {item.href ? (
+                      <Link href={item.href} onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 flex-1">
+                        <item.icon className="h-5 w-5" />
+                        {item.title}
+                      </Link>
+                    ) : (
+                      <div className="flex items-center gap-3 flex-1">
+                        <item.icon className="h-5 w-5" />
+                        {item.title}
+                      </div>
+                    )}
+
+                    {/* 👉 DROPDOWN TOGGLE (TIDAK NAVIGASI) */}
+                    {hasChildren && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setOpenMenu(isOpen ? null : item.title);
+                        }}
+                        className="ml-2 rounded p-1 hover:bg-white/20"
+                      >
+                        <ChevronDown className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-180')} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* ===== SUB MENU ===== */}
+                  {hasChildren && isOpen && (
+                    <div className="ml-8 mt-1 space-y-1">
+                      {item.children!.map((child) => {
+                        const isActive = pathname === child.href;
+
+                        return (
+                          <Link
+                            key={`submenu-${child.href}`}
+                            href={child.href}
+                            onClick={() => setSidebarOpen(false)}
+                            className={cn('flex items-center gap-3 rounded-lg px-3 py-2 text-sm', isActive ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/10')}
+                          >
+                            <child.icon className="h-4 w-4" />
+                            {child.title}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </nav>
