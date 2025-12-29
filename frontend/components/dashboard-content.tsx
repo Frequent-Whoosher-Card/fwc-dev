@@ -96,14 +96,14 @@ const data = [
 // const [activeTab, setActiveTab] = useState('Halim');
 
 export function DashboardContent() {
-  const tabs = ['Halim', 'Karawang', 'Padalarang', 'Tegalluar'];
+  // const tabs = ['Halim', 'Karawang', 'Padalarang', 'Tegalluar'];
 
-  const tablePerTab: Record<string, number> = {
-    Halim: 6,
-    Karawang: 4,
-    Padalarang: 8,
-    Tegalluar: 5,
-  };
+  // const tablePerTab: Record<string, number> = {
+  //   Halim: 6,
+  //   Karawang: 4,
+  //   Padalarang: 8,
+  //   Tegalluar: 5,
+  // };
 
   const [activeTab, setActiveTab] = useState('Halim');
   return (
@@ -154,12 +154,12 @@ export function DashboardContent() {
               {/* TABEL PENJUALAN */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Tabel Penjualan Card Bulanan</CardTitle>
+                  <CardTitle>Tabel Penjualan Card Harian</CardTitle>
                 </CardHeader>
 
                 <CardContent className="space-y-4">
                   {/* Tabs */}
-                  <div className="-mx-4 sm:mx-0 overflow-x-auto">
+                  {/* <div className="-mx-4 sm:mx-0 overflow-x-auto">
                     <div className="flex w-max gap-2 px-4 pb-2">
                       {['Halim', 'Karawang', 'Padalarang', 'Tegalluar'].map((item) => (
                         <button
@@ -172,7 +172,7 @@ export function DashboardContent() {
                         </button>
                       ))}
                     </div>
-                  </div>
+                  </div> */}
 
                   {/* Table */}
                   <div className="overflow-auto rounded-lg border">
@@ -263,7 +263,7 @@ export function DashboardContent() {
                   <CardTitle>Grafik Penjualan Card (Per Stasiun)</CardTitle>
                 </CardHeader>
 
-                <CardContent className="relative h-[352px]">
+                <CardContent className="relative h-85">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data}>
                       <XAxis dataKey="name" />
