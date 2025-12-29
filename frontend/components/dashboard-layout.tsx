@@ -33,7 +33,7 @@ const menuItems = [
       },
     ],
   },
-  { title: 'Membership', icon: UserPlus, href: '/membership' },
+  { title: 'Membership', icon: UserPlus, href: '/membership ' },
   { title: 'Transaksi', icon: Receipt, href: '/transaksi' },
   { title: 'User', icon: Users, href: '/user' },
 ];
