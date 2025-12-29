@@ -8,9 +8,9 @@ export function StockTabs() {
   const pathname = usePathname();
 
   const tabs = [
-    { label: 'All', href: '/dashboard/admin/stock' },
-    { label: 'Stock In', href: '/dashboard/admin/stock/in' },
-    { label: 'Stock Out', href: '/dashboard/admin/stock/out' },
+    { label: 'All', href: '/dashboard/superadmin/stock' },
+    { label: 'Stock In', href: '/dashboard/superadmin/stock/in' },
+    { label: 'Stock Out', href: '/dashboard/superadmin/stock/out' },
   ];
 
   return (
