@@ -3,21 +3,16 @@ import { t } from "elysia";
 export namespace StockOutModel {
   // Stock Out Request
   export const stockOutRequest = t.Object({
-    movementAt: t.String({ format: "date-time", description: "Waktu pindah" }),
-    categoryId: t.String({ format: "uuid", description: "ID kategori" }),
-    typeId: t.String({ format: "uuid", description: "ID jenis" }),
-    stationId: t.String({ format: "uuid", description: "ID stasiun" }),
+    movementAt: t.String({ format: "date-time" }),
+    cardProductId: t.String({ format: "uuid" }),
+    stationId: t.String({ format: "uuid" }),
 
-    // Admin memilih kartu fisik yang dikirim: list serialNumber (full string)
-    serialNumbers: t.Array(t.String({ minLength: 1 }), {
-      minItems: 1,
-      maxItems: 5000,
-      description: "List serial number",
-    }),
+    // start and end serial numbers (e.g., FWC2500001)
+    startSerial: t.String({ minLength: 1 }),
+    endSerial: t.String({ minLength: 1 }),
 
-    note: t.Optional(t.String({ maxLength: 500, description: "Catatan" })),
+    note: t.Optional(t.String({ maxLength: 500 })),
   });
-
   // Stock Out Response
   export const stockOutResponse = t.Object({
     success: t.Boolean(),
@@ -31,9 +26,16 @@ export namespace StockOutModel {
 
   // Stock Out Validate Request
   export const stockOutValidateRequest = t.Object({
-    receivedQty: t.Integer({ minimum: 0 }),
-    // Opsional jika Anda ingin petugas menyertakan list serial hilang di note:
-    lostSerials: t.Optional(t.Array(t.String({ minLength: 1 }))),
+    receivedSerialNumbers: t.Array(t.String({ minLength: 1 }), {
+      minItems: 0,
+      maxItems: 10000,
+    }),
+    lostSerialNumbers: t.Optional(
+      t.Array(t.String({ minLength: 1 }), {
+        minItems: 0,
+        maxItems: 10000,
+      })
+    ),
     note: t.Optional(t.String({ maxLength: 500 })),
   });
 
@@ -47,6 +49,113 @@ export namespace StockOutModel {
       receivedCount: t.Integer(),
       lostCount: t.Integer(),
     }),
+  });
+
+  // Query Params
+  export const getHistoryQuery = t.Object({
+    page: t.Optional(t.String()),
+    limit: t.Optional(t.String()),
+    startDate: t.Optional(t.String({ format: "date" })),
+    endDate: t.Optional(t.String({ format: "date" })),
+    stationId: t.Optional(t.String({ format: "uuid" })),
+    status: t.Optional(
+      t.Union([
+        t.Literal("PENDING"),
+        t.Literal("APPROVED"),
+        t.Literal("REJECTED"),
+      ])
+    ),
+  });
+
+  // History Response
+  export const getHistoryResponse = t.Object({
+    success: t.Boolean(),
+    data: t.Object({
+      items: t.Array(
+        t.Object({
+          id: t.String(),
+          movementAt: t.String(),
+          status: t.String(),
+          quantity: t.Number(),
+          stationName: t.Union([t.String(), t.Null()]),
+          note: t.Union([t.String(), t.Null()]),
+          createdByName: t.Union([t.String(), t.Null()]),
+          cardCategory: t.Object({
+            id: t.String(),
+            name: t.String(),
+          }),
+          cardType: t.Object({
+            id: t.String(),
+            name: t.String(),
+          }),
+        })
+      ),
+      pagination: t.Object({
+        total: t.Number(),
+        page: t.Number(),
+        limit: t.Number(),
+        totalPages: t.Number(),
+      }),
+    }),
+  });
+
+  // Detail Response
+  export const getDetailResponse = t.Object({
+    success: t.Boolean(),
+    data: t.Object({
+      movement: t.Object({
+        id: t.String(),
+        movementAt: t.String(),
+        status: t.String(),
+        quantity: t.Number(),
+        note: t.Union([t.String(), t.Null()]),
+        createdAt: t.String(),
+        createdByName: t.Union([t.String(), t.Null()]),
+        validatedAt: t.Union([t.String(), t.Null()]),
+        validatedByName: t.Union([t.String(), t.Null()]),
+        station: t.Union([
+          t.Object({
+            id: t.String(),
+            name: t.String(),
+            code: t.String(),
+          }),
+          t.Null(),
+        ]),
+        cardCategory: t.Object({
+          id: t.String(),
+          name: t.String(),
+        }),
+        cardType: t.Object({
+          id: t.String(),
+          name: t.String(),
+        }),
+        sentSerialNumbers: t.Array(t.String()),
+        receivedSerialNumbers: t.Array(t.String()),
+        lostSerialNumbers: t.Array(t.String()),
+      }),
+    }),
+  });
+
+  // Update Body
+  export const updateStockOutBody = t.Object({
+    movementAt: t.Optional(t.String({ format: "date-time" })),
+    stationId: t.Optional(t.String({ format: "uuid" })),
+    note: t.Optional(t.String({ maxLength: 500 })),
+  });
+
+  // Update Response
+  export const updateStockOutResponse = t.Object({
+    success: t.Boolean(),
+    message: t.String(),
+    data: t.Object({
+      id: t.String(),
+      updatedAt: t.String(),
+    }),
+  });
+
+  export const deleteStockOutResponse = t.Object({
+    success: t.Boolean(),
+    message: t.String(),
   });
 
   // Error Response
