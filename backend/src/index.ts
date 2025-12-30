@@ -7,8 +7,7 @@ import { cardCategory } from "./modules/cards/category";
 import { cardTypes } from "./modules/cards/type";
 import { sales } from "./modules/sales";
 import { metrics } from "./modules/metrics";
-import { stockOut } from "./modules/stock/out";
-import { stockIn } from "./modules/stock/in";
+import { stock } from "./modules/stock";
 import { cardProducts } from "./modules/cards/product";
 import { station } from "./modules/station";
 import { cardInventory } from "./modules/cards/inventory";
@@ -28,8 +27,7 @@ const app = new Elysia()
   .use(cardProducts)
   .use(station)
   .use(cardInventory)
-  .use(stockIn)
-  .use(stockOut)
+  .use(stock)
   .use(sales)
   .use(metrics)
   .onError(({ code, error, set }) => {
