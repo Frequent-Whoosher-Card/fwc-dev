@@ -7,9 +7,5 @@ export default function UserLayout({
 }: {
   children: ReactNode;
 }) {
-  return (
-    <div className="rounded-lg border bg-white p-6">
-      {children}
-    </div>
-  );
+  return <>{children}</>;
 }
