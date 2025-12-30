@@ -195,10 +195,19 @@ export namespace UserModel {
     updatedAt: t.String(),
   });
 
-  // User List Response
+  // Pagination Metadata
+  export const paginationMeta = t.Object({
+    page: t.Number(),
+    limit: t.Number(),
+    total: t.Number(),
+    totalPages: t.Number(),
+  });
+
+  // User List Response with Pagination
   export const userListResponse = t.Object({
     success: t.Boolean(),
     data: t.Array(userResponse),
+    pagination: paginationMeta,
     message: t.Optional(t.String()),
   });
 

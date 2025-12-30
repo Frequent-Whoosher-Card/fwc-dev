@@ -1,4 +1,4 @@
-import { Elysia } from "elysia";
+import { Elysia, t } from "elysia";
 import { UserService } from "./service";
 import { UserModel } from "./model";
 import { formatErrorResponse } from "../../utils/errors";
@@ -87,30 +87,50 @@ const baseRoutes = new Elysia()
   // Get All Users - All authenticated users
   .get(
     "",
-    async ({ set }) => {
+    async ({ query, set }) => {
       try {
-        const users = await UserService.getUsers();
+        const page = query?.page ? parseInt(query.page, 10) : 1;
+        const limit = 10; // Fixed at 10 per page as requested
+
+        // Validate page number
+        if (isNaN(page) || page < 1) {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("Page must be a positive integer")
+          );
+        }
+
+        const result = await UserService.getUsers(page, limit);
 
         return {
           success: true,
-          data: users,
+          data: result.data,
+          pagination: result.pagination,
           message: "Users retrieved successfully",
         };
       } catch (error) {
-        set.status = 500;
+        set.status = error instanceof Error && "statusCode" in error
+          ? (error as any).statusCode
+          : 500;
         return formatErrorResponse(error);
       }
     },
     {
+      query: t.Optional(
+        t.Object({
+          page: t.Optional(t.String({ description: "Page number (default: 1)" })),
+        })
+      ),
       response: {
         200: UserModel.userListResponse,
+        400: UserModel.errorResponse,
         401: UserModel.errorResponse,
         500: UserModel.errorResponse,
       },
       detail: {
         tags: ["Users & Roles"],
         summary: "Get all users",
-        description: "Retrieve all active users",
+        description: "Retrieve all active users with pagination (10 per page)",
       },
     }
   )
