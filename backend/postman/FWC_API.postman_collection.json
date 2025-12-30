@@ -1,672 +1,882 @@
 {
-	"info": {
-		"_postman_id": "fwc-api-collection",
-		"name": "FWC API Collection",
-		"description": "Complete API collection for FWC (Fuel Card Management System)",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-	},
-	"item": [
-		{
-			"name": "General",
-			"item": [
-				{
-					"name": "Health Check",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/",
-							"host": ["{{base_url}}"],
-							"path": [""]
-						}
-					}
-				}
-			]
-		},
-		{
-			"name": "Authentication",
-			"item": [
-				{
-					"name": "Login",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"if (pm.response.code === 200) {",
-									"    const response = pm.response.json();",
-									"    if (response.data && response.data.token) {",
-									"        pm.environment.set('auth_token', response.data.token);",
-									"        pm.environment.set('user_id', response.data.user.id);",
-									"    }",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"username\": \"{{username}}\",\n    \"password\": \"{{password}}\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/auth/login",
-							"host": ["{{base_url}}"],
-							"path": ["auth", "login"]
-						}
-					}
-				},
-				{
-					"name": "Get Current User (Me)",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/auth/me",
-							"host": ["{{base_url}}"],
-							"path": ["auth", "me"]
-						}
-					}
-				},
-				{
-					"name": "Logout",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"// Clear token regardless of response code",
-									"pm.environment.unset('auth_token');",
-									"pm.environment.unset('user_id');",
-									"",
-									"// Log the action",
-									"if (pm.response.code === 200) {",
-									"    console.log('✅ Logout successful - Token and user_id cleared');",
-									"} else {",
-									"    console.log('⚠️ Logout failed but token cleared anyway');",
-									"    console.log('Response:', pm.response.code, pm.response.status);",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/auth/logout",
-							"host": ["{{base_url}}"],
-							"path": ["auth", "logout"]
-						}
-					}
-				},
-				{
-					"name": "Forgot Password",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"email\": \"user@example.com\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/auth/forgot-password",
-							"host": ["{{base_url}}"],
-							"path": ["auth", "forgot-password"]
-						}
-					}
-				},
-				{
-					"name": "Reset Password",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"token\": \"reset_token_here\",\n    \"newPassword\": \"newPassword123\",\n    \"confirmPassword\": \"newPassword123\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/auth/reset-password",
-							"host": ["{{base_url}}"],
-							"path": ["auth", "reset-password"]
-						}
-					}
-				}
-			]
-		},
-		{
-			"name": "Users & Roles",
-			"item": [
-				{
-					"name": "Get All Users",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/users",
-							"host": ["{{base_url}}"],
-							"path": ["users"]
-						}
-					}
-				},
-				{
-					"name": "Get User by ID",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/users/:id",
-							"host": ["{{base_url}}"],
-							"path": ["users", ":id"],
-							"variable": [
-								{
-									"key": "id",
-									"value": "{{user_id}}"
-								}
-							]
-						}
-					}
-				},
-				{
-					"name": "Create User",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"username\": \"newuser\",\n    \"password\": \"password123\",\n    \"fullName\": \"New User\",\n    \"email\": \"newuser@example.com\",\n    \"roleId\": \"role_id_here\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/users",
-							"host": ["{{base_url}}"],
-							"path": ["users"]
-						}
-					}
-				},
-				{
-					"name": "Update User",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"fullName\": \"Updated Name\",\n    \"email\": \"updated@example.com\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/users/:id",
-							"host": ["{{base_url}}"],
-							"path": ["users", ":id"],
-							"variable": [
-								{
-									"key": "id",
-									"value": "{{user_id}}"
-								}
-							]
-						}
-					}
-				},
-				{
-					"name": "Change Password",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"currentPassword\": \"oldPassword123\",\n    \"newPassword\": \"newPassword123\",\n    \"confirmPassword\": \"newPassword123\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/users/:id/change-password",
-							"host": ["{{base_url}}"],
-							"path": ["users", ":id", "change-password"],
-							"variable": [
-								{
-									"key": "id",
-									"value": "{{user_id}}"
-								}
-							]
-						}
-					}
-				},
-				{
-					"name": "Get All Roles",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/users/roles",
-							"host": ["{{base_url}}"],
-							"path": ["users", "roles"]
-						}
-					}
-				},
-				{
-					"name": "Get Role by ID",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/users/roles/:id",
-							"host": ["{{base_url}}"],
-							"path": ["users", "roles", ":id"],
-							"variable": [
-								{
-									"key": "id",
-									"value": "role_id_here"
-								}
-							]
-						}
-					}
-				},
-				{
-					"name": "Create Role",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"roleCode\": \"manager\",\n    \"roleName\": \"Manager\",\n    \"description\": \"Manager role\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/users/roles",
-							"host": ["{{base_url}}"],
-							"path": ["users", "roles"]
-						}
-					}
-				},
-				{
-					"name": "Update Role",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"roleName\": \"Updated Role Name\",\n    \"description\": \"Updated description\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/users/roles/:id",
-							"host": ["{{base_url}}"],
-							"path": ["users", "roles", ":id"],
-							"variable": [
-								{
-									"key": "id",
-									"value": "role_id_here"
-								}
-							]
-						}
-					}
-				}
-			]
-		},
-		{
-			"name": "Stock",
-			"item": [
-				{
-					"name": "Get Stock Inventory",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/stock",
-							"host": ["{{base_url}}"],
-							"path": ["stock"]
-						}
-					}
-				},
-				{
-					"name": "Add Stock (Quantity)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"categoryId\": \"category_id_here\",\n    \"typeId\": \"type_id_here\",\n    \"stationId\": \"station_id_here\",\n    \"quantity\": 100\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/stock/add",
-							"host": ["{{base_url}}"],
-							"path": ["stock", "add"]
-						}
-					}
-				}
-			]
-		},
-		{
-			"name": "Card Category",
-			"item": [
-				{
-					"name": "Get All Card Categories",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/card/category",
-							"host": ["{{base_url}}"],
-							"path": ["card", "category"]
-						}
-					}
-				},
-				{
-					"name": "Get Card Category by ID",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/card/category/:id",
-							"host": ["{{base_url}}"],
-							"path": ["card", "category", ":id"],
-							"variable": [
-								{
-									"key": "id",
-									"value": "category_id_here"
-								}
-							]
-						}
-					}
-				},
-				{
-					"name": "Create Card Category",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"categoryCode\": \"PREMIUM\",\n    \"categoryName\": \"Premium Card\",\n    \"description\": \"Premium fuel card category\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/card/category",
-							"host": ["{{base_url}}"],
-							"path": ["card", "category"]
-						}
-					}
-				},
-				{
-					"name": "Update Card Category",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"categoryCode\": \"PREMIUM_UPDATED\",\n    \"categoryName\": \"Updated Premium Card\",\n    \"description\": \"Updated description\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/card/category/:id",
-							"host": ["{{base_url}}"],
-							"path": ["card", "category", ":id"],
-							"variable": [
-								{
-									"key": "id",
-									"value": "category_id_here"
-								}
-							]
-						}
-					}
-				}
-			]
-		},
-		{
-			"name": "Card Type",
-			"item": [
-				{
-					"name": "Get All Card Types",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/card/types",
-							"host": ["{{base_url}}"],
-							"path": ["card", "types"]
-						}
-					}
-				},
-				{
-					"name": "Get Card Type by ID",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/card/types/:id",
-							"host": ["{{base_url}}"],
-							"path": ["card", "types", ":id"],
-							"variable": [
-								{
-									"key": "id",
-									"value": "type_id_here"
-								}
-							]
-						}
-					}
-				},
-				{
-					"name": "Create Card Type",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"typeCode\": \"TYPE001\",\n    \"typeName\": \"Type 1\",\n    \"routeDescription\": \"Route description here\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/card/types",
-							"host": ["{{base_url}}"],
-							"path": ["card", "types"]
-						}
-					}
-				},
-				{
-					"name": "Update Card Type",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"typeCode\": \"TYPE001_UPDATED\",\n    \"typeName\": \"Updated Type 1\",\n    \"routeDescription\": \"Updated route description\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/card/types/:id",
-							"host": ["{{base_url}}"],
-							"path": ["card", "types", ":id"],
-							"variable": [
-								{
-									"key": "id",
-									"value": "type_id_here"
-								}
-							]
-						}
-					}
-				}
-			]
-		}
-	],
-	"variable": [
-		{
-			"key": "base_url",
-			"value": "http://localhost:3001"
-		}
-	]
+  "info": {
+    "_postman_id": "fwc-api-collection",
+    "name": "FWC API Collection",
+    "description": "Complete API collection for FWC (Fuel Card Management System)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "General",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"],
+              "path": [""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.token) {",
+                  "        pm.environment.set('auth_token', response.data.token);",
+                  "        pm.environment.set('user_id', response.data.user.id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"{{username}}\",\n    \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Get Current User (Me)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "me"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Clear token regardless of response code",
+                  "pm.environment.unset('auth_token');",
+                  "pm.environment.unset('user_id');",
+                  "",
+                  "// Log the action",
+                  "if (pm.response.code === 200) {",
+                  "    console.log('✅ Logout successful - Token and user_id cleared');",
+                  "} else {",
+                  "    console.log('⚠️ Logout failed but token cleared anyway');",
+                  "    console.log('Response:', pm.response.code, pm.response.status);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout"]
+            }
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"user@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/forgot-password",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "forgot-password"]
+            }
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"token\": \"reset_token_here\",\n    \"newPassword\": \"newPassword123\",\n    \"confirmPassword\": \"newPassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/reset-password",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "reset-password"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users & Roles",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users",
+              "host": ["{{base_url}}"],
+              "path": ["users"]
+            }
+          }
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/:id",
+              "host": ["{{base_url}}"],
+              "path": ["users", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{user_id}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"newuser\",\n    \"password\": \"password123\",\n    \"fullName\": \"New User\",\n    \"email\": \"newuser@example.com\",\n    \"roleId\": \"role_id_here\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users",
+              "host": ["{{base_url}}"],
+              "path": ["users"]
+            }
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"fullName\": \"Updated Name\",\n    \"email\": \"updated@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/:id",
+              "host": ["{{base_url}}"],
+              "path": ["users", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{user_id}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"currentPassword\": \"oldPassword123\",\n    \"newPassword\": \"newPassword123\",\n    \"confirmPassword\": \"newPassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/:id/change-password",
+              "host": ["{{base_url}}"],
+              "path": ["users", ":id", "change-password"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{user_id}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All Roles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/roles",
+              "host": ["{{base_url}}"],
+              "path": ["users", "roles"]
+            }
+          }
+        },
+        {
+          "name": "Get Role by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/roles/:id",
+              "host": ["{{base_url}}"],
+              "path": ["users", "roles", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "role_id_here"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"roleCode\": \"manager\",\n    \"roleName\": \"Manager\",\n    \"description\": \"Manager role\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/roles",
+              "host": ["{{base_url}}"],
+              "path": ["users", "roles"]
+            }
+          }
+        },
+        {
+          "name": "Update Role",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"roleName\": \"Updated Role Name\",\n    \"description\": \"Updated description\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/roles/:id",
+              "host": ["{{base_url}}"],
+              "path": ["users", "roles", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "role_id_here"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Stock",
+      "item": [
+        {
+          "name": "Stock In (Production)",
+          "item": [
+            {
+              "name": "Create Stock In",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"movementAt\": \"2024-01-01T10:00:00Z\",\n    \"categoryId\": \"{{category_id}}\",\n    \"typeId\": \"{{type_id}}\",\n    \"startSerial\": \"1\",\n    \"endSerial\": \"100\",\n    \"note\": \"Initial Batch Production\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/stock/in",
+                  "host": ["{{base_url}}"],
+                  "path": ["stock", "in"]
+                },
+                "description": "Create new cards in Office. Input 'startSerial' & 'endSerial' as numeric strings (e.g. '1', '50'). System auto-generates full serials."
+              }
+            },
+            {
+              "name": "Get Stock In History",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/stock/in?page=1&limit=10",
+                  "host": ["{{base_url}}"],
+                  "path": ["stock", "in"],
+                  "query": [
+                    { "key": "page", "value": "1" },
+                    { "key": "limit", "value": "10" }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Stock In Detail",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/stock/in/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["stock", "in", ":id"],
+                  "variable": [{ "key": "id", "value": "movement_id_here" }]
+                }
+              }
+            },
+            {
+              "name": "Update Stock In Metadata",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}",
+                    "type": "text"
+                  },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"note\": \"Updated NOTE\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/stock/in/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["stock", "in", ":id"],
+                  "variable": [{ "key": "id", "value": "movement_id_here" }]
+                }
+              }
+            },
+            {
+              "name": "Delete Stock In",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/stock/in/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["stock", "in", ":id"],
+                  "variable": [{ "key": "id", "value": "movement_id_here" }]
+                },
+                "description": "Deletes production batch only if cards haven't moved."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stock Out (Distribution)",
+          "item": [
+            {
+              "name": "Create Distribution (Pending)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"movementAt\": \"2024-01-02T10:00:00Z\",\n    \"cardProductId\": \"{{product_id}}\",\n    \"stationId\": \"{{station_id}}\",\n    \"startSerial\": \"1\",\n    \"endSerial\": \"10\",\n    \"note\": \"Distribusi ke Station A\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/stock/out",
+                  "host": ["{{base_url}}"],
+                  "path": ["stock", "out"]
+                },
+                "description": "Create PENDING distribution. Input numeric 'startSerial' & 'endSerial'. Rejects full serials."
+              }
+            },
+            {
+              "name": "Validate Distribution (Station)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}",
+                    "type": "text"
+                  },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"receivedSerialNumbers\": [\"FWC2500001\", \"FWC2500002\"],\n    \"lostSerialNumbers\": [],\n    \"note\": \"Semua diterima\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/stock/out/:id/validate",
+                  "host": ["{{base_url}}"],
+                  "path": ["stock", "out", ":id", "validate"],
+                  "variable": [{ "key": "id", "value": "movement_id_here" }]
+                }
+              }
+            },
+            {
+              "name": "Get Stock Out History",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/stock/out?page=1&limit=10",
+                  "host": ["{{base_url}}"],
+                  "path": ["stock", "out"]
+                }
+              }
+            },
+            {
+              "name": "Get Stock Out Detail",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/stock/out/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["stock", "out", ":id"],
+                  "variable": [{ "key": "id", "value": "movement_id_here" }]
+                }
+              }
+            },
+            {
+              "name": "Update Stock Out Metadata",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}",
+                    "type": "text"
+                  },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"note\": \"Updated Note\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/stock/out/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["stock", "out", ":id"],
+                  "variable": [{ "key": "id", "value": "movement_id_here" }]
+                },
+                "description": "Station update restricted to PENDING status."
+              }
+            },
+            {
+              "name": "Delete/Cancel Stock Out",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/stock/out/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["stock", "out", ":id"],
+                  "variable": [{ "key": "id", "value": "movement_id_here" }]
+                },
+                "description": "Cancels shipment (returns to Office) or Undoes Approved distribution (if unsold)."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Card Category",
+      "item": [
+        {
+          "name": "Get All Card Categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/card/category",
+              "host": ["{{base_url}}"],
+              "path": ["card", "category"]
+            }
+          }
+        },
+        {
+          "name": "Get Card Category by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/card/category/:id",
+              "host": ["{{base_url}}"],
+              "path": ["card", "category", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "category_id_here"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Card Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"categoryCode\": \"PREMIUM\",\n    \"categoryName\": \"Premium Card\",\n    \"description\": \"Premium fuel card category\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/card/category",
+              "host": ["{{base_url}}"],
+              "path": ["card", "category"]
+            }
+          }
+        },
+        {
+          "name": "Update Card Category",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"categoryCode\": \"PREMIUM_UPDATED\",\n    \"categoryName\": \"Updated Premium Card\",\n    \"description\": \"Updated description\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/card/category/:id",
+              "host": ["{{base_url}}"],
+              "path": ["card", "category", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "category_id_here"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Card Type",
+      "item": [
+        {
+          "name": "Get All Card Types",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/card/types",
+              "host": ["{{base_url}}"],
+              "path": ["card", "types"]
+            }
+          }
+        },
+        {
+          "name": "Get Card Type by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/card/types/:id",
+              "host": ["{{base_url}}"],
+              "path": ["card", "types", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "type_id_here"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Card Type",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"typeCode\": \"TYPE001\",\n    \"typeName\": \"Type 1\",\n    \"routeDescription\": \"Route description here\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/card/types",
+              "host": ["{{base_url}}"],
+              "path": ["card", "types"]
+            }
+          }
+        },
+        {
+          "name": "Update Card Type",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"typeCode\": \"TYPE001_UPDATED\",\n    \"typeName\": \"Updated Type 1\",\n    \"routeDescription\": \"Updated route description\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/card/types/:id",
+              "host": ["{{base_url}}"],
+              "path": ["card", "types", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "type_id_here"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3001"
+    }
+  ]
 }
-
