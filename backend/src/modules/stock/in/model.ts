@@ -60,6 +60,7 @@ export namespace StockInModel {
         t.Object({
           id: t.String(),
           movementAt: t.String(),
+          movementType: t.String(),
           quantity: t.Number(),
           status: t.String(),
           note: t.Union([t.String(), t.Null()]),
@@ -92,6 +93,7 @@ export namespace StockInModel {
       movement: t.Object({
         id: t.String(),
         movementAt: t.String(),
+        movementType: t.String(),
         quantity: t.Number(),
         status: t.String(),
         note: t.Union([t.String(), t.Null()]),

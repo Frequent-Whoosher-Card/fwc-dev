@@ -19,7 +19,8 @@ export class StockOutService {
    */
   static async stockOutDistribution(
     movementAt: Date,
-    cardProductId: string,
+    categoryId: string,
+    typeId: string,
     stationId: string,
     startSerial: string,
     endSerial: string,
@@ -63,16 +64,24 @@ export class StockOutService {
     const yearSuffix = movementAt.getFullYear().toString().slice(-2);
 
     const transaction = await db.$transaction(async (tx) => {
+      // Find valid Card Product first
       const cardProduct = await tx.cardProduct.findUnique({
-        where: { id: cardProductId },
-        select: { categoryId: true, typeId: true, serialTemplate: true },
+        where: {
+          unique_category_type: {
+            categoryId,
+            typeId,
+          },
+        },
+        select: { id: true, serialTemplate: true },
       });
 
       if (!cardProduct) {
-        throw new ValidationError("Produk kartu tidak ditemukan");
+        throw new ValidationError(
+          "Produk kartu untuk Kategori & Tipe ini belum terdaftar."
+        );
       }
 
-      const { categoryId, typeId, serialTemplate } = cardProduct;
+      const { id: cardProductId, serialTemplate } = cardProduct;
 
       // 2. Generate Full List
       const sent = Array.from({ length: count }, (_, i) => {
@@ -376,6 +385,7 @@ export class StockOutService {
 
     return transaction;
   }
+
   /**
    * Get History
    */
@@ -564,6 +574,8 @@ export class StockOutService {
       movementAt?: string;
       stationId?: string;
       note?: string;
+      startSerial?: string;
+      endSerial?: string;
     },
     userId: string
   ) {
@@ -579,39 +591,169 @@ export class StockOutService {
       throw new ValidationError("Bukan transaksi Stock Out");
     }
 
-    const dataToUpdate: any = {
-      updatedBy: userId,
-    };
+    const transaction = await db.$transaction(async (tx) => {
+      const dataToUpdate: any = {
+        updatedBy: userId,
+      };
 
-    if (body.movementAt) {
-      dataToUpdate.movementAt = new Date(body.movementAt);
-    }
-
-    if (body.note !== undefined) {
-      dataToUpdate.note = body.note;
-    }
-
-    // Station Check
-    if (body.stationId) {
-      if (movement.status !== "PENDING") {
-        // Jika sudah APPROVED/REJECTED, tidak boleh ganti stasiun
-        throw new ValidationError(
-          "Tidak dapat mengubah tujuan stasiun karena status sudah " +
-            movement.status
-        );
+      if (body.movementAt) {
+        dataToUpdate.movementAt = new Date(body.movementAt);
       }
-      dataToUpdate.stationId = body.stationId;
-    }
 
-    const updated = await db.cardStockMovement.update({
-      where: { id },
-      data: dataToUpdate,
+      if (body.note !== undefined) {
+        dataToUpdate.note = body.note;
+      }
+
+      // Station Check
+      if (body.stationId && body.stationId !== movement.stationId) {
+        if (movement.status !== "PENDING") {
+          throw new ValidationError(
+            "Tidak dapat mengubah tujuan stasiun karena status sudah " +
+              movement.status
+          );
+        }
+        dataToUpdate.stationId = body.stationId;
+      }
+
+      // --- SERIAL NUMBER UPDATE LOGIC ---
+      if (body.startSerial && body.endSerial) {
+        if (movement.status !== "PENDING") {
+          throw new ValidationError(
+            "Tidak dapat mengubah stock karena status sudah " + movement.status
+          );
+        }
+
+        // 1. REVERT EXISTING STOCK (Logic mirip delete pending)
+        const oldSent = normalizeSerials(
+          (movement as any).sentSerialNumbers ?? []
+        );
+        if (oldSent.length > 0) {
+          // Revert Cards -> IN_OFFICE
+          await tx.card.updateMany({
+            where: { serialNumber: { in: oldSent } },
+            data: { status: "IN_OFFICE", updatedAt: new Date() },
+          });
+
+          // Revert Inventory
+          const officeInv = await tx.cardInventory.findFirst({
+            where: {
+              categoryId: movement.categoryId,
+              typeId: movement.typeId,
+              stationId: null,
+            },
+          });
+          if (officeInv) {
+            await tx.cardInventory.update({
+              where: { id: officeInv.id },
+              data: {
+                cardOffice: { increment: oldSent.length },
+                lastUpdated: new Date(),
+              },
+            });
+          }
+        }
+
+        // 2. PREPARE NEW STOCK (Logic mirip create)
+        // Validation
+        const startSerial = body.startSerial;
+        const endSerial = body.endSerial;
+
+        if (!/^\d+$/.test(startSerial) || !/^\d+$/.test(endSerial)) {
+          if (/[a-zA-Z]/.test(startSerial) || /[a-zA-Z]/.test(endSerial)) {
+            throw new ValidationError(
+              "Input harus berupa angka urutan. JANGAN masukkan serial number lengkap."
+            );
+          }
+          throw new ValidationError(
+            "startSerial dan endSerial harus berupa digit string"
+          );
+        }
+
+        const startNum = Number(startSerial);
+        const endNum = Number(endSerial);
+        if (endNum < startNum)
+          throw new ValidationError("endSerial harus >= startSerial");
+
+        const count = endNum - startNum + 1;
+        if (count > 10000) throw new ValidationError("Maksimal 10.000 kartu");
+
+        const suffixLength = 5;
+        // Use New Movement Date or Old One
+        const mDate = body.movementAt
+          ? new Date(body.movementAt)
+          : movement.movementAt;
+        const yearSuffix = mDate.getFullYear().toString().slice(-2);
+
+        const cardProduct = await tx.cardProduct.findFirst({
+          where: { categoryId: movement.categoryId, typeId: movement.typeId },
+          select: { id: true, serialTemplate: true },
+        });
+        if (!cardProduct) throw new ValidationError("Produk tidak ditemukan");
+
+        const newSent = Array.from({ length: count }, (_, i) => {
+          const sfx = String(startNum + i).padStart(suffixLength, "0");
+          return `${cardProduct.serialTemplate}${yearSuffix}${sfx}`;
+        });
+
+        // 3. CHECK & DEDUCT NEW STOCK
+        const officeInv = await tx.cardInventory.findFirst({
+          where: {
+            categoryId: movement.categoryId,
+            typeId: movement.typeId,
+            stationId: null,
+          },
+        });
+        if (!officeInv)
+          throw new ValidationError("Inventory Office tidak ditemukan");
+
+        // Check availability
+        const currentStock = (officeInv as any).cardOffice || 0;
+        if (currentStock < count) {
+          throw new ValidationError(
+            `Stok OFFICE tidak cukup untuk update ini. Tersedia: ${currentStock}, Butuh: ${count}`
+          );
+        }
+
+        // Check cards IN_OFFICE
+        const cards = await tx.card.findMany({
+          where: { serialNumber: { in: newSent }, status: "IN_OFFICE" },
+          select: { id: true },
+        });
+        if (cards.length !== count) {
+          throw new ValidationError(
+            "Sebagian kartu baru tidak valid / bukan IN_OFFICE"
+          );
+        }
+
+        // Deduct Inventory
+        await tx.cardInventory.update({
+          where: { id: officeInv.id },
+          data: { cardOffice: { decrement: count }, lastUpdated: new Date() },
+        });
+
+        // Update Card Status -> IN_TRANSIT
+        await tx.card.updateMany({
+          where: { serialNumber: { in: newSent } },
+          data: { status: "IN_TRANSIT", updatedAt: new Date() },
+        });
+
+        // Update Movement Data
+        dataToUpdate.sentSerialNumbers = newSent;
+        dataToUpdate.quantity = count;
+      }
+
+      const updated = await tx.cardStockMovement.update({
+        where: { id },
+        data: dataToUpdate,
+      });
+
+      return {
+        id: updated.id,
+        updatedAt: new Date().toISOString(),
+      };
     });
 
-    return {
-      id: updated.id,
-      updatedAt: new Date().toISOString(),
-    };
+    return transaction;
   }
   /**
    * Delete / Cancel Stock Out (Undo)

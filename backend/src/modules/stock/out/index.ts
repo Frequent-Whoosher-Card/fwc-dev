@@ -75,7 +75,8 @@ const adminRoutes = new Elysia()
       try {
         const result = await StockOutService.stockOutDistribution(
           new Date(body.movementAt),
-          body.cardProductId,
+          body.categoryId,
+          body.typeId,
           body.stationId,
           body.startSerial,
           body.endSerial,
@@ -104,6 +105,7 @@ const adminRoutes = new Elysia()
         400: StockOutModel.errorResponse,
         401: StockOutModel.errorResponse,
         403: StockOutModel.errorResponse,
+        422: StockOutModel.errorResponse,
         500: StockOutModel.errorResponse,
       },
       detail: {
@@ -215,7 +217,7 @@ const adminRoutes = new Elysia()
         tags: ["Stock Out"],
         summary: "Update Stock Out Metadata",
         description:
-          "Mengubah data distribusi (note, tanggal, station). Station hanya bisa diubah jika status masih PENDING.",
+          "Mengubah data distribusi. Hanya bisa diubah jika status masih PENDING.",
       },
     }
   )
