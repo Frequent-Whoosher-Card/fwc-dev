@@ -37,6 +37,12 @@ export namespace StockOutModel {
         maxItems: 10000,
       })
     ),
+    damagedSerialNumbers: t.Optional(
+      t.Array(t.String({ minLength: 1 }), {
+        minItems: 0,
+        maxItems: 10000,
+      })
+    ),
     note: t.Optional(t.String({ maxLength: 500 })),
   });
 
@@ -49,6 +55,7 @@ export namespace StockOutModel {
       status: t.String(),
       receivedCount: t.Integer(),
       lostCount: t.Integer(),
+      damagedCount: t.Integer(),
     }),
   });
 
@@ -133,6 +140,7 @@ export namespace StockOutModel {
         sentSerialNumbers: t.Array(t.String()),
         receivedSerialNumbers: t.Array(t.String()),
         lostSerialNumbers: t.Array(t.String()),
+        damagedSerialNumbers: t.Array(t.String()),
       }),
     }),
   });

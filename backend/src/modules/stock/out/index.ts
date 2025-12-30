@@ -36,10 +36,17 @@ const baseRoutes = new Elysia().use(authMiddleware).post(
         params.movementId,
         body.receivedSerialNumbers,
         body.lostSerialNumbers,
+        body.damagedSerialNumbers,
         user.id,
         user.stationId,
         body.note
       );
+
+      return {
+        success: true,
+        message: "Validasi stok berhasil",
+        data: result,
+      };
     } catch (error) {
       set.status =
         error instanceof Error && "statusCode" in error
