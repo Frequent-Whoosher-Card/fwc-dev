@@ -74,6 +74,18 @@ export const docsConfig = swagger({
         description: "Station management endpoints",
       },
       {
+        name: "Analysis",
+        description: "Analysis endpoints for card analysis data and analytics",
+      },
+      {
+        name: "Sales",
+        description: "Sales endpoints for card sales data and analytics",
+      },
+      {
+        name: "Metrics",
+        description: "Metrics endpoints for card metrics data and analytics",
+      },
+      {
         name: "Cards",
         description: "Card management endpoints",
       },
@@ -89,6 +101,10 @@ export const docsConfig = swagger({
         name: "Card Product",
         description: "Card product management endpoints",
       },
+      {
+        name: "Inventory",
+        description: "Inventory management endpoints for card inventory",
+      },
 
       {
         name: "Stock",
@@ -103,12 +119,8 @@ export const docsConfig = swagger({
         description: "Stock out management endpoints for card inventory",
       },
       {
-        name: "Sales",
-        description: "Sales endpoints for card sales data and analytics",
-      },
-      {
-        name: "Metrics",
-        description: "Metrics endpoints for card metrics data and analytics",
+        name: "Stock Analysis",
+        description: "Stock analysis endpoints for card inventory",
       },
     ],
     components: {
