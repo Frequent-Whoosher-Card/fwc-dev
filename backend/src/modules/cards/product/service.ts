@@ -13,7 +13,10 @@ export class CardProductService {
       },
     });
 
-    return cardProducts;
+    return cardProducts.map((product) => ({
+      ...product,
+      price: product.price.toString(),
+    }));
   }
 
   // Get Card Product By Id
@@ -24,7 +27,12 @@ export class CardProductService {
       },
     });
 
-    return cardProduct;
+    if (!cardProduct) return null;
+
+    return {
+      ...cardProduct,
+      price: cardProduct.price.toString(),
+    };
   }
 
   // Create Card Product
@@ -77,7 +85,10 @@ export class CardProductService {
       },
     });
 
-    return createCardProduct;
+    return {
+      ...createCardProduct,
+      price: createCardProduct.price.toString(),
+    };
   }
 
   // Update Card Product
@@ -105,7 +116,10 @@ export class CardProductService {
       },
     });
 
-    return updateCardProduct;
+    return {
+      ...updateCardProduct,
+      price: updateCardProduct.price.toString(),
+    };
   }
 
   // Soft delete card product
@@ -121,6 +135,9 @@ export class CardProductService {
       },
     });
 
-    return deleteCardProduct;
+    return {
+      ...deleteCardProduct,
+      price: deleteCardProduct.price.toString(),
+    };
   }
 }

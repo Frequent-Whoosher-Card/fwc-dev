@@ -49,8 +49,8 @@ export class StockInService {
     const width = 5; // Fixed 5-digit padding as requested
     const endSerialFormatted = String(endNum).padStart(width, "0");
 
-    // Extract YY from movementAt
-    const yearSuffix = movementAt.getFullYear().toString().slice(-2);
+    // Extract YY from movementAt (ensure it is a Date object)
+    const yearSuffix = new Date(movementAt).getFullYear().toString().slice(-2);
 
     const transaction = await db.$transaction(async (tx) => {
       const product = await tx.cardProduct.findUnique({
@@ -102,16 +102,9 @@ export class StockInService {
         data: serialNumbers.map((sn) => ({
           serialNumber: sn,
           cardProductId: product.id,
-          categoryId,
-          typeId,
-
-          totalQuota: product.totalQuota,
-          fwPrice: product.price, // mapping ke Card.fwPrice
-          masaBerlaku: product.masaBerlaku,
-
+          quotaTicket: product.totalQuota, // Initialize quota from product
           status: "IN_OFFICE",
           createdBy: userId,
-          // quotaTicket default 0 sudah di schema
         })),
       });
 
@@ -244,6 +237,7 @@ export class StockInService {
     const mappedItems = items.map((item) => ({
       id: item.id,
       movementAt: item.movementAt.toISOString(),
+      movementType: item.type,
       quantity: item.quantity,
       status: item.status,
       note: item.note,
@@ -306,6 +300,7 @@ export class StockInService {
       movement: {
         id: movement.id,
         movementAt: movement.movementAt.toISOString(),
+        movementType: movement.type,
         quantity: movement.quantity,
         status: movement.status,
         note: movement.note,
