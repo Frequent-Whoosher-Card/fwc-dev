@@ -1,344 +1,363 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CreditCard, Users, Receipt, TrendingUp, XCircle, AlertCircle } from 'lucide-react';
+import { CreditCard, Users, Receipt, XCircle, AlertCircle } from 'lucide-react';
 import TicketStatusDonut from './chart/ticket-status-donut';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, LineChart, Line, CartesianGrid } from 'recharts';
-import { useState } from 'react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { API_BASE_URL } from '@/lib/apiConfig';
 
-const stats = [
-  {
-    title: 'Card Issues',
-    value: 500,
-    sub: 'Rp-',
-    icon: CreditCard,
-    iconBg: 'bg-blue-500',
-    subColor: 'text-blue-500',
-  },
-  {
-    title: 'Ticket Issued',
-    value: 500,
-    sub: 'Rp-',
-    icon: Users,
-    iconBg: 'bg-green-500',
-    subColor: 'text-green-500',
-  },
-  {
-    title: 'Ticket Redeemed',
-    value: 500,
-    sub: 'Rp-',
-    icon: Receipt,
-    iconBg: 'bg-red-500',
-    subColor: 'text-red-500',
-  },
-  {
-    title: 'Expired Ticket',
-    value: 500,
-    sub: 'Rp-',
-    icon: XCircle,
-    iconBg: 'bg-red-500',
-    subColor: 'text-red-500',
-  },
-  {
-    title: 'Remaining Ticket',
-    value: 500,
-    sub: 'Rp-',
-    icon: AlertCircle,
-    iconBg: 'bg-orange-500',
-    subColor: 'text-orange-500',
-  },
+/* ======================
+   TYPES
+====================== */
+type StationValue = {
+  jaBan: number;
+  jaKa: number;
+  kaBan: number;
+};
+
+type SalesRow = {
+  tanggal: string;
+  gold: StationValue;
+  silver: StationValue;
+  kai: number;
+  total: number;
+  soldPrice: number;
+};
+
+type DailySalesResponse = {
+  success: boolean;
+  message?: string;
+  data?: {
+    rows: SalesRow[];
+    totals: SalesRow;
+  };
+  error?: {
+    code?: string;
+  };
+};
+
+type StationSalesRow = {
+  stationName: string;
+  gold: number;
+  silver: number;
+  kai: number;
+};
+
+/* ======================
+   STATS CONFIG
+====================== */
+const statsConfig = [
+  { title: 'Card Issues', icon: CreditCard, iconBg: 'bg-blue-500' },
+  { title: 'Ticket Issued', icon: Users, iconBg: 'bg-green-500' },
+  { title: 'Ticket Redeemed', icon: Receipt, iconBg: 'bg-red-500' },
+  { title: 'Expired Ticket', icon: XCircle, iconBg: 'bg-red-500' },
+  { title: 'Remaining Ticket', icon: AlertCircle, iconBg: 'bg-orange-500' },
 ];
-
-const recentActivities = [
-  {
-    id: 1,
-    action: 'Pendaftaran Member Baru',
-    user: 'John Doe',
-    time: '5 menit yang lalu',
-  },
-  {
-    id: 2,
-    action: 'Transaksi Kartu',
-    user: 'Jane Smith',
-    time: '15 menit yang lalu',
-  },
-  {
-    id: 3,
-    action: 'Update Stock Kartu',
-    user: 'Admin',
-    time: '1 jam yang lalu',
-  },
-  {
-    id: 4,
-    action: 'Penambahan Petugas',
-    user: 'Manager',
-    time: '2 jam yang lalu',
-  },
-];
-
-const data = [
-  { name: 'Halim', gold: 120, silver: 80, kai: 40 },
-  { name: 'Karawang', gold: 90, silver: 60, kai: 30 },
-  { name: 'Padalarang', gold: 150, silver: 110, kai: 55 },
-  { name: 'Tegalluar', gold: 70, silver: 40, kai: 20 },
-];
-
-// const tabs = ['Halim', 'Karawang', 'Padalarang', 'Tegalluar'];
-
-// const tablePerTab: Record<string, number> = {
-//   Halim: 6,
-//   Karawang: 4,
-//   Padalarang: 8,
-//   Tegalluar: 5,
-// };
-
-// const [activeTab, setActiveTab] = useState('Halim');
 
 export function DashboardContent() {
-  // const tabs = ['Halim', 'Karawang', 'Padalarang', 'Tegalluar'];
+  /* ======================
+     STATE
+  ====================== */
+  const [rows, setRows] = useState<SalesRow[]>([]);
+  const [total, setTotal] = useState<SalesRow | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // const tablePerTab: Record<string, number> = {
-  //   Halim: 6,
-  //   Karawang: 4,
-  //   Padalarang: 8,
-  //   Tegalluar: 5,
-  // };
+  /* ======================
+     FETCH DASHBOARD (LOGIN STYLE)
+  ====================== */
+  const fetchDailySales = async () => {
+    setIsLoading(true);
+    setErrorMessage(null);
 
-  const [activeTab, setActiveTab] = useState('Halim');
+    try {
+      const res = await fetch(`${API_BASE_URL}/sales/daily-grouped?startDate=2025-12-01&endDate=2025-12-31`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const json: DailySalesResponse = await res.json();
+
+      if (!res.ok || !json.success) {
+        setErrorMessage('Gagal mengambil data dashboard.');
+        return;
+      }
+
+      setRows(json.data!.rows);
+      setTotal(json.data!.totals);
+    } catch (err) {
+      console.error('Dashboard error:', err);
+      setErrorMessage('Terjadi gangguan sistem. Silakan coba lagi.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDailySales();
+  }, []);
+
+  const [stationData, setStationData] = useState<StationSalesRow[]>([]);
+  const [stationLoading, setStationLoading] = useState(false);
+
+  // Fungsi fetch harus dideklarasikan **sebelum dipakai**
+  const fetchStationSales = async () => {
+    setStationLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/sales/per-station?startDate=&endDate=`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!res.ok) throw new Error('Failed to fetch station sales');
+
+      const json = await res.json();
+      setStationData(json.data ?? []);
+    } catch (err) {
+      console.error('Station sales error:', err);
+    } finally {
+      setStationLoading(false);
+    }
+  };
+  useEffect(() => {
+    fetchDailySales();
+    fetchStationSales();
+  }, []);
+
+  /* ======================
+     CHART DATA
+  ====================== */
+  const barChartData = useMemo(
+    () =>
+      rows.map((r) => ({
+        name: r.tanggal,
+        gold: r.gold.jaBan + r.gold.jaKa + r.gold.kaBan,
+        silver: r.silver.jaBan + r.silver.jaKa + r.silver.kaBan,
+        kai: r.kai,
+      })),
+    [rows]
+  );
+
+  /* ======================
+     RENDER
+  ====================== */
   return (
     <div className="space-y-6">
-      {/* LAST UPDATE */}
-      <p className="mb-4 text-xs text-muted-foreground italic">Last update: 12 December 2025, 09.30 AM</p>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Ticket Overview</CardTitle>
-      </CardHeader>
+      <p className="mb-4 text-xs italic text-muted-foreground">Last update: December 2025</p>
 
-      {/* Stats Grid */}
-      <Card className="border-border">
-        <CardContent className="p-6">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-            {stats.map((stat) => (
-              <Card key={stat.title} className="p-4 rounded-xl">
-                <div className="flex items-center justify-between">
-                  {/* LEFT CONTENT */}
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">{stat.title}</p>
-
-                    <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-
-                    <p className={`text-xs ${stat.subColor}`}>{stat.sub}</p>
-                  </div>
-
-                  {/* RIGHT ICON */}
-                  <div className={`flex h-10 w-10 items-center justify-center rounded-full ${stat.iconBg}`}>
-                    <stat.icon className="h-5 w-5 text-white" />
-                  </div>
+      {/* ======================
+          STATS
+      ====================== */}
+      <Card>
+        <CardContent className="grid gap-4 p-6 md:grid-cols-2 lg:grid-cols-5">
+          {statsConfig.map((stat) => (
+            <Card key={stat.title} className="p-4 rounded-xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">{stat.title}</p>
+                  <p className="text-2xl font-bold">{total?.total ?? '-'}</p>
                 </div>
-              </Card>
-            ))}
-          </div>
+                <div className={`flex h-10 w-10 items-center justify-center rounded-full ${stat.iconBg}`}>
+                  <stat.icon className="h-5 w-5 text-white" />
+                </div>
+              </div>
+            </Card>
+          ))}
         </CardContent>
       </Card>
 
-      {/* Recent Activities */}
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle className="text-foreground">Dashboard Penjualan & Ticket</CardTitle>
-        </CardHeader>
+      {/* ======================
+          LOADING / ERROR
+      ====================== */}
+      {isLoading && <div className="text-center text-sm text-muted-foreground">Loading dashboard...</div>}
+      {errorMessage && <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">{errorMessage}</div>}
 
-        <CardContent>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* LEFT COLUMN */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* TABEL PENJUALAN */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Tabel Penjualan Card Harian</CardTitle>
-                </CardHeader>
+      {/* ======================
+          MAIN CONTENT
+      ====================== */}
+      {!isLoading && !errorMessage && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Dashboard Penjualan & Ticket</CardTitle>
+          </CardHeader>
 
-                <CardContent className="space-y-4">
-                  {/* Tabs */}
-                  {/* <div className="-mx-4 sm:mx-0 overflow-x-auto">
-                    <div className="flex w-max gap-2 px-4 pb-2">
-                      {['Halim', 'Karawang', 'Padalarang', 'Tegalluar'].map((item) => (
-                        <button
-                          key={item}
-                          onClick={() => setActiveTab(item)}
-                          className={`whitespace-nowrap px-4 py-2 rounded-md text-sm font-medium transition
-          ${activeTab === item ? 'bg-primary text-white' : 'bg-muted hover:bg-primary hover:text-white'}`}
-                        >
-                          {item}
-                        </button>
-                      ))}
-                    </div>
-                  </div> */}
+          <CardContent>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* LEFT */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* TABLE */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Tabel Penjualan Card Harian</CardTitle>
+                  </CardHeader>
 
-                  {/* Table */}
-                  <div className="overflow-auto rounded-lg border">
-                    <table className="w-full text-sm border-collapse">
-                      <thead className="bg-muted">
-                        <tr>
-                          <th rowSpan={2} className="border px-3 py-2 text-center align-middle">
-                            Tanggal
-                          </th>
-                          <th colSpan={3} className="border px-3 py-2 text-center">
-                            GOLD
-                          </th>
-                          <th colSpan={3} className="border px-3 py-2 text-center">
-                            SILVER
-                          </th>
-                          <th rowSpan={2} className="border px-3 py-2 text-center ">
-                            KAI
-                          </th>
-                          <th rowSpan={2} className="border px-3 py-2 text-center align-middle">
-                            Total
-                          </th>
-                        </tr>
-
-                        <tr className="bg-muted/70">
-                          {['JaBan', 'JaKa', 'KaBan', 'JaBan', 'JaKa', 'KaBan'].map((h, i) => (
-                            <th key={i} className="border px-3 py-2 text-center">
-                              {h}
+                  <CardContent>
+                    <div className="overflow-auto rounded-lg border">
+                      <table className="w-full border-collapse text-sm">
+                        <thead className="bg-muted">
+                          <tr>
+                            <th rowSpan={2} className="border px-3 py-2">
+                              Tanggal
                             </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {[...Array(6)].map((_, i) => (
-                          <tr key={i}>
-                            {[...Array(9)].map((_, j) => (
-                              <td key={j} className="border px-3 py-2">
-                                &nbsp;
-                              </td>
+                            <th colSpan={3} className="border px-3 py-2">
+                              GOLD
+                            </th>
+                            <th colSpan={3} className="border px-3 py-2">
+                              SILVER
+                            </th>
+                            <th rowSpan={2} className="border px-3 py-2">
+                              KAI
+                            </th>
+                            <th rowSpan={2} className="border px-3 py-2">
+                              Total
+                            </th>
+                          </tr>
+                          <tr>
+                            {['JaBan', 'JaKa', 'KaBan', 'JaBan', 'JaKa', 'KaBan'].map((h, i) => (
+                              <th key={i} className="border px-3 py-2">
+                                {h}
+                              </th>
                             ))}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {rows.map((row, i) => (
+                            <tr key={i}>
+                              <td className="border px-3 py-2">{row.tanggal}</td>
+                              <td className="border px-3 py-2 text-center">{row.gold.jaBan}</td>
+                              <td className="border px-3 py-2 text-center">{row.gold.jaKa}</td>
+                              <td className="border px-3 py-2 text-center">{row.gold.kaBan}</td>
+                              <td className="border px-3 py-2 text-center">{row.silver.jaBan}</td>
+                              <td className="border px-3 py-2 text-center">{row.silver.jaKa}</td>
+                              <td className="border px-3 py-2 text-center">{row.silver.kaBan}</td>
+                              <td className="border px-3 py-2 text-center">{row.kai}</td>
+                              <td className="border px-3 py-2 text-center font-semibold">{row.total}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* DONUT */}
+                <Card>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <TicketStatusDonut
+                      title="Card In/Out"
+                      data={[
+                        { name: 'In', value: 40, color: '#94a3b8' },
+                        { name: 'Out', value: 60, color: '#2563eb' },
+                      ]}
+                      legends={['In (belum terjual)', 'Out (sudah terjual)']}
+                    />
+
+                    <TicketStatusDonut
+                      title="Status Card"
+                      data={[
+                        { name: 'Redeem', value: 70, color: '#22c55e' },
+                        { name: 'Belum Redeem', value: 30, color: '#eab308' },
+                      ]}
+                      legends={['Sudah Redeem', 'Belum Redeem']}
+                    />
+
+                    <TicketStatusDonut
+                      title="Status Ticket"
+                      data={[
+                        { name: 'Active', value: 50, color: '#22c55e' },
+                        { name: 'Redeemed', value: 30, color: '#3b82f6' },
+                        { name: 'Expired', value: 20, color: '#ef4444' },
+                      ]}
+                      legends={['Active', 'Redeemed', 'Expired']}
+                    />
+                  </div>
+                </Card>
+              </div>
+
+              {/* RIGHT */}
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Grafik Penjualan (Per Hari)</CardTitle>
+                  </CardHeader>
+                  <CardContent className="h-[200px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={barChartData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Line dataKey="gold" stroke="#facc15" />
+                        <Line dataKey="silver" stroke="#94a3b8" />
+                        <Line dataKey="kai" stroke="#22c55e" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Grafik Penjualan (Per Stasiun)</CardTitle>
+                  </CardHeader>
+                  <CardContent className="h-[220px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={stationData}>
+                        <XAxis dataKey="stationName" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="gold" fill="#facc15" />
+                        <Bar dataKey="silver" fill="#94a3b8" />
+                        <Bar dataKey="kai" fill="#22c55e" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card className="col-span-3">
+                <CardHeader className="px-4 sm:px-6">
+                  <CardTitle className="text-base sm:text-lg">Daftar Ticket Expired</CardTitle>
+                </CardHeader>
+                <CardContent className="px-0">
+                  {/* Wrapper responsive */}
+                  <div className="relative w-full p-4 overflow-x-auto">
+                    <div className="min-w-200 rounded-lg border">
+                      <table className="w-full border-collapse text-sm">
+                        <thead>
+                          <tr className="bg-gray-300 text-black">
+                            <th className="border px-3 py-2 text-center font-medium sm:px-4">Expired Date</th>
+                            <th className="border px-3 py-2 text-center font-medium sm:px-4">Card Category</th>
+                            <th className="border px-3 py-2 text-center font-medium sm:px-4">Card Type</th>
+                            <th className="border px-3 py-2 text-center font-medium sm:px-4">Ticket</th>
+                            <th className="border px-3 py-2 text-center font-medium sm:px-4">Jumlah</th>
+                          </tr>
+                        </thead>
+
+                        <tbody>
+                          {[...Array(5)].map((_, i) => (
+                            <tr key={i} className="hover:bg-gray-50">
+                              <td className="border px-3 py-3 text-center sm:px-4">&nbsp;</td>
+                              <td className="border px-3 py-3 text-center sm:px-4">&nbsp;</td>
+                              <td className="border px-3 py-3 text-center sm:px-4">&nbsp;</td>
+                              <td className="border px-3 py-3 text-center sm:px-4">&nbsp;</td>
+                              <td className="border px-3 py-3 text-center sm:px-4">&nbsp;</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
-
-              {/* EXPIRED TICKET */}
-              <Card>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* CARD IN / OUT */}
-                  <TicketStatusDonut
-                    title="Card In/Out"
-                    data={[
-                      { name: 'In', value: 40, color: '#94a3b8' },
-                      { name: 'Out', value: 60, color: '#2563eb' },
-                    ]}
-                    legends={['In (belum terjual)', 'Out (sudah terjual)']}
-                  />
-
-                  <TicketStatusDonut
-                    title="Status Card"
-                    data={[
-                      { name: 'Redeem', value: 70, color: '#22c55e' },
-                      { name: 'Belum Redeem', value: 30, color: '#eab308' },
-                    ]}
-                    legends={['Sudah Redeem', 'Belum Redeem']}
-                  />
-
-                  <TicketStatusDonut
-                    title="Status Ticket"
-                    data={[
-                      { name: 'Active', value: 50, color: '#22c55e' },
-                      { name: 'Redeemed', value: 30, color: '#3b82f6' },
-                      { name: 'Expired', value: 20, color: '#ef4444' },
-                    ]}
-                    legends={['Active', 'Redeemed', 'Expired']}
-                  />
-                </div>
-              </Card>
             </div>
-
-            {/* RIGHT COLUMN */}
-            <div className="space-y-6">
-              {/* STATUS TICKET */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Grafik Penjualan Card (Per Stasiun)</CardTitle>
-                </CardHeader>
-
-                <CardContent className="relative h-85">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={data}>
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="gold" fill="#facc15" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="silver" fill="#94a3b8" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="kai" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              {/* GRAFIK PENJUALAN */}
-              <Card>
-                <CardHeader className="text-center">
-                  <CardTitle>Grafik Penjualan Card (Per hari)</CardTitle>
-                </CardHeader>
-
-                <CardContent className="h-[180px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={data}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-
-                      <Line type="monotone" dataKey="gold" stroke="#facc15" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-
-                      <Line type="monotone" dataKey="silver" stroke="#94a3b8" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-
-                      <Line type="monotone" dataKey="kai" stroke="#22c55e" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      <Card className="w-full rounded-xl bg-white">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-semibold">Expired Ticket</CardTitle>
-        </CardHeader>
-
-        <CardContent>
-          <div className="overflow-x-auto rounded-lg border">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="bg-gray-300 text-black">
-                  <th className="border px-4 py-2 text-center font-medium">Expired Date</th>
-                  <th className="border px-4 py-2 text-center font-medium">Card Category</th>
-                  <th className="border px-4 py-2 text-center font-medium">Card Type</th>
-                  <th className="border px-4 py-2 text-center font-medium">Ticket</th>
-                  <th className="border px-4 py-2 text-center font-medium">Jumlah</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {[...Array(5)].map((_, i) => (
-                  <tr key={i} className="hover:bg-gray-50">
-                    <td className="border px-4 py-3">&nbsp;</td>
-                    <td className="border px-4 py-3">&nbsp;</td>
-                    <td className="border px-4 py-3">&nbsp;</td>
-                    <td className="border px-4 py-3">&nbsp;</td>
-                    <td className="border px-4 py-3">&nbsp;</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
