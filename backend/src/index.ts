@@ -10,6 +10,8 @@ import { metrics } from "./modules/metrics";
 import { stockOut } from "./modules/stock/out";
 import { stockIn } from "./modules/stock/in";
 import { cardProducts } from "./modules/cards/product";
+import { station } from "./modules/station";
+import { cardInventory } from "./modules/cards/inventory";
 
 const app = new Elysia()
   .use(docsConfig)
@@ -24,6 +26,8 @@ const app = new Elysia()
   .use(cardCategory)
   .use(cardTypes)
   .use(cardProducts)
+  .use(station)
+  .use(cardInventory)
   .use(stockIn)
   .use(stockOut)
   .use(sales)
