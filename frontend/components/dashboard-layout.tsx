@@ -1,15 +1,13 @@
 'use client';
 
-
-import toast from 'react-hot-toast';
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import toast from 'react-hot-toast';
+
 import {
   LayoutDashboard,
   CreditCard,
@@ -27,6 +25,9 @@ import {
   ChevronDown,
 } from 'lucide-react';
 
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +36,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+
 
 /* =========================
    ROLE TYPE
@@ -108,6 +110,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [userName, setUserName] = useState('User');
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [role, setRole] = useState<Role>('admin');
+  
+    // 🔔 tampilkan lonceng hanya di halaman User Management
+  const showUserNotification =
+    pathname.startsWith('/dashboard/superadmin/user');
+
 
   /* ===== INIT AUTH & ROLE ===== */
   useEffect(() => {
@@ -272,26 +279,47 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </h1>
 
           {/* USER */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                <span className="text-sm font-medium">{userName}</span>
-              </Button>
-            </DropdownMenuTrigger>
+         {/* RIGHT ACTIONS */}
+<div className="flex items-center gap-1">
+  {/* 🔔 NOTIFICATION (USER MENU ONLY) */}
+  {showUserNotification && (
+  <Button
+    variant="ghost"
+    size="icon"
+    className="relative h-8 w-8"
+    aria-label="notification"
+  >
+    <Bell className="h-4 w-4" />
+    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
+      3
+    </span>
+  </Button>
+)}
 
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuLabel>Akun</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={handleLogout}
-                className="text-red-600 cursor-pointer"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                Logout
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+
+  {/* USER */}
+  <DropdownMenu>
+    <DropdownMenuTrigger asChild>
+      <Button variant="ghost" className="flex items-center gap-2">
+        <User className="h-5 w-5" />
+        <span className="text-sm font-medium">{userName}</span>
+      </Button>
+    </DropdownMenuTrigger>
+
+    <DropdownMenuContent align="end" className="w-40">
+      <DropdownMenuLabel>Akun</DropdownMenuLabel>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        onClick={handleLogout}
+        className="text-red-600 cursor-pointer"
+      >
+        <LogOut className="mr-2 h-4 w-4" />
+        Logout
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
+</div>
+
         </header>
 
         <main className="p-6">{children}</main>
