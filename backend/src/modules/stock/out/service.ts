@@ -354,7 +354,6 @@ export class StockOutService {
         );
 
       // jumlah harus pas
-      // jumlah harus pas
       const totalInput =
         finalReceived.length + finalLost.length + finalDamaged.length;
       if (totalInput !== sent.length || totalInput !== movement.quantity) {
