@@ -1,51 +1,32 @@
 'use client';
 
-import { useRouter, useParams } from 'next/navigation';
-import { useStock } from '../../../context/StockContext';
-import { useEffect, useState } from 'react';
+import { useStock } from '../../context/StockContext';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { ArrowLeft } from 'lucide-react';
 
 type CardCategory = 'Gold' | 'Silver' | 'KAI';
 type CardType = 'JaBan' | 'JaKa' | 'KaBan' | '';
 
-export default function EditStockInPage() {
+export default function AddStockInPage() {
   const router = useRouter();
-  const { id } = useParams<{ id: string }>();
-  const { stockIn, updateStockIn } = useStock();
-
-  const existingData = stockIn.find((item) => item.id === id);
+  const { addStockIn } = useStock();
 
   const [form, setForm] = useState({
     tanggal: '',
     category: 'Gold' as CardCategory,
     type: '' as CardType,
-    stock: 0,
+    initialSerial: '',
+    lastSerial: '',
   });
 
-  // 🔥 LOAD DATA DARI CONTEXT
-  useEffect(() => {
-    if (!existingData) return;
-
-    setForm({
-      tanggal: existingData.tanggal,
-      category: existingData.category,
-      type: existingData.type,
-      stock: existingData.stock,
-    });
-  }, [existingData]);
-
-  if (!existingData) {
-    return (
-      <div className="p-6 text-gray-500">
-        Data tidak ditemukan
-      </div>
-    );
-  }
-
   const handleSubmit = () => {
-    if (!form.tanggal || form.stock <= 0) {
-      toast.error('Data tidak valid');
+    // =====================
+    // VALIDASI
+    // =====================
+    if (!form.tanggal) {
+      toast.error('Tanggal wajib diisi');
       return;
     }
 
@@ -54,15 +35,42 @@ export default function EditStockInPage() {
       return;
     }
 
-    // 🔥 UPDATE KE CONTEXT
-    updateStockIn(id, {
+    if (!form.initialSerial || !form.lastSerial) {
+      toast.error('Serial number wajib diisi');
+      return;
+    }
+
+    const start = parseInt(form.initialSerial, 10);
+    const end = parseInt(form.lastSerial, 10);
+
+    if (isNaN(start) || isNaN(end)) {
+      toast.error('Serial number harus berupa angka');
+      return;
+    }
+
+    const totalStock = end - start + 1;
+
+    if (totalStock <= 0) {
+      toast.error('Range serial number tidak valid');
+      return;
+    }
+
+    // =====================
+    // SIMPAN KE CONTEXT
+    // =====================
+    addStockIn({
+      id: Date.now().toString(),
       tanggal: form.tanggal,
       category: form.category,
       type: form.category === 'KAI' ? '' : form.type,
-      stock: form.stock,
+      stock: totalStock,
     });
 
-    toast.success('Stock berhasil diupdate');
+    toast.success('Stock berhasil ditambahkan');
+
+    // =====================
+    // REDIRECT KE STOCK IN
+    // =====================
     router.push('/dashboard/superadmin/stock/in');
   };
 
@@ -76,20 +84,16 @@ export default function EditStockInPage() {
         >
           <ArrowLeft size={18} />
         </button>
-        <h2 className="text-lg font-semibold">
-          Edit Stock-In
-        </h2>
+        <h2 className="text-lg font-semibold">Add Stock-In</h2>
       </div>
 
-      {/* FORM */}
+      {/* FORM CARD */}
       <div className="w-full px-4 sm:px-6">
         <div className="rounded-xl border bg-white p-6 sm:p-8 lg:p-10">
-          <div className="space-y-6">
+          <div className="space-y-6 sm:space-y-7">
             {/* DATE */}
             <div>
-              <label className="block text-sm font-medium mb-2">
-                Date
-              </label>
+              <label className="block text-sm font-medium mb-2">Date</label>
               <input
                 type="date"
                 className="w-full rounded-lg border px-4 py-3 text-sm"
@@ -132,10 +136,7 @@ export default function EditStockInPage() {
                 disabled={form.category === 'KAI'}
                 value={form.type}
                 onChange={(e) =>
-                  setForm({
-                    ...form,
-                    type: e.target.value as CardType,
-                  })
+                  setForm({ ...form, type: e.target.value as CardType })
                 }
               >
                 <option value="">Select Card Type</option>
@@ -145,39 +146,42 @@ export default function EditStockInPage() {
               </select>
             </div>
 
-            {/* STOCK */}
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Jumlah Stock
-              </label>
-              <input
-                type="number"
-                min={1}
-                className="w-full rounded-lg border px-4 py-3 text-sm"
-                value={form.stock}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    stock: Number(e.target.value),
-                  })
-                }
-              />
+            {/* SERIAL NUMBER */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Initial Serial Number
+                </label>
+                <input
+                  className="w-full rounded-lg border px-4 py-3 text-sm"
+                  value={form.initialSerial}
+                  onChange={(e) =>
+                    setForm({ ...form, initialSerial: e.target.value })
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Last Serial Number
+                </label>
+                <input
+                  className="w-full rounded-lg border px-4 py-3 text-sm"
+                  value={form.lastSerial}
+                  onChange={(e) =>
+                    setForm({ ...form, lastSerial: e.target.value })
+                  }
+                />
+              </div>
             </div>
 
             {/* ACTION */}
-            <div className="flex justify-end gap-2 pt-6">
-              <button
-                onClick={() => router.back()}
-                className="rounded-md border px-4 py-2 text-sm"
-              >
-                Batal
-              </button>
-
+            <div className="flex justify-end pt-6 sm:pt-8">
               <button
                 onClick={handleSubmit}
-                className="rounded-md bg-[#8D1231] px-4 py-2 text-sm text-white"
+                className="rounded-lg bg-[#8D1231] px-8 py-3 text-sm font-medium text-white hover:bg-[#7a102a] w-full sm:w-auto"
               >
-                Simpan
+                Add Stock
               </button>
             </div>
           </div>
