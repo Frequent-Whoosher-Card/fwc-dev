@@ -1,4 +1,4 @@
-import { Elysia } from "elysia";
+import { Elysia, t } from "elysia";
 import { UserService } from "./service";
 import { UserModel } from "./model";
 import { formatErrorResponse } from "../../utils/errors";
@@ -64,9 +64,10 @@ const baseRoutes = new Elysia()
           message: "Role retrieved successfully",
         };
       } catch (error) {
-        set.status = error instanceof Error && "statusCode" in error
-          ? (error as any).statusCode
-          : 500;
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
         return formatErrorResponse(error);
       }
     },
@@ -87,30 +88,53 @@ const baseRoutes = new Elysia()
   // Get All Users - All authenticated users
   .get(
     "",
-    async ({ set }) => {
+    async ({ query, set }) => {
       try {
-        const users = await UserService.getUsers();
+        const page = query?.page ? parseInt(query.page, 10) : 1;
+        const limit = 10; // Fixed at 10 per page as requested
+
+        // Validate page number
+        if (isNaN(page) || page < 1) {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("Page must be a positive integer")
+          );
+        }
+
+        const result = await UserService.getUsers(page, limit);
 
         return {
           success: true,
-          data: users,
+          data: result.data,
+          pagination: result.pagination,
           message: "Users retrieved successfully",
         };
       } catch (error) {
-        set.status = 500;
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
         return formatErrorResponse(error);
       }
     },
     {
+      query: t.Optional(
+        t.Object({
+          page: t.Optional(
+            t.String({ description: "Page number (default: 1)" })
+          ),
+        })
+      ),
       response: {
         200: UserModel.userListResponse,
+        400: UserModel.errorResponse,
         401: UserModel.errorResponse,
         500: UserModel.errorResponse,
       },
       detail: {
         tags: ["Users & Roles"],
         summary: "Get all users",
-        description: "Retrieve all active users",
+        description: "Retrieve all active users with pagination (10 per page)",
       },
     }
   )
@@ -128,9 +152,10 @@ const baseRoutes = new Elysia()
           message: "User retrieved successfully",
         };
       } catch (error) {
-        set.status = error instanceof Error && "statusCode" in error
-          ? (error as any).statusCode
-          : 500;
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
         return formatErrorResponse(error);
       }
     },
@@ -152,12 +177,15 @@ const baseRoutes = new Elysia()
   .post(
     "/:id/change-password",
     async (context) => {
-      const { params, body, set, user } = context as typeof context & AuthContextUser;
+      const { params, body, set, user } = context as typeof context &
+        AuthContextUser;
       try {
         // User can only change their own password unless they are superadmin/admin
         const targetUserId = params.id;
         const isOwnAccount = user.id === targetUserId;
-        const isAdmin = user.role?.roleCode === "superadmin" || user.role?.roleCode === "admin";
+        const isAdmin =
+          user.role?.roleCode === "superadmin" ||
+          user.role?.roleCode === "admin";
 
         if (!isOwnAccount && !isAdmin) {
           set.status = 403;
@@ -178,9 +206,10 @@ const baseRoutes = new Elysia()
           message: "Password changed successfully",
         };
       } catch (error) {
-        set.status = error instanceof Error && "statusCode" in error
-          ? (error as any).statusCode
-          : 500;
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
         return formatErrorResponse(error);
       }
     },
@@ -218,9 +247,10 @@ const adminRoutes = new Elysia()
           message: "Role created successfully",
         };
       } catch (error) {
-        set.status = error instanceof Error && "statusCode" in error
-          ? (error as any).statusCode
-          : 500;
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
         return formatErrorResponse(error);
       }
     },
@@ -243,7 +273,8 @@ const adminRoutes = new Elysia()
   .put(
     "/roles/:id",
     async (context) => {
-      const { params, body, set, user } = context as typeof context & AuthContextUser;
+      const { params, body, set, user } = context as typeof context &
+        AuthContextUser;
       try {
         const role = await UserService.updateRole(params.id, body, user.id);
 
@@ -253,9 +284,10 @@ const adminRoutes = new Elysia()
           message: "Role updated successfully",
         };
       } catch (error) {
-        set.status = error instanceof Error && "statusCode" in error
-          ? (error as any).statusCode
-          : 500;
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
         return formatErrorResponse(error);
       }
     },
@@ -289,9 +321,10 @@ const adminRoutes = new Elysia()
           message: "User created successfully",
         };
       } catch (error) {
-        set.status = error instanceof Error && "statusCode" in error
-          ? (error as any).statusCode
-          : 500;
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
         return formatErrorResponse(error);
       }
     },
@@ -315,9 +348,14 @@ const adminRoutes = new Elysia()
   .put(
     "/:id",
     async (context) => {
-      const { params, body, set, user } = context as typeof context & AuthContextUser;
+      const { params, body, set, user } = context as typeof context &
+        AuthContextUser;
       try {
-        const updatedUser = await UserService.updateUser(params.id, body, user.id);
+        const updatedUser = await UserService.updateUser(
+          params.id,
+          body,
+          user.id
+        );
 
         return {
           success: true,
@@ -325,9 +363,10 @@ const adminRoutes = new Elysia()
           message: "User updated successfully",
         };
       } catch (error) {
-        set.status = error instanceof Error && "statusCode" in error
-          ? (error as any).statusCode
-          : 500;
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
         return formatErrorResponse(error);
       }
     },
@@ -364,9 +403,10 @@ const superadminRoutes = new Elysia()
           message: "Role deleted successfully",
         };
       } catch (error) {
-        set.status = error instanceof Error && "statusCode" in error
-          ? (error as any).statusCode
-          : 500;
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
         return formatErrorResponse(error);
       }
     },
@@ -398,9 +438,10 @@ const superadminRoutes = new Elysia()
           message: "User deleted successfully",
         };
       } catch (error) {
-        set.status = error instanceof Error && "statusCode" in error
-          ? (error as any).statusCode
-          : 500;
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
         return formatErrorResponse(error);
       }
     },

@@ -274,9 +274,19 @@ export class UserService {
   }
 
   /**
-   * Get all users
+   * Get all users with pagination
    */
-  static async getUsers() {
+  static async getUsers(page: number = 1, limit: number = 10) {
+    const skip = (page - 1) * limit;
+
+    // Get total count
+    const total = await db.user.count({
+      where: {
+        deletedAt: null,
+      },
+    });
+
+    // Get paginated users
     const users = await db.user.findMany({
       where: {
         deletedAt: null,
@@ -287,25 +297,37 @@ export class UserService {
       orderBy: {
         createdAt: "desc",
       },
+      skip,
+      take: limit,
     });
 
-    return users.map((user) => ({
-      id: user.id,
-      username: user.username,
-      fullName: user.fullName,
-      email: user.email,
-      phone: user.phone,
-      nip: user.nip,
-      role: {
-        id: user.role.id,
-        roleCode: user.role.roleCode,
-        roleName: user.role.roleName,
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: users.map((user) => ({
+        id: user.id,
+        username: user.username,
+        fullName: user.fullName,
+        email: user.email,
+        phone: user.phone,
+        nip: user.nip,
+        role: {
+          id: user.role.id,
+          roleCode: user.role.roleCode,
+          roleName: user.role.roleName,
+        },
+        isActive: user.isActive,
+        lastLogin: user.lastLogin?.toISOString() || null,
+        createdAt: user.createdAt.toISOString(),
+        updatedAt: user.updatedAt.toISOString(),
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
       },
-      isActive: user.isActive,
-      lastLogin: user.lastLogin?.toISOString() || null,
-      createdAt: user.createdAt.toISOString(),
-      updatedAt: user.updatedAt.toISOString(),
-    }));
+    };
   }
 
   /**

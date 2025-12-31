@@ -11,6 +11,20 @@ export class CardProductService {
       orderBy: {
         createdAt: "desc",
       },
+      include: {
+        category: {
+          select: {
+            id: true,
+            categoryName: true,
+          },
+        },
+        type: {
+          select: {
+            id: true,
+            typeName: true,
+          },
+        },
+      },
     });
 
     return cardProducts.map((product) => ({
@@ -41,8 +55,8 @@ export class CardProductService {
     typeId: string,
     totalQuota: number,
     masaBerlaku: number,
-    price: number,
     serialTemplate: string,
+    price: number,
     userId: string
   ) {
     const [cardCategory, cardType] = await Promise.all([
@@ -76,7 +90,7 @@ export class CardProductService {
         totalQuota,
         masaBerlaku,
         price,
-        serialTemplate,
+        serialTemplate: serialTemplate.toString(),
         isActive: true,
         createdAt: new Date(),
         createdBy: userId,
@@ -98,6 +112,7 @@ export class CardProductService {
     typeId: string,
     totalQuota: number,
     masaBerlaku: number,
+    serialTemplate: string,
     price: number,
     userId: string
   ) {
@@ -111,6 +126,7 @@ export class CardProductService {
         totalQuota,
         masaBerlaku,
         price,
+        serialTemplate: serialTemplate.toString(),
         updatedAt: new Date(),
         updatedBy: userId,
       },
@@ -119,6 +135,7 @@ export class CardProductService {
     return {
       ...updateCardProduct,
       price: updateCardProduct.price.toString(),
+      serialTemplate: updateCardProduct.serialTemplate.toString(),
     };
   }
 

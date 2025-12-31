@@ -51,7 +51,7 @@ model User {
   deletedAt           DateTime?            @map("deleted_at")
   deletedBy           String?              @map("deleted_by") @db.Uuid
   passwordResetTokens PasswordResetToken[]
-  transactions        Transaction[]
+  redeems             Redeem[]
   role                Role                 @relation(fields: [roleId], references: [id])
   station             Station?             @relation(fields: [stationId], references: [id])
 
@@ -108,7 +108,7 @@ model Station {
   deletedAt          DateTime?           @map("deleted_at")
   deletedBy          String?             @map("deleted_by") @db.Uuid
   cardInventories    CardInventory[]
-  transactions       Transaction[]
+  redeems            Redeem[]
   cardStockMovements CardStockMovement[]
   users              User[]
 
@@ -157,7 +157,7 @@ model Card {
   cardUsageLogs CardUsageLog[]
   cardProduct   CardProduct    @relation(fields: [cardProductId], references: [id])
   member        Member?        @relation(fields: [memberId], references: [id], onDelete: Restrict)
-  transactions  Transaction[]
+  redeems       Redeem[]
 
   @@map("cards")
 }
@@ -172,8 +172,12 @@ model CardInventory {
   cardNonAktif     Int          @default(0) @map("card_terjual_nonaktif")
   cardBelumTerjual Int          @default(0) @map("card_belum_terjual")
   cardOffice       Int?         @default(0) @map("card_office")
-  lastUpdated      DateTime     @default(now()) @map("last_updated")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  createdBy        String?      @map("created_by") @db.Uuid
+  updatedAt        DateTime     @default(now()) @map("updated_at")
   updatedBy        String?      @map("updated_by") @db.Uuid
+  deletedAt        DateTime?    @map("deleted_at")
+  deletedBy        String?      @map("deleted_by") @db.Uuid
   category         CardCategory @relation(fields: [categoryId], references: [id])
   station          Station?     @relation(fields: [stationId], references: [id])
   type             CardType     @relation(fields: [typeId], references: [id])
@@ -202,6 +206,7 @@ model CardStockMovement {
   // NEW: hasil validasi
   receivedSerialNumbers String[] @default([]) @map("received_serial_numbers") @db.Text
   lostSerialNumbers     String[] @default([]) @map("lost_serial_numbers") @db.Text
+  damagedSerialNumbers  String[] @default([]) @map("damaged_serial_numbers") @db.Text
 
   // Optional tapi sangat disarankan (audit)
   validatedBy String?   @db.Uuid
@@ -209,6 +214,10 @@ model CardStockMovement {
 
   createdAt DateTime @default(now()) @map("created_at")
   createdBy String?  @map("created_by") @db.Uuid
+  updatedAt DateTime @default(now()) @map("updated_at")
+  updatedBy String?  @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at")
+  deletedBy String?  @map("deleted_by") @db.Uuid
 
   category CardCategory @relation(fields: [categoryId], references: [id])
   cardType CardType     @relation(fields: [typeId], references: [id])
@@ -226,6 +235,8 @@ model Member {
   email          String?
   phone          String?
   nippKai        String?   @map("nipp_kai")
+  gender         String?
+  alamat         String?
   createdAt      DateTime  @default(now()) @map("created_at")
   createdBy      String?   @map("created_by") @db.Uuid
   updatedAt      DateTime  @default(now()) @map("updated_at")
@@ -237,8 +248,8 @@ model Member {
   @@map("members")
 }
 
-model Transaction {
-  id                String            @id @default(uuid()) @map("transaction_id") @db.Uuid
+model Redeem {
+  id                String            @id @default(uuid()) @map("redeem_id") @db.Uuid
   cardId            String            @map("card_id") @db.Uuid
   transactionNumber String            @unique @map("transaction_number")
   operatorId        String            @map("operator_id") @db.Uuid
@@ -256,7 +267,7 @@ model Transaction {
   operator          User              @relation(fields: [operatorId], references: [id])
   station           Station           @relation(fields: [stationId], references: [id])
 
-  @@map("transactions")
+  @@map("redeem")
 }
 
 model CardUsageLog {
@@ -266,20 +277,29 @@ model CardUsageLog {
   remainingQuota Int      @map("remaining_quota")
   usageDate      DateTime @map("usage_date")
   createdAt      DateTime @default(now()) @map("created_at")
-  createdBy      String?  @map("created_by")
+  createdBy      String?  @map("created_by") @db.Uuid
+  updatedAt      DateTime @default(now()) @map("updated_at")
+  updatedBy      String?  @map("updated_by") @db.Uuid
+  deletedAt      DateTime? @map("deleted_at")
+  deletedBy      String?  @map("deleted_by") @db.Uuid
   card           Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
 
   @@map("card_usage_logs")
 }
 
 model PasswordResetToken {
-  id        String   @id @default(uuid()) @map("token_id") @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  token     String   @unique
-  expiresAt DateTime @map("expires_at")
-  used      Boolean  @default(false)
-  createdAt DateTime @default(now()) @map("created_at")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String    @id @default(uuid()) @map("token_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  token     String    @unique
+  expiresAt DateTime  @map("expires_at")
+  used      Boolean   @default(false)
+  createdAt DateTime  @default(now()) @map("created_at")
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedAt DateTime  @default(now()) @map("updated_at")
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at")
+  deletedBy String?   @map("deleted_by") @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("password_reset_tokens")
 }
@@ -289,6 +309,7 @@ enum CardStatus {
   IN_TRANSIT
   IN_STATION
   LOST
+  DAMAGED
   SOLD_ACTIVE
   SOLD_INACTIVE
 }

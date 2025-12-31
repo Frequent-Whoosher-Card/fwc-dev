@@ -20,6 +20,8 @@ type AuthContextUser = {
 };
 
 const baseRoutes = new Elysia()
+  .use(authMiddleware)
+  .use(rbacMiddleware(["petugas", "supervisor", "admin", "superadmin"]))
   // Get All Card Category
   .get(
     "/",

@@ -27,11 +27,19 @@ export namespace StockOutModel {
 
   // Stock Out Validate Request
   export const stockOutValidateRequest = t.Object({
-    receivedSerialNumbers: t.Array(t.String({ minLength: 1 }), {
-      minItems: 0,
-      maxItems: 10000,
-    }),
+    receivedSerialNumbers: t.Optional(
+      t.Array(t.String({ minLength: 1 }), {
+        minItems: 0,
+        maxItems: 10000,
+      })
+    ),
     lostSerialNumbers: t.Optional(
+      t.Array(t.String({ minLength: 1 }), {
+        minItems: 0,
+        maxItems: 10000,
+      })
+    ),
+    damagedSerialNumbers: t.Optional(
       t.Array(t.String({ minLength: 1 }), {
         minItems: 0,
         maxItems: 10000,
@@ -49,6 +57,7 @@ export namespace StockOutModel {
       status: t.String(),
       receivedCount: t.Integer(),
       lostCount: t.Integer(),
+      damagedCount: t.Integer(),
     }),
   });
 
@@ -66,6 +75,11 @@ export namespace StockOutModel {
         t.Literal("REJECTED"),
       ])
     ),
+    // New Search Params
+    search: t.Optional(t.String()),
+    stationName: t.Optional(t.String()),
+    categoryName: t.Optional(t.String()),
+    typeName: t.Optional(t.String()),
   });
 
   // History Response
@@ -133,6 +147,7 @@ export namespace StockOutModel {
         sentSerialNumbers: t.Array(t.String()),
         receivedSerialNumbers: t.Array(t.String()),
         lostSerialNumbers: t.Array(t.String()),
+        damagedSerialNumbers: t.Array(t.String()),
       }),
     }),
   });

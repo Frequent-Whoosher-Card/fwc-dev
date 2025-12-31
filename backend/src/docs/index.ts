@@ -70,6 +70,10 @@ export const docsConfig = swagger({
         description: "User and role management endpoints",
       },
       {
+        name: "Members",
+        description: "Member management endpoints",
+      },
+      {
         name: "Station",
         description: "Station management endpoints",
       },
@@ -102,13 +106,12 @@ export const docsConfig = swagger({
         description: "Card product management endpoints",
       },
       {
-        name: "Inventory",
-        description: "Inventory management endpoints for card inventory",
-      },
-
-      {
         name: "Stock",
         description: "Stock management endpoints for card inventory",
+      },
+      {
+        name: "Inventory",
+        description: "Inventory management endpoints for card inventory",
       },
       {
         name: "Stock In",
