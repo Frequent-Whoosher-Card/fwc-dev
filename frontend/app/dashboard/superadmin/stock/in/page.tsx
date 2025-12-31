@@ -12,7 +12,7 @@ import { StockSummary } from '@/app/dashboard/superadmin/stock/components/StockS
 
 export default function StockInPage() {
   const router = useRouter();
-const { stockIn, deleteStockIn } = useStock();
+  const { stockIn, deleteStockIn } = useStock();
 
   // FILTER DATE
   const [fromDate, setFromDate] = useState('');
@@ -40,12 +40,7 @@ const { stockIn, deleteStockIn } = useStock();
     autoTable(doc, {
       startY: 22,
       head: [['Tanggal', 'Category', 'Type', 'Stock Masuk']],
-      body: filteredStockIn.map((item) => [
-        item.tanggal,
-        item.category,
-        item.type || '-',
-        item.stock.toLocaleString(),
-      ]),
+      body: filteredStockIn.map((item) => [item.tanggal, item.category, item.type || '-', item.stock.toLocaleString()]),
       headStyles: {
         fillColor: [141, 18, 49],
       },
@@ -55,58 +50,38 @@ const { stockIn, deleteStockIn } = useStock();
   };
 
   const [openDelete, setOpenDelete] = useState(false);
-const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   return (
     <div className="space-y-6">
       {/* SUMMARY */}
-      <StockSummary />
+      {/* <StockSummary /> */}
 
       {/* HEADER */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <h2 className="text-lg font-semibold">
-          Stock In (Vendor → Admin)
-        </h2>
+        <h2 className="text-lg font-semibold">Stock In (Vendor → Admin)</h2>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           {/* FILTER FROM */}
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-600">Dari</label>
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="rounded-md border px-3 py-1.5 text-sm"
-            />
+            <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="rounded-md border px-3 py-1.5 text-sm" />
           </div>
 
           {/* FILTER TO */}
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-600">Sampai</label>
-            <input
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              className="rounded-md border px-3 py-1.5 text-sm"
-            />
+            <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="rounded-md border px-3 py-1.5 text-sm" />
           </div>
 
           {/* EXPORT */}
-          <button
-            onClick={handleExportPDF}
-            className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-gray-100"
-          >
+          <button onClick={handleExportPDF} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-gray-100">
             <FileDown size={16} />
             PDF
           </button>
 
           {/* ADD */}
-          <button
-            onClick={() =>
-              router.push('/dashboard/superadmin/stock/in/add')
-            }
-            className="rounded-md bg-[#8D1231] px-4 py-2 text-sm font-medium text-white"
-          >
+          <button onClick={() => router.push('/dashboard/superadmin/stock/in/add')} className="rounded-md bg-[#8D1231] px-4 py-2 text-sm font-medium text-white">
             Tambah
           </button>
         </div>
@@ -131,33 +106,22 @@ const [selectedId, setSelectedId] = useState<string | null>(null);
                 <td className="p-3">{row.tanggal}</td>
                 <td className="p-3">{row.category}</td>
                 <td className="p-3">{row.type || '-'}</td>
-                <td className="p-3 text-right font-medium">
-                  {row.stock.toLocaleString()}
-                </td>
+                <td className="p-3 text-right font-medium">{row.stock.toLocaleString()}</td>
                 <td className="p-3 text-center">
                   <div className="flex justify-center gap-2">
-                    <button
-                      onClick={() =>
-                        router.push(
-                          `/dashboard/superadmin/stock/in/${row.id}/edit`
-                        )
-                      }
-                      className="rounded-md border px-3 py-1 text-sm hover:bg-gray-100"
-                    >
+                    <button onClick={() => router.push(`/dashboard/superadmin/stock/in/${row.id}/edit`)} className="rounded-md border px-3 py-1 text-sm hover:bg-gray-100">
                       Edit
                     </button>
 
                     <button
-  onClick={() => {
-    setSelectedId(row.id);
-    setOpenDelete(true);
-  }}
-  className="rounded-md border border-red-500 px-3 py-1 text-sm text-red-500 hover:bg-red-500 hover:text-white"
->
-  Hapus
-</button>
-
-
+                      onClick={() => {
+                        setSelectedId(row.id);
+                        setOpenDelete(true);
+                      }}
+                      className="rounded-md border border-red-500 px-3 py-1 text-sm text-red-500 hover:bg-red-500 hover:text-white"
+                    >
+                      Hapus
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -165,10 +129,7 @@ const [selectedId, setSelectedId] = useState<string | null>(null);
 
             {filteredStockIn.length === 0 && (
               <tr>
-                <td
-                  colSpan={5}
-                  className="p-6 text-center text-gray-500"
-                >
+                <td colSpan={5} className="p-6 text-center text-gray-500">
                   Tidak ada data stock masuk
                 </td>
               </tr>
@@ -176,24 +137,22 @@ const [selectedId, setSelectedId] = useState<string | null>(null);
           </tbody>
         </table>
         <DeleteConfirmModal
-  open={openDelete}
-  onClose={() => {
-    setOpenDelete(false);
-    setSelectedId(null);
-  }}
-  onConfirm={() => {
-    if (!selectedId) return;
+          open={openDelete}
+          onClose={() => {
+            setOpenDelete(false);
+            setSelectedId(null);
+          }}
+          onConfirm={() => {
+            if (!selectedId) return;
 
-    deleteStockIn(selectedId);
-    toast.success('Stock berhasil dihapus');
+            deleteStockIn(selectedId);
+            toast.success('Stock berhasil dihapus');
 
-    setOpenDelete(false);
-    setSelectedId(null);
-  }}
-/>
-
+            setOpenDelete(false);
+            setSelectedId(null);
+          }}
+        />
       </div>
     </div>
-  
   );
 }

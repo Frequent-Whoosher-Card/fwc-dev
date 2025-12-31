@@ -24,17 +24,10 @@ export default function CreateStockOutPage() {
         <input className="w-full rounded border p-2" placeholder="Jumlah Stock" />
 
         <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="rounded-md border px-4 py-2 text-sm"
-          >
+          <button type="button" onClick={() => router.back()} className="rounded-md border px-4 py-2 text-sm">
             Batal
           </button>
-          <button
-            type="submit"
-            className="rounded-md bg-[#8D1231] px-4 py-2 text-sm text-white"
-          >
+          <button type="submit" className="rounded-md bg-[#8D1231] px-4 py-2 text-sm text-white">
             Submit
           </button>
         </div>

@@ -1,6 +1,5 @@
 'use client';
 
-
 import { StockSummary } from './components/StockSummary';
 import { StockTabs } from './components/StockTabs';
 import { StockFilter } from './components/StockFilter';
@@ -12,7 +11,7 @@ export default function AdminStockPage() {
       <StockSummary />
 
       <div className="flex items-center justify-between">
-        <StockTabs />
+        {/* <StockTabs /> */}
         <StockFilter />
       </div>
 

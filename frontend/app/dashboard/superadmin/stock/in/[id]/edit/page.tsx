@@ -36,11 +36,7 @@ export default function EditStockInPage() {
   }, [existingData]);
 
   if (!existingData) {
-    return (
-      <div className="p-6 text-gray-500">
-        Data tidak ditemukan
-      </div>
-    );
+    return <div className="p-6 text-gray-500">Data tidak ditemukan</div>;
   }
 
   const handleSubmit = () => {
@@ -70,15 +66,10 @@ export default function EditStockInPage() {
     <div className="space-y-8">
       {/* HEADER */}
       <div className="flex items-center gap-4 px-4 sm:px-6">
-        <button
-          onClick={() => router.back()}
-          className="rounded-lg border p-2 text-gray-600 hover:bg-gray-100"
-        >
+        <button onClick={() => router.back()} className="rounded-lg border p-2 text-gray-600 hover:bg-gray-100">
           <ArrowLeft size={18} />
         </button>
-        <h2 className="text-lg font-semibold">
-          Edit Stock-In
-        </h2>
+        <h2 className="text-lg font-semibold">Edit Stock-In</h2>
       </div>
 
       {/* FORM */}
@@ -87,24 +78,13 @@ export default function EditStockInPage() {
           <div className="space-y-6">
             {/* DATE */}
             <div>
-              <label className="block text-sm font-medium mb-2">
-                Date
-              </label>
-              <input
-                type="date"
-                className="w-full rounded-lg border px-4 py-3 text-sm"
-                value={form.tanggal}
-                onChange={(e) =>
-                  setForm({ ...form, tanggal: e.target.value })
-                }
-              />
+              <label className="block text-sm font-medium mb-2">Date</label>
+              <input type="date" className="w-full rounded-lg border px-4 py-3 text-sm" value={form.tanggal} onChange={(e) => setForm({ ...form, tanggal: e.target.value })} />
             </div>
 
             {/* CATEGORY */}
             <div>
-              <label className="block text-sm font-medium mb-2">
-                Card Category
-              </label>
+              <label className="block text-sm font-medium mb-2">Card Category</label>
               <select
                 className="w-full rounded-lg border px-4 py-3 text-sm"
                 value={form.category}
@@ -124,9 +104,7 @@ export default function EditStockInPage() {
 
             {/* TYPE */}
             <div>
-              <label className="block text-sm font-medium mb-2">
-                Card Type
-              </label>
+              <label className="block text-sm font-medium mb-2">Card Type</label>
               <select
                 className="w-full rounded-lg border px-4 py-3 text-sm disabled:bg-gray-100"
                 disabled={form.category === 'KAI'}
@@ -147,9 +125,7 @@ export default function EditStockInPage() {
 
             {/* STOCK */}
             <div>
-              <label className="block text-sm font-medium mb-2">
-                Jumlah Stock
-              </label>
+              <label className="block text-sm font-medium mb-2">Jumlah Stock</label>
               <input
                 type="number"
                 min={1}
@@ -166,17 +142,11 @@ export default function EditStockInPage() {
 
             {/* ACTION */}
             <div className="flex justify-end gap-2 pt-6">
-              <button
-                onClick={() => router.back()}
-                className="rounded-md border px-4 py-2 text-sm"
-              >
+              <button onClick={() => router.back()} className="rounded-md border px-4 py-2 text-sm">
                 Batal
               </button>
 
-              <button
-                onClick={handleSubmit}
-                className="rounded-md bg-[#8D1231] px-4 py-2 text-sm text-white"
-              >
+              <button onClick={handleSubmit} className="rounded-md bg-[#8D1231] px-4 py-2 text-sm text-white">
                 Simpan
               </button>
             </div>
