@@ -4,9 +4,12 @@ import { StockModel } from "./model";
 import { StockService } from "./service";
 import { stockIn } from "./in";
 import { stockOut } from "./out";
+import { authMiddleware } from "src/middleware/auth";
 
 // Combine everything into a single "stock" group
 export const stock = new Elysia({ prefix: "/stock" })
+  .use(authMiddleware)
+
   // Important: Mount sub-modules first so specific routes match before generic ones
   .use(stockIn)
   .use(stockOut)
@@ -24,8 +27,11 @@ export const stock = new Elysia({ prefix: "/stock" })
           endDate: query.endDate ? new Date(query.endDate) : undefined,
           type: query.type as any,
           status: query.status as any,
-          categoryId: query.categoryId,
-          stationId: query.stationId,
+          cardCategory: query.cardCategory,
+          cardCategoryId: query.cardCategoryId,
+          cardType: query.cardType,
+          cardTypeId: query.cardTypeId,
+          station: query.station,
           search: query.search,
         });
 
@@ -45,7 +51,10 @@ export const stock = new Elysia({ prefix: "/stock" })
           data: data,
         };
       } catch (error) {
-        set.status = 500;
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
         return formatErrorResponse(error);
       }
     },
@@ -53,6 +62,12 @@ export const stock = new Elysia({ prefix: "/stock" })
       query: StockModel.getHistoryQuery,
       response: {
         200: StockModel.getHistoryResponse,
+        400: StockModel.errorResponse,
+        401: StockModel.errorResponse,
+        403: StockModel.errorResponse,
+        404: StockModel.errorResponse,
+        409: StockModel.errorResponse,
+        422: StockModel.errorResponse,
         500: StockModel.errorResponse,
       },
       detail: {
@@ -83,7 +98,12 @@ export const stock = new Elysia({ prefix: "/stock" })
     {
       response: {
         200: StockModel.getDetailResponse, // Schema defined as Any for flexibility
+        400: StockModel.errorResponse,
+        401: StockModel.errorResponse,
+        403: StockModel.errorResponse,
         404: StockModel.errorResponse,
+        409: StockModel.errorResponse,
+        422: StockModel.errorResponse,
         500: StockModel.errorResponse,
       },
       detail: {

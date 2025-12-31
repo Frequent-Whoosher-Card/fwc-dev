@@ -13,6 +13,7 @@ export namespace CardProductModel {
         totalQuota: t.Number(),
         masaBerlaku: t.Number(),
         price: t.String(),
+        serialTemplate: t.String(),
         isActive: t.Boolean(),
         createdAt: t.Nullable(t.Date()),
         createdBy: t.Nullable(t.String()),
@@ -20,6 +21,14 @@ export namespace CardProductModel {
         updatedBy: t.Nullable(t.String()),
         deletedAt: t.Nullable(t.Date()),
         deletedBy: t.Nullable(t.String()),
+        category: t.Object({
+          id: t.String(),
+          categoryName: t.String(),
+        }),
+        type: t.Object({
+          id: t.String(),
+          typeName: t.String(),
+        }),
       })
     ),
   });
@@ -35,6 +44,7 @@ export namespace CardProductModel {
       totalQuota: t.Number(),
       masaBerlaku: t.Number(),
       price: t.String(),
+      serialTemplate: t.String(),
       isActive: t.Boolean(),
       createdAt: t.Nullable(t.Date()),
       createdBy: t.Nullable(t.String()),
@@ -80,6 +90,7 @@ export namespace CardProductModel {
       totalQuota: t.Number(),
       masaBerlaku: t.Number(),
       price: t.String(),
+      serialTemplate: t.String(),
       isActive: t.Boolean(),
       createdAt: t.Nullable(t.Date()),
       createdBy: t.Nullable(t.String()),
@@ -109,6 +120,9 @@ export namespace CardProductModel {
     price: t.Number({
       description: "Harga",
     }),
+    serialTemplate: t.String({
+      description: "Template serial untuk produk ini",
+    }),
   });
 
   // Update Card Product Response
@@ -122,6 +136,7 @@ export namespace CardProductModel {
       totalQuota: t.Number(),
       masaBerlaku: t.Number(),
       price: t.String(),
+      serialTemplate: t.String(),
       isActive: t.Boolean(),
       createdAt: t.Nullable(t.Date()),
       createdBy: t.Nullable(t.String()),

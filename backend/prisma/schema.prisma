@@ -206,6 +206,7 @@ model CardStockMovement {
   // NEW: hasil validasi
   receivedSerialNumbers String[] @default([]) @map("received_serial_numbers") @db.Text
   lostSerialNumbers     String[] @default([]) @map("lost_serial_numbers") @db.Text
+  damagedSerialNumbers  String[] @default([]) @map("damaged_serial_numbers") @db.Text
 
   // Optional tapi sangat disarankan (audit)
   validatedBy String?   @db.Uuid
@@ -308,6 +309,7 @@ enum CardStatus {
   IN_TRANSIT
   IN_STATION
   LOST
+  DAMAGED
   SOLD_ACTIVE
   SOLD_INACTIVE
 }

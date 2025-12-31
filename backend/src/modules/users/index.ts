@@ -64,9 +64,10 @@ const baseRoutes = new Elysia()
           message: "Role retrieved successfully",
         };
       } catch (error) {
-        set.status = error instanceof Error && "statusCode" in error
-          ? (error as any).statusCode
-          : 500;
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
         return formatErrorResponse(error);
       }
     },
@@ -109,16 +110,19 @@ const baseRoutes = new Elysia()
           message: "Users retrieved successfully",
         };
       } catch (error) {
-        set.status = error instanceof Error && "statusCode" in error
-          ? (error as any).statusCode
-          : 500;
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
         return formatErrorResponse(error);
       }
     },
     {
       query: t.Optional(
         t.Object({
-          page: t.Optional(t.String({ description: "Page number (default: 1)" })),
+          page: t.Optional(
+            t.String({ description: "Page number (default: 1)" })
+          ),
         })
       ),
       response: {
@@ -148,9 +152,10 @@ const baseRoutes = new Elysia()
           message: "User retrieved successfully",
         };
       } catch (error) {
-        set.status = error instanceof Error && "statusCode" in error
-          ? (error as any).statusCode
-          : 500;
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
         return formatErrorResponse(error);
       }
     },
@@ -172,12 +177,15 @@ const baseRoutes = new Elysia()
   .post(
     "/:id/change-password",
     async (context) => {
-      const { params, body, set, user } = context as typeof context & AuthContextUser;
+      const { params, body, set, user } = context as typeof context &
+        AuthContextUser;
       try {
         // User can only change their own password unless they are superadmin/admin
         const targetUserId = params.id;
         const isOwnAccount = user.id === targetUserId;
-        const isAdmin = user.role?.roleCode === "superadmin" || user.role?.roleCode === "admin";
+        const isAdmin =
+          user.role?.roleCode === "superadmin" ||
+          user.role?.roleCode === "admin";
 
         if (!isOwnAccount && !isAdmin) {
           set.status = 403;
@@ -198,9 +206,10 @@ const baseRoutes = new Elysia()
           message: "Password changed successfully",
         };
       } catch (error) {
-        set.status = error instanceof Error && "statusCode" in error
-          ? (error as any).statusCode
-          : 500;
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
         return formatErrorResponse(error);
       }
     },
@@ -238,9 +247,10 @@ const adminRoutes = new Elysia()
           message: "Role created successfully",
         };
       } catch (error) {
-        set.status = error instanceof Error && "statusCode" in error
-          ? (error as any).statusCode
-          : 500;
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
         return formatErrorResponse(error);
       }
     },
@@ -263,7 +273,8 @@ const adminRoutes = new Elysia()
   .put(
     "/roles/:id",
     async (context) => {
-      const { params, body, set, user } = context as typeof context & AuthContextUser;
+      const { params, body, set, user } = context as typeof context &
+        AuthContextUser;
       try {
         const role = await UserService.updateRole(params.id, body, user.id);
 
@@ -273,9 +284,10 @@ const adminRoutes = new Elysia()
           message: "Role updated successfully",
         };
       } catch (error) {
-        set.status = error instanceof Error && "statusCode" in error
-          ? (error as any).statusCode
-          : 500;
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
         return formatErrorResponse(error);
       }
     },
@@ -309,9 +321,10 @@ const adminRoutes = new Elysia()
           message: "User created successfully",
         };
       } catch (error) {
-        set.status = error instanceof Error && "statusCode" in error
-          ? (error as any).statusCode
-          : 500;
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
         return formatErrorResponse(error);
       }
     },
@@ -335,9 +348,14 @@ const adminRoutes = new Elysia()
   .put(
     "/:id",
     async (context) => {
-      const { params, body, set, user } = context as typeof context & AuthContextUser;
+      const { params, body, set, user } = context as typeof context &
+        AuthContextUser;
       try {
-        const updatedUser = await UserService.updateUser(params.id, body, user.id);
+        const updatedUser = await UserService.updateUser(
+          params.id,
+          body,
+          user.id
+        );
 
         return {
           success: true,
@@ -345,9 +363,10 @@ const adminRoutes = new Elysia()
           message: "User updated successfully",
         };
       } catch (error) {
-        set.status = error instanceof Error && "statusCode" in error
-          ? (error as any).statusCode
-          : 500;
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
         return formatErrorResponse(error);
       }
     },
@@ -384,9 +403,10 @@ const superadminRoutes = new Elysia()
           message: "Role deleted successfully",
         };
       } catch (error) {
-        set.status = error instanceof Error && "statusCode" in error
-          ? (error as any).statusCode
-          : 500;
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
         return formatErrorResponse(error);
       }
     },
@@ -418,9 +438,10 @@ const superadminRoutes = new Elysia()
           message: "User deleted successfully",
         };
       } catch (error) {
-        set.status = error instanceof Error && "statusCode" in error
-          ? (error as any).statusCode
-          : 500;
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
         return formatErrorResponse(error);
       }
     },

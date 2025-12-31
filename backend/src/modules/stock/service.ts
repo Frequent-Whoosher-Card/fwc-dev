@@ -6,14 +6,18 @@ type GetHistoryParams = {
   limit?: number;
   startDate?: Date;
   endDate?: Date;
-  type?: StockMovementType;
-  status?: StockMovementStatus;
-  categoryId?: string;
-  stationId?: string;
+  type?: string;
+  status?: string;
+  cardCategory?: string;
+  cardCategoryId?: string;
+  cardType?: string;
+  cardTypeId?: string;
+  station?: string;
   search?: string;
 };
 
 export class StockService {
+  // Get All Stock Movements
   static async getAllMovements(params: GetHistoryParams) {
     const {
       page = 1,
@@ -22,8 +26,11 @@ export class StockService {
       endDate,
       type,
       status,
-      categoryId,
-      stationId,
+      cardCategory,
+      cardCategoryId,
+      cardType,
+      cardTypeId,
+      station,
       search,
     } = params;
 
@@ -42,10 +49,47 @@ export class StockService {
       }
     }
 
-    if (type) where.type = type;
-    if (status) where.status = status;
-    if (categoryId) where.categoryId = categoryId;
-    if (stationId) where.stationId = stationId;
+    // Filter by Movement Type (Case insensitive)
+    if (type) {
+      const normalizedType = type.toUpperCase();
+      if (
+        (Object.values(StockMovementType) as string[]).includes(normalizedType)
+      ) {
+        where.type = normalizedType as StockMovementType;
+      }
+    }
+
+    // Filter by Status (Case insensitive)
+    if (status) {
+      const normalizedStatus = status.toUpperCase();
+      if (
+        (Object.values(StockMovementStatus) as string[]).includes(
+          normalizedStatus
+        )
+      ) {
+        where.status = normalizedStatus as StockMovementStatus;
+      }
+    }
+
+    // Filter by Category Name (preferred) or ID
+    if (cardCategory) {
+      where.category = {
+        categoryName: { contains: cardCategory, mode: "insensitive" },
+      };
+    } else if (cardCategoryId) {
+      where.categoryId = cardCategoryId;
+    }
+
+    // Filter by Card Type Name
+    if (cardType) {
+      where.cardType = {
+        typeName: { contains: cardType, mode: "insensitive" },
+      };
+    } else if (cardTypeId) {
+      where.typeId = cardTypeId;
+    }
+
+    if (station) where.stationId = station;
 
     if (search) {
       where.OR = [
