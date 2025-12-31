@@ -54,6 +54,8 @@ model User {
   redeems             Redeem[]
   role                Role                 @relation(fields: [roleId], references: [id])
   station             Station?             @relation(fields: [stationId], references: [id])
+  receivedInboxes     Inbox[]              @relation("ReceivedInboxes")
+  sentInboxes         Inbox[]              @relation("SentInboxes")
 
   @@map("users")
 }
@@ -111,6 +113,7 @@ model Station {
   redeems            Redeem[]
   cardStockMovements CardStockMovement[]
   users              User[]
+  inboxes            Inbox[]
 
   @@map("stations")
 }
@@ -212,12 +215,12 @@ model CardStockMovement {
   validatedBy String?   @db.Uuid
   validatedAt DateTime?
 
-  createdAt DateTime @default(now()) @map("created_at")
-  createdBy String?  @map("created_by") @db.Uuid
-  updatedAt DateTime @default(now()) @map("updated_at")
-  updatedBy String?  @map("updated_by") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at")
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedAt DateTime  @default(now()) @map("updated_at")
+  updatedBy String?   @map("updated_by") @db.Uuid
   deletedAt DateTime? @map("deleted_at")
-  deletedBy String?  @map("deleted_by") @db.Uuid
+  deletedBy String?   @map("deleted_by") @db.Uuid
 
   category CardCategory @relation(fields: [categoryId], references: [id])
   cardType CardType     @relation(fields: [typeId], references: [id])
@@ -225,6 +228,38 @@ model CardStockMovement {
 
   @@index([type, status, movementAt])
   @@map("card_stock_movements")
+}
+
+model Inbox {
+  id String @id @default(uuid()) @map("inbox_id") @db.Uuid
+
+  title   String    @map("title")
+  message String    @map("message")
+  isRead  Boolean   @default(false) @map("is_read")
+  readAt  DateTime? @map("read_at")
+
+  sentAt DateTime @default(now()) @map("sent_at")
+  sentTo String   @map("sent_to") @db.Uuid
+  sentBy String   @map("sent_by") @db.Uuid
+
+  stationId String? @map("station_id") @db.Uuid
+
+  type    String? @map("type")
+  payload Json?   @map("payload")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedAt DateTime  @default(now()) @map("updated_at")
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at")
+  deletedBy String?   @map("deleted_by") @db.Uuid
+
+  recipient User     @relation("ReceivedInboxes", fields: [sentTo], references: [id])
+  sender    User     @relation("SentInboxes", fields: [sentBy], references: [id])
+  station   Station? @relation(fields: [stationId], references: [id])
+
+  @@index([sentTo, isRead, createdAt], map: "idx_inbox_sent_to_read_created")
+  @@map("inbox")
 }
 
 model Member {
@@ -271,18 +306,18 @@ model Redeem {
 }
 
 model CardUsageLog {
-  id             String   @id @default(uuid()) @map("log_id") @db.Uuid
-  cardId         String   @map("card_id") @db.Uuid
-  quotaUsed      Int      @default(0) @map("quota_used")
-  remainingQuota Int      @map("remaining_quota")
-  usageDate      DateTime @map("usage_date")
-  createdAt      DateTime @default(now()) @map("created_at")
-  createdBy      String?  @map("created_by") @db.Uuid
-  updatedAt      DateTime @default(now()) @map("updated_at")
-  updatedBy      String?  @map("updated_by") @db.Uuid
+  id             String    @id @default(uuid()) @map("log_id") @db.Uuid
+  cardId         String    @map("card_id") @db.Uuid
+  quotaUsed      Int       @default(0) @map("quota_used")
+  remainingQuota Int       @map("remaining_quota")
+  usageDate      DateTime  @map("usage_date")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  createdBy      String?   @map("created_by") @db.Uuid
+  updatedAt      DateTime  @default(now()) @map("updated_at")
+  updatedBy      String?   @map("updated_by") @db.Uuid
   deletedAt      DateTime? @map("deleted_at")
-  deletedBy      String?  @map("deleted_by") @db.Uuid
-  card           Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  deletedBy      String?   @map("deleted_by") @db.Uuid
+  card           Card      @relation(fields: [cardId], references: [id], onDelete: Cascade)
 
   @@map("card_usage_logs")
 }

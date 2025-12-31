@@ -9,7 +9,7 @@ export namespace StockInModel {
     }),
 
     categoryId: t.String({ format: "uuid" }),
-    typeId: t.String({ format: "uuid" }),
+    typeId: t.Optional(t.String({ format: "uuid" })),
 
     // contoh: "000123" atau "123"
     startSerial: t.String({
