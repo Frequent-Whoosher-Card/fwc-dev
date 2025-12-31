@@ -240,9 +240,9 @@ export class SalesService {
       deletedAt: null,
     };
 
-    // If stationId is provided, filter by transactions with that stationId
+    // If stationId is provided, filter by redeems with that stationId
     if (stationId) {
-      whereClause.transactions = {
+      whereClause.redeems = {
         some: {
           stationId: stationId,
           deletedAt: null,
@@ -667,9 +667,9 @@ export class SalesService {
       deletedAt: null,
     };
 
-    // If stationId is provided, filter by transactions with that stationId
+    // If stationId is provided, filter by redeems with that stationId
     if (stationId) {
-      whereClause.transactions = {
+      whereClause.redeems = {
         some: {
           stationId: stationId,
           deletedAt: null,
@@ -768,7 +768,7 @@ export class SalesService {
 
     // Add station filter if provided
     if (stationId) {
-      whereClause.transactions = {
+      whereClause.redeems = {
         some: {
           stationId: stationId,
           deletedAt: null,
@@ -855,7 +855,7 @@ export class SalesService {
 
   /**
    * Get sales data per station (total penjualan per stasiun)
-   * Groups cards by station from transactions and counts cards sold per station
+   * Groups cards by station from redeems and counts cards sold per station
    */
   static async getSalesPerStation(
     startDate?: string,
@@ -875,18 +875,18 @@ export class SalesService {
       },
     });
 
-    // Get all cards that have been sold with their transactions
+    // Get all cards that have been sold with their redeems
     const cards = await db.card.findMany({
       where: whereClause,
       include: {
-        transactions: {
+        redeems: {
           where: {
             deletedAt: null,
           },
           select: {
             stationId: true,
           },
-          take: 1, // Take first transaction (purchase transaction)
+          take: 1, // Take first redeem (purchase redeem)
         },
       },
     });
@@ -895,8 +895,8 @@ export class SalesService {
     const stationMap = new Map<string, typeof cards>();
     
     cards.forEach((card) => {
-      // Get stationId from first transaction (purchase transaction)
-      const stationId = card.transactions[0]?.stationId;
+      // Get stationId from first redeem (purchase redeem)
+      const stationId = card.redeems[0]?.stationId;
       if (!stationId) return; // Skip if no station
 
       if (!stationMap.has(stationId)) {
