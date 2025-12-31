@@ -131,7 +131,7 @@ export function StockTable() {
         </tbody>
 
         <tfoot>
-          <tr className="bg-[#79be39] text-white font-semibold">
+          <tr className="bg-[#00B54629] text-[#31b057] font-semibold">
             <td colSpan={2} className="p-4">
               Total
             </td>
