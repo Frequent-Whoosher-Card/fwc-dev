@@ -22,7 +22,6 @@ type AuthContextUser = {
 export const stockIn = new Elysia({ prefix: "/in" })
   .group("", (app) =>
     app
-      .use(authMiddleware)
       .use(rbacMiddleware(["petugas", "supervisor", "admin", "superadmin"]))
       .post(
         "/",
@@ -148,7 +147,6 @@ export const stockIn = new Elysia({ prefix: "/in" })
   )
   .group("", (app) =>
     app
-      .use(authMiddleware)
       .use(rbacMiddleware(["superadmin", "admin"]))
       .patch(
         "/:id",
