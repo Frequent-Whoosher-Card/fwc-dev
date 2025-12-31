@@ -1,25 +1,22 @@
 import { t } from "elysia";
 
-export const StockModel = {
-  getHistoryQuery: t.Object({
+export namespace StockModel {
+  export const getHistoryQuery = t.Object({
     page: t.Optional(t.String()),
     limit: t.Optional(t.String()),
     startDate: t.Optional(t.String()),
     endDate: t.Optional(t.String()),
-    type: t.Optional(t.Union([t.Literal("IN"), t.Literal("OUT")])),
-    status: t.Optional(
-      t.Union([
-        t.Literal("PENDING"),
-        t.Literal("APPROVED"),
-        t.Literal("REJECTED"),
-      ])
-    ),
-    categoryId: t.Optional(t.String()),
-    stationId: t.Optional(t.String()),
+    type: t.Optional(t.String()),
+    status: t.Optional(t.String()),
+    cardCategory: t.Optional(t.String()),
+    cardCategoryId: t.Optional(t.String()),
+    cardType: t.Optional(t.String()),
+    cardTypeId: t.Optional(t.String()),
+    station: t.Optional(t.String()),
     search: t.Optional(t.String()),
-  }),
+  });
 
-  stockMovementItem: t.Object({
+  export const stockMovementItem = t.Object({
     id: t.String(),
     movementAt: t.String(),
     type: t.String(), // IN, OUT
@@ -52,10 +49,10 @@ export const StockModel = {
       }),
       t.Null(),
     ]),
-  }),
+  });
 
   // Detail includes full arrays of serial numbers
-  stockMovementDetail: t.Object({
+  export const stockMovementDetail = t.Object({
     id: t.String(),
     movementAt: t.String(),
     type: t.String(),
@@ -90,9 +87,9 @@ export const StockModel = {
       }),
       t.Null(),
     ]),
-  }),
+  });
 
-  getHistoryResponse: t.Object({
+  export const getHistoryResponse = t.Object({
     success: t.Boolean(),
     data: t.Object({
       movements: t.Array(
@@ -133,16 +130,16 @@ export const StockModel = {
         totalPages: t.Number(),
       }),
     }),
-  }),
+  });
 
-  getDetailResponse: t.Object({
+  export const getDetailResponse = t.Object({
     success: t.Boolean(),
     data: t.Any(), // Using Any for now to avoid deep nesting issues, or reuse stockMovementDetail if possible
-  }),
+  });
 
-  errorResponse: t.Object({
+  export const errorResponse = t.Object({
     success: t.Boolean(),
     message: t.String(),
     error: t.Optional(t.Any()),
-  }),
-};
+  });
+}

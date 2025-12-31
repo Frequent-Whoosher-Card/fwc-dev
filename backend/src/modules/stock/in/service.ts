@@ -92,8 +92,17 @@ export class StockInService {
       });
 
       if (existing) {
+        // Fetch the last created card for this product to give a hint
+        const lastCard = await tx.card.findFirst({
+          where: { cardProductId: product.id },
+          orderBy: { serialNumber: "desc" }, // Sort by serialNumber to get the true "last" one
+          select: { serialNumber: true },
+        });
+
         throw new ValidationError(
-          `Serial ${existing.serialNumber} sudah pernah terdaftar`
+          `Serial ${existing.serialNumber} sudah terdaftar. Nomor serial terakhir untuk kategori & tipe ini: ${
+            lastCard?.serialNumber || "Tidak diketahui"
+          }`
         );
       }
 
@@ -127,6 +136,8 @@ export class StockInService {
             `Batch ${product.serialTemplate}${yearSuffix}${formattedStartSerial} - ${product.serialTemplate}${yearSuffix}${endSerialFormatted}`,
           createdAt: new Date(),
           createdBy: userId,
+          updatedAt: new Date(),
+          updatedBy: userId,
         },
       });
 
@@ -144,7 +155,9 @@ export class StockInService {
             stationId: null,
             cardOffice: quantity,
             cardBeredar: quantity,
-            lastUpdated: new Date(),
+            createdAt: new Date(),
+            createdBy: userId,
+            updatedAt: new Date(),
             updatedBy: userId,
           },
         });
@@ -154,7 +167,7 @@ export class StockInService {
           data: {
             cardOffice: { increment: quantity },
             cardBeredar: { increment: quantity },
-            lastUpdated: new Date(),
+            updatedAt: new Date(),
             updatedBy: userId,
           },
         });
@@ -319,6 +332,7 @@ export class StockInService {
       },
     };
   }
+
   /**
    * Update Stock In (Restricted)
    */
@@ -373,7 +387,7 @@ export class StockInService {
    * Delete Stock In (Undo)
    * Strict Rule: Only allow delete if ALL cards are still IN_OFFICE.
    */
-  static async delete(id: string) {
+  static async delete(id: string, userId: string) {
     const transaction = await db.$transaction(async (tx) => {
       // 1. Get Movement
       const movement = await tx.cardStockMovement.findUnique({
@@ -447,7 +461,8 @@ export class StockInService {
           data: {
             cardOffice: { decrement: movement.quantity },
             cardBeredar: { decrement: movement.quantity }, // Beredar juga berkurang karena production dibatalkan
-            lastUpdated: new Date(),
+            updatedAt: new Date(),
+            updatedBy: userId,
           },
         });
       }
