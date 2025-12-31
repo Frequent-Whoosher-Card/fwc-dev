@@ -3,6 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // 🔁 REDIRECT LEGACY /superadmin → /dashboard/superadmin
+  if (pathname.startsWith("/superadmin")) {
+    return NextResponse.redirect(
+      new URL(`/dashboard${pathname}`, request.url)
+    );
+  }
+
   // hanya handle dashboard
   if (!pathname.startsWith("/dashboard")) {
     return NextResponse.next();
@@ -57,5 +64,8 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: [
+    "/dashboard/:path*",
+    "/superadmin/:path*", // 👈 penting
+  ],
 };
