@@ -11,6 +11,11 @@ import { stock } from "./modules/stock";
 import { cardProducts } from "./modules/cards/product";
 import { station } from "./modules/station";
 import { cardInventory } from "./modules/cards/inventory";
+import { members } from "./modules/members";
+import {
+  AuthenticationError,
+  AuthorizationError,
+} from "./utils/errors";
 
 const app = new Elysia()
   .use(docsConfig)
@@ -22,6 +27,7 @@ const app = new Elysia()
   }))
   .use(auth)
   .use(users)
+  .use(members)
   .use(cardCategory)
   .use(cardTypes)
   .use(cardProducts)
@@ -52,6 +58,32 @@ const app = new Elysia()
           message: "Route not found",
           code: "NOT_FOUND",
           statusCode: 404,
+        },
+      };
+    }
+
+    // Handle AuthorizationError
+    if (error instanceof AuthorizationError) {
+      set.status = error.statusCode;
+      return {
+        success: false,
+        error: {
+          message: error.message,
+          code: error.code || "AUTHORIZATION_ERROR",
+          statusCode: error.statusCode,
+        },
+      };
+    }
+
+    // Handle AuthenticationError
+    if (error instanceof AuthenticationError) {
+      set.status = error.statusCode;
+      return {
+        success: false,
+        error: {
+          message: error.message,
+          code: error.code || "AUTH_ERROR",
+          statusCode: error.statusCode,
         },
       };
     }
