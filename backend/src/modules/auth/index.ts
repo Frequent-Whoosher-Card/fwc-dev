@@ -8,49 +8,50 @@ import { formatErrorResponse } from "../../utils/errors";
 import { authMiddleware } from "../../middleware/auth";
 
 // Protected routes (require authentication)
-const protectedAuthRoutes = new Elysia()
-  .use(authMiddleware)
-  .get(
-    "/me",
-    async (context) => {
-      const { user, set } = context as typeof context & {
-        user: {
-          id: string;
-          username: string;
-          fullName: string;
-          email: string | null;
-          role: { id: string; roleCode: string; roleName: string };
-        };
+const protectedAuthRoutes = new Elysia().use(authMiddleware).get(
+  "/me",
+  async (context) => {
+    const { user, set } = context as typeof context & {
+      user: {
+        id: string;
+        username: string;
+        fullName: string;
+        email: string | null;
+        role: { id: string; roleCode: string; roleName: string };
       };
-      try {
-        const profile = await AuthService.getUserProfile(user.id);
+    };
+    try {
+      const profile = await AuthService.getUserProfile(user.id);
 
-        return {
-          success: true,
-          data: profile,
-        };
-      } catch (error) {
-        set.status =
-          error instanceof Error && "statusCode" in error
-            ? (error as any).statusCode
-            : 500;
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      response: {
-        200: AuthModel.meResponse,
-        401: AuthModel.errorResponse,
-        404: AuthModel.errorResponse,
-        500: AuthModel.errorResponse,
-      },
-      detail: {
-        tags: ["Authentication"],
-        summary: "Get current user profile",
-        description: "Returns authenticated user information",
-      },
+      return {
+        success: true,
+        data: profile,
+      };
+    } catch (error) {
+      set.status =
+        error instanceof Error && "statusCode" in error
+          ? (error as any).statusCode
+          : 500;
+      return formatErrorResponse(error);
     }
-  );
+  },
+  {
+    response: {
+      200: AuthModel.meResponse,
+      401: AuthModel.errorResponse,
+      403: AuthModel.errorResponse,
+      404: AuthModel.errorResponse,
+      409: AuthModel.errorResponse,
+      422: AuthModel.errorResponse,
+      500: AuthModel.errorResponse,
+    },
+    detail: {
+      tags: ["Authentication"],
+      summary: "Get current user profile",
+      description: "Returns authenticated user information",
+    },
+  }
+);
 
 // Combine public and protected routes
 export const auth = new Elysia({ prefix: "/auth" })
@@ -108,6 +109,10 @@ export const auth = new Elysia({ prefix: "/auth" })
         200: AuthModel.loginResponse,
         400: AuthModel.errorResponse,
         401: AuthModel.errorResponse,
+        403: AuthModel.errorResponse,
+        404: AuthModel.errorResponse,
+        409: AuthModel.errorResponse,
+        422: AuthModel.errorResponse,
         500: AuthModel.errorResponse,
       },
       detail: {
@@ -147,6 +152,11 @@ export const auth = new Elysia({ prefix: "/auth" })
     {
       response: {
         200: AuthModel.logoutResponse,
+        401: AuthModel.errorResponse,
+        403: AuthModel.errorResponse,
+        404: AuthModel.errorResponse,
+        409: AuthModel.errorResponse,
+        422: AuthModel.errorResponse,
         500: AuthModel.errorResponse,
       },
       detail: {
@@ -181,6 +191,11 @@ export const auth = new Elysia({ prefix: "/auth" })
       response: {
         200: AuthModel.forgotPasswordResponse,
         400: AuthModel.errorResponse,
+        401: AuthModel.errorResponse,
+        403: AuthModel.errorResponse,
+        404: AuthModel.errorResponse,
+        409: AuthModel.errorResponse,
+        422: AuthModel.errorResponse,
         500: AuthModel.errorResponse,
       },
       detail: {
@@ -219,7 +234,11 @@ export const auth = new Elysia({ prefix: "/auth" })
       response: {
         200: AuthModel.resetPasswordResponse,
         400: AuthModel.errorResponse,
+        401: AuthModel.errorResponse,
+        403: AuthModel.errorResponse,
         404: AuthModel.errorResponse,
+        409: AuthModel.errorResponse,
+        422: AuthModel.errorResponse,
         500: AuthModel.errorResponse,
       },
       detail: {

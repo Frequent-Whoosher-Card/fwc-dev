@@ -128,9 +128,41 @@ export class StockOutService {
       if (cards.length !== sent.length) {
         const found = new Set(cards.map((c) => c.serialNumber));
         const missing = sent.filter((sn) => !found.has(sn));
-        throw new ValidationError(
-          `Sebagian serial tidak valid / bukan IN_OFFICE: ${missing.join(", ")}`
+
+        // Analisis kenapa missing (apakah status bukan IN_OFFICE atau memang tidak ada)
+        const invalidCards = await tx.card.findMany({
+          where: {
+            serialNumber: { in: missing },
+            cardProductId,
+          },
+          select: { serialNumber: true, status: true },
+        });
+
+        const statusMap = new Map(
+          invalidCards.map((c) => [c.serialNumber, c.status])
         );
+
+        const alreadyDistributed = [];
+        const notFound = [];
+
+        for (const sn of missing) {
+          const status = statusMap.get(sn);
+          if (status) {
+            alreadyDistributed.push(`${sn} (${status})`);
+          } else {
+            notFound.push(sn);
+          }
+        }
+
+        let errMsg = "Validasi Gagal:";
+        if (alreadyDistributed.length > 0) {
+          errMsg += ` Serial berikut bukan status IN_OFFICE (sudah terdistribusi/rusak/dll): ${alreadyDistributed.join(", ")}.`;
+        }
+        if (notFound.length > 0) {
+          errMsg += ` Serial berikut tidak ditemukan di database: ${notFound.join(", ")}.`;
+        }
+
+        throw new ValidationError(errMsg);
       }
 
       const sentCount = cards.length;
@@ -145,7 +177,7 @@ export class StockOutService {
         },
         data: {
           cardOffice: { decrement: sentCount },
-          lastUpdated: new Date(),
+          updatedAt: new Date(),
           updatedBy: userId,
         },
       });
@@ -208,23 +240,47 @@ export class StockOutService {
     return transaction;
   }
 
+  /**
+   * Validasi Stock Out Receipe
+   */
   static async validateStockOutReceipe(
     movementId: string,
     receivedSerialNumbers: string[],
-    lostSerialNumbers: string[],
+    lostSerialNumbers: string[] | undefined,
+    damagedSerialNumbers: string[] | undefined,
     validatorUserId: string,
     validatorStationId: string,
     note?: string
   ) {
     const received = normalizeSerials(receivedSerialNumbers);
-    const lost = normalizeSerials(lostSerialNumbers);
+    const lost = normalizeSerials(lostSerialNumbers || []);
+    const damaged = normalizeSerials(damagedSerialNumbers || []);
 
     // Tidak boleh overlap
     const lostSet = new Set(lost);
-    const overlap = received.find((s) => lostSet.has(s));
-    if (overlap)
+    const damagedSet = new Set(damaged);
+    const receivedSet = new Set(received);
+
+    // Overlap checks
+    // 1. Received vs Lost
+    const overlapRL = received.find((s) => lostSet.has(s));
+    if (overlapRL)
       throw new ValidationError(
-        `Serial tidak boleh overlap received & lost: ${overlap}`
+        `Serial tidak boleh overlap received & lost: ${overlapRL}`
+      );
+
+    // 2. Received vs Damaged
+    const overlapRD = received.find((s) => damagedSet.has(s));
+    if (overlapRD)
+      throw new ValidationError(
+        `Serial tidak boleh overlap received & damaged: ${overlapRD}`
+      );
+
+    // 3. Lost vs Damaged
+    const overlapLD = lost.filter((s) => damagedSet.has(s));
+    if (overlapLD.length)
+      throw new ValidationError(
+        `Serial tidak boleh overlap lost & damaged: ${overlapLD.join(", ")}`
       );
 
     const transaction = await db.$transaction(async (tx) => {
@@ -255,27 +311,8 @@ export class StockOutService {
 
       const sentSet = new Set(sent);
 
-      // subset check
-      const invalidReceived = received.filter((s) => !sentSet.has(s));
-      const invalidLost = lost.filter((s) => !sentSet.has(s));
-      if (invalidReceived.length)
-        throw new ValidationError(
-          `Received serial invalid: ${invalidReceived.join(", ")}`
-        );
-      if (invalidLost.length)
-        throw new ValidationError(
-          `Lost serial invalid: ${invalidLost.join(", ")}`
-        );
-
-      // jumlah harus pas
-      const totalInput = received.length + lost.length;
-      if (totalInput !== sent.length || totalInput !== movement.quantity) {
-        throw new ValidationError(
-          `Jumlah serial tidak cocok. shipment=${movement.quantity}, input=${totalInput}`
-        );
-      }
-
-      // 4) Pastikan semua kartu shipment masih IN_TRANSIT (mencegah double-process)
+      // --- SMART SERIAL RECONSTRUCTION START ---
+      // Get Card Product to know the template
       const cardProduct = await tx.cardProduct.findUnique({
         where: {
           unique_category_type: {
@@ -283,9 +320,84 @@ export class StockOutService {
             typeId: movement.typeId,
           },
         },
-        select: { id: true, categoryId: true, typeId: true },
+        select: { id: true, serialTemplate: true },
       });
 
+      const yearSuffix = movement.movementAt.getFullYear().toString().slice(-2);
+      const template = cardProduct?.serialTemplate || "";
+
+      const reconstruct = (input: string) => {
+        // If exact match exists, return it
+        if (sentSet.has(input)) return input;
+
+        // If input is short digits (e.g. "1"), try to format it
+        if (/^\d+$/.test(input) && template) {
+          const padded = input.padStart(5, "0");
+          const full = `${template}${yearSuffix}${padded}`;
+          if (sentSet.has(full)) return full;
+        }
+        return input; // return original if reconstruction fails
+      };
+
+      const finalLost = lost.map(reconstruct);
+      const finalDamaged = damaged.map(reconstruct);
+
+      // --- SMART FILL LOGIC START ---
+      let finalReceived: string[] = [];
+
+      // If received is empty, we attempt to fill it with remaining items
+      if (received.length === 0) {
+        // Must validate lost/damaged first
+        const invalidLost = finalLost.filter((s) => !sentSet.has(s));
+        if (invalidLost.length)
+          throw new ValidationError(
+            `Lost serial invalid (tidak ada di pengiriman): ${invalidLost.join(", ")}`
+          );
+
+        const invalidDamaged = finalDamaged.filter((s) => !sentSet.has(s));
+        if (invalidDamaged.length)
+          throw new ValidationError(
+            `Damaged serial invalid (tidak ada di pengiriman): ${invalidDamaged.join(", ")}`
+          );
+
+        const exceptions = new Set([...finalLost, ...finalDamaged]);
+        // All sent Items that are NOT lost or damaged are considered RECEIVED
+        finalReceived = sent.filter((s) => !exceptions.has(s));
+      } else {
+        // If user provided received items explicitly
+        finalReceived = received.map(reconstruct);
+        const invalidReceived = finalReceived.filter((s) => !sentSet.has(s));
+
+        if (invalidReceived.length)
+          throw new ValidationError(
+            `Received serial invalid (tidak ada di pengiriman): ${invalidReceived.join(", ")}`
+          );
+      }
+      // --- SMART FILL LOGIC END ---
+
+      // Final subset check for lost/damaged (redundant if smart fill path taken, but safe)
+      const invalidLost = finalLost.filter((s) => !sentSet.has(s));
+      const invalidDamaged = finalDamaged.filter((s) => !sentSet.has(s));
+
+      if (invalidLost.length)
+        throw new ValidationError(
+          `Lost serial invalid (tidak ada di pengiriman): ${invalidLost.join(", ")}`
+        );
+      if (invalidDamaged.length)
+        throw new ValidationError(
+          `Damaged serial invalid (tidak ada di pengiriman): ${invalidDamaged.join(", ")}`
+        );
+
+      // jumlah harus pas
+      const totalInput =
+        finalReceived.length + finalLost.length + finalDamaged.length;
+      if (totalInput !== sent.length || totalInput !== movement.quantity) {
+        throw new ValidationError(
+          `Jumlah serial tidak cocok. shipment=${movement.quantity}, input=${totalInput} (received=${finalReceived.length}, lost=${finalLost.length}, damaged=${finalDamaged.length})`
+        );
+      }
+
+      // 4) Pastikan semua kartu shipment masih IN_TRANSIT (mencegah double-process)
       const cards = await tx.card.findMany({
         where: {
           serialNumber: { in: sent },
@@ -304,9 +416,9 @@ export class StockOutService {
       }
 
       // 5) Update status kartu
-      if (received.length) {
+      if (finalReceived.length) {
         await tx.card.updateMany({
-          where: { serialNumber: { in: received } },
+          where: { serialNumber: { in: finalReceived } },
           data: {
             status: "IN_STATION",
             updatedAt: new Date(),
@@ -315,9 +427,9 @@ export class StockOutService {
         });
       }
 
-      if (lost.length) {
+      if (finalLost.length) {
         await tx.card.updateMany({
-          where: { serialNumber: { in: lost } },
+          where: { serialNumber: { in: finalLost } },
           data: {
             status: "LOST",
             updatedAt: new Date(),
@@ -326,8 +438,19 @@ export class StockOutService {
         });
       }
 
+      if (finalDamaged.length) {
+        await tx.card.updateMany({
+          where: { serialNumber: { in: finalDamaged } },
+          data: {
+            status: "DAMAGED",
+            updatedAt: new Date(),
+            updatedBy: validatorUserId,
+          },
+        });
+      }
+
       // 6) Update inventory stasiun (yang diterima saja)
-      const receivedCount = received.length;
+      const receivedCount = finalReceived.length;
 
       if (receivedCount > 0) {
         // Validasi di awal menjamin stationId ada
@@ -350,13 +473,15 @@ export class StockOutService {
             cardBeredar: receivedCount,
             cardAktif: 0,
             cardNonAktif: 0,
-            lastUpdated: new Date(),
+            createdAt: new Date(),
+            createdBy: validatorUserId,
+            updatedAt: new Date(),
             updatedBy: validatorUserId,
           },
           update: {
             cardBeredar: { increment: receivedCount },
             cardBelumTerjual: { increment: receivedCount },
-            lastUpdated: new Date(),
+            updatedAt: new Date(),
             updatedBy: validatorUserId,
           },
         });
@@ -367,8 +492,9 @@ export class StockOutService {
         where: { id: movementId, status: "PENDING" },
         data: {
           status: "APPROVED",
-          receivedSerialNumbers: received,
-          lostSerialNumbers: lost,
+          receivedSerialNumbers: finalReceived,
+          lostSerialNumbers: finalLost,
+          damagedSerialNumbers: finalDamaged,
           validatedBy: validatorUserId,
           validatedAt: new Date(),
           note: note ?? movement.note ?? null,
@@ -378,8 +504,9 @@ export class StockOutService {
       return {
         movementId,
         status: "APPROVED",
-        receivedCount: received.length,
-        lostCount: lost.length,
+        receivedCount: finalReceived.length,
+        lostCount: finalLost.length,
+        damagedCount: finalDamaged.length,
       };
     });
 
@@ -396,6 +523,10 @@ export class StockOutService {
     endDate?: Date;
     stationId?: string;
     status?: "PENDING" | "APPROVED" | "REJECTED";
+    search?: string;
+    stationName?: string;
+    categoryName?: string;
+    typeName?: string;
   }) {
     const {
       page = 1,
@@ -404,12 +535,61 @@ export class StockOutService {
       endDate,
       stationId,
       status,
+      search,
+      stationName,
+      categoryName,
+      typeName,
     } = params;
     const skip = (page - 1) * limit;
 
     const where: any = {
       type: "OUT",
     };
+
+    // --- CASE INSENSITIVE SEARCH LOGIC ---
+    if (search) {
+      where.OR = [
+        { note: { contains: search, mode: "insensitive" } },
+        {
+          station: {
+            stationName: { contains: search, mode: "insensitive" },
+          },
+        },
+        {
+          category: {
+            categoryName: { contains: search, mode: "insensitive" },
+          },
+        },
+        {
+          cardType: {
+            typeName: { contains: search, mode: "insensitive" },
+          },
+        },
+      ];
+    }
+
+    // Specific Filters (Case Insensitive)
+    if (stationName) {
+      where.station = {
+        ...where.station,
+        stationName: { contains: stationName, mode: "insensitive" },
+      };
+    }
+
+    if (categoryName) {
+      where.category = {
+        ...where.category,
+        categoryName: { contains: categoryName, mode: "insensitive" },
+      };
+    }
+
+    if (typeName) {
+      where.cardType = {
+        ...where.cardType,
+        typeName: { contains: typeName, mode: "insensitive" },
+      };
+    }
+    // -------------------------------------
 
     if (startDate && endDate) {
       where.movementAt = {
@@ -562,6 +742,7 @@ export class StockOutService {
         sentSerialNumbers: movement.sentSerialNumbers,
         receivedSerialNumbers: movement.receivedSerialNumbers,
         lostSerialNumbers: movement.lostSerialNumbers,
+        damagedSerialNumbers: (movement as any).damagedSerialNumbers ?? [],
       },
     };
   }
@@ -647,7 +828,8 @@ export class StockOutService {
               where: { id: officeInv.id },
               data: {
                 cardOffice: { increment: oldSent.length },
-                lastUpdated: new Date(),
+                updatedAt: new Date(),
+                updatedBy: userId,
               },
             });
           }
@@ -717,18 +899,56 @@ export class StockOutService {
         // Check cards IN_OFFICE
         const cards = await tx.card.findMany({
           where: { serialNumber: { in: newSent }, status: "IN_OFFICE" },
-          select: { id: true },
+          select: { id: true, serialNumber: true }, // Add serialNumber
         });
         if (cards.length !== count) {
-          throw new ValidationError(
-            "Sebagian kartu baru tidak valid / bukan IN_OFFICE"
+          const found = new Set(cards.map((c) => c.serialNumber));
+          const missing = newSent.filter((sn) => !found.has(sn));
+
+          // Analisis detail kenapa missing (sama seperti create)
+          const invalidCards = await tx.card.findMany({
+            where: {
+              serialNumber: { in: missing },
+              cardProductId: cardProduct.id, // Fix variable name
+            },
+            select: { serialNumber: true, status: true },
+          });
+
+          const statusMap = new Map(
+            invalidCards.map((c) => [c.serialNumber, c.status])
           );
+
+          const alreadyDistributed = [];
+          const notFound = [];
+
+          for (const sn of missing) {
+            const status = statusMap.get(sn);
+            if (status) {
+              alreadyDistributed.push(`${sn} (${status})`);
+            } else {
+              notFound.push(sn);
+            }
+          }
+
+          let errMsg = "Validasi Gagal (Update):";
+          if (alreadyDistributed.length > 0) {
+            errMsg += ` Serial berikut bukan status IN_OFFICE (sudah terdistribusi/rusak/dll): ${alreadyDistributed.join(", ")}.`;
+          }
+          if (notFound.length > 0) {
+            errMsg += ` Serial berikut tidak ditemukan di database: ${notFound.join(", ")}.`;
+          }
+
+          throw new ValidationError(errMsg);
         }
 
         // Deduct Inventory
         await tx.cardInventory.update({
           where: { id: officeInv.id },
-          data: { cardOffice: { decrement: count }, lastUpdated: new Date() },
+          data: {
+            cardOffice: { decrement: count },
+            updatedAt: new Date(),
+            updatedBy: userId,
+          },
         });
 
         // Update Card Status -> IN_TRANSIT
@@ -758,7 +978,7 @@ export class StockOutService {
   /**
    * Delete / Cancel Stock Out (Undo)
    */
-  static async delete(id: string) {
+  static async delete(id: string, userId: string) {
     const transaction = await db.$transaction(async (tx) => {
       // 1. Get Movement
       const movement = await tx.cardStockMovement.findUnique({
@@ -830,7 +1050,8 @@ export class StockOutService {
             where: { id: officeInv.id },
             data: {
               cardOffice: { increment: sent.length },
-              lastUpdated: new Date(),
+              updatedAt: new Date(),
+              updatedBy: userId,
             },
           });
         }
@@ -930,7 +1151,8 @@ export class StockOutService {
                 // Yang masuk stasiun cuma received
                 cardBeredar: { decrement: received.length },
                 cardBelumTerjual: { decrement: received.length },
-                lastUpdated: new Date(),
+                updatedAt: new Date(),
+                updatedBy: userId,
               },
             });
           }
@@ -957,7 +1179,8 @@ export class StockOutService {
             where: { id: officeInv.id },
             data: {
               cardOffice: { increment: sentQty },
-              lastUpdated: new Date(),
+              updatedAt: new Date(),
+              updatedBy: userId,
             },
           });
         }
