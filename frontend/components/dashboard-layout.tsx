@@ -5,38 +5,17 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
 
 import toast from 'react-hot-toast';
+import ClientOnly from '@/components/ui/client-only';
 
-import {
-  LayoutDashboard,
-  CreditCard,
-  UserPlus,
-  Receipt,
-  Users,
-  Menu,
-  X,
-  Bell,
-  User,
-  LogOut,
-  IdCard,
-  ArrowDownToLine,
-  ArrowUpNarrowWide,
-  ChevronDown,
-} from 'lucide-react';
+import { LayoutDashboard, CreditCard, UserPlus, Receipt, Users, Menu, X, Bell, User, LogOut, IdCard, ArrowDownToLine, ArrowUpNarrowWide, ChevronDown } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 /* =========================
    ROLE TYPE
@@ -110,11 +89,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [userName, setUserName] = useState('User');
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [role, setRole] = useState<Role>('admin');
-  
-    // 🔔 tampilkan lonceng hanya di halaman User Management
-  const showUserNotification =
-    pathname.startsWith('/dashboard/superadmin/user');
 
+  // 🔔 tampilkan lonceng hanya di halaman User Management
+  const showUserNotification = pathname.startsWith('/dashboard/superadmin/user');
 
   /* ===== INIT AUTH & ROLE ===== */
   useEffect(() => {
@@ -146,30 +123,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       {/* BACKDROP MOBILE */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+      {sidebarOpen && <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
       {/* SIDEBAR */}
-      <aside
-        className={cn(
-          'fixed left-0 top-0 z-50 h-full w-64 bg-[#8D1231] transition-transform lg:translate-x-0',
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        )}
-      >
+      <aside className={cn('fixed left-0 top-0 z-50 h-full w-64 bg-[#8D1231] transition-transform lg:translate-x-0', sidebarOpen ? 'translate-x-0' : '-translate-x-full')}>
         <div className="flex h-full flex-col">
           {/* LOGO */}
           <div className="flex h-16 items-center px-6 border-b border-white/10">
             <Image src="/logo-putih.svg" alt="logo" width={160} height={40} />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="ml-auto lg:hidden text-white"
-              onClick={() => setSidebarOpen(false)}
-            >
+            <Button variant="ghost" size="icon" className="ml-auto lg:hidden text-white" onClick={() => setSidebarOpen(false)}>
               <X className="h-5 w-5" />
             </Button>
           </div>
@@ -178,34 +140,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <nav className="flex-1 space-y-1 p-4">
             {menuItems.map((item) => {
               const hasChildren = !!item.children;
-              const isParentActive =
-                pathname === item.href ||
-                item.children?.some((child: any) =>
-                  pathname.startsWith(child.href)
-                );
+              const isParentActive = pathname === item.href || item.children?.some((child: any) => pathname.startsWith(child.href));
 
-              const isOpen =
-                openMenu === item.title ||
-                item.children?.some((child: any) =>
-                  pathname.startsWith(child.href)
-                );
+              const isOpen = openMenu === item.title || item.children?.some((child: any) => pathname.startsWith(child.href));
 
               return (
                 <div key={item.title}>
                   {/* PARENT */}
-                  <div
-                    className={cn(
-                      'flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium',
-                      isParentActive
-                        ? 'bg-white/20 text-white'
-                        : 'text-white hover:bg-white/10'
-                    )}
-                  >
-                    <Link
-                      href={item.href}
-                      onClick={() => setSidebarOpen(false)}
-                      className="flex items-center gap-3 flex-1"
-                    >
+                  <div className={cn('flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium', isParentActive ? 'bg-white/20 text-white' : 'text-white hover:bg-white/10')}>
+                    <Link href={item.href} onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 flex-1">
                       <item.icon className="h-5 w-5" />
                       {item.title}
                     </Link>
@@ -220,12 +163,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                         }}
                         className="ml-2 rounded p-1 hover:bg-white/20"
                       >
-                        <ChevronDown
-                          className={cn(
-                            'h-4 w-4 transition-transform',
-                            isOpen && 'rotate-180'
-                          )}
-                        />
+                        <ChevronDown className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-180')} />
                       </button>
                     )}
                   </div>
@@ -240,12 +178,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                             key={child.href}
                             href={child.href}
                             onClick={() => setSidebarOpen(false)}
-                            className={cn(
-                              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm',
-                              isActive
-                                ? 'bg-white/20 text-white'
-                                : 'text-white/80 hover:bg-white/10'
-                            )}
+                            className={cn('flex items-center gap-3 rounded-lg px-3 py-2 text-sm', isActive ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/10')}
                           >
                             <child.icon className="h-4 w-4" />
                             {child.title}
@@ -265,61 +198,44 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       <div className="lg:pl-64">
         {/* TOPBAR */}
         <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-6">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="lg:hidden"
-            onClick={() => setSidebarOpen(true)}
-          >
+          <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
             <Menu className="h-5 w-5" />
           </Button>
 
-          <h1 className="flex-1 text-lg font-semibold">
-            Frequent Whoosher Card
-          </h1>
+          <h1 className="flex-1 text-lg font-semibold">Frequent Whoosher Card</h1>
 
           {/* USER */}
-         {/* RIGHT ACTIONS */}
-<div className="flex items-center gap-1">
-  {/* 🔔 NOTIFICATION (USER MENU ONLY) */}
-  {showUserNotification && (
-  <Button
-    variant="ghost"
-    size="icon"
-    className="relative h-8 w-8"
-    aria-label="notification"
-  >
-    <Bell className="h-4 w-4" />
-    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
-      3
-    </span>
-  </Button>
-)}
+          {/* RIGHT ACTIONS */}
+          <div className="flex items-center gap-1">
+            {/* 🔔 NOTIFICATION (USER MENU ONLY) */}
+            {showUserNotification && (
+              <Button variant="ghost" size="icon" className="relative h-8 w-8" aria-label="notification">
+                <Bell className="h-4 w-4" />
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">3</span>
+              </Button>
+            )}
 
+            {/* USER */}
+            <ClientOnly>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    <span className="text-sm font-medium">{userName}</span>
+                  </Button>
+                </DropdownMenuTrigger>
 
-  {/* USER */}
-  <DropdownMenu>
-    <DropdownMenuTrigger asChild>
-      <Button variant="ghost" className="flex items-center gap-2">
-        <User className="h-5 w-5" />
-        <span className="text-sm font-medium">{userName}</span>
-      </Button>
-    </DropdownMenuTrigger>
-
-    <DropdownMenuContent align="end" className="w-40">
-      <DropdownMenuLabel>Akun</DropdownMenuLabel>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem
-        onClick={handleLogout}
-        className="text-red-600 cursor-pointer"
-      >
-        <LogOut className="mr-2 h-4 w-4" />
-        Logout
-      </DropdownMenuItem>
-    </DropdownMenuContent>
-  </DropdownMenu>
-</div>
-
+                <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuLabel>Akun</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="text-red-600 cursor-pointer">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </ClientOnly>
+          </div>
         </header>
 
         <main className="p-6">{children}</main>
