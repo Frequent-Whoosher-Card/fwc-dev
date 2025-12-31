@@ -5,3 +5,4 @@ ALTER TABLE "password_reset_tokens" ADD COLUMN "updated_by" UUID;
 ALTER TABLE "password_reset_tokens" ADD COLUMN "deleted_at" TIMESTAMP(3);
 ALTER TABLE "password_reset_tokens" ADD COLUMN "deleted_by" UUID;
 
+

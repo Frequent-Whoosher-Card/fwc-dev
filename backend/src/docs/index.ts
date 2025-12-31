@@ -70,6 +70,10 @@ export const docsConfig = swagger({
         description: "User and role management endpoints",
       },
       {
+        name: "Members",
+        description: "Member management endpoints",
+      },
+      {
         name: "Station",
         description: "Station management endpoints",
       },

@@ -1,5 +1,6 @@
 import { Elysia } from "elysia";
 import { AuthorizationError } from "../utils/errors";
+import { authMiddleware } from "./auth";
 
 /**
  * RBAC Middleware - Role-Based Access Control
@@ -7,20 +8,22 @@ import { AuthorizationError } from "../utils/errors";
  * Usage:
  * .use(rbacMiddleware(["superadmin", "admin"]))
  * 
- * This middleware checks if the authenticated user has one of the allowed roles.
- * Must be used after authMiddleware.
+ * This middleware automatically includes authMiddleware and checks if the
+ * authenticated user has one of the allowed roles.
+ * 
+ * Pattern follows BRI project: rolesMiddleware automatically includes authMiddleware
  */
-export const rbacMiddleware = (allowedRoles: string[]) => {
-  return new Elysia({ name: "rbacMiddleware" }).derive((context) => {
-    const user = (context as any).user;
-
-    if (!user) {
-      throw new AuthorizationError("User not authenticated");
+export const rbacMiddleware = (allowedRoles: string[]) => (app: Elysia) =>
+  app.use(authMiddleware).derive(({ set, user }) => {
+    if (!user || !user.role) {
+      set.status = 403;
+      throw new AuthorizationError("Forbidden: user role not defined");
     }
 
-    const userRole = user.role?.roleCode;
+    const userRole = user.role.roleCode;
 
     if (!userRole || !allowedRoles.includes(userRole)) {
+      set.status = 403;
       throw new AuthorizationError(
         `Access denied. Required roles: ${allowedRoles.join(", ")}`
       );
@@ -28,5 +31,4 @@ export const rbacMiddleware = (allowedRoles: string[]) => {
 
     return {};
   });
-};
 

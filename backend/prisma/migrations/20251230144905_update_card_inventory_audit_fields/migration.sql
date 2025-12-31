@@ -10,3 +10,4 @@ ALTER TABLE "card_inventory" ADD COLUMN "updated_by" UUID;
 ALTER TABLE "card_inventory" ADD COLUMN "deleted_at" TIMESTAMP(3);
 ALTER TABLE "card_inventory" ADD COLUMN "deleted_by" UUID;
 
+
