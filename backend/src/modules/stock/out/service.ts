@@ -128,9 +128,41 @@ export class StockOutService {
       if (cards.length !== sent.length) {
         const found = new Set(cards.map((c) => c.serialNumber));
         const missing = sent.filter((sn) => !found.has(sn));
-        throw new ValidationError(
-          `Sebagian serial tidak valid / bukan IN_OFFICE: ${missing.join(", ")}`
+
+        // Analisis kenapa missing (apakah status bukan IN_OFFICE atau memang tidak ada)
+        const invalidCards = await tx.card.findMany({
+          where: {
+            serialNumber: { in: missing },
+            cardProductId,
+          },
+          select: { serialNumber: true, status: true },
+        });
+
+        const statusMap = new Map(
+          invalidCards.map((c) => [c.serialNumber, c.status])
         );
+
+        const alreadyDistributed = [];
+        const notFound = [];
+
+        for (const sn of missing) {
+          const status = statusMap.get(sn);
+          if (status) {
+            alreadyDistributed.push(`${sn} (${status})`);
+          } else {
+            notFound.push(sn);
+          }
+        }
+
+        let errMsg = "Validasi Gagal:";
+        if (alreadyDistributed.length > 0) {
+          errMsg += ` Serial berikut bukan status IN_OFFICE (sudah terdistribusi/rusak/dll): ${alreadyDistributed.join(", ")}.`;
+        }
+        if (notFound.length > 0) {
+          errMsg += ` Serial berikut tidak ditemukan di database: ${notFound.join(", ")}.`;
+        }
+
+        throw new ValidationError(errMsg);
       }
 
       const sentCount = cards.length;
@@ -491,6 +523,10 @@ export class StockOutService {
     endDate?: Date;
     stationId?: string;
     status?: "PENDING" | "APPROVED" | "REJECTED";
+    search?: string;
+    stationName?: string;
+    categoryName?: string;
+    typeName?: string;
   }) {
     const {
       page = 1,
@@ -499,12 +535,61 @@ export class StockOutService {
       endDate,
       stationId,
       status,
+      search,
+      stationName,
+      categoryName,
+      typeName,
     } = params;
     const skip = (page - 1) * limit;
 
     const where: any = {
       type: "OUT",
     };
+
+    // --- CASE INSENSITIVE SEARCH LOGIC ---
+    if (search) {
+      where.OR = [
+        { note: { contains: search, mode: "insensitive" } },
+        {
+          station: {
+            stationName: { contains: search, mode: "insensitive" },
+          },
+        },
+        {
+          category: {
+            categoryName: { contains: search, mode: "insensitive" },
+          },
+        },
+        {
+          cardType: {
+            typeName: { contains: search, mode: "insensitive" },
+          },
+        },
+      ];
+    }
+
+    // Specific Filters (Case Insensitive)
+    if (stationName) {
+      where.station = {
+        ...where.station,
+        stationName: { contains: stationName, mode: "insensitive" },
+      };
+    }
+
+    if (categoryName) {
+      where.category = {
+        ...where.category,
+        categoryName: { contains: categoryName, mode: "insensitive" },
+      };
+    }
+
+    if (typeName) {
+      where.cardType = {
+        ...where.cardType,
+        typeName: { contains: typeName, mode: "insensitive" },
+      };
+    }
+    // -------------------------------------
 
     if (startDate && endDate) {
       where.movementAt = {
@@ -814,12 +899,46 @@ export class StockOutService {
         // Check cards IN_OFFICE
         const cards = await tx.card.findMany({
           where: { serialNumber: { in: newSent }, status: "IN_OFFICE" },
-          select: { id: true },
+          select: { id: true, serialNumber: true }, // Add serialNumber
         });
         if (cards.length !== count) {
-          throw new ValidationError(
-            "Sebagian kartu baru tidak valid / bukan IN_OFFICE"
+          const found = new Set(cards.map((c) => c.serialNumber));
+          const missing = newSent.filter((sn) => !found.has(sn));
+
+          // Analisis detail kenapa missing (sama seperti create)
+          const invalidCards = await tx.card.findMany({
+            where: {
+              serialNumber: { in: missing },
+              cardProductId: cardProduct.id, // Fix variable name
+            },
+            select: { serialNumber: true, status: true },
+          });
+
+          const statusMap = new Map(
+            invalidCards.map((c) => [c.serialNumber, c.status])
           );
+
+          const alreadyDistributed = [];
+          const notFound = [];
+
+          for (const sn of missing) {
+            const status = statusMap.get(sn);
+            if (status) {
+              alreadyDistributed.push(`${sn} (${status})`);
+            } else {
+              notFound.push(sn);
+            }
+          }
+
+          let errMsg = "Validasi Gagal (Update):";
+          if (alreadyDistributed.length > 0) {
+            errMsg += ` Serial berikut bukan status IN_OFFICE (sudah terdistribusi/rusak/dll): ${alreadyDistributed.join(", ")}.`;
+          }
+          if (notFound.length > 0) {
+            errMsg += ` Serial berikut tidak ditemukan di database: ${notFound.join(", ")}.`;
+          }
+
+          throw new ValidationError(errMsg);
         }
 
         // Deduct Inventory

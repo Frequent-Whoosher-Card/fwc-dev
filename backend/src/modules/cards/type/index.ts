@@ -20,6 +20,7 @@ type AuthContextUser = {
 };
 
 const baseRoutes = new Elysia()
+  .use(rbacMiddleware(["petugas", "supervisor", "admin", "superadmin"]))
   .get(
     "/",
     async (context) => {

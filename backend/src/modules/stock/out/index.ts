@@ -20,57 +20,60 @@ type AuthContextUser = {
   };
 };
 
-const baseRoutes = new Elysia().use(authMiddleware).post(
-  "/:movementId/validate",
-  async (context) => {
-    const { params, body, set, user } = context as typeof context &
-      AuthContextUser;
-    if (!user.stationId) {
-      set.status = 400;
-      return formatErrorResponse(
-        new ValidationError("Petugas tidak memiliki ID stasiun pada context")
-      );
-    }
-    try {
-      const result = await StockOutService.validateStockOutReceipe(
-        params.movementId,
-        body.receivedSerialNumbers,
-        body.lostSerialNumbers,
-        body.damagedSerialNumbers,
-        user.id,
-        user.stationId,
-        body.note
-      );
+const baseRoutes = new Elysia()
+  .use(authMiddleware)
+  .use(rbacMiddleware(["supervisor", "admin", "superadmin"]))
+  .post(
+    "/:movementId/validate",
+    async (context) => {
+      const { params, body, set, user } = context as typeof context &
+        AuthContextUser;
+      if (!user.stationId) {
+        set.status = 400;
+        return formatErrorResponse(
+          new ValidationError("Petugas tidak memiliki ID stasiun pada context")
+        );
+      }
+      try {
+        const result = await StockOutService.validateStockOutReceipe(
+          params.movementId,
+          body.receivedSerialNumbers,
+          body.lostSerialNumbers,
+          body.damagedSerialNumbers,
+          user.id,
+          user.stationId,
+          body.note
+        );
 
-      return {
-        success: true,
-        message: "Validasi stok berhasil",
-        data: result,
-      };
-    } catch (error) {
-      set.status =
-        error instanceof Error && "statusCode" in error
-          ? (error as any).statusCode
-          : 500;
-      return formatErrorResponse(error);
+        return {
+          success: true,
+          message: "Validasi stok berhasil",
+          data: result,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      body: StockOutModel.stockOutValidateRequest,
+      response: {
+        200: StockOutModel.stockOutValidateResponse,
+        400: StockOutModel.errorResponse,
+        401: StockOutModel.errorResponse,
+        403: StockOutModel.errorResponse,
+        500: StockOutModel.errorResponse,
+      },
+      detail: {
+        tags: ["Stock Out"],
+        summary: "Stock Out Validate",
+        description: "Validasi stok keluar oleh petugas station.",
+      },
     }
-  },
-  {
-    body: StockOutModel.stockOutValidateRequest,
-    response: {
-      200: StockOutModel.stockOutValidateResponse,
-      400: StockOutModel.errorResponse,
-      401: StockOutModel.errorResponse,
-      403: StockOutModel.errorResponse,
-      500: StockOutModel.errorResponse,
-    },
-    detail: {
-      tags: ["Stock Out"],
-      summary: "Stock Out Validate",
-      description: "Validasi stok keluar oleh petugas station.",
-    },
-  }
-);
+  );
 
 const adminRoutes = new Elysia()
   .use(authMiddleware)
@@ -135,6 +138,10 @@ const adminRoutes = new Elysia()
           endDate: query.endDate ? new Date(query.endDate) : undefined,
           stationId: query.stationId,
           status: query.status as any,
+          search: query.search,
+          stationName: query.stationName,
+          categoryName: query.categoryName,
+          typeName: query.typeName,
         });
 
         return {
@@ -267,6 +274,6 @@ const adminRoutes = new Elysia()
     }
   );
 
-export const stockOut = new Elysia({ prefix: "/stock/out" })
+export const stockOut = new Elysia({ prefix: "/out" })
   .use(baseRoutes)
   .use(adminRoutes);

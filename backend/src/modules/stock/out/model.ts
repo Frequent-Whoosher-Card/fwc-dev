@@ -75,6 +75,11 @@ export namespace StockOutModel {
         t.Literal("REJECTED"),
       ])
     ),
+    // New Search Params
+    search: t.Optional(t.String()),
+    stationName: t.Optional(t.String()),
+    categoryName: t.Optional(t.String()),
+    typeName: t.Optional(t.String()),
   });
 
   // History Response

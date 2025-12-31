@@ -170,8 +170,7 @@ const writeRoutes = new Elysia()
       detail: {
         tags: ["Members"],
         summary: "Update member",
-        description:
-          "Update a member (petugas, supervisor, admin, superadmin)",
+        description: "Update a member (petugas, supervisor, admin, superadmin)",
       },
     }
   );
@@ -219,4 +218,3 @@ export const members = new Elysia({ prefix: "/members" })
   .use(baseRoutes)
   .use(writeRoutes)
   .use(deleteRoutes);
-
