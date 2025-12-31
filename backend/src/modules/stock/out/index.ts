@@ -231,9 +231,9 @@ const adminRoutes = new Elysia()
   .delete(
     "/:id",
     async (context) => {
-      const { params, set } = context;
+      const { params, set, user } = context as typeof context & AuthContextUser;
       try {
-        const result = await StockOutService.delete(params.id);
+        const result = await StockOutService.delete(params.id, user.id);
         return {
           success: true,
           message: result.message,

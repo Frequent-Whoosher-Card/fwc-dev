@@ -145,7 +145,7 @@ export class StockOutService {
         },
         data: {
           cardOffice: { decrement: sentCount },
-          lastUpdated: new Date(),
+          updatedAt: new Date(),
           updatedBy: userId,
         },
       });
@@ -208,6 +208,9 @@ export class StockOutService {
     return transaction;
   }
 
+  /**
+   * Validasi Stock Out Receipe
+   */
   static async validateStockOutReceipe(
     movementId: string,
     receivedSerialNumbers: string[],
@@ -438,13 +441,15 @@ export class StockOutService {
             cardBeredar: receivedCount,
             cardAktif: 0,
             cardNonAktif: 0,
-            lastUpdated: new Date(),
+            createdAt: new Date(),
+            createdBy: validatorUserId,
+            updatedAt: new Date(),
             updatedBy: validatorUserId,
           },
           update: {
             cardBeredar: { increment: receivedCount },
             cardBelumTerjual: { increment: receivedCount },
-            lastUpdated: new Date(),
+            updatedAt: new Date(),
             updatedBy: validatorUserId,
           },
         });
@@ -738,7 +743,8 @@ export class StockOutService {
               where: { id: officeInv.id },
               data: {
                 cardOffice: { increment: oldSent.length },
-                lastUpdated: new Date(),
+                updatedAt: new Date(),
+                updatedBy: userId,
               },
             });
           }
@@ -819,7 +825,11 @@ export class StockOutService {
         // Deduct Inventory
         await tx.cardInventory.update({
           where: { id: officeInv.id },
-          data: { cardOffice: { decrement: count }, lastUpdated: new Date() },
+          data: {
+            cardOffice: { decrement: count },
+            updatedAt: new Date(),
+            updatedBy: userId,
+          },
         });
 
         // Update Card Status -> IN_TRANSIT
@@ -849,7 +859,7 @@ export class StockOutService {
   /**
    * Delete / Cancel Stock Out (Undo)
    */
-  static async delete(id: string) {
+  static async delete(id: string, userId: string) {
     const transaction = await db.$transaction(async (tx) => {
       // 1. Get Movement
       const movement = await tx.cardStockMovement.findUnique({
@@ -921,7 +931,8 @@ export class StockOutService {
             where: { id: officeInv.id },
             data: {
               cardOffice: { increment: sent.length },
-              lastUpdated: new Date(),
+              updatedAt: new Date(),
+              updatedBy: userId,
             },
           });
         }
@@ -1021,7 +1032,8 @@ export class StockOutService {
                 // Yang masuk stasiun cuma received
                 cardBeredar: { decrement: received.length },
                 cardBelumTerjual: { decrement: received.length },
-                lastUpdated: new Date(),
+                updatedAt: new Date(),
+                updatedBy: userId,
               },
             });
           }
@@ -1048,7 +1060,8 @@ export class StockOutService {
             where: { id: officeInv.id },
             data: {
               cardOffice: { increment: sentQty },
-              lastUpdated: new Date(),
+              updatedAt: new Date(),
+              updatedBy: userId,
             },
           });
         }

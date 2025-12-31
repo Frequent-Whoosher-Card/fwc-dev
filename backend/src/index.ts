@@ -10,7 +10,7 @@ import { metrics } from "./modules/metrics";
 import { stock } from "./modules/stock";
 import { cardProducts } from "./modules/cards/product";
 import { station } from "./modules/station";
-import { cardInventory } from "./modules/cards/inventory";
+import { cardInventory } from "./modules/stock/inventory";
 
 const app = new Elysia()
   .use(docsConfig)
