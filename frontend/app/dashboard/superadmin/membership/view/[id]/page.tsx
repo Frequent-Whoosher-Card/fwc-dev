@@ -4,21 +4,21 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
+import { getMemberById } from '@/lib/services/membership.service';
+
 /* ======================
-   TYPES
+   TYPES (IKUT API)
 ====================== */
 interface Membership {
   id: number;
-  membershipDate: string;
+  membership_date: string;
   name: string;
   nik: string;
-  nationality: string;
-  gender: 'Laki - Laki' | 'Perempuan';
+  gender: string;
   email: string;
   phone: string;
-  address: string;
-  operatorName: string;
-  updatedAt: string;
+  operator_name: string;
+  station: string;
 }
 
 interface Transaction {
@@ -47,62 +47,72 @@ export default function MembershipDetailPage() {
 
   const [member, setMember] = useState<Membership | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   /* ======================
-     LOAD DATA
+     FETCH MEMBER DETAIL
   ====================== */
   useEffect(() => {
-    const stored: Membership[] = JSON.parse(
-      localStorage.getItem('fwc_memberships') || '[]'
-    );
+    async function fetchDetail() {
+      try {
+        setLoading(true);
+        const res = await getMemberById(id);
+        const data: Membership = res.data;
 
-    const found = stored.find(
-      (item) => item.id === Number(id)
-    );
+        setMember(data);
 
-    if (found) {
-      setMember(found);
-
-      setTransactions([
-        {
-          purchaseDate: '12-12-2025',
-          duration: '60 Days',
-          expiredDate: '12-02-2026',
-          status: 'Active',
-          cardCategory: 'Gold',
-          cardType: 'JaBan',
-          quota: 10,
-          remaining: 6,
-          serialNumber: '1203931',
-          referenceEdc: '12123131321321',
-          price: '2.000.000',
-          shiftDate: '12-12-2025',
-          operatorName: 'Bagas kara',
-          station: 'Halim',
-        },
-        {
-          purchaseDate: '01-11-2025',
-          duration: '60 Days',
-          expiredDate: '01-01-2026',
-          status: 'Expired',
-          cardCategory: 'Gold',
-          cardType: 'JaBan',
-          quota: 10,
-          remaining: 0,
-          serialNumber: '1203931',
-          referenceEdc: '12123131321321',
-          price: '2.000.000',
-          shiftDate: '01-11-2025',
-          operatorName: 'Bagas kara',
-          station: 'Karawang',
-        },
-      ]);
+        /**
+         * Transaction sementara:
+         * karena BE belum expose endpoint transaction
+         * → derive dari membership
+         */
+        setTransactions([
+          {
+            purchaseDate: data.membership_date,
+            duration: '60 Days',
+            expiredDate: '2026-02-12',
+            status: 'Active',
+            cardCategory: 'Gold',
+            cardType: 'JaBan',
+            quota: 20,
+            remaining: 6,
+            serialNumber: data.id.toString(),
+            referenceEdc: data.id.toString(),
+            price: '2.000.000',
+            shiftDate: data.membership_date,
+            operatorName: data.operator_name,
+            station: data.station,
+          },
+        ]);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load member');
+      } finally {
+        setLoading(false);
+      }
     }
+
+    fetchDetail();
   }, [id]);
+
+  /* ======================
+     STATE HANDLER
+  ====================== */
+  if (loading) {
+    return <div className="p-6">Loading...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 text-red-600">
+        {error}
+      </div>
+    );
+  }
 
   if (!member) {
     return (
-      <div className="text-sm text-gray-500">
+      <div className="p-6 text-gray-500">
         Data not found
       </div>
     );
@@ -118,6 +128,9 @@ export default function MembershipDetailPage() {
     0
   );
 
+  /* ======================
+     RENDER
+  ====================== */
   return (
     <div className="space-y-6">
       {/* ================= HEADER ================= */}
@@ -146,9 +159,7 @@ export default function MembershipDetailPage() {
               {member.name}
             </p>
             <p>NIK: {member.nik}</p>
-            <p>
-              {member.gender} • {member.nationality}
-            </p>
+            <p>{member.gender}</p>
             <p>{member.email}</p>
             <p>{member.phone}</p>
           </div>
@@ -195,20 +206,14 @@ export default function MembershipDetailPage() {
               {transactions.map((trx, index) => (
                 <tr
                   key={index}
-                  className="border-t transition hover:bg-gray-50"
+                  className="border-t hover:bg-gray-50"
                 >
                   <td className="px-4 py-2">{trx.purchaseDate}</td>
                   <td className="px-4 py-2">{trx.duration}</td>
                   <td className="px-4 py-2">{trx.expiredDate}</td>
 
                   <td className="px-4 py-2">
-                    <span
-                      className={`rounded px-2 py-1 text-xs font-medium ${
-                        trx.status === 'Active'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-gray-200 text-gray-600'
-                      }`}
-                    >
+                    <span className="rounded bg-green-100 px-2 py-1 text-xs text-green-700">
                       {trx.status}
                     </span>
                   </td>

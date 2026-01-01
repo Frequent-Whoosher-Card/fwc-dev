@@ -2,14 +2,25 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, Plus, RotateCcw, AlertTriangle, CheckCircle } from 'lucide-react';
+import {
+  Eye,
+  Plus,
+  RotateCcw,
+  AlertTriangle,
+  CheckCircle,
+} from 'lucide-react';
+
+import {
+  getMembers,
+  deleteMember,
+} from '@/lib/services/membership.service';
 
 /* ======================
-   TYPES
+   TYPES (IKUT API)
 ====================== */
 interface Membership {
   id: number;
-  membershipDate: string;
+  membership_date: string;
   name: string;
   nik: string;
   nationality: string;
@@ -17,8 +28,8 @@ interface Membership {
   email: string;
   phone: string;
   address: string;
-  operatorName: string;
-  updatedAt: string;
+  operator_name: string;
+  updated_at: string;
 }
 
 /* ======================
@@ -86,10 +97,9 @@ function SuccessModal({
           <CheckCircle className="text-green-600" size={28} />
         </div>
 
-        <h2 className="text-xl font-semibold">Data Saved</h2>
+        <h2 className="text-xl font-semibold">Success</h2>
         <p className="mt-2 text-sm text-gray-600">
-          The new member’s data <br />
-          has been saved to the database
+          Data has been deleted successfully
         </p>
 
         <button
@@ -103,10 +113,15 @@ function SuccessModal({
   );
 }
 
+/* ======================
+   PAGE
+====================== */
 export default function MembershipPage() {
   const router = useRouter();
 
   const [data, setData] = useState<Membership[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const [search, setSearch] = useState('');
   const [gender, setGender] =
     useState<'all' | 'Laki - Laki' | 'Perempuan'>('all');
@@ -118,17 +133,26 @@ export default function MembershipPage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   /* ======================
-     LOAD DATA
+     LOAD DATA (API)
   ====================== */
+  const fetchMembers = async () => {
+    try {
+      setLoading(true);
+      const res = await getMembers();
+      setData(res.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const stored = JSON.parse(
-      localStorage.getItem('fwc_memberships') || '[]'
-    );
-    setData(stored);
+    fetchMembers();
   }, []);
 
   /* ======================
-     FILTER + SEARCH
+     FILTER + SEARCH (FE)
   ====================== */
   const filteredData = useMemo(() => {
     return data.filter((item) => {
@@ -141,11 +165,11 @@ export default function MembershipPage() {
         gender === 'all' ? true : item.gender === gender;
 
       const startMatch = startDate
-        ? item.membershipDate >= startDate
+        ? item.membership_date >= startDate
         : true;
 
       const endMatch = endDate
-        ? item.membershipDate <= endDate
+        ? item.membership_date <= endDate
         : true;
 
       return keywordMatch && genderMatch && startMatch && endMatch;
@@ -159,18 +183,25 @@ export default function MembershipPage() {
   };
 
   /* ======================
-     DELETE HANDLER
+     DELETE HANDLER (API)
   ====================== */
-  const confirmDelete = () => {
-    if (selectedId === null) return;
+  const confirmDelete = async () => {
+    if (!selectedId) return;
 
-    const updated = data.filter((i) => i.id !== selectedId);
-    setData(updated);
-    localStorage.setItem('fwc_memberships', JSON.stringify(updated));
-
-    setShowDeleteModal(false);
-    setSelectedId(null);
+    try {
+      await deleteMember(selectedId);
+      setShowDeleteModal(false);
+      setSelectedId(null);
+      setShowSuccessModal(true);
+      fetchMembers(); // refresh list
+    } catch (err) {
+      console.error(err);
+    }
   };
+
+  if (loading) {
+    return <div className="p-6">Loading...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -193,12 +224,7 @@ export default function MembershipPage() {
             onClick={() =>
               router.push('/dashboard/superadmin/membership/create')
             }
-            className="
-              flex items-center gap-2 rounded-md bg-red-700 px-4 py-2
-              text-sm text-white transition
-              hover:bg-red-800 hover:shadow-md
-              active:scale-[0.97]
-            "
+            className="flex items-center gap-2 rounded-md bg-red-700 px-4 py-2 text-sm text-white hover:bg-red-800"
           >
             <Plus size={16} />
             Add New Members
@@ -223,40 +249,30 @@ export default function MembershipPage() {
                   | 'Perempuan'
               )
             }
-            className="h-9 rounded-md border px-3 text-sm hover:border-gray-400"
+            className="h-9 rounded-md border px-3 text-sm"
           >
             <option value="all">Gender</option>
             <option value="Laki - Laki">Laki - Laki</option>
             <option value="Perempuan">Perempuan</option>
           </select>
 
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">Start</span>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="h-9 rounded-md border px-3 text-sm hover:border-gray-400"
-            />
-          </div>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="h-9 rounded-md border px-3 text-sm"
+          />
 
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">End</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="h-9 rounded-md border px-3 text-sm hover:border-gray-400"
-            />
-          </div>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="h-9 rounded-md border px-3 text-sm"
+          />
 
           <button
             onClick={resetFilter}
-            className="
-              flex h-9 w-9 items-center justify-center rounded-md border
-              transition hover:bg-gray-100 hover:rotate-[-15deg]
-            "
-            title="Reset Filter"
+            className="flex h-9 w-9 items-center justify-center rounded-md border hover:bg-gray-100"
           >
             <RotateCcw size={16} />
           </button>
@@ -266,7 +282,7 @@ export default function MembershipPage() {
       {/* ================= TABLE ================= */}
       <div className="overflow-x-auto rounded-lg border bg-white">
         <table className="min-w-[1600px] w-full">
-          <thead className="bg-gray-50 text-left text-xs text-gray-600">
+          <thead className="bg-gray-50 text-xs text-gray-600">
             <tr>
               <th className="px-4 py-3">Membership Date</th>
               <th className="px-4 py-3">Customer Name</th>
@@ -286,9 +302,11 @@ export default function MembershipPage() {
             {filteredData.map((item) => (
               <tr
                 key={item.id}
-                className="border-t text-sm transition hover:bg-gray-50"
+                className="border-t text-sm hover:bg-gray-50"
               >
-                <td className="px-4 py-2">{item.membershipDate}</td>
+                <td className="px-4 py-2">
+                  {item.membership_date}
+                </td>
                 <td className="px-4 py-2">{item.name}</td>
                 <td className="px-4 py-2">{item.nik}</td>
                 <td className="px-4 py-2">{item.nationality}</td>
@@ -296,7 +314,9 @@ export default function MembershipPage() {
                 <td className="px-4 py-2">{item.email}</td>
                 <td className="px-4 py-2">{item.phone}</td>
                 <td className="px-4 py-2">{item.address}</td>
-                <td className="px-4 py-2">{item.updatedAt}</td>
+                <td className="px-4 py-2">
+                  {item.updated_at}
+                </td>
 
                 <td className="px-4 py-2 text-center">
                   <Eye
@@ -318,7 +338,7 @@ export default function MembershipPage() {
                           `/dashboard/superadmin/membership/edit/${item.id}`
                         )
                       }
-                      className="rounded bg-gray-200 px-3 py-1 text-xs hover:bg-gray-300"
+                      className="rounded bg-gray-200 px-3 py-1 text-xs"
                     >
                       Edit
                     </button>
@@ -328,7 +348,7 @@ export default function MembershipPage() {
                         setSelectedId(item.id);
                         setShowDeleteModal(true);
                       }}
-                      className="rounded bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-700"
+                      className="rounded bg-red-600 px-3 py-1 text-xs text-white"
                     >
                       Hapus
                     </button>
