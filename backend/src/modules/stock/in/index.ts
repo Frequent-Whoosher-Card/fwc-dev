@@ -59,6 +59,9 @@ export const stockIn = new Elysia({ prefix: "/in" })
             400: StockInModel.errorResponse,
             401: StockInModel.errorResponse,
             403: StockInModel.errorResponse,
+            404: StockInModel.errorResponse,
+            409: StockInModel.errorResponse,
+            422: StockInModel.errorResponse,
             500: StockInModel.errorResponse,
           },
           detail: {
@@ -161,8 +164,7 @@ export const stockIn = new Elysia({ prefix: "/in" })
             );
             return {
               success: true,
-              message:
-                "Stock In berhasil diupdate (hanya metadata: note, movementAt).",
+              message: "Stock In berhasil diupdate.",
               data: result,
             };
           } catch (error) {
@@ -185,7 +187,7 @@ export const stockIn = new Elysia({ prefix: "/in" })
             tags: ["Stock In"],
             summary: "Update Stock In (Metadata Only)",
             description:
-              "Mengupdate data stock in. HANYA DIPERBOLEHKAN mengedit 'note' dan 'movementAt'.",
+              "Mengupdate data stock in. Bisa mengedit serial number (dengan logic strict), note, dan movementAt.",
           },
         }
       )

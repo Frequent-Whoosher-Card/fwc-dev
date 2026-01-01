@@ -185,6 +185,7 @@ export class StockInService {
 
     return transaction;
   }
+
   /**
    * Get History
    */
@@ -267,6 +268,7 @@ export class StockInService {
         name: item.cardType.typeName,
         code: item.cardType.typeCode,
       },
+      sentSerialNumbers: item.sentSerialNumbers,
     }));
 
     return {
@@ -329,6 +331,7 @@ export class StockInService {
           name: movement.cardType.typeName,
           code: movement.cardType.typeCode,
         },
+        sentSerialNumbers: movement.sentSerialNumbers,
       },
     };
   }
@@ -336,53 +339,236 @@ export class StockInService {
   /**
    * Update Stock In (Restricted)
    */
+  /**
+   * Update Stock In (Strict Rules)
+   * Hanya mengizinkan edit jika:
+   * 1. Nomor serial awal tetap sequential (menyambung dengan batch sebelumnya dari produk yang sama).
+   * 2. Range baru tidak tabrakan dengan batch lain.
+   * 3. Jika mengurangi quantity/menggeser range, kartu yang dibuang HARUS masih IN_OFFICE.
+   */
   static async update(
     id: string,
     body: {
       movementAt?: string;
+      startSerial: string;
+      endSerial: string;
       note?: string;
     },
     userId: string
   ) {
-    const movement = await db.cardStockMovement.findUnique({
-      where: { id },
-    });
+    const { startSerial, endSerial, movementAt, note } = body;
 
-    if (!movement) {
-      throw new ValidationError("Data tidak ditemukan");
+    // 1. Validasi Input Dasar
+    if (!/^\d+$/.test(startSerial) || !/^\d+$/.test(endSerial)) {
+      throw new ValidationError(
+        "startSerial dan endSerial harus berupa digit string (angka saja)."
+      );
     }
 
-    if (movement.type !== "IN") {
-      throw new ValidationError("Bukan transaksi Stock In");
+    const newStartNum = Number(startSerial);
+    const newEndNum = Number(endSerial);
+
+    if (newEndNum < newStartNum) {
+      throw new ValidationError(
+        "endSerial harus lebih besar atau sama dengan startSerial"
+      );
     }
 
-    const { movementAt, note } = body;
-    const dataToUpdate: any = {
-      updatedBy: userId, // track siapa yang edit terakhir
-      // updatedAt akan otomatis diupdate oleh Prisma jika ada field @updatedAt,
-      // tapi di schema movement tidak ada field @updatedAt default sekarang,
-      // jadi kita biarkan saja (atau tambah field lastUpdated di schema nanti).
-      // Saat ini kita tidak update kolom waktu edit karena schema tidak mendukung explicit lastUpdated column di movement.
-    };
-
-    if (movementAt) {
-      dataToUpdate.movementAt = new Date(movementAt);
+    const newQuantity = newEndNum - newStartNum + 1;
+    if (newQuantity > 10000) {
+      throw new ValidationError("Maksimal produksi 10.000 kartu per batch");
     }
 
-    if (note !== undefined) {
-      dataToUpdate.note = note;
-    }
+    // 2. Transaksi Update
+    const result = await db.$transaction(async (tx) => {
+      const movement = await tx.cardStockMovement.findUnique({
+        where: { id },
+      });
 
-    const updated = await db.cardStockMovement.update({
-      where: { id },
-      data: dataToUpdate,
+      if (!movement) {
+        throw new ValidationError("Data tidak ditemukan");
+      }
+      if (movement.type !== "IN") {
+        throw new ValidationError("Bukan transaksi Stock In");
+      }
+
+      // Fetch Product Info
+      const product = await tx.cardProduct.findUnique({
+        where: {
+          unique_category_type: {
+            categoryId: movement.categoryId,
+            typeId: movement.typeId,
+          },
+        },
+      });
+
+      if (!product) {
+        throw new ValidationError("Produk tidak ditemukan");
+      }
+
+      // 3. Validasi Serial Sequential (Strict Rule)
+      // Cari kartu terakhir dari produk ini yang BUKAN berasal dari batch ini.
+      // Tujuannya untuk memastikan startSerial baru = maxSerialLain + 1
+      const otherLastCard = await tx.card.findFirst({
+        where: {
+          cardProductId: product.id,
+          // Exclude kartu-kartu dari batch ini (berdasarkan sentSerialNumbers lama)
+          serialNumber: {
+            notIn: (movement as any).sentSerialNumbers as string[],
+          },
+        },
+        orderBy: { serialNumber: "desc" },
+      });
+
+      // Parse suffix dari serial number terakhir yang ada
+      let expectedStartNum = 1;
+      if (otherLastCard) {
+        // Asumsi format: Template + YY + Suffix(5 digit)
+        // Kita ambil 5 digit terakhir
+        const suffix = otherLastCard.serialNumber.slice(-5);
+        if (/^\d+$/.test(suffix)) {
+          expectedStartNum = Number(suffix) + 1;
+        }
+      }
+
+      // JIKA ada kartu lain sebelumnya, kita enforce sequential.
+      // Jika tidak ada kartu lain (ini batch pertama), bebaskan startNum (biasanya 1, tapi user mungkin mau custom).
+      // Note: User minta "harus tetap berurutan". Jadi kita enforce jika expected > 1.
+      if (otherLastCard && newStartNum !== expectedStartNum) {
+        throw new ValidationError(
+          `Nomor serial awal harus berurutan. Serial terakhir di sistem: ${otherLastCard.serialNumber}. Start serial baru harus suffix ${expectedStartNum}.`
+        );
+      }
+
+      // 4. Generate All New Serials
+      const width = 5;
+      const yearSuffix = new Date(movementAt || movement.movementAt)
+        .getFullYear()
+        .toString()
+        .slice(-2);
+
+      const newSuffixSerials = Array.from({ length: newQuantity }, (_, i) =>
+        String(newStartNum + i).padStart(width, "0")
+      );
+      const newSerialNumbers = newSuffixSerials.map(
+        (sfx) => `${product.serialTemplate}${yearSuffix}${sfx}`
+      );
+
+      // 5. Diffing Strategy
+      const oldSerials = (movement as any).sentSerialNumbers as string[];
+      const oldSet = new Set(oldSerials);
+      const newSet = new Set(newSerialNumbers);
+
+      const toAdd = newSerialNumbers.filter((s) => !oldSet.has(s));
+      const toDelete = oldSerials.filter((s) => !newSet.has(s));
+      // const toKeep = oldSerials.filter((s) => newSet.has(s));
+
+      // 6. Execute Delete (Strict Validation)
+      if (toDelete.length > 0) {
+        const cardsToDelete = await tx.card.findMany({
+          where: { serialNumber: { in: toDelete } },
+          select: { id: true, status: true, serialNumber: true },
+        });
+
+        // Validasi: Semua yang mau dihapus harus status IN_OFFICE
+        const notSafe = cardsToDelete.filter((c) => c.status !== "IN_OFFICE");
+        if (notSafe.length > 0) {
+          throw new ValidationError(
+            `Gagal update range! Kartu berikut sudah tidak di office: ${notSafe
+              .map((c) => c.serialNumber)
+              .join(", ")}`
+          );
+        }
+
+        // Validasi Jumlah: Pastikan data konsisten
+        // (Opsional, tapi good practice)
+
+        await tx.card.deleteMany({
+          where: { id: { in: cardsToDelete.map((c) => c.id) } },
+        });
+      }
+
+      // 7. Execute Add (Check Unique)
+      if (toAdd.length > 0) {
+        // Cek apakah serial baru tabrakan dengan batch LAIN (bukan batch ini, karena batch ini yg lama sudah di-exclude dari logic 'toAdd' via diffing,
+        // tapi kita perlu cek ke global card table untuk memastikan tidak ada duplikat dengan batch lain).
+        const collision = await tx.card.findFirst({
+          where: { serialNumber: { in: toAdd } },
+        });
+
+        if (collision) {
+          throw new ValidationError(
+            `Serial clash! Nomor ${collision.serialNumber} sudah ada di batch lain.`
+          );
+        }
+
+        await tx.card.createMany({
+          data: toAdd.map((sn) => ({
+            serialNumber: sn,
+            cardProductId: product.id,
+            quotaTicket: product.totalQuota,
+            status: "IN_OFFICE",
+            createdBy: userId,
+          })),
+        });
+      }
+
+      // 8. Update Inventory
+      // Hitung selisih Quantity
+      // Old Qty = oldSerials.length
+      // New Qty = newQuantity
+      // Delta = New - Old
+      const delta = newQuantity - movement.quantity; // Atau newQuantity - oldSerials.length
+
+      if (delta !== 0) {
+        const officeInv = await tx.cardInventory.findFirst({
+          where: {
+            categoryId: movement.categoryId,
+            typeId: movement.typeId,
+            stationId: null,
+          },
+        });
+
+        if (officeInv) {
+          await tx.cardInventory.update({
+            where: { id: officeInv.id },
+            data: {
+              cardOffice: { increment: delta },
+              cardBeredar: { increment: delta },
+              updatedAt: new Date(),
+              updatedBy: userId,
+            },
+          });
+        }
+      }
+
+      // 9. Update Movement Record
+      const formattedStartSerial = String(newStartNum).padStart(width, "0");
+      const endSerialFormatted = String(newEndNum).padStart(width, "0");
+
+      const updatedMovement = await tx.cardStockMovement.update({
+        where: { id },
+        data: {
+          movementAt: movementAt ? new Date(movementAt) : undefined,
+          quantity: newQuantity,
+          sentSerialNumbers: newSerialNumbers, // Replace full array with new range
+          note:
+            note ??
+            `Batch ${product.serialTemplate}${yearSuffix}${formattedStartSerial} - ${product.serialTemplate}${yearSuffix}${endSerialFormatted}`,
+          updatedBy: userId,
+          updatedAt: new Date(),
+        },
+      });
+
+      return updatedMovement;
     });
 
     return {
-      id: updated.id,
-      updatedAt: new Date().toISOString(), // Mock timestamp response
+      id: result.id,
+      updatedAt: result.updatedAt.toISOString(),
     };
   }
+
   /**
    * Delete Stock In (Undo)
    * Strict Rule: Only allow delete if ALL cards are still IN_OFFICE.
