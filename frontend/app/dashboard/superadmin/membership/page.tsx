@@ -138,8 +138,8 @@ export default function MembershipPage() {
   const fetchMembers = async () => {
     try {
       setLoading(true);
-      const res = await getMembers();
-      setData(res.data);
+      const res = await getMembers({ page: 1, limit: 50 });
+setData(res.data.items);
     } catch (err) {
       console.error(err);
     } finally {

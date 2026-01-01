@@ -37,6 +37,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+import { API_BASE_URL } from '@/lib/apiConfig';
+
 /* =========================
    ROLE TYPE
 ========================= */
@@ -102,33 +104,90 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [userName, setUserName] = useState('User');
   const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const [role, setRole] = useState<Role>('admin');
 
-  /* ===== INIT AUTH & ROLE ===== */
+  const [role, setRole] = useState<Role | null>(null);
+  const [userName, setUserName] = useState('User');
+  const [loading, setLoading] = useState(true);
+
+  /* =========================
+     AUTH VIA TOKEN + /auth/me
+  ========================= */
   useEffect(() => {
-    const auth = localStorage.getItem('auth');
-    if (!auth) {
+    const token = localStorage.getItem('fwc_token');
+
+    if (!token) {
       router.replace('/');
       return;
     }
 
-    const parsed = JSON.parse(auth);
-    setUserName(parsed.name || 'User');
+    const loadMe = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/auth/me`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-    const match = document.cookie.match(/fwc_role=([^;]+)/);
-    setRole((match?.[1] as Role) ?? 'admin');
-  }, [router]);
+        if (!res.ok) {
+          throw new Error('Unauthorized');
+        }
 
-  const menuItems = menuByRole[role];
+        const json = await res.json();
 
-  /* ===== LOGOUT ===== */
+        const user = json.data;
+
+        /* ===== ROLE NORMALIZATION ===== */
+        const rawRole = user.role.roleCode.toUpperCase();
+
+        const roleMap: Record<string, Role> = {
+          SUPERADMIN: 'superadmin',
+          ADMIN: 'admin',
+          PETUGAS: 'petugas',
+          OFFICER: 'petugas', // fallback aman
+        };
+
+        const mappedRole = roleMap[rawRole];
+
+        if (!mappedRole) {
+          throw new Error(`Unknown role: ${rawRole}`);
+        }
+
+        setUserName(user.fullName || user.username);
+        setRole(mappedRole);
+
+        /* ===== FORCE ROUTE SYNC ===== */
+        const basePath = `/dashboard/${mappedRole}`;
+        if (!pathname.startsWith(basePath)) {
+          router.replace(basePath);
+        }
+      } catch (err) {
+        console.error('auth/me error:', err);
+        localStorage.removeItem('fwc_token');
+        router.replace('/');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMe();
+  }, [router, pathname]);
+
+  if (loading || !role) {
+    return null; // boleh diganti skeleton
+  }
+
+  const menuItems = menuByRole[role] ?? [];
+
+  /* =========================
+     LOGOUT
+  ========================= */
   const handleLogout = () => {
     toast.success('Logout berhasil');
+
     setTimeout(() => {
-      localStorage.removeItem('auth');
-      document.cookie = 'fwc_role=; Max-Age=0; path=/;';
+      localStorage.removeItem('fwc_token');
+      localStorage.removeItem('fwc_user');
       router.replace('/');
     }, 300);
   };

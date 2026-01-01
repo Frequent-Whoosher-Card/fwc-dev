@@ -7,31 +7,70 @@ if (!API_BASE_URL) {
   );
 }
 
+interface ApiFetchOptions extends RequestInit {
+  skipAuth?: boolean;
+}
+
 export async function apiFetch(
   endpoint: string,
-  options: RequestInit = {}
+  options: ApiFetchOptions = {}
 ) {
-  const token = localStorage.getItem('access_token'); 
-  // sesuaikan kalau token namanya beda
+  const { skipAuth, headers, ...rest } = options;
+
+  // 🔑 AMBIL TOKEN
+  const token =
+    typeof window !== 'undefined'
+      ? localStorage.getItem('fwc_token')
+      : null;
+
+  // ❌ ENDPOINT PROTECTED TANPA TOKEN
+  if (!skipAuth && !token) {
+    throw new Error(
+      'No authentication token found. Please login.'
+    );
+  }
 
   const res = await fetch(
     `${API_BASE_URL}${endpoint}`,
     {
-      ...options,
+      ...rest,
       headers: {
         'Content-Type': 'application/json',
-        ...(token && {
-          Authorization: `Bearer ${token}`,
-        }),
-        ...options.headers,
+        ...(token && !skipAuth
+          ? { Authorization: `Bearer ${token}` }
+          : {}),
+        ...(headers || {}),
       },
     }
   );
 
-  if (!res.ok) {
-    const message = await res.text();
-    throw new Error(message || 'API Error');
+  // ✅ PARSE JSON (AMAN)
+  let json: any = null;
+  try {
+    json = await res.json();
+  } catch {
+    json = null;
   }
 
-  return res.json();
+  // ❌ HANDLE ERROR GLOBAL
+  if (!res.ok) {
+    // 401 → token invalid / expired
+    if (res.status === 401) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('fwc_token');
+        localStorage.removeItem('fwc_user');
+        window.location.href = '/login';
+      }
+    }
+
+    // 🚨 WAJIB Error instance
+    const message =
+      json?.message ||
+      json?.error ||
+      `API Error (${res.status})`;
+
+    throw new Error(message);
+  }
+
+  return json;
 }
