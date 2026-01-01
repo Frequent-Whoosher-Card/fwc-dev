@@ -268,6 +268,7 @@ export class StockInService {
         name: item.cardType.typeName,
         code: item.cardType.typeCode,
       },
+      sentSerialNumbers: item.sentSerialNumbers,
     }));
 
     return {
@@ -330,6 +331,7 @@ export class StockInService {
           name: movement.cardType.typeName,
           code: movement.cardType.typeCode,
         },
+        sentSerialNumbers: movement.sentSerialNumbers,
       },
     };
   }

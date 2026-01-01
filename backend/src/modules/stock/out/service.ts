@@ -1,5 +1,6 @@
 import db from "../../../config/db";
 import { ValidationError } from "../../../utils/errors";
+import { InboxService } from "../../inbox/service";
 
 function normalizeSerials(arr: string[]) {
   return Array.from(
@@ -501,6 +502,45 @@ export class StockOutService {
         } as any,
       });
 
+      // 8) SEND NOTIFICATION (INBOX) - ALWAYS
+      // We do this asynchronously or inside transaction (safe inside tx)
+      // Need to fetch station name first
+      const station = await tx.station.findUnique({
+        where: { id: movement.stationId! },
+        select: { stationName: true },
+      });
+      const stationName = station?.stationName || "Unknown Station";
+
+      const title = "Laporan Validasi Stock Out";
+      let message = `Laporan dari ${stationName}: Validasi Stock Out Berhasil.`;
+
+      const msgParts = [];
+      if (finalReceived.length)
+        msgParts.push(`${finalReceived.length} DITERIMA`);
+      if (finalLost.length) msgParts.push(`${finalLost.length} HILANG`);
+      if (finalDamaged.length) msgParts.push(`${finalDamaged.length} RUSAK`);
+
+      if (msgParts.length) {
+        message = `Laporan dari ${stationName}: ${msgParts.join(", ")} pada pengiriman tanggal ${movement.movementAt.toISOString().split("T")[0]}.`;
+      }
+
+      await InboxService.broadcastToAdmins(
+        title,
+        message,
+        validatorUserId,
+        movement.stationId!,
+        "STOCK_OUT_REPORT",
+        {
+          movementId,
+          receivedCount: finalReceived.length,
+          lostCount: finalLost.length,
+          damagedCount: finalDamaged.length,
+          receivedSerialNumbers: finalReceived, // Optional, might be too big if thousands
+          lostSerialNumbers: finalLost,
+          damagedSerialNumbers: finalDamaged,
+        }
+      );
+
       return {
         movementId,
         status: "APPROVED",
@@ -522,7 +562,7 @@ export class StockOutService {
     startDate?: Date;
     endDate?: Date;
     stationId?: string;
-    status?: "PENDING" | "APPROVED" | "REJECTED";
+    status?: string;
     search?: string;
     stationName?: string;
     categoryName?: string;
@@ -611,7 +651,7 @@ export class StockOutService {
     }
 
     if (status) {
-      where.status = status;
+      where.status = status.toUpperCase();
     }
 
     const [items, total] = await Promise.all([
@@ -656,6 +696,10 @@ export class StockOutService {
         name: item.cardType.typeName,
         code: item.cardType.typeCode,
       },
+      sentSerialNumbers: item.sentSerialNumbers,
+      receivedSerialNumbers: item.receivedSerialNumbers,
+      lostSerialNumbers: item.lostSerialNumbers,
+      damagedSerialNumbers: item.damagedSerialNumbers,
     }));
 
     return {

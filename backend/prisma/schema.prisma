@@ -239,8 +239,8 @@ model Inbox {
   readAt  DateTime? @map("read_at")
 
   sentAt DateTime @default(now()) @map("sent_at")
-  sentTo String   @map("sent_to") @db.Uuid
-  sentBy String   @map("sent_by") @db.Uuid
+  sentTo String?  @map("sent_to") @db.Uuid
+  sentBy String?  @map("sent_by") @db.Uuid
 
   stationId String? @map("station_id") @db.Uuid
 
@@ -254,8 +254,8 @@ model Inbox {
   deletedAt DateTime? @map("deleted_at")
   deletedBy String?   @map("deleted_by") @db.Uuid
 
-  recipient User     @relation("ReceivedInboxes", fields: [sentTo], references: [id])
-  sender    User     @relation("SentInboxes", fields: [sentBy], references: [id])
+  recipient User?    @relation("ReceivedInboxes", fields: [sentTo], references: [id])
+  sender    User?    @relation("SentInboxes", fields: [sentBy], references: [id])
   station   Station? @relation(fields: [stationId], references: [id])
 
   @@index([sentTo, isRead, createdAt], map: "idx_inbox_sent_to_read_created")
