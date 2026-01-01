@@ -56,6 +56,7 @@ backend/dist/
 backend/build/
 backend/logs/
 backend/*.log
+backend/backups/
 
 backend/.vscode/
 backend/.idea/
