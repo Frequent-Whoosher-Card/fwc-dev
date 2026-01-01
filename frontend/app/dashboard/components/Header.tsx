@@ -1,22 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "../../../lib/apiConfig";
 import { useAuthClient } from "../../../hooks/useAuthClient";
 import toast from "react-hot-toast";
-import { Bell } from "lucide-react";
 
 export default function Header() {
   const router = useRouter();
-  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const auth = useAuthClient();
-
-  // 🔔 MUNCUL HANYA DI MENU USER (SUPERADMIN)
-  const showNotification = pathname.startsWith(
-    "/dashboard/superadmin/user"
-  );
 
   const handleLogout = async () => {
     try {
@@ -46,29 +39,6 @@ export default function Header() {
 
       {/* RIGHT SECTION */}
       <div className="flex items-center gap-6">
-        {/* 🔔 NOTIFICATION */}
-        {showNotification && (
-          <button className="relative" aria-label="notification">
-            <Bell className="h-5 w-5 text-gray-700" />
-            <span className="
-              absolute
-              -top-1
-              -right-1
-              flex
-              h-4
-              w-4
-              items-center
-              justify-center
-              rounded-full
-              bg-red-500
-              text-[10px]
-              text-white
-            ">
-              3
-            </span>
-          </button>
-        )}
-
         {/* USER DROPDOWN */}
         <div className="relative">
           <button

@@ -103,29 +103,35 @@ export function DashboardContent() {
   const [stationLoading, setStationLoading] = useState(false);
 
   // Fungsi fetch harus dideklarasikan **sebelum dipakai**
-  const fetchStationSales = async () => {
-    setStationLoading(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/sales/per-station?startDate=&endDate=`, {
+const fetchStationSales = async () => {
+  setStationLoading(true);
+
+  try {
+    const token = localStorage.getItem('fwc_token');
+    if (!token) throw new Error('No auth token');
+
+    const res = await fetch(
+      `${API_BASE_URL}/sales/per-station?startDate=&endDate=`,
+      {
         method: 'GET',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-      });
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-      if (!res.ok) throw new Error('Failed to fetch station sales');
+    if (!res.ok) throw new Error('Failed to fetch station sales');
 
-      const json = await res.json();
-      setStationData(json.data ?? []);
-    } catch (err) {
-      console.error('Station sales error:', err);
-    } finally {
-      setStationLoading(false);
-    }
-  };
-  useEffect(() => {
-    fetchDailySales();
-    fetchStationSales();
-  }, []);
+    const json = await res.json();
+    setStationData(json.data ?? []);
+  } catch (err) {
+    console.error('Station sales error:', err);
+  } finally {
+    setStationLoading(false);
+  }
+};
+
 
   /* ======================
      CHART DATA
