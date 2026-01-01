@@ -8,6 +8,8 @@ import {
   RotateCcw,
   AlertTriangle,
   CheckCircle,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 import {
@@ -16,20 +18,27 @@ import {
 } from '@/lib/services/membership.service';
 
 /* ======================
-   TYPES (IKUT API)
+   TYPES (IKUT API REAL)
 ====================== */
 interface Membership {
-  id: number;
+  id: string; // ✅ UUID STRING (WAJIB)
   membership_date: string;
-  name: string;
-  nik: string;
-  nationality: string;
-  gender: 'Laki - Laki' | 'Perempuan';
-  email: string;
-  phone: string;
-  address: string;
-  operator_name: string;
-  updated_at: string;
+  name?: string | null;
+  nik?: string | null;
+  nationality?: string | null;
+  gender?: 'Laki - Laki' | 'Perempuan' | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  operator_name?: string | null;
+  updated_at?: string | null;
+}
+
+interface Pagination {
+  page: number;
+  limit: number;
+  totalPages: number;
+  total: number;
 }
 
 /* ======================
@@ -119,7 +128,15 @@ function SuccessModal({
 export default function MembershipPage() {
   const router = useRouter();
 
+  const LIMIT = 10;
+
   const [data, setData] = useState<Membership[]>([]);
+  const [pagination, setPagination] = useState<Pagination>({
+    page: 1,
+    limit: LIMIT,
+    totalPages: 1,
+    total: 0,
+  });
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState('');
@@ -129,17 +146,22 @@ export default function MembershipPage() {
   const [endDate, setEndDate] = useState('');
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   /* ======================
      LOAD DATA (API)
   ====================== */
-  const fetchMembers = async () => {
+  const fetchMembers = async (page: number) => {
     try {
       setLoading(true);
-      const res = await getMembers({ page: 1, limit: 50 });
-setData(res.data.items);
+      const res = await getMembers({
+        page,
+        limit: LIMIT,
+      });
+
+      setData(res.data.items);
+      setPagination(res.data.pagination);
     } catch (err) {
       console.error(err);
     } finally {
@@ -148,31 +170,41 @@ setData(res.data.items);
   };
 
   useEffect(() => {
-    fetchMembers();
-  }, []);
+    fetchMembers(pagination.page);
+  }, [pagination.page]);
 
   /* ======================
-     FILTER + SEARCH (FE)
+     FILTER + SEARCH (NULL SAFE)
   ====================== */
   const filteredData = useMemo(() => {
+    const keyword = search.toLowerCase();
+
     return data.filter((item) => {
       const keywordMatch = search
-        ? item.name.toLowerCase().includes(search.toLowerCase()) ||
-          item.nik.includes(search)
+        ? [item.name, item.nik]
+            .filter(Boolean)
+            .some((v) =>
+              v!.toLowerCase().includes(keyword)
+            )
         : true;
 
       const genderMatch =
         gender === 'all' ? true : item.gender === gender;
 
       const startMatch = startDate
-        ? item.membership_date >= startDate
+        ? (item.membership_date ?? '') >= startDate
         : true;
 
       const endMatch = endDate
-        ? item.membership_date <= endDate
+        ? (item.membership_date ?? '') <= endDate
         : true;
 
-      return keywordMatch && genderMatch && startMatch && endMatch;
+      return (
+        keywordMatch &&
+        genderMatch &&
+        startMatch &&
+        endMatch
+      );
     });
   }, [data, search, gender, startDate, endDate]);
 
@@ -183,7 +215,7 @@ setData(res.data.items);
   };
 
   /* ======================
-     DELETE HANDLER (API)
+     DELETE HANDLER
   ====================== */
   const confirmDelete = async () => {
     if (!selectedId) return;
@@ -193,7 +225,7 @@ setData(res.data.items);
       setShowDeleteModal(false);
       setSelectedId(null);
       setShowSuccessModal(true);
-      fetchMembers(); // refresh list
+      fetchMembers(pagination.page);
     } catch (err) {
       console.error(err);
     }
@@ -203,9 +235,20 @@ setData(res.data.items);
     return <div className="p-6">Loading...</div>;
   }
 
+  /* ======================
+     PAGINATION NUMBERS
+  ====================== */
+  const pageNumbers = Array.from(
+    { length: pagination.totalPages },
+    (_, i) => i + 1
+  ).slice(
+    Math.max(0, pagination.page - 3),
+    pagination.page + 2
+  );
+
   return (
     <div className="space-y-6">
-      {/* ================= HEADER ================= */}
+      {/* HEADER */}
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">
           Membership Management
@@ -217,14 +260,16 @@ setData(res.data.items);
             placeholder="Search by Customer Name or Identity Number"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-9 w-96 rounded-md border px-3 text-sm focus:border-gray-400 focus:outline-none"
+            className="h-9 w-96 rounded-md border px-3 text-sm"
           />
 
           <button
             onClick={() =>
-              router.push('/dashboard/superadmin/membership/create')
+              router.push(
+                '/dashboard/superadmin/membership/create'
+              )
             }
-            className="flex items-center gap-2 rounded-md bg-red-700 px-4 py-2 text-sm text-white hover:bg-red-800"
+            className="flex items-center gap-2 rounded-md bg-red-700 px-4 py-2 text-sm text-white"
           >
             <Plus size={16} />
             Add New Members
@@ -232,9 +277,9 @@ setData(res.data.items);
         </div>
       </div>
 
-      {/* ================= FILTER ================= */}
+      {/* FILTER */}
       <div className="rounded-lg border bg-white px-4 py-3">
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-4">
           <span className="text-sm font-medium text-gray-600">
             Filters:
           </span>
@@ -242,12 +287,7 @@ setData(res.data.items);
           <select
             value={gender}
             onChange={(e) =>
-              setGender(
-                e.target.value as
-                  | 'all'
-                  | 'Laki - Laki'
-                  | 'Perempuan'
-              )
+              setGender(e.target.value as any)
             }
             className="h-9 rounded-md border px-3 text-sm"
           >
@@ -272,14 +312,14 @@ setData(res.data.items);
 
           <button
             onClick={resetFilter}
-            className="flex h-9 w-9 items-center justify-center rounded-md border hover:bg-gray-100"
+            className="flex h-9 w-9 items-center justify-center rounded-md border"
           >
             <RotateCcw size={16} />
           </button>
         </div>
       </div>
 
-      {/* ================= TABLE ================= */}
+      {/* TABLE */}
       <div className="overflow-x-auto rounded-lg border bg-white">
         <table className="min-w-[1600px] w-full">
           <thead className="bg-gray-50 text-xs text-gray-600">
@@ -300,22 +340,33 @@ setData(res.data.items);
 
           <tbody>
             {filteredData.map((item) => (
-              <tr
-                key={item.id}
-                className="border-t text-sm hover:bg-gray-50"
-              >
+              <tr key={item.id} className="border-t text-sm">
                 <td className="px-4 py-2">
-                  {item.membership_date}
+                  {item.membership_date || '-'}
                 </td>
-                <td className="px-4 py-2">{item.name}</td>
-                <td className="px-4 py-2">{item.nik}</td>
-                <td className="px-4 py-2">{item.nationality}</td>
-                <td className="px-4 py-2">{item.gender}</td>
-                <td className="px-4 py-2">{item.email}</td>
-                <td className="px-4 py-2">{item.phone}</td>
-                <td className="px-4 py-2">{item.address}</td>
                 <td className="px-4 py-2">
-                  {item.updated_at}
+                  {item.name || '-'}
+                </td>
+                <td className="px-4 py-2">
+                  {item.nik || '-'}
+                </td>
+                <td className="px-4 py-2">
+                  {item.nationality || '-'}
+                </td>
+                <td className="px-4 py-2">
+                  {item.gender || '-'}
+                </td>
+                <td className="px-4 py-2">
+                  {item.email || '-'}
+                </td>
+                <td className="px-4 py-2">
+                  {item.phone || '-'}
+                </td>
+                <td className="px-4 py-2">
+                  {item.address || '-'}
+                </td>
+                <td className="px-4 py-2">
+                  {item.updated_at || '-'}
                 </td>
 
                 <td className="px-4 py-2 text-center">
@@ -358,6 +409,56 @@ setData(res.data.items);
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* PAGINATION */}
+      <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-600">
+        <button
+          disabled={pagination.page === 1}
+          onClick={() =>
+            setPagination((p) => ({
+              ...p,
+              page: p.page - 1,
+            }))
+          }
+          className="px-2 disabled:opacity-40"
+        >
+          <ChevronLeft size={18} />
+        </button>
+
+        {pageNumbers.map((p) => (
+          <button
+            key={p}
+            onClick={() =>
+              setPagination((pg) => ({
+                ...pg,
+                page: p,
+              }))
+            }
+            className={`px-3 py-1 ${
+              p === pagination.page
+                ? 'font-semibold underline'
+                : ''
+            }`}
+          >
+            {p}
+          </button>
+        ))}
+
+        <button
+          disabled={
+            pagination.page === pagination.totalPages
+          }
+          onClick={() =>
+            setPagination((p) => ({
+              ...p,
+              page: p.page + 1,
+            }))
+          }
+          className="px-2 disabled:opacity-40"
+        >
+          <ChevronRight size={18} />
+        </button>
       </div>
 
       <ConfirmDeleteModal

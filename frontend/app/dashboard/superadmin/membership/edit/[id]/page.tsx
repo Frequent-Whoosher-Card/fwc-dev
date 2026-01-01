@@ -12,6 +12,10 @@ import {
 } from 'lucide-react';
 
 import SuccessModal from '../../components/ui/SuccessModal';
+import {
+  getMemberById,
+  updateMember,
+} from '@/lib/services/membership.service';
 
 /* ======================
    BASE INPUT STYLE
@@ -92,8 +96,9 @@ function SectionCard({
 ====================== */
 export default function EditMemberPage() {
   const router = useRouter();
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
 
+  const [loading, setLoading] = useState(true);
   const [showSuccess, setShowSuccess] = useState(false);
 
   const [form, setForm] = useState<any>({
@@ -104,41 +109,60 @@ export default function EditMemberPage() {
     phone: '',
     email: '',
     address: '',
-    membershipDate: '',
-    expiredDate: '',
-    purchasedDate: '',
+    membership_date: '',
+    expired_date: '',
+    purchased_date: '',
     price: '',
-    cardCategory: '',
-    cardType: '',
+    card_category: '',
+    card_type: '',
     station: '',
-    shiftDate: '',
-    serialNumber: '',
-    updateBy: '',
+    shift_date: '',
+    serial_number: '',
+    update_by: '',
     note: '',
   });
 
   /* ======================
-     LOAD DATA
+     LOAD DATA (API)
   ====================== */
   useEffect(() => {
-    const stored = JSON.parse(
-      localStorage.getItem('fwc_memberships') || '[]'
-    );
+    if (!id) return;
 
-    const found = stored.find(
-      (item: any) => item.id === Number(id)
-    );
+    const fetchDetail = async () => {
+      try {
+        setLoading(true);
+        const res = await getMemberById(id);
 
-    if (!found) {
-      router.push('/dashboard/superadmin/membership');
-      return;
-    }
+        const d = res.data;
 
-    setForm({
-      ...found,
-      updateBy: found.updateBy || '',
-      note: found.note || '',
-    });
+        setForm({
+          name: d.name ?? '',
+          nik: d.nik ?? '',
+          nationality: d.nationality ?? '',
+          gender: d.gender ?? '',
+          phone: d.phone ?? '',
+          email: d.email ?? '',
+          address: d.address ?? '',
+          membership_date: d.membership_date ?? '',
+          expired_date: d.expired_date ?? '',
+          purchased_date: d.purchased_date ?? '',
+          price: d.price ?? '',
+          card_category: d.card_category ?? '',
+          card_type: d.card_type ?? '',
+          station: d.station ?? '',
+          shift_date: d.shift_date ?? '',
+          serial_number: d.serial_number ?? '',
+          update_by: d.update_by ?? '',
+          note: d.note ?? '',
+        });
+      } catch (err) {
+        router.push('/dashboard/superadmin/membership');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDetail();
   }, [id, router]);
 
   /* ======================
@@ -158,32 +182,22 @@ export default function EditMemberPage() {
   };
 
   /* ======================
-     SAVE
+     SAVE (API)
   ====================== */
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const stored = JSON.parse(
-      localStorage.getItem('fwc_memberships') || '[]'
-    );
-
-    const updated = stored.map((item: any) =>
-      item.id === Number(id)
-        ? {
-            ...item,
-            ...form,
-            updatedAt: new Date().toISOString().split('T')[0],
-          }
-        : item
-    );
-
-    localStorage.setItem(
-      'fwc_memberships',
-      JSON.stringify(updated)
-    );
-
-    setShowSuccess(true);
+    try {
+      await updateMember(id, form);
+      setShowSuccess(true);
+    } catch (err) {
+      console.error(err);
+    }
   };
+
+  if (loading) {
+    return <div className="p-6">Loading...</div>;
+  }
 
   return (
     <>
@@ -202,7 +216,6 @@ export default function EditMemberPage() {
           className="rounded-lg border bg-white p-6"
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-
             <div className="md:col-span-2">
               <input
                 name="name"
@@ -300,24 +313,24 @@ export default function EditMemberPage() {
 
             <SectionCard title="Membership Period">
               <DateField
-                name="membershipDate"
+                name="membership_date"
                 label="Membership Date"
-                value={form.membershipDate}
+                value={form.membership_date}
                 onChange={handleChange}
               />
               <DateField
-                name="expiredDate"
+                name="expired_date"
                 label="Expired Date"
-                value={form.expiredDate}
+                value={form.expired_date}
                 onChange={handleChange}
               />
             </SectionCard>
 
             <SectionCard title="Purchase Information">
               <DateField
-                name="purchasedDate"
+                name="purchased_date"
                 label="Purchased Date"
-                value={form.purchasedDate}
+                value={form.purchased_date}
                 onChange={handleChange}
               />
               <Field label="FWC Price">
@@ -341,8 +354,8 @@ export default function EditMemberPage() {
             <SectionCard title="Card Information">
               <Field label="Card Category">
                 <select
-                  name="cardCategory"
-                  value={form.cardCategory}
+                  name="card_category"
+                  value={form.card_category}
                   onChange={handleChange}
                   className={base}
                   required
@@ -356,8 +369,8 @@ export default function EditMemberPage() {
 
               <Field label="Card Type">
                 <select
-                  name="cardType"
-                  value={form.cardType}
+                  name="card_type"
+                  value={form.card_type}
                   onChange={handleChange}
                   className={base}
                   required
@@ -388,17 +401,17 @@ export default function EditMemberPage() {
               </Field>
 
               <DateField
-                name="shiftDate"
+                name="shift_date"
                 label="Shift Date"
-                value={form.shiftDate}
+                value={form.shift_date}
                 onChange={handleChange}
               />
             </SectionCard>
 
             <div className="md:col-span-2">
               <input
-                name="serialNumber"
-                value={form.serialNumber}
+                name="serial_number"
+                value={form.serial_number}
                 onChange={handleChange}
                 placeholder="Serial Number"
                 className={base}
@@ -406,11 +419,10 @@ export default function EditMemberPage() {
               />
             </div>
 
-            {/* UPDATE BY */}
             <div className="md:col-span-2">
               <input
-                name="updateBy"
-                value={form.updateBy}
+                name="update_by"
+                value={form.update_by}
                 onChange={handleChange}
                 placeholder="Update By"
                 className={base}
@@ -418,7 +430,6 @@ export default function EditMemberPage() {
               />
             </div>
 
-            {/* NOTE */}
             <div className="md:col-span-2">
               <textarea
                 name="note"
@@ -441,7 +452,6 @@ export default function EditMemberPage() {
         </form>
       </div>
 
-      {/* SUCCESS MODAL */}
       <SuccessModal
         open={showSuccess}
         onClose={() => {
