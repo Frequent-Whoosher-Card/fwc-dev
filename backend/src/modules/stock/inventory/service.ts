@@ -105,6 +105,59 @@ export class CardInventoryService {
     return inventory;
   }
 
+  /**
+   * Get Summary Grouped by Category & Type
+   */
+  static async getCategoryTypeSummary() {
+    // 1. Group by Category & Type
+    const grouped = await db.cardInventory.groupBy({
+      by: ["categoryId", "typeId"],
+      _sum: {
+        cardOffice: true,
+        cardBeredar: true,
+        cardAktif: true,
+        cardNonAktif: true,
+        cardBelumTerjual: true,
+      },
+    });
+
+    if (grouped.length === 0) return [];
+
+    // 2. Fetch Names
+    const categoryIds = [...new Set(grouped.map((g) => g.categoryId))];
+    const typeIds = [...new Set(grouped.map((g) => g.typeId))];
+
+    const [categories, types] = await Promise.all([
+      db.cardCategory.findMany({ where: { id: { in: categoryIds } } }),
+      db.cardType.findMany({ where: { id: { in: typeIds } } }),
+    ]);
+
+    const catMap = new Map(categories.map((c) => [c.id, c.categoryName]));
+    const typeMap = new Map(types.map((t) => [t.id, t.typeName]));
+
+    // 3. Map & Return
+    return grouped.map((item) => {
+      const office = item._sum.cardOffice ?? 0;
+      const beredar = item._sum.cardBeredar ?? 0;
+      const aktif = item._sum.cardAktif ?? 0;
+      const nonAktif = item._sum.cardNonAktif ?? 0;
+      const belumTerjual = item._sum.cardBelumTerjual ?? 0;
+
+      return {
+        categoryId: item.categoryId,
+        categoryName: catMap.get(item.categoryId) || "Unknown",
+        typeId: item.typeId,
+        typeName: typeMap.get(item.typeId) || "Unknown",
+        totalStock: office + beredar, // Total Asset = Office + Station
+        totalOffice: office,
+        totalBeredar: beredar,
+        totalAktif: aktif,
+        totalNonAktif: nonAktif,
+        totalBelumTerjual: belumTerjual,
+      };
+    });
+  }
+
   // Get Station Summary
   static async getStationSummary() {
     // 1. Ambil data stasiun dahulu (Master data biasanya tidak terlalu besar)

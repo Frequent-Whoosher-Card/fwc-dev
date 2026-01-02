@@ -1,7 +1,7 @@
 import { t } from "elysia";
 
 export namespace CardInventoryModel {
-  export const getInventoryQuery = t.Object({
+  export const getInventoryListQuery = t.Object({
     page: t.Optional(t.String()),
     limit: t.Optional(t.String()),
     categoryId: t.Optional(t.String()),
@@ -11,6 +11,16 @@ export namespace CardInventoryModel {
     categoryName: t.Optional(t.String()),
     typeName: t.Optional(t.String()),
     stationName: t.Optional(t.String()),
+  });
+
+  export const getOfficeStockQuery = t.Object({
+    page: t.Optional(t.String()),
+    limit: t.Optional(t.String()),
+    categoryId: t.Optional(t.String()),
+    typeId: t.Optional(t.String()),
+    search: t.Optional(t.String()),
+    categoryName: t.Optional(t.String()),
+    typeName: t.Optional(t.String()),
   });
 
   export const inventoryItem = t.Object({
@@ -132,6 +142,24 @@ export namespace CardInventoryModel {
       totalLost: t.Number(),
       totalDamaged: t.Number(),
     }),
+  });
+
+  export const getCategoryTypeSummaryResponse = t.Object({
+    success: t.Boolean(),
+    data: t.Array(
+      t.Object({
+        categoryId: t.String(),
+        categoryName: t.String(),
+        typeId: t.String(),
+        typeName: t.String(),
+        totalStock: t.Number(), // Total Aset (Office + Beredar)
+        totalOffice: t.Number(),
+        totalBeredar: t.Number(), // Di Stasiun
+        totalAktif: t.Number(),
+        totalNonAktif: t.Number(),
+        totalBelumTerjual: t.Number(),
+      })
+    ),
   });
 
   export const errorResponse = t.Object({
