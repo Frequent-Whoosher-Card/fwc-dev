@@ -2,7 +2,7 @@ import { Elysia } from "elysia";
 import { RedeemService } from "./service";
 import { RedeemModel } from "./model";
 
-const redeemRoutes = new Elysia({ prefix: "/redeem" }).get(
+export const redeem = new Elysia({ prefix: "/redeem" }).get(
   "/check/:serialNumber",
   async ({ params: { serialNumber } }) => {
     const data = await RedeemService.checkSerial(serialNumber);
@@ -19,5 +19,3 @@ const redeemRoutes = new Elysia({ prefix: "/redeem" }).get(
     },
   }
 );
-
-export default redeemRoutes;
