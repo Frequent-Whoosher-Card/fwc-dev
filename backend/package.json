@@ -4,13 +4,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "bun run --watch src/index.ts",
-    "db:update": "bunx prisma migrate deploy && bunx prisma generate",
-    "db:backup": "bash scripts/backup-database.sh",
-    "db:backup:quick": "bash scripts/quick-backup.sh",
-    "db:backup:server": "bash scripts/backup-database-server.sh",
-    "db:restore": "bash scripts/restore-database.sh",
-    "db:cron:setup": "bash scripts/setup-cron-backup.sh",
-    "db:test": "bash scripts/test-backup-connection.sh"
+    "db:update": "bunx prisma migrate deploy && bunx prisma generate"
   },
   "dependencies": {
     "@elysiajs/cookie": "^0.8.0",
