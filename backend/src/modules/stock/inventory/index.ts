@@ -51,7 +51,7 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
             500: CardInventoryModel.errorResponse,
           },
           detail: {
-            tags: ["Inventory"],
+            tags: ["Stock All & Inventory"],
             summary: "Get All Card Inventory",
             description:
               "Mendapatkan agregat seluruh stok per kategori, tipe, dan stasiun.",
@@ -95,7 +95,7 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
             500: CardInventoryModel.errorResponse,
           },
           detail: {
-            tags: ["Inventory"],
+            tags: ["Stock All & Inventory"],
             summary: "Get Office Stock",
             description:
               "Mendapatkan stok kartu yang ada di Office (Stasiun yang tidak terassign).",
@@ -124,7 +124,7 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
             500: CardInventoryModel.errorResponse,
           },
           detail: {
-            tags: ["Inventory"],
+            tags: ["Stock All & Inventory"],
             summary: "Get Total Card Summary",
             description:
               "Mendapatkan total kartu yang beredar & kartu yang hilang atau rusak",
@@ -162,7 +162,7 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
             500: CardInventoryModel.errorResponse,
           },
           detail: {
-            tags: ["Inventory"],
+            tags: ["Stock All & Inventory"],
             summary: "Get Stock Summary",
             description: "Mendapatkan perhitungan stok di office dan stasiun.",
           },
@@ -196,7 +196,7 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
             500: CardInventoryModel.errorResponse,
           },
           detail: {
-            tags: ["Inventory"],
+            tags: ["Stock All & Inventory"],
             summary: "Get Summary by Category & Type",
             description:
               "Mendapatkan rekapitulasi stok (Office, Station, Active, etc.) per Kategori dan Tipe.",
@@ -234,7 +234,7 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
             500: CardInventoryModel.errorResponse,
           },
           detail: {
-            tags: ["Inventory"],
+            tags: ["Stock All & Inventory"],
             summary: "Get Inventory Detail",
           },
         }

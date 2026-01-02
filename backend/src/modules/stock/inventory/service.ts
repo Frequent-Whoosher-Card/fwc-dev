@@ -296,22 +296,27 @@ export class CardInventoryService {
 
   static async getTotalSummary() {
     // Menghitung total jumlah seluruh kartu dari tabel Card
-    const [totalCards, totalLost, totalDamaged] = await Promise.all([
-      db.card.count({
-        where: {
-          status: {
-            notIn: ["LOST", "DAMAGED"],
+    const [totalCards, totalLost, totalDamaged, totalIn, totalOut] =
+      await Promise.all([
+        db.card.count({
+          where: {
+            status: {
+              notIn: ["LOST", "DAMAGED"],
+            },
           },
-        },
-      }),
-      db.card.count({ where: { status: "LOST" } }),
-      db.card.count({ where: { status: "DAMAGED" } }),
-    ]);
+        }),
+        db.card.count({ where: { status: "LOST" } }),
+        db.card.count({ where: { status: "DAMAGED" } }),
+        db.card.count({ where: { status: "IN_OFFICE" } }),
+        db.card.count({ where: { status: "IN_STATION" } }),
+      ]);
 
     return {
       totalCards,
       totalLost,
       totalDamaged,
+      totalIn,
+      totalOut,
     };
   }
 }

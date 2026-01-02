@@ -126,7 +126,13 @@ export const inbox = new Elysia({ prefix: "/inbox" })
     {
       response: {
         200: InboxModel.markReadResponse,
-        400: t.Any(),
+        400: InboxModel.errorResponse,
+        401: InboxModel.errorResponse,
+        403: InboxModel.errorResponse,
+        404: InboxModel.errorResponse,
+        409: InboxModel.errorResponse,
+        422: InboxModel.errorResponse,
+        500: InboxModel.errorResponse,
       },
       detail: {
         tags: ["Inbox"],
