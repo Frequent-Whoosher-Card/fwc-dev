@@ -313,7 +313,7 @@ model Redeem {
   fileBlob  FileBlob? @relation(fields: [fileBlobId], references: [id])
 
   @@index([transactionNumber], map: "idx_redeem_transaction_number")
-  @@map("redeem")
+  @@map("card_redeem")
 }
 
 model CardPurchase {

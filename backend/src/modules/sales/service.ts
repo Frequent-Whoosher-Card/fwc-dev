@@ -494,17 +494,82 @@ export class SalesService {
       const targetRows: DailySalesRow[] = [];
       let rowTanggal = "";
 
+      // Check if date is in current month
+      const dateYear = date.getFullYear();
+      const dateMonth = date.getMonth();
+      const todayYear = today.getFullYear();
+      const todayMonth = today.getMonth();
+      const isInCurrentMonth = dateYear === todayYear && dateMonth === todayMonth;
+      
       if (dateKey === todayKey) {
         targetRows.push(todayRow);
         targetRows.push(rangeToTodayRow); // Also add to range 1-today (kumulatif)
+        // Also add to rangeRow if dayBeforeYesterday is in different month
+        // (meaning rangeRow should show all data from day 1 to end of month)
+        const dayBeforeYesterdayYear = dayBeforeYesterday.getFullYear();
+        const dayBeforeYesterdayMonth = dayBeforeYesterday.getMonth();
+        const isDayBeforeYesterdayInCurrentMonth = 
+          dayBeforeYesterdayYear === todayYear && 
+          dayBeforeYesterdayMonth === todayMonth;
+        if (!isDayBeforeYesterdayInCurrentMonth && isInCurrentMonth) {
+          targetRows.push(rangeRow);
+        }
         rowTanggal = formatDate(date);
       } else if (dateKey === yesterdayKey) {
         targetRows.push(yesterdayRow);
         targetRows.push(rangeToTodayRow); // Also add to range 1-today (kumulatif)
+        // Also add to rangeRow if dayBeforeYesterday is in different month
+        const dayBeforeYesterdayYear = dayBeforeYesterday.getFullYear();
+        const dayBeforeYesterdayMonth = dayBeforeYesterday.getMonth();
+        const isDayBeforeYesterdayInCurrentMonth = 
+          dayBeforeYesterdayYear === todayYear && 
+          dayBeforeYesterdayMonth === todayMonth;
+        if (!isDayBeforeYesterdayInCurrentMonth && isInCurrentMonth) {
+          targetRows.push(rangeRow);
+        }
         rowTanggal = formatDate(date);
-      } else if (date < yesterday) {
-        targetRows.push(rangeRow); // Add to range 1-dayBeforeYesterday
-        targetRows.push(rangeToTodayRow); // Also add to range 1-today (kumulatif)
+      } else {
+        // For dates before yesterday: add to rangeRow and rangeToTodayRow
+        // rangeRow should include dates from day 1 of current month up to dayBeforeYesterday
+        // If dayBeforeYesterday is in different month, rangeRow shows data from day 1 to end of current month
+        const dateYear = date.getFullYear();
+        const dateMonth = date.getMonth();
+        const todayYear = today.getFullYear();
+        const todayMonth = today.getMonth();
+        const dayBeforeYesterdayYear = dayBeforeYesterday.getFullYear();
+        const dayBeforeYesterdayMonth = dayBeforeYesterday.getMonth();
+        
+        // Check if dayBeforeYesterday is in the same month as today
+        const isDayBeforeYesterdayInCurrentMonth = 
+          dayBeforeYesterdayYear === todayYear && 
+          dayBeforeYesterdayMonth === todayMonth;
+        
+        // Check if date is in current month
+        const isInCurrentMonth = dateYear === todayYear && dateMonth === todayMonth;
+        
+        // Add to rangeRow if:
+        // 1. Date is in current month
+        // 2. AND (dayBeforeYesterday is in current month AND date <= dayBeforeYesterday)
+        //    OR (dayBeforeYesterday is NOT in current month AND date < today)
+        // This ensures rangeRow shows all data from day 1 of current month
+        if (isInCurrentMonth) {
+          if (isDayBeforeYesterdayInCurrentMonth) {
+            // dayBeforeYesterday is in current month: show data up to dayBeforeYesterday
+            if (date <= dayBeforeYesterday) {
+              targetRows.push(rangeRow);
+            }
+          } else {
+            // dayBeforeYesterday is in different month: show all data from current month (up to yesterday)
+            if (date < today) {
+              targetRows.push(rangeRow);
+            }
+          }
+        }
+        
+        // Always add to rangeToTodayRow if date is before today (for kumulatif)
+        if (date < today) {
+          targetRows.push(rangeToTodayRow); // Also add to range 1-today (kumulatif)
+        }
         // Don't set tanggal here, will be set later as range
       }
 
@@ -544,10 +609,27 @@ export class SalesService {
     const todayDay = today.getDate();
 
     // Format range tanggal (1 to dayBeforeYesterday)
-    if (endDay >= startDay) {
+    // Only show rangeRow if dayBeforeYesterday is in the same month as today
+    const isDayBeforeYesterdayInCurrentMonth = 
+      dayBeforeYesterday.getMonth() === today.getMonth() &&
+      dayBeforeYesterday.getFullYear() === today.getFullYear();
+    
+    if (endDay >= startDay && isDayBeforeYesterdayInCurrentMonth) {
+      // Same month: show range from 1 to dayBeforeYesterday
       rangeRow.tanggal = formatDateRange(
         startDay,
         endDay,
+        today.getMonth(),
+        today.getFullYear()
+      );
+    } else if (endDay >= startDay) {
+      // Different month: show range from 1 to last day of current month
+      // This handles case where dayBeforeYesterday is in previous month
+      // We show range from 1 to end of current month (but no data will be in this row)
+      const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+      rangeRow.tanggal = formatDateRange(
+        startDay,
+        lastDayOfMonth,
         today.getMonth(),
         today.getFullYear()
       );
