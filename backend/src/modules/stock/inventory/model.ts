@@ -164,6 +164,22 @@ export namespace CardInventoryModel {
     ),
   });
 
+  export const stationInventoryMonitorItem = t.Object({
+    stationName: t.String(),
+    cardCategory: t.String(),
+    cardType: t.String(),
+    cardBeredar: t.Number(),
+    aktif: t.Number(),
+    nonAktif: t.Number(),
+    total: t.Number(), // aktif + nonAktif
+    cardBelumTerjual: t.Number(),
+  });
+
+  export const getStationInventoryMonitorResponse = t.Object({
+    success: t.Boolean(),
+    data: t.Array(stationInventoryMonitorItem),
+  });
+
   export const errorResponse = t.Object({
     success: t.Boolean(),
     message: t.String(),

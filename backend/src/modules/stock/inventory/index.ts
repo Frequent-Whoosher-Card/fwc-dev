@@ -9,6 +9,33 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
   (app) =>
     app
       .use(authMiddleware)
+      // Get Station Inventory Monitor
+      .get(
+        "/station-monitor",
+        async ({ query }) => {
+          const { stationId } = query as { stationId?: string };
+          const data =
+            await CardInventoryService.getStationInventoryMonitor(stationId);
+          return {
+            success: true,
+            data,
+          };
+        },
+        {
+          query: CardInventoryModel.getInventoryListQuery, // Reuse query param if needed (supports stationId)
+          response: {
+            200: CardInventoryModel.getStationInventoryMonitorResponse,
+            400: CardInventoryModel.errorResponse,
+            500: CardInventoryModel.errorResponse,
+          },
+          detail: {
+            tags: ["Stock All & Inventory"],
+            summary: "Get Station Inventory Monitor",
+            description:
+              "Mendapatkan data inventory per stasiun untuk monitoring (Card Beredar, Aktif, Non Aktif, Total, Belum Terjual).",
+          },
+        }
+      )
       // Get Inventory List
       .get(
         "/",
