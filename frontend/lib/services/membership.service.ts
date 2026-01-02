@@ -33,6 +33,7 @@ export const getMembers = async (params?: {
   gender?: string;
   startDate?: string;
   endDate?: string;
+  cardCategory?: string; 
 }) => {
   const query = new URLSearchParams();
 

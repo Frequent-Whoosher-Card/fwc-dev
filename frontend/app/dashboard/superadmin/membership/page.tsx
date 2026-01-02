@@ -151,7 +151,9 @@ export default function MembershipPage() {
     total: 0,
   });
   const [loading, setLoading] = useState(true);
-
+// TAMBAHAN
+const [cardCategory, setCardCategory] =
+  useState<'all' | 'KAI'>('all');
   const [search, setSearch] = useState('');
   const [gender, setGender] =
     useState<'all' | 'Laki - Laki' | 'Perempuan'>('all');
@@ -171,14 +173,17 @@ export default function MembershipPage() {
     try {
       setLoading(true);
 
-      const res = await getMembers({
-        page,
-        limit: LIMIT,
-        search: debouncedSearch || undefined,
-        gender: gender !== 'all' ? gender : undefined,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-      });
+     const res = await getMembers({
+  page,
+  limit: LIMIT,
+  search: debouncedSearch || undefined,
+  gender: gender !== 'all' ? gender : undefined,
+  startDate: startDate || undefined,
+  endDate: endDate || undefined,
+  cardCategory:
+    cardCategory !== 'all' ? cardCategory : undefined,
+});
+
 
       const mapped: Membership[] = res.data.items.map((item: any) => ({
         id: item.id,
@@ -213,7 +218,7 @@ export default function MembershipPage() {
     } else {
       fetchMembers(1);
     }
-  }, [debouncedSearch, gender, startDate, endDate]);
+}, [debouncedSearch, gender, startDate, endDate, cardCategory]);
 
   useEffect(() => {
     if (!search) {
@@ -233,11 +238,13 @@ export default function MembershipPage() {
   }, [pagination.page]);
 
   const resetFilter = () => {
-    setSearch('');
-    setGender('all');
-    setStartDate('');
-    setEndDate('');
-  };
+  setSearch('');
+  setGender('all');
+  setCardCategory('all');
+  setStartDate('');
+  setEndDate('');
+};
+
 
   const filteredData = useMemo(() => data, [data]);
 
@@ -310,46 +317,81 @@ export default function MembershipPage() {
       )}
 
       {/* FILTER */}
-      <div className="rounded-lg border bg-white px-4 py-3">
-        <div className="flex items-center gap-4">
-          <span className="text-sm font-medium text-gray-600">
-            Filters:
-          </span>
+     <div className="flex items-center gap-3 rounded-lg border bg-white px-4 py-3">
+{/* ALL */}
+<button
+  onClick={() => setCardCategory('all')}
+  disabled={cardCategory === 'all'}
+  aria-pressed={cardCategory === 'all'}
+  className={`h-9 rounded-md border px-4 text-sm transition ${
+    cardCategory === 'all'
+      ? 'cursor-default border-blue-200 bg-blue-50 text-blue-600'
+      : 'border-gray-300 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600'
+  }`}
+>
+  All
+</button>
 
-          <select
-            value={gender}
-            onChange={(e) =>
-              setGender(e.target.value as any)
-            }
-            className="h-9 rounded-md border px-3 text-sm"
-          >
-            <option value="all">Gender</option>
-            <option value="Laki - Laki">Laki - Laki</option>
-            <option value="Perempuan">Perempuan</option>
-          </select>
+{/* KAI */}
+<button
+  onClick={() => setCardCategory('KAI')}
+  disabled={cardCategory === 'KAI'}
+  aria-pressed={cardCategory === 'KAI'}
+  className={`h-9 rounded-md border px-4 text-sm transition ${
+    cardCategory === 'KAI'
+      ? 'cursor-default border-blue-200 bg-blue-50 text-blue-600'
+      : 'border-gray-300 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600'
+  }`}
+>
+  KAI
+</button>
 
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="h-9 rounded-md border px-3 text-sm"
-          />
 
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="h-9 rounded-md border px-3 text-sm"
-          />
 
-          <button
-            onClick={resetFilter}
-            className="flex h-9 w-9 items-center justify-center rounded-md border"
-          >
-            <RotateCcw size={16} />
-          </button>
-        </div>
-      </div>
+  {/* GENDER */}
+  <select
+    value={gender}
+    onChange={(e) => setGender(e.target.value as any)}
+    className="h-9 rounded-md border px-3 text-sm"
+  >
+    <option value="all">Gender</option>
+    <option value="Laki - Laki">Laki - Laki</option>
+    <option value="Perempuan">Perempuan</option>
+  </select>
+
+{/* START */}
+<div className="flex items-center gap-2">
+  <span className="text-sm text-gray-500">Start</span>
+  <input
+    type="date"
+    value={startDate}
+    onChange={(e) => setStartDate(e.target.value)}
+    className="h-9 w-[160px] rounded-md border px-3 text-sm"
+  />
+</div>
+
+{/* END */}
+<div className="flex items-center gap-2">
+  <span className="text-sm text-gray-500">End</span>
+  <input
+    type="date"
+    value={endDate}
+    onChange={(e) => setEndDate(e.target.value)}
+    className="h-9 w-[160px] rounded-md border px-3 text-sm"
+  />
+</div>
+
+
+
+  {/* RESET */}
+  <button
+    onClick={resetFilter}
+    className="flex h-9 w-9 items-center justify-center rounded-md border"
+  >
+    <RotateCcw size={16} />
+  </button>
+</div>
+
 
      {/* TABLE */}
      
