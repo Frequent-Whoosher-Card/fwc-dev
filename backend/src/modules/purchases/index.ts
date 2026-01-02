@@ -58,7 +58,7 @@ const baseRoutes = new Elysia()
         tags: ["Purchases"],
         summary: "Get all purchases",
         description:
-          "Retrieve all purchase transactions with pagination, filters, and search",
+          "Retrieve all purchase transactions with pagination, filters, and search. Search supports: transaction number, card serial number, customer name, identity number, and operator name.",
       },
     }
   )

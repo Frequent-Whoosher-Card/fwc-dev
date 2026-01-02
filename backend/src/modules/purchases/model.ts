@@ -95,7 +95,7 @@ export namespace PurchaseModel {
     ),
     search: t.Optional(
       t.String({
-        description: "Search by transaction number or card serial number",
+        description: "Search by transaction number, card serial number, customer name, identity number, or operator name",
       })
     ),
   });

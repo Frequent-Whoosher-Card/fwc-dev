@@ -27,10 +27,35 @@ const baseRoutes = new Elysia()
     async (context) => {
       const { query, set } = context;
       try {
+        const { page, limit, search, startDate, endDate, gender } = query;
+        
+        // Validate dates if provided
+        if (startDate && isNaN(new Date(startDate).getTime())) {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("Invalid startDate format. Please use YYYY-MM-DD.")
+          );
+        }
+        if (endDate && isNaN(new Date(endDate).getTime())) {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("Invalid endDate format. Please use YYYY-MM-DD.")
+          );
+        }
+        if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("Start date cannot be after end date.")
+          );
+        }
+
         const result = await MemberService.getAll({
-          page: query.page ? parseInt(query.page) : undefined,
-          limit: query.limit ? parseInt(query.limit) : undefined,
-          search: query.search,
+          page: page ? parseInt(page) : undefined,
+          limit: limit ? parseInt(limit) : undefined,
+          search,
+          startDate,
+          endDate,
+          gender,
         });
         return {
           success: true,
@@ -53,7 +78,7 @@ const baseRoutes = new Elysia()
       detail: {
         tags: ["Members"],
         summary: "Get all members",
-        description: "Retrieve all members with pagination and search",
+        description: "Retrieve all members with pagination, search, membership date filter, and gender filter. Search supports: name, identity number, email, phone, and updated by (user name). Optional startDate, endDate, and gender parameters can be used to filter members.",
       },
     }
   )
