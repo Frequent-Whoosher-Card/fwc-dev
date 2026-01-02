@@ -152,67 +152,73 @@ export default function MembershipPage() {
   /* ======================
      LOAD DATA (API)
   ====================== */
-  const fetchMembers = async (page: number) => {
-    try {
-      setLoading(true);
-      const res = await getMembers({
-        page,
-        limit: LIMIT,
-      });
 
-      setData(res.data.items);
-      setPagination(res.data.pagination);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+ const fetchMembers = async (page: number) => {
+  try {
+    setLoading(true);
+
+    const res = await getMembers({
+      page,
+      limit: LIMIT,
+      search: debouncedSearch || undefined,
+      gender: gender !== 'all' ? gender : undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+    });
+
+    setData(res.data.items);
+    setPagination(res.data.pagination);
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setLoading(false);
+  }
+};
+
+useEffect(() => {
+  if (pagination.page !== 1) {
+    setPagination((p) => ({ ...p, page: 1 }));
+  } else {
+    // 🔥 page sudah 1, tapi search berubah → fetch langsung
+    fetchMembers(1);
+  }
+}, [debouncedSearch, gender, startDate, endDate]);
+
+
+  useEffect(() => {
+  if (!search) {
+    setDebouncedSearch('');
+    return;
+  }
+
+  const t = setTimeout(() => {
+    setDebouncedSearch(search);
+  }, 200);
+
+  return () => clearTimeout(t);
+}, [search]);
 
   useEffect(() => {
     fetchMembers(pagination.page);
   }, [pagination.page]);
 
+  const resetFilter = () => {
+  setSearch('');
+  setGender('all');
+  setStartDate('');
+  setEndDate('');
+};
+
   /* ======================
      FILTER + SEARCH (NULL SAFE)
   ====================== */
-  const filteredData = useMemo(() => {
-    const keyword = search.toLowerCase();
+ const filteredData = useMemo(() => {
+  // NOTE: filtering is handled by backend (server-side search)
+  return data;
+}, [data]);
 
-    return data.filter((item) => {
-      const keywordMatch = search
-        ? [item.name, item.nik]
-            .filter(Boolean)
-            .some((v) =>
-              v!.toLowerCase().includes(keyword)
-            )
-        : true;
-
-      const genderMatch =
-        gender === 'all' ? true : item.gender === gender;
-
-      const startMatch = startDate
-        ? (item.membership_date ?? '') >= startDate
-        : true;
-
-      const endMatch = endDate
-        ? (item.membership_date ?? '') <= endDate
-        : true;
-
-      return (
-        keywordMatch &&
-        genderMatch &&
-        startMatch &&
-        endMatch
-      );
-    });
-  }, [data, search, gender, startDate, endDate]);
-
-  const resetFilter = () => {
-    setGender('all');
-    setStartDate('');
-    setEndDate('');
-  };
 
   /* ======================
      DELETE HANDLER
@@ -231,9 +237,6 @@ export default function MembershipPage() {
     }
   };
 
-  if (loading) {
-    return <div className="p-6">Loading...</div>;
-  }
 
   /* ======================
      PAGINATION NUMBERS
@@ -276,6 +279,13 @@ export default function MembershipPage() {
           </button>
         </div>
       </div>
+
+      {loading && (
+  <div className="text-xs text-gray-400">
+    Loading data...
+  </div>
+)}
+
 
       {/* FILTER */}
       <div className="rounded-lg border bg-white px-4 py-3">
