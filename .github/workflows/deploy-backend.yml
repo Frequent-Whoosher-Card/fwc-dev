@@ -25,6 +25,8 @@ jobs:
           ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
             set -e
 
+            PM2_BIN="/home/fwc/.nvm/versions/node/v20.19.6/bin/pm2"
+
             echo "== Sync code with main =="
             cd ${{ secrets.VM_APP_DIR }}
             git fetch origin
@@ -37,6 +39,12 @@ jobs:
             echo "== Backend: generate Prisma client =="
             bunx prisma generate
 
-            echo "== Backend: restart PM2 process =="
-            /home/fwc/.nvm/versions/node/v20.19.6/bin/pm2 restart fwc-backend
+            echo "== Verify Prisma client generated =="
+            if [ ! -d "prisma/generated/client" ]; then
+              echo "❌ Prisma client not found!"
+              exit 1
+            fi
+
+            echo "== Restart backend via PM2 (reload env) =="
+            $PM2_BIN restart fwc-backend --update-env
           EOF
