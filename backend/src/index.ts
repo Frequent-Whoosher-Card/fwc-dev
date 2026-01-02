@@ -12,10 +12,8 @@ import { cardProducts } from "./modules/cards/product";
 import { station } from "./modules/station";
 import { cardInventory } from "./modules/stock/inventory";
 import { members } from "./modules/members";
-import {
-  AuthenticationError,
-  AuthorizationError,
-} from "./utils/errors";
+import { AuthenticationError, AuthorizationError } from "./utils/errors";
+import { inbox } from "./modules/inbox";
 
 const app = new Elysia()
   .use(docsConfig)
@@ -36,6 +34,7 @@ const app = new Elysia()
   .use(stock)
   .use(sales)
   .use(metrics)
+  .use(inbox)
   .onError(({ code, error, set }) => {
     // Global error handler
     if (code === "VALIDATION") {

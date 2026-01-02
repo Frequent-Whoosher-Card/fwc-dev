@@ -9,7 +9,7 @@ export namespace StockInModel {
     }),
 
     categoryId: t.String({ format: "uuid" }),
-    typeId: t.String({ format: "uuid" }),
+    typeId: t.Optional(t.String({ format: "uuid" })),
 
     // contoh: "000123" atau "123"
     startSerial: t.String({
@@ -75,6 +75,7 @@ export namespace StockInModel {
             name: t.String(),
             code: t.String(),
           }),
+          sentSerialNumbers: t.Array(t.String()),
         })
       ),
       pagination: t.Object({
@@ -109,6 +110,7 @@ export namespace StockInModel {
           name: t.String(),
           code: t.String(),
         }),
+        sentSerialNumbers: t.Array(t.String()),
       }),
     }),
   });
@@ -122,6 +124,14 @@ export namespace StockInModel {
       })
     ),
     note: t.Optional(t.String({ maxLength: 500 })),
+    startSerial: t.String({
+      pattern: "^[0-9]+$",
+      description: "Nomor serial awal (digit).",
+    }),
+    endSerial: t.String({
+      pattern: "^[0-9]+$",
+      description: "Nomor serial akhir (digit).",
+    }),
   });
 
   // Update Response
