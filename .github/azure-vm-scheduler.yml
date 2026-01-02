@@ -1,0 +1,45 @@
+name: Azure VM Scheduler (Start & Stop)
+
+on:
+  schedule:
+    # START VM - 09:30 WIB (02:30 UTC)
+    - cron: '30 02 * * *'
+    # STOP VM - 20:30 WIB (13:30 UTC)
+    - cron: '30 13 * * *'
+  workflow_dispatch:
+
+env:
+  RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+  VM_NAME: ${{ secrets.AZURE_VM_NAME }}
+
+jobs:
+  vm-control:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Start or Stop VM based on schedule
+        shell: bash
+        run: |
+          HOUR=$(date -u +"%H")
+
+          echo "Current UTC hour: $HOUR"
+
+          if [ "$HOUR" -eq 0 ]; then
+            echo "Starting VM..."
+            az vm start \
+              --resource-group "$RESOURCE_GROUP" \
+              --name "$VM_NAME"
+          elif [ "$HOUR" -eq 12 ]; then
+            echo "Stopping VM..."
+            az vm stop \
+              --resource-group "$RESOURCE_GROUP" \
+              --name "$VM_NAME" \
+              --no-wait
+          else
+            echo "No action needed at this time."
+          fi
