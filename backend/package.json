@@ -16,10 +16,12 @@
     "@prisma/adapter-pg": "^7.2.0",
     "@prisma/client": "^7.2.0",
     "elysia": "latest",
+    "nodemailer": "^7.0.12",
     "prismabox": "^1.1.26",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@types/nodemailer": "^7.0.4",
     "bun-types": "latest",
     "prisma": "^7.2.0"
   },
