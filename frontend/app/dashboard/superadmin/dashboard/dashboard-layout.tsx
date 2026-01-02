@@ -29,7 +29,7 @@ type Role = 'superadmin' | 'admin' | 'petugas';
 
 /* SUPERADMIN */
 const superadminMenuItems = [
-  { title: 'Dashboard', icon: LayoutDashboard, href: '/dashboard/superadmin/Dashboard' },
+  { title: 'Dashboard', icon: LayoutDashboard, href: '/dashboard/superadmin/dashboard' },
   { title: 'Redeem Kuota', icon: IdCard, href: '/dashboard/superadmin/redeemkuota' },
   {
     title: 'Stock Kartu',

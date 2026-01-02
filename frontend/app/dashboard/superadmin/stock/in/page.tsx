@@ -83,12 +83,31 @@ export default function StockInPage() {
   };
 
   // HAPUS DATA
-  const handleDelete = (id: string) => {
-    // Panggil API delete di sini jika ada
-    setStockIn((prev) => prev.filter((item) => item.id !== id));
-    toast.success('Stock berhasil dihapus');
-    setOpenDelete(false);
-    setSelectedId(null);
+  const handleDelete = async (id: string) => {
+    try {
+      await axios.delete(`/stock/in/${id}`);
+
+      // sukses → hapus dari table
+      setStockIn((prev) => prev.filter((item) => item.id !== id));
+      toast.success('Stock berhasil dihapus');
+    } catch (err: any) {
+      const status = err.response?.status;
+
+      console.error('DELETE STATUS:', status);
+
+      if (status === 401 || status === 403) {
+        toast.error('Anda tidak memiliki izin menghapus data ini');
+      } else if (status === 409) {
+        toast.error('Data tidak bisa dihapus karena masih digunakan');
+      } else if (status === 404) {
+        toast.error('Data tidak ditemukan');
+      } else {
+        toast.error('Gagal menghapus stock');
+      }
+    } finally {
+      setOpenDelete(false);
+      setSelectedId(null);
+    }
   };
 
   return (
