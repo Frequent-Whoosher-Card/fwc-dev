@@ -68,13 +68,7 @@ export namespace StockOutModel {
     startDate: t.Optional(t.String({ format: "date" })),
     endDate: t.Optional(t.String({ format: "date" })),
     stationId: t.Optional(t.String({ format: "uuid" })),
-    status: t.Optional(
-      t.Union([
-        t.Literal("PENDING"),
-        t.Literal("APPROVED"),
-        t.Literal("REJECTED"),
-      ])
-    ),
+    status: t.Optional(t.String()),
     // New Search Params
     search: t.Optional(t.String()),
     stationName: t.Optional(t.String()),
@@ -103,6 +97,10 @@ export namespace StockOutModel {
             id: t.String(),
             name: t.String(),
           }),
+          sentSerialNumbers: t.Array(t.String()),
+          receivedSerialNumbers: t.Array(t.String()),
+          lostSerialNumbers: t.Array(t.String()),
+          damagedSerialNumbers: t.Array(t.String()),
         })
       ),
       pagination: t.Object({

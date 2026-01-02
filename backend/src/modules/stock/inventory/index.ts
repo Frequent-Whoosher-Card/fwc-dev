@@ -39,7 +39,7 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
           }
         },
         {
-          query: CardInventoryModel.getInventoryQuery,
+          query: CardInventoryModel.getInventoryListQuery,
           response: {
             200: CardInventoryModel.getInventoryListResponse,
             400: CardInventoryModel.errorResponse,
@@ -83,7 +83,7 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
           }
         },
         {
-          query: CardInventoryModel.getInventoryQuery,
+          query: CardInventoryModel.getOfficeStockQuery,
           response: {
             200: CardInventoryModel.getInventoryListResponse,
             400: CardInventoryModel.errorResponse,
@@ -165,6 +165,41 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
             tags: ["Inventory"],
             summary: "Get Stock Summary",
             description: "Mendapatkan perhitungan stok di office dan stasiun.",
+          },
+        }
+      )
+      // Get Summary by Category & Type
+      .get(
+        "/category-type-summary",
+        async (context) => {
+          const { set } = context;
+          try {
+            const result = await CardInventoryService.getCategoryTypeSummary();
+            return {
+              success: true,
+              data: result,
+            };
+          } catch (error) {
+            set.status = 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          response: {
+            200: CardInventoryModel.getCategoryTypeSummaryResponse,
+            400: CardInventoryModel.errorResponse,
+            401: CardInventoryModel.errorResponse,
+            403: CardInventoryModel.errorResponse,
+            404: CardInventoryModel.errorResponse,
+            409: CardInventoryModel.errorResponse,
+            422: CardInventoryModel.errorResponse,
+            500: CardInventoryModel.errorResponse,
+          },
+          detail: {
+            tags: ["Inventory"],
+            summary: "Get Summary by Category & Type",
+            description:
+              "Mendapatkan rekapitulasi stok (Office, Station, Active, etc.) per Kategori dan Tipe.",
           },
         }
       )
