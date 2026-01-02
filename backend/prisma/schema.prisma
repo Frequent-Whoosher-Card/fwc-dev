@@ -292,15 +292,16 @@ model Redeem {
   shiftDate         DateTime          @map("shift_date")
   status            TransactionStatus @default(Success) @map("transaction_status")
   notes             String?
-  createdAt         DateTime          @default(now()) @map("created_at")
-  createdBy         String?           @map("created_by") @db.Uuid
-  updatedAt         DateTime          @default(now()) @map("updated_at")
-  updatedBy         String?           @map("updated_by") @db.Uuid
-  deletedAt         DateTime?         @map("deleted_at")
-  deletedBy         String?           @map("deleted_by") @db.Uuid
-  card              Card              @relation(fields: [cardId], references: [id])
-  operator          User              @relation(fields: [operatorId], references: [id])
-  station           Station           @relation(fields: [stationId], references: [id])
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedAt DateTime  @default(now()) @map("updated_at")
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at")
+  deletedBy String?   @map("deleted_by") @db.Uuid
+  card      Card      @relation(fields: [cardId], references: [id])
+  operator  User      @relation(fields: [operatorId], references: [id])
+  station   Station   @relation(fields: [stationId], references: [id])
 
   @@map("redeem")
 }
