@@ -1,4 +1,5 @@
 import axios from '@/lib/axios';
+import { StockInDetail, UpdateStockInPayload } from '@/types/stock-in';
 
 // Ambil token dari cookie
 export const getTokenFromCookie = (): string | null => {
@@ -62,3 +63,12 @@ export const createStockIn = async (payload: StockInData) => {
     note: note,
   });
 };
+
+export async function getStockInById(id: string): Promise<StockInDetail> {
+  const res = await axios.get(`/stock/in/${id}`);
+  return res.data.data;
+}
+
+export async function updateStockIn(id: string, payload: UpdateStockInPayload): Promise<void> {
+  await axios.patch(`/stock/in/${id}`, payload);
+}
