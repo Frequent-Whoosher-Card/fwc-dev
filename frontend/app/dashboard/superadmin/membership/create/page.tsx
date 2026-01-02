@@ -101,51 +101,83 @@ function PreviewRow({
 function SuccessModal({
   open,
   data,
-  onClose,
+  onBack,
+  onConfirm,
 }: {
   open: boolean;
   data: Record<string, any> | null;
-  onClose: () => void;
+  onBack: () => void;
+  onConfirm: () => void;
 }) {
   if (!open || !data) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
       <div className="w-[560px] max-h-[85vh] rounded-xl bg-white p-6 flex flex-col">
+        {/* HEADER */}
         <div className="mb-4 text-center">
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
             <CheckCircle size={28} className="text-green-600" />
           </div>
-          <h2 className="text-lg font-semibold">Data Saved</h2>
+          <h2 className="text-lg font-semibold">
+            Data Member
+          </h2>
           <p className="mt-1 text-sm text-gray-600">
-            Please review the saved data below
+            Please review the member data before continuing
           </p>
         </div>
 
-        <div className="mt-4 flex-1 overflow-auto rounded-md border bg-gray-50 p-4 text-sm">
-          <PreviewRow label="Membership Name" value={data.name} />
-          <PreviewRow label="Nationality" value={data.nationality} />
-          <PreviewRow label="Identity Number" value={data.nik} />
-          <PreviewRow label="Address" value={data.address} />
-          <PreviewRow label="Phone Number" value={data.phone} />
-          <PreviewRow label="Email Address" value={data.email} />
-          <PreviewRow label="Card Category" value={data.cardCategory} />
-          <PreviewRow label="Card Type" value={data.cardType} />
-          <PreviewRow label="Purchased Date" value={data.purchasedDate} />
-          <PreviewRow label="Kuota" value={data.price} />
-          <PreviewRow label="Stasiun" value={data.station} />
-        </div>
+        {/* PREVIEW DATA */}
+       <div className="mt-4 flex-1 overflow-auto rounded-md border bg-gray-50 p-4 text-sm">
+  {/* MEMBER INFO */}
+  <PreviewRow label="Membership Name" value={data.name} />
+  <PreviewRow label="Nationality" value={data.nationality} />
+  <PreviewRow label="Gender" value={data.gender} />
+  <PreviewRow label="Identity Number" value={data.nik} />
+  <PreviewRow label="Address" value={data.address} />
+  <PreviewRow label="Phone Number" value={data.phone} />
+  <PreviewRow label="Email Address" value={data.email} />
 
-        <button
-          onClick={onClose}
-          className="mt-6 w-full rounded-md bg-[#8B1538] py-2 text-sm font-medium text-white hover:bg-[#73122E]"
-        >
-          Close
-        </button>
+  {/* MEMBERSHIP PERIOD */}
+  <PreviewRow label="Membership Date" value={data.membershipDate} />
+  <PreviewRow label="Expired Date" value={data.expiredDate} />
+
+  {/* CARD INFO */}
+  <PreviewRow label="Card Category" value={data.cardCategory} />
+  <PreviewRow label="Card Type" value={data.cardType} />
+
+  {/* PURCHASE */}
+  <PreviewRow label="Purchased Date" value={data.purchasedDate} />
+  <PreviewRow label="Kuota" value={data.price} />
+
+  {/* OPERATIONAL */}
+  <PreviewRow label="Stasiun" value={data.station} />
+  <PreviewRow label="Shift Date" value={data.shiftDate} />
+  <PreviewRow label="Serial Number" value={data.serialNumber} />
+</div>
+
+
+        {/* ACTION BUTTON */}
+        <div className="mt-6 flex gap-3">
+          <button
+            onClick={onBack}
+            className="w-1/2 rounded-md border border-gray-300 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Back
+          </button>
+
+          <button
+            onClick={onConfirm}
+            className="w-1/2 rounded-md bg-[#8B1538] py-2 text-sm font-medium text-white hover:bg-[#73122E]"
+          >
+            OK
+          </button>
+        </div>
       </div>
     </div>
   );
 }
+
 
 /* ======================
    PAGE
@@ -399,12 +431,13 @@ export default function AddMemberPage() {
       </div>
 
       <SuccessModal
-        open={showSuccess}
-        data={savedData}
-        onClose={() =>
-          router.push('/dashboard/superadmin/membership')
-        }
-      />
+  open={showSuccess}
+  data={savedData}
+  onBack={() => setShowSuccess(false)}
+  onConfirm={() =>
+    router.push('/dashboard/superadmin/membership')
+  }
+/>
     </>
   );
 }
