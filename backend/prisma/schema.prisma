@@ -52,6 +52,7 @@ model User {
   deletedBy           String?              @map("deleted_by") @db.Uuid
   passwordResetTokens PasswordResetToken[]
   redeems             Redeem[]
+  purchases           CardPurchase[]       @relation("PurchaseOperator")
   role                Role                 @relation(fields: [roleId], references: [id])
   station             Station?             @relation(fields: [stationId], references: [id])
   receivedInboxes     Inbox[]              @relation("ReceivedInboxes")
@@ -112,6 +113,7 @@ model Station {
   deletedBy          String?             @map("deleted_by") @db.Uuid
   cardInventories    CardInventory[]
   redeems            Redeem[]
+  purchases          CardPurchase[]
   cardStockMovements CardStockMovement[]
   users              User[]
   inboxes            Inbox[]
@@ -164,6 +166,7 @@ model Card {
   member        Member?        @relation(fields: [memberId], references: [id], onDelete: Restrict)
   user          User?          @relation(fields: [userId], references: [id], onDelete: Restrict)
   redeems       Redeem[]
+  purchases     CardPurchase[]
 
   @@map("cards")
 }
@@ -279,9 +282,10 @@ model Member {
   createdBy      String?   @map("created_by") @db.Uuid
   updatedAt      DateTime  @default(now()) @map("updated_at")
   updatedBy      String?   @map("updated_by") @db.Uuid
-  deletedAt      DateTime? @map("deleted_at")
-  deletedBy      String?   @map("deleted_by") @db.Uuid
+  deletedAt      DateTime?      @map("deleted_at")
+  deletedBy      String?       @map("deleted_by") @db.Uuid
   cards          Card[]
+  purchases      CardPurchase[]
 
   @@map("members")
 }
@@ -309,7 +313,34 @@ model Redeem {
   fileBlob  FileBlob? @relation(fields: [fileBlobId], references: [id])
 
   @@index([transactionNumber], map: "idx_redeem_transaction_number")
-  @@map("redeem")
+  @@map("card_redeem")
+}
+
+model CardPurchase {
+  id                String    @id @default(uuid()) @map("purchase_id") @db.Uuid
+  cardId            String    @map("card_id") @db.Uuid
+  memberId          String?   @map("member_id") @db.Uuid
+  operatorId        String    @map("operator_id") @db.Uuid
+  stationId         String    @map("station_id") @db.Uuid
+  transactionNumber String    @unique @map("transaction_number")
+  purchaseDate      DateTime  @map("purchase_date")
+  price             Decimal   @map("price") @db.Decimal(15, 2)
+  notes             String?
+  createdAt         DateTime  @default(now()) @map("created_at")
+  createdBy         String?   @map("created_by") @db.Uuid
+  updatedAt         DateTime  @default(now()) @map("updated_at")
+  updatedBy         String?   @map("updated_by") @db.Uuid
+  deletedAt         DateTime? @map("deleted_at")
+  deletedBy         String?   @map("deleted_by") @db.Uuid
+  card              Card      @relation(fields: [cardId], references: [id], onDelete: Restrict)
+  member            Member?   @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  operator          User      @relation("PurchaseOperator", fields: [operatorId], references: [id])
+  station           Station   @relation(fields: [stationId], references: [id])
+
+  @@index([purchaseDate])
+  @@index([stationId, purchaseDate])
+  @@index([operatorId, purchaseDate])
+  @@map("card_purchases")
 }
 
 model CardUsageLog {

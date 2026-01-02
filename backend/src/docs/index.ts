@@ -74,6 +74,10 @@ export const docsConfig = swagger({
         description: "Member management endpoints",
       },
       {
+        name: "Purchases",
+        description: "Card purchase transaction endpoints",
+      },
+      {
         name: "Station",
         description: "Station management endpoints",
       },

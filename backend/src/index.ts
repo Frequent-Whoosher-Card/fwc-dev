@@ -12,6 +12,7 @@ import { cardProducts } from "./modules/cards/product";
 import { station } from "./modules/station";
 import { cardInventory } from "./modules/stock/inventory";
 import { members } from "./modules/members";
+import { purchases } from "./modules/purchases";
 import { AuthenticationError, AuthorizationError } from "./utils/errors";
 import { inbox } from "./modules/inbox";
 import { redeem } from "./modules/redeem";
@@ -27,6 +28,7 @@ const app = new Elysia()
   .use(auth)
   .use(users)
   .use(members)
+  .use(purchases)
   .use(cardCategory)
   .use(cardTypes)
   .use(cardProducts)

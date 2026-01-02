@@ -36,33 +36,40 @@ interface MetricsSummaryData {
 export class MetricsService {
   /**
    * Build where clause for purchase date filter
+   * Uses CardPurchase relation instead of Card.purchaseDate
    * Uses local timezone to avoid timezone conversion issues
    */
   private static buildPurchaseDateFilter(
     startDate?: string,
     endDate?: string
   ): any {
-    const where: any = {
+    const purchaseFilter: any = {
       deletedAt: null,
     };
 
     if (startDate || endDate) {
-      where.purchaseDate = {};
+      purchaseFilter.purchaseDate = {};
       if (startDate) {
         // Parse date string in local timezone
         const [year, month, day] = startDate.split('-').map(Number);
         const start = new Date(year, month - 1, day, 0, 0, 0, 0);
-        where.purchaseDate.gte = start;
+        purchaseFilter.purchaseDate.gte = start;
       }
       if (endDate) {
         // Parse date string in local timezone for end of day
         const [year, month, day] = endDate.split('-').map(Number);
         const end = new Date(year, month - 1, day, 23, 59, 59, 999);
-        where.purchaseDate.lte = end;
+        purchaseFilter.purchaseDate.lte = end;
       }
     }
 
-    return where;
+    // Filter cards that have purchases matching the date range
+    return {
+      deletedAt: null,
+      purchases: {
+        some: purchaseFilter,
+      },
+    };
   }
 
   /**
