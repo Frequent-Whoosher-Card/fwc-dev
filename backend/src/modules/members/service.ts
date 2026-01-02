@@ -49,21 +49,65 @@ export class MemberService {
     page?: number;
     limit?: number;
     search?: string;
+    startDate?: string;
+    endDate?: string;
+    gender?: string;
   }) {
-    const { page = 1, limit = 10, search } = params;
+    const { page = 1, limit = 10, search, startDate, endDate, gender } = params;
     const skip = (page - 1) * limit;
 
     const where: any = {
       deletedAt: null, // Soft delete filter
     };
 
+    // Filter gender
+    if (gender) {
+      where.gender = { 
+        equals: gender, 
+        mode: "insensitive" 
+      };
+    }
+
+    // Filter membership date (createdAt)
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) {
+        // Parse date string in local timezone
+        const [year, month, day] = startDate.split('-').map(Number);
+        const start = new Date(year, month - 1, day, 0, 0, 0, 0);
+        where.createdAt.gte = start;
+      }
+      if (endDate) {
+        // Parse date string in local timezone for end of day
+        const [year, month, day] = endDate.split('-').map(Number);
+        const end = new Date(year, month - 1, day, 23, 59, 59, 999);
+        where.createdAt.lte = end;
+      }
+    }
+
     if (search) {
+      // First, find users whose fullName matches the search term
+      const matchingUsers = await db.user.findMany({
+        where: {
+          fullName: { contains: search, mode: "insensitive" },
+        },
+        select: { id: true },
+      });
+      const matchingUserIds = matchingUsers.map((u) => u.id);
+
       where.OR = [
         { name: { contains: search, mode: "insensitive" } },
         { identityNumber: { contains: search, mode: "insensitive" } },
         { email: { contains: search, mode: "insensitive" } },
         { phone: { contains: search, mode: "insensitive" } },
       ];
+
+      // Add search by updatedBy (user fullName)
+      if (matchingUserIds.length > 0) {
+        where.OR.push({
+          updatedBy: { in: matchingUserIds },
+        });
+      }
     }
 
     const [items, total] = await Promise.all([

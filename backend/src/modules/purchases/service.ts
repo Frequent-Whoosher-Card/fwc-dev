@@ -235,6 +235,21 @@ export class PurchaseService {
             serialNumber: { contains: search, mode: "insensitive" },
           },
         },
+        {
+          member: {
+            name: { contains: search, mode: "insensitive" },
+          },
+        },
+        {
+          member: {
+            identityNumber: { contains: search, mode: "insensitive" },
+          },
+        },
+        {
+          operator: {
+            fullName: { contains: search, mode: "insensitive" },
+          },
+        },
       ];
     }
 
