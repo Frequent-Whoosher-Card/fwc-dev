@@ -136,8 +136,12 @@ export const stockIn = new Elysia({ prefix: "/in" })
         {
           response: {
             200: StockInModel.getDetailResponse,
-            404: StockInModel.errorResponse,
             400: StockInModel.errorResponse,
+            401: StockInModel.errorResponse,
+            403: StockInModel.errorResponse,
+            404: StockInModel.errorResponse,
+            409: StockInModel.errorResponse,
+            422: StockInModel.errorResponse,
             500: StockInModel.errorResponse,
           },
           detail: {
@@ -180,7 +184,11 @@ export const stockIn = new Elysia({ prefix: "/in" })
           response: {
             200: StockInModel.updateStockInResponse,
             400: StockInModel.errorResponse,
+            401: StockInModel.errorResponse,
+            403: StockInModel.errorResponse,
             404: StockInModel.errorResponse,
+            409: StockInModel.errorResponse,
+            422: StockInModel.errorResponse,
             500: StockInModel.errorResponse,
           },
           detail: {
@@ -214,7 +222,11 @@ export const stockIn = new Elysia({ prefix: "/in" })
               message: t.String(),
             }),
             400: StockInModel.errorResponse,
+            401: StockInModel.errorResponse,
+            403: StockInModel.errorResponse,
             404: StockInModel.errorResponse,
+            409: StockInModel.errorResponse,
+            422: StockInModel.errorResponse,
             500: StockInModel.errorResponse,
           },
           detail: {

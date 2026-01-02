@@ -141,6 +141,8 @@ export namespace CardInventoryModel {
       totalCards: t.Number(),
       totalLost: t.Number(),
       totalDamaged: t.Number(),
+      totalIn: t.Number(),
+      totalOut: t.Number(),
     }),
   });
 

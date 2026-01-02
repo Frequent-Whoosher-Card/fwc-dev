@@ -1,10 +1,12 @@
 import { Elysia } from "elysia";
-import { authMiddleware } from "../../middleware/auth";
+import { rbacMiddleware } from "../../middleware/rbac";
 import { formatErrorResponse } from "../../utils/errors";
 import { MetricsService } from "./service";
 import { MetricsModel } from "./model";
 
+// Metrics routes - admin and superadmin only (analytics data)
 const baseRoutes = new Elysia()
+  .use(rbacMiddleware(["admin", "superadmin"]))
   // Get Metrics
   .get(
     "",
@@ -129,5 +131,4 @@ const baseRoutes = new Elysia()
   );
 
 export const metrics = new Elysia({ prefix: "/metrics" })
-  .use(authMiddleware)
   .use(baseRoutes);
