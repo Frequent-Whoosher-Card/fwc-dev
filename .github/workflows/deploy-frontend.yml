@@ -4,15 +4,13 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   deploy-frontend-azure:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
@@ -25,25 +23,25 @@ jobs:
           ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
             set -e
 
-            NODE_BIN="/home/fwc/.nvm/versions/node/v20.19.6/bin"
-            PM2_BIN="/home/fwc/.nvm/versions/node/v20.19.6/bin/pm2"
+            # === Load NVM & Node 24 ===
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+            nvm use 24.12.0
 
-            echo "== Verify Node version =="
-            $NODE_BIN/node -v
-            $NODE_BIN/npm -v
+            PM2="$HOME/.nvm/versions/node/v24.12.0/bin/pm2"
 
-            echo "== Sync code with main =="
-            cd ${{ secrets.VM_APP_DIR }}
+            echo "== Sync code =="
+            cd /home/fwc/fwc-dev
             git fetch origin
             git reset --hard origin/main
 
-            echo "== Frontend: install dependencies =="
+            echo "== Install frontend deps =="
             cd frontend
-            $NODE_BIN/npm install
+            npm install
 
-            echo "== Frontend: build =="
-            $NODE_BIN/npm run build
+            echo "== Build frontend =="
+            npm run build
 
-            echo "== Frontend: restart PM2 =="
-            $PM2_BIN restart fwc-frontend
+            echo "== Restart frontend =="
+            $PM2 restart fwc-frontend --update-env
           EOF
