@@ -119,6 +119,11 @@ export const docsConfig = swagger({
         description: "Inbox management endpoints for card inventory",
       },
       {
+        name: "Stock All & Inventory",
+        description:
+          "Stock All & Inventory management endpoints for card inventory",
+      },
+      {
         name: "Stock In",
         description: "Stock in management endpoints for card inventory",
       },
