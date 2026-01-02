@@ -139,29 +139,38 @@ export class SalesService {
         lte: end,
       },
       deletedAt: null,
+      card: {
+        deletedAt: null,
+      },
     };
 
+    // Filter by stationId if provided
+    if (stationId) {
+      whereClause.stationId = stationId;
+    }
 
-
-    // Query cards with category and type information via cardProduct relation
-    const cards = await db.card.findMany({
+    // Query purchases with card and cardProduct relation
+    const purchases = await db.cardPurchase.findMany({
       where: whereClause,
       include: {
-        cardProduct: {
+        card: {
           include: {
-            category: {
-              select: {
-                categoryCode: true,
-                categoryName: true,
+            cardProduct: {
+              include: {
+                category: {
+                  select: {
+                    categoryCode: true,
+                    categoryName: true,
+                  },
+                },
+                type: {
+                  select: {
+                    typeCode: true,
+                    typeName: true,
+                  },
+                },
               },
             },
-            type: {
-              select: {
-                typeCode: true,
-                typeName: true,
-              },
-            },
-            // Include price for calculating total sold price
           },
         },
       },
@@ -173,23 +182,23 @@ export class SalesService {
     // Group by date, category, and type
     const salesMap = new Map<string, SalesData>();
 
-    cards.forEach((card) => {
-      // Skip if purchaseDate is null or cardProduct is null
-      if (!card.purchaseDate || !card.cardProduct) return;
+    purchases.forEach((purchase) => {
+      // Skip if card or cardProduct is null
+      if (!purchase.card || !purchase.card.cardProduct) return;
 
-      // Use local timezone to get correct date
-      const date = new Date(card.purchaseDate);
+      // Use local timezone to get correct date from purchaseDate
+      const date = new Date(purchase.purchaseDate);
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
       const dateKey = `${year}-${month}-${day}`; // YYYY-MM-DD in local timezone
-      const categoryCode = card.cardProduct.category.categoryCode;
-      const typeCode = card.cardProduct.type.typeCode;
+      const categoryCode = purchase.card.cardProduct.category.categoryCode;
+      const typeCode = purchase.card.cardProduct.type.typeCode;
 
       const key = `${dateKey}_${categoryCode}_${typeCode}`;
 
       // Get price from cardProduct
-      const price = card.cardProduct.price;
+      const price = purchase.card.cardProduct.price;
       const priceNumber = typeof price === 'number' ? price : Number(price);
 
       if (salesMap.has(key)) {
@@ -234,41 +243,42 @@ export class SalesService {
         gte: start,
         lte: end,
       },
-      expiredDate: {
-        lt: now, // Only cards that are already expired
-      },
       deletedAt: null,
+      card: {
+        expiredDate: {
+          lt: now, // Only cards that are already expired
+        },
+        deletedAt: null,
+      },
     };
 
-    // If stationId is provided, filter by redeems with that stationId
+    // If stationId is provided, filter by CardPurchase.stationId
     if (stationId) {
-      whereClause.redeems = {
-        some: {
-          stationId: stationId,
-          deletedAt: null,
-        },
-      };
+      whereClause.stationId = stationId;
     }
 
-    // Query expired cards with category, type, and price information via cardProduct relation
-    const cards = await db.card.findMany({
+    // Query purchases of expired cards with category, type, and price information
+    const purchases = await db.cardPurchase.findMany({
       where: whereClause,
       include: {
-        cardProduct: {
+        card: {
           include: {
-            category: {
-              select: {
-                categoryCode: true,
-                categoryName: true,
+            cardProduct: {
+              include: {
+                category: {
+                  select: {
+                    categoryCode: true,
+                    categoryName: true,
+                  },
+                },
+                type: {
+                  select: {
+                    typeCode: true,
+                    typeName: true,
+                  },
+                },
               },
             },
-            type: {
-              select: {
-                typeCode: true,
-                typeName: true,
-              },
-            },
-            // Include price for calculating total expired price
           },
         },
       },
@@ -280,23 +290,23 @@ export class SalesService {
     // Group by date, category, and type
     const expiredSalesMap = new Map<string, ExpiredSalesData>();
 
-    cards.forEach((card) => {
-      // Skip if purchaseDate is null or cardProduct is null
-      if (!card.purchaseDate || !card.cardProduct) return;
+    purchases.forEach((purchase) => {
+      // Skip if card or cardProduct is null
+      if (!purchase.card || !purchase.card.cardProduct) return;
 
-      // Use local timezone to get correct date
-      const date = new Date(card.purchaseDate);
+      // Use local timezone to get correct date from purchaseDate
+      const date = new Date(purchase.purchaseDate);
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
       const dateKey = `${year}-${month}-${day}`; // YYYY-MM-DD in local timezone
-      const categoryCode = card.cardProduct.category.categoryCode;
-      const typeCode = card.cardProduct.type.typeCode;
+      const categoryCode = purchase.card.cardProduct.category.categoryCode;
+      const typeCode = purchase.card.cardProduct.type.typeCode;
 
       const key = `${dateKey}_${categoryCode}_${typeCode}`;
 
       // Get price from cardProduct
-      const price = card.cardProduct.price;
+      const price = purchase.card.cardProduct.price;
       const priceNumber = typeof price === 'number' ? price : Number(price);
 
       if (expiredSalesMap.has(key)) {
@@ -665,20 +675,18 @@ export class SalesService {
         lte: end,
       },
       deletedAt: null,
+      card: {
+        deletedAt: null,
+      },
     };
 
-    // If stationId is provided, filter by redeems with that stationId
+    // If stationId is provided, filter by CardPurchase.stationId
     if (stationId) {
-      whereClause.redeems = {
-        some: {
-          stationId: stationId,
-          deletedAt: null,
-        },
-      };
+      whereClause.stationId = stationId;
     }
 
-    // Query cards grouped by purchase date
-    const cards = await db.card.findMany({
+    // Query purchases grouped by purchase date
+    const purchases = await db.cardPurchase.findMany({
       where: whereClause,
       select: {
         purchaseDate: true,
@@ -691,12 +699,9 @@ export class SalesService {
     // Group by date and count
     const dailyTotalsMap = new Map<string, number>();
 
-    cards.forEach((card) => {
-      // Skip if purchaseDate is null
-      if (!card.purchaseDate) return;
-
+    purchases.forEach((purchase) => {
       // Use local timezone to get correct date
-      const date = new Date(card.purchaseDate);
+      const date = new Date(purchase.purchaseDate);
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
@@ -751,34 +756,39 @@ export class SalesService {
       ],
     };
 
+    // Build purchase filter for CardPurchase relation
+    const purchaseFilter: any = {
+      deletedAt: null,
+    };
+
     // Add purchase date filter if provided
     if (startDate || endDate) {
-      whereClause.purchaseDate = {};
+      purchaseFilter.purchaseDate = {};
       if (startDate) {
         const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
         const start = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
-        whereClause.purchaseDate.gte = start;
+        purchaseFilter.purchaseDate.gte = start;
       }
       if (endDate) {
         const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
         const end = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
-        whereClause.purchaseDate.lte = end;
+        purchaseFilter.purchaseDate.lte = end;
       }
     }
 
     // Add station filter if provided
     if (stationId) {
-      whereClause.redeems = {
-        some: {
-          stationId: stationId,
-          deletedAt: null,
-        },
-      };
+      purchaseFilter.stationId = stationId;
     }
 
-    // Query active cards with cardProduct relation to get totalQuota
+    // Query active cards that have purchases matching the filter
     const cards = await db.card.findMany({
-      where: whereClause,
+      where: {
+        ...whereClause,
+        purchases: {
+          some: purchaseFilter,
+        },
+      },
       include: {
         cardProduct: {
           select: {
@@ -825,32 +835,37 @@ export class SalesService {
 
   /**
    * Build where clause for purchase date filter (reusable)
+   * Now uses CardPurchase relation instead of Card.purchaseDate
    */
   private static buildPurchaseDateFilter(
     startDate?: string,
     endDate?: string
   ): any {
-    const where: any = {
+    const purchaseFilter: any = {
       deletedAt: null,
-      purchaseDate: {
-        not: null, // Only cards that have been sold
-      },
     };
 
     if (startDate || endDate) {
+      purchaseFilter.purchaseDate = {};
       if (startDate) {
         const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
         const start = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
-        where.purchaseDate.gte = start;
+        purchaseFilter.purchaseDate.gte = start;
       }
       if (endDate) {
         const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
         const end = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
-        where.purchaseDate.lte = end;
+        purchaseFilter.purchaseDate.lte = end;
       }
     }
 
-    return where;
+    // Filter cards that have purchases matching the date range
+    return {
+      deletedAt: null,
+      purchases: {
+        some: purchaseFilter,
+      },
+    };
   }
 
   /**
@@ -875,28 +890,28 @@ export class SalesService {
       },
     });
 
-    // Get all cards that have been sold with their redeems
+    // Get all cards that have been sold with their purchases
     const cards = await db.card.findMany({
       where: whereClause,
       include: {
-        redeems: {
+        purchases: {
           where: {
             deletedAt: null,
           },
           select: {
             stationId: true,
           },
-          take: 1, // Take first redeem (purchase redeem)
+          take: 1, // Take first purchase
         },
       },
     });
 
-    // Group cards by stationId
+    // Group cards by stationId from purchases
     const stationMap = new Map<string, typeof cards>();
     
     cards.forEach((card) => {
-      // Get stationId from first redeem (purchase redeem)
-      const stationId = card.redeems[0]?.stationId;
+      // Get stationId from first purchase
+      const stationId = card.purchases[0]?.stationId;
       if (!stationId) return; // Skip if no station
 
       if (!stationMap.has(stationId)) {
