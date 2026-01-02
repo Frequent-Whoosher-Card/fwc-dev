@@ -25,18 +25,18 @@ jobs:
           ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
             set -e
 
+            echo "== Sync code with main =="
             cd ${{ secrets.VM_APP_DIR }}
+            git fetch origin
+            git reset --hard origin/main
 
-            echo "Pull latest code"
-            git pull origin main
-
-            echo "Install backend dependencies"
+            echo "== Backend: install dependencies =="
             cd backend
             bun install
 
-            echo "Generate Prisma client"
+            echo "== Backend: generate Prisma client =="
             bunx prisma generate
 
-            echo "Restart backend via PM2"
-            pm2 restart fwc-backend
+            echo "== Backend: restart PM2 process =="
+            /home/fwc/.nvm/versions/node/v20.19.6/bin/pm2 restart fwc-backend
           EOF

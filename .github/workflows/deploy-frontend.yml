@@ -25,18 +25,18 @@ jobs:
           ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
             set -e
 
+            echo "== Sync code with main =="
             cd ${{ secrets.VM_APP_DIR }}
+            git fetch origin
+            git reset --hard origin/main
 
-            echo "Pull latest code"
-            git pull origin main
-
-            echo "Install frontend dependencies"
+            echo "== Frontend: install dependencies =="
             cd frontend
             npm install
 
-            echo "Build frontend"
+            echo "== Frontend: build =="
             npm run build
 
-            echo "Restart frontend via PM2"
-            pm2 restart fwc-frontend
+            echo "== Frontend: restart PM2 process =="
+            /home/fwc/.nvm/versions/node/v20.19.6/bin/pm2 restart fwc-frontend
           EOF
