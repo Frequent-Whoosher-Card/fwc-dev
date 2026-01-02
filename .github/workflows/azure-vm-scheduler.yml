@@ -1,0 +1,102 @@
+name: Azure VM Scheduler (Start & Stop)
+
+on:
+  schedule:
+    # START VM - 10:00 WIB (03:00 UTC)
+    - cron: '10 00 * * *'
+    # STOP VM - 20:30 WIB (13:30 UTC)
+    - cron: '30 13 * * *'
+  workflow_dispatch:
+
+env:
+  RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+  VM_NAME: ${{ secrets.AZURE_VM_NAME }}
+
+jobs:
+  vm-control:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: VM Control Logic
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          EVENT_NAME="${GITHUB_EVENT_NAME}"
+
+          # Get VM power state
+          VM_STATE=$(az vm get-instance-view \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$VM_NAME" \
+            --query "instanceView.statuses[?starts_with(code,'PowerState/')].code" \
+            -o tsv)
+
+          echo "Current VM state: $VM_STATE"
+          echo "Trigger type: $EVENT_NAME"
+
+          # =========================
+          # MANUAL RUN
+          # =========================
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "Manual trigger detected"
+
+            if [ "$VM_STATE" = "PowerState/running" ]; then
+              echo "VM is running → stopping VM"
+              az vm stop \
+                --resource-group "$RESOURCE_GROUP" \
+                --name "$VM_NAME" \
+                --no-wait
+            else
+              echo "VM is stopped → starting VM"
+              az vm start \
+                --resource-group "$RESOURCE_GROUP" \
+                --name "$VM_NAME"
+            fi
+
+            exit 0
+          fi
+
+          # =========================
+          # SCHEDULED RUN
+          # =========================
+          DAY_OF_WEEK=$(date -u +"%u")   # 1=Mon ... 7=Sun
+          HOUR=$(date -u +"%H")
+          MINUTE=$(date -u +"%M")
+
+          echo "UTC Day: $DAY_OF_WEEK | Time: $HOUR:$MINUTE"
+
+          # Skip weekend (Saturday=6, Sunday=7)
+          if [ "$DAY_OF_WEEK" -ge 6 ]; then
+            echo "Weekend detected → skipping scheduled action"
+            exit 0
+          fi
+
+          # START VM - 02:30 UTC
+          if [ "$HOUR" -eq 02 ] && [ "$MINUTE" -eq 30 ]; then
+            if [ "$VM_STATE" != "PowerState/running" ]; then
+              echo "Weekday morning → starting VM"
+              az vm start \
+                --resource-group "$RESOURCE_GROUP" \
+                --name "$VM_NAME"
+            else
+              echo "VM already running → no action"
+            fi
+          fi
+
+          # STOP VM - 13:30 UTC
+          if [ "$HOUR" -eq 13 ] && [ "$MINUTE" -eq 30 ]; then
+            if [ "$VM_STATE" = "PowerState/running" ]; then
+              echo "Weekday evening → stopping VM"
+              az vm stop \
+                --resource-group "$RESOURCE_GROUP" \
+                --name "$VM_NAME" \
+                --no-wait
+            else
+              echo "VM already stopped → no action"
+            fi
+          fi

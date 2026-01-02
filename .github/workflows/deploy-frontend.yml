@@ -1,0 +1,42 @@
+name: Deploy Frontend to VM Azure
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-frontend-azure:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VM_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy Frontend
+        run: |
+          ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
+            set -e
+
+            cd ${{ secrets.VM_APP_DIR }}
+
+            echo "Pull latest code"
+            git pull origin main
+
+            echo "Install frontend dependencies"
+            cd frontend
+            npm install
+
+            echo "Build frontend"
+            npm run build
+
+            echo "Restart frontend via PM2"
+            pm2 restart fwc-frontend
+          EOF
