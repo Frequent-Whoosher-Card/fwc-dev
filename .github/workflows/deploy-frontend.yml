@@ -18,7 +18,7 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Deploy Frontend (Clone Fresh + Blocking Lock)
+      - name: Deploy Frontend (Safe Git Update + Blocking Lock)
         run: |
           ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
             set -e
@@ -36,12 +36,13 @@ jobs:
 
             PM2="$HOME/.nvm/versions/node/v24.12.0/bin/pm2"
 
-            echo "== Fresh clone repo =="
-            rm -rf /home/fwc/fwc-dev
-            git clone https://github.com/Frequent-Whoosher-Card/fwc-dev.git /home/fwc/fwc-dev
+            echo "== Update source code safely =="
+            cd /home/fwc/fwc-dev
+            git fetch origin
+            git reset --hard origin/main
 
             echo "== Install frontend deps =="
-            cd /home/fwc/fwc-dev/frontend
+            cd frontend
             npm install
 
             echo "== Build frontend =="
