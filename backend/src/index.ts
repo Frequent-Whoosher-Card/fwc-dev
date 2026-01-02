@@ -15,6 +15,7 @@ import { members } from "./modules/members";
 import { purchases } from "./modules/purchases";
 import { AuthenticationError, AuthorizationError } from "./utils/errors";
 import { inbox } from "./modules/inbox";
+import { redeem } from "./modules/redeem";
 
 const app = new Elysia()
   .use(docsConfig)
@@ -37,6 +38,7 @@ const app = new Elysia()
   .use(sales)
   .use(metrics)
   .use(inbox)
+  .use(redeem)
   .onError(({ code, error, set }) => {
     // Global error handler
     if (code === "VALIDATION") {
