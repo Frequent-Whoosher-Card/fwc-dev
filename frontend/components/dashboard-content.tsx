@@ -72,7 +72,7 @@ export function DashboardContent() {
     setErrorMessage(null);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/sales/daily-grouped?startDate=2025-12-01&endDate=2025-12-31`, {
+      const res = await fetch(`${API_BASE_URL}/sales/daily-grouped?startDate=2025-01-01&endDate=2025-01-31&stationId=`, {
         method: 'GET',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -103,35 +103,31 @@ export function DashboardContent() {
   const [stationLoading, setStationLoading] = useState(false);
 
   // Fungsi fetch harus dideklarasikan **sebelum dipakai**
-const fetchStationSales = async () => {
-  setStationLoading(true);
+  const fetchStationSales = async () => {
+    setStationLoading(true);
 
-  try {
-    const token = localStorage.getItem('fwc_token');
-    if (!token) throw new Error('No auth token');
+    try {
+      const token = localStorage.getItem('fwc_token');
+      if (!token) throw new Error('No auth token');
 
-    const res = await fetch(
-      `${API_BASE_URL}/sales/per-station?startDate=&endDate=`,
-      {
+      const res = await fetch(`${API_BASE_URL}/sales/per-station?startDate=&endDate=`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-      }
-    );
+      });
 
-    if (!res.ok) throw new Error('Failed to fetch station sales');
+      if (!res.ok) throw new Error('Failed to fetch station sales');
 
-    const json = await res.json();
-    setStationData(json.data ?? []);
-  } catch (err) {
-    console.error('Station sales error:', err);
-  } finally {
-    setStationLoading(false);
-  }
-};
-
+      const json = await res.json();
+      setStationData(json.data ?? []);
+    } catch (err) {
+      console.error('Station sales error:', err);
+    } finally {
+      setStationLoading(false);
+    }
+  };
 
   /* ======================
      CHART DATA

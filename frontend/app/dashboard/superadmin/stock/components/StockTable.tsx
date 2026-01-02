@@ -89,58 +89,62 @@ export function StockTable() {
       <table className="w-full text-sm min-w-[1000px]">
         <thead>
           <tr className="border-b bg-gray-50">
-            <th rowSpan={2} className="p-4 text-left">
+            <th rowSpan={2} className="p-4 text-center w-12">
+              No
+            </th>
+            <th rowSpan={2} className="p-4 text-center">
               Card Category
             </th>
-            <th rowSpan={2} className="p-4 text-left">
+            <th rowSpan={2} className="p-4 text-center">
               Card Type
             </th>
-            <th rowSpan={2} className="p-4 text-right">
+            <th rowSpan={2} className="p-4 text-center">
               Card Office
             </th>
-            <th rowSpan={2} className="p-4 text-right">
+            <th rowSpan={2} className="p-4 text-center">
               Card Beredar
             </th>
             <th colSpan={3} className="p-4 text-center bg-blue-50">
               Terjual
             </th>
-            <th rowSpan={2} className="p-4 text-right">
+            <th rowSpan={2} className="p-4 text-center">
               Card Belum Terjual
             </th>
           </tr>
           <tr className="border-b bg-gray-50">
-            <th className="p-3 text-right">Aktif</th>
-            <th className="p-3 text-right">Non Aktif</th>
-            <th className="p-3 text-right">Total</th>
+            <th className="p-3 text-center">Aktif</th>
+            <th className="p-3 text-center">Non Aktif</th>
+            <th className="p-3 text-center">Total</th>
           </tr>
         </thead>
 
         <tbody>
           {rows.map((row, i) => (
             <tr key={i} className="border-b">
-              <td className="p-4">{row.category}</td>
-              <td className="p-4">{row.type || '-'}</td>
-              <td className="p-4 text-right">{row.cardOffice.toLocaleString()}</td>
-              <td className="p-4 text-right">{row.cardBeredar.toLocaleString()}</td>
-              <td className="p-4 text-right">{row.aktif}</td>
-              <td className="p-4 text-right">{row.nonAktif}</td>
-              <td className="p-4 text-right">{row.totalTerjual}</td>
-              <td className="p-4 text-right">{row.cardBelumTerjual.toLocaleString()}</td>
+              <td className="p-4 text-center">{i + 1}</td>
+              <td className="p-4 text-center">{row.category}</td>
+              <td className="p-4 text-center">{row.type || '-'}</td>
+              <td className="p-4 text-center">{row.cardOffice.toLocaleString()}</td>
+              <td className="p-4 text-center">{row.cardBeredar.toLocaleString()}</td>
+              <td className="p-4 text-center">{row.aktif}</td>
+              <td className="p-4 text-center">{row.nonAktif}</td>
+              <td className="p-4 text-center">{row.totalTerjual}</td>
+              <td className="p-4 text-center">{row.cardBelumTerjual.toLocaleString()}</td>
             </tr>
           ))}
         </tbody>
 
         <tfoot>
           <tr className="bg-[#00B54629] text-[#31b057] font-semibold">
-            <td colSpan={2} className="p-4">
+            <td colSpan={3} className="p-4 text-center">
               Total
             </td>
-            <td className="p-4 text-right">{total.cardOffice.toLocaleString()}</td>
-            <td className="p-4 text-right">{total.cardBeredar.toLocaleString()}</td>
-            <td className="p-4 text-right">{total.aktif}</td>
-            <td className="p-4 text-right">{total.nonAktif}</td>
-            <td className="p-4 text-right">{total.totalTerjual}</td>
-            <td className="p-4 text-right">{total.cardBelumTerjual.toLocaleString()}</td>
+            <td className="p-4 text-center">{total.cardOffice.toLocaleString()}</td>
+            <td className="p-4 text-center">{total.cardBeredar.toLocaleString()}</td>
+            <td className="p-4 text-center">{total.aktif}</td>
+            <td className="p-4 text-center">{total.nonAktif}</td>
+            <td className="p-4 text-center">{total.totalTerjual}</td>
+            <td className="p-4 text-center">{total.cardBelumTerjual.toLocaleString()}</td>
           </tr>
         </tfoot>
       </table>
