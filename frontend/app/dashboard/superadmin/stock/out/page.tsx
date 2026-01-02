@@ -162,6 +162,11 @@ export default function StockOutPage() {
     doc.save('laporan-stock-out.pdf');
   };
 
+  const pageNumbers = Array.from(
+    { length: pagination.totalPages },
+    (_, i) => i + 1
+  );
+
   return (
     <div className="space-y-6">
       {/* SUMMARY */}
@@ -298,59 +303,56 @@ export default function StockOutPage() {
             </tbody>
           </table>
         </div>
+      </div>
 
         {/* PAGINATION */}
-        <div className="flex items-center justify-between border-t px-4 py-3 sm:px-6">
-          <div className="flex flex-1 justify-between sm:hidden">
-            <button
-              onClick={() => handlePageChange(pagination.page - 1)}
-              disabled={pagination.page === 1}
-              className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => handlePageChange(pagination.page + 1)}
-              disabled={pagination.page === pagination.totalPages}
-              className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-          <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-700">
-                Menampilkan <span className="font-medium">{(pagination.page - 1) * pagination.limit + 1}</span> sampai <span className="font-medium">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> dari <span className="font-medium">{pagination.total}</span> hasil
-              </p>
-            </div>
-            <div>
-              <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-                <button
-                  onClick={() => handlePageChange(pagination.page - 1)}
-                  disabled={pagination.page === 1}
-                  className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
-                >
-                  <span className="sr-only">Previous</span>
-                  <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-                </button>
-                
-                {/* Simple Page Indicator */}
-                <span className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 focus:outline-offset-0">
-                  {pagination.page} / {pagination.totalPages || 1}
-                </span>
+      <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-600">
+        <button
+          disabled={pagination.page === 1}
+          onClick={() =>
+            setPagination((p) => ({
+              ...p,
+              page: p.page - 1,
+            }))
+          }
+          className="px-2 disabled:opacity-40"
+        >
+          <ChevronLeft size={18} />
+        </button>
 
-                <button
-                  onClick={() => handlePageChange(pagination.page + 1)}
-                  disabled={pagination.page === pagination.totalPages}
-                  className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
-                >
-                  <span className="sr-only">Next</span>
-                  <ChevronRight className="h-5 w-5" aria-hidden="true" />
-                </button>
-              </nav>
-            </div>
-          </div>
-        </div>
+        {pageNumbers.map((p) => (
+          <button
+            key={p}
+            onClick={() =>
+              setPagination((pg) => ({
+                ...pg,
+                page: p,
+              }))
+            }
+            className={`px-3 py-1 ${
+              p === pagination.page
+                ? 'font-semibold underline'
+                : ''
+            }`}
+          >
+            {p}
+          </button>
+        ))}
+
+        <button
+          disabled={
+            pagination.page === pagination.totalPages
+          }
+          onClick={() =>
+            setPagination((p) => ({
+              ...p,
+              page: p.page + 1,
+            }))
+          }
+          className="px-2 disabled:opacity-40"
+        >
+          <ChevronRight size={18} />
+        </button>
       </div>
 
       <DeleteConfirmModal
