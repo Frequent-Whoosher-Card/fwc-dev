@@ -56,6 +56,7 @@ model User {
   station             Station?             @relation(fields: [stationId], references: [id])
   receivedInboxes     Inbox[]              @relation("ReceivedInboxes")
   sentInboxes         Inbox[]              @relation("SentInboxes")
+  cards               Card[]
 
   @@map("users")
 }
@@ -146,6 +147,7 @@ model Card {
   id            String         @id @default(uuid()) @map("card_id") @db.Uuid
   serialNumber  String         @unique @map("serial_number")
   memberId      String?        @map("member_id") @db.Uuid
+  userId        String?        @map("user_id") @db.Uuid
   cardProductId String         @map("card_product_id") @db.Uuid
   quotaTicket   Int            @default(0) @map("quota_ticket")
   purchaseDate  DateTime?      @map("purchase_date")
@@ -160,6 +162,7 @@ model Card {
   cardUsageLogs CardUsageLog[]
   cardProduct   CardProduct    @relation(fields: [cardProductId], references: [id])
   member        Member?        @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  user          User?          @relation(fields: [userId], references: [id], onDelete: Restrict)
   redeems       Redeem[]
 
   @@map("cards")
@@ -292,6 +295,7 @@ model Redeem {
   shiftDate         DateTime          @map("shift_date")
   status            TransactionStatus @default(Success) @map("transaction_status")
   notes             String?
+  fileBlobId        String?           @map("file_blob_id") @db.Uuid
 
   createdAt DateTime  @default(now()) @map("created_at")
   createdBy String?   @map("created_by") @db.Uuid
@@ -302,7 +306,9 @@ model Redeem {
   card      Card      @relation(fields: [cardId], references: [id])
   operator  User      @relation(fields: [operatorId], references: [id])
   station   Station   @relation(fields: [stationId], references: [id])
+  fileBlob  FileBlob? @relation(fields: [fileBlobId], references: [id])
 
+  @@index([transactionNumber], map: "idx_redeem_transaction_number")
   @@map("redeem")
 }
 
@@ -321,6 +327,27 @@ model CardUsageLog {
   card           Card      @relation(fields: [cardId], references: [id], onDelete: Cascade)
 
   @@map("card_usage_logs")
+}
+
+model FileBlob {
+  id             String  @id @default(uuid()) @map("file_id") @db.Uuid
+  originalName   String  @map("original_name") @db.Text
+  fileName       String  @map("file_name") @db.Text // nama internal (opsional)
+  mimeType       String  @map("mime_type") @db.Text
+  sizeBytes      Int     @map("size_bytes")
+  checksumSha256 String? @map("checksum_sha256") @db.Text
+
+  data Bytes @map("data") // BYTEA di PostgreSQL
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedAt DateTime  @default(now()) @map("updated_at")
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at")
+  deletedBy String?   @map("deleted_by") @db.Uuid
+  redeems   Redeem[]
+
+  @@map("file_blob")
 }
 
 model PasswordResetToken {
