@@ -25,6 +25,13 @@ jobs:
           ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
             set -e
 
+            NODE_BIN="/home/fwc/.nvm/versions/node/v20.19.6/bin"
+            PM2_BIN="/home/fwc/.nvm/versions/node/v20.19.6/bin/pm2"
+
+            echo "== Verify Node version =="
+            $NODE_BIN/node -v
+            $NODE_BIN/npm -v
+
             echo "== Sync code with main =="
             cd ${{ secrets.VM_APP_DIR }}
             git fetch origin
@@ -32,11 +39,11 @@ jobs:
 
             echo "== Frontend: install dependencies =="
             cd frontend
-            npm install
+            $NODE_BIN/npm install
 
             echo "== Frontend: build =="
-            npm run build
+            $NODE_BIN/npm run build
 
-            echo "== Frontend: restart PM2 process =="
-            /home/fwc/.nvm/versions/node/v20.19.6/bin/pm2 restart fwc-frontend
+            echo "== Frontend: restart PM2 =="
+            $PM2_BIN restart fwc-frontend
           EOF
