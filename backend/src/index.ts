@@ -12,8 +12,8 @@ import { cardProducts } from "./modules/cards/product";
 import { station } from "./modules/station";
 import { cardInventory } from "./modules/stock/inventory";
 import { members } from "./modules/members";
-import { inbox } from "./modules/inbox";
 import { AuthenticationError, AuthorizationError } from "./utils/errors";
+import { inbox } from "./modules/inbox";
 
 const app = new Elysia()
   .use(docsConfig)
