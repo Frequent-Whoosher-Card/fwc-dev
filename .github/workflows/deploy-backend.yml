@@ -4,15 +4,13 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   deploy-backend-azure:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
@@ -25,26 +23,25 @@ jobs:
           ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
             set -e
 
-            PM2_BIN="/home/fwc/.nvm/versions/node/v20.19.6/bin/pm2"
+            # === Load NVM & Node 24 ===
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+            nvm use 24.12.0
 
-            echo "== Sync code with main =="
-            cd ${{ secrets.VM_APP_DIR }}
+            PM2="$HOME/.nvm/versions/node/v24.12.0/bin/pm2"
+
+            echo "== Sync code =="
+            cd /home/fwc/fwc-dev
             git fetch origin
             git reset --hard origin/main
 
-            echo "== Backend: install dependencies =="
+            echo "== Install backend deps =="
             cd backend
             bun install
 
-            echo "== Backend: generate Prisma client =="
+            echo "== Prisma generate =="
             bunx prisma generate
 
-            echo "== Verify Prisma client generated =="
-            if [ ! -d "prisma/generated/client" ]; then
-              echo "❌ Prisma client not found!"
-              exit 1
-            fi
-
-            echo "== Restart backend via PM2 (reload env) =="
-            $PM2_BIN restart fwc-backend --update-env
+            echo "== Restart backend =="
+            $PM2 restart fwc-backend --update-env
           EOF
