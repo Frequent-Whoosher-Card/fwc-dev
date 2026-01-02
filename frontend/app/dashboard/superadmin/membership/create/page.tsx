@@ -30,9 +30,7 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs text-gray-500">
-        {label}
-      </label>
+      <label className="text-xs text-gray-500">{label}</label>
       {children}
     </div>
   );
@@ -50,12 +48,7 @@ function DateField({
 }) {
   return (
     <Field label={label}>
-      <input
-        type="date"
-        name={name}
-        className={base}
-        required
-      />
+      <input type="date" name={name} className={base} required />
     </Field>
   );
 }
@@ -83,7 +76,7 @@ function SectionCard({
 }
 
 /* ======================
-   ROW PREVIEW (UNTUK MODAL)
+   ROW PREVIEW
 ====================== */
 function PreviewRow({
   label,
@@ -103,7 +96,7 @@ function PreviewRow({
 }
 
 /* ======================
-   SUCCESS MODAL (DATA PREVIEW)
+   SUCCESS MODAL
 ====================== */
 function SuccessModal({
   open,
@@ -118,40 +111,31 @@ function SuccessModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-<div className="w-[560px] max-h-[85vh] rounded-xl bg-white p-6 flex flex-col">
-        {/* HEADER */}
+      <div className="w-[560px] max-h-[85vh] rounded-xl bg-white p-6 flex flex-col">
         <div className="mb-4 text-center">
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
             <CheckCircle size={28} className="text-green-600" />
           </div>
-          <h2 className="text-lg font-semibold">
-            Data Saved
-          </h2>
+          <h2 className="text-lg font-semibold">Data Saved</h2>
           <p className="mt-1 text-sm text-gray-600">
             Please review the saved data below
           </p>
         </div>
 
-        {/* DATA STRUCTURE PREVIEW */}
-<div className="mt-4 flex-1 overflow-auto rounded-md border bg-gray-50 p-4 text-sm">
-  <PreviewRow label="Membership Name" value={data.name} />
-  <PreviewRow label="Membership Date" value={data.membershipDate} />
-  <PreviewRow label="Expired Date" value={data.expiredDate} />
-  <PreviewRow label="Nationality" value={data.nationality} />
-  <PreviewRow label="Identity Number" value={data.nik} />
-  <PreviewRow label="Address" value={data.address} />
-  <PreviewRow label="Phone Number" value={data.phone} />
-  <PreviewRow label="Email Address" value={data.email} />
-  <PreviewRow label="Card Category" value={data.cardCategory} />
-  <PreviewRow label="Card Type" value={data.cardType} />
-  <PreviewRow label="Purchased Date" value={data.purchasedDate} />
-  <PreviewRow label="Kuota" value={data.price} />
-  <PreviewRow label="Stasiun" value={data.station} />
-  <PreviewRow label="Operator Name" value={data.operatorName} />
-</div>
+        <div className="mt-4 flex-1 overflow-auto rounded-md border bg-gray-50 p-4 text-sm">
+          <PreviewRow label="Membership Name" value={data.name} />
+          <PreviewRow label="Nationality" value={data.nationality} />
+          <PreviewRow label="Identity Number" value={data.nik} />
+          <PreviewRow label="Address" value={data.address} />
+          <PreviewRow label="Phone Number" value={data.phone} />
+          <PreviewRow label="Email Address" value={data.email} />
+          <PreviewRow label="Card Category" value={data.cardCategory} />
+          <PreviewRow label="Card Type" value={data.cardType} />
+          <PreviewRow label="Purchased Date" value={data.purchasedDate} />
+          <PreviewRow label="Kuota" value={data.price} />
+          <PreviewRow label="Stasiun" value={data.station} />
+        </div>
 
-
-        {/* ACTION */}
         <button
           onClick={onClose}
           className="mt-6 w-full rounded-md bg-[#8B1538] py-2 text-sm font-medium text-white hover:bg-[#73122E]"
@@ -169,56 +153,87 @@ function SuccessModal({
 export default function AddMemberPage() {
   const router = useRouter();
   const [showSuccess, setShowSuccess] = useState(false);
-  const [savedData, setSavedData] = useState<Record<string, any> | null>(null);
+  const [savedData, setSavedData] =
+    useState<Record<string, any> | null>(null);
 
   const onlyNumber = (e: React.FormEvent<HTMLInputElement>) => {
-    e.currentTarget.value =
-      e.currentTarget.value.replace(/\D/g, '');
+    e.currentTarget.value = e.currentTarget.value.replace(/\D/g, '');
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  /* ======================
+     SUBMIT (API + TOKEN)
+  ====================== */
+  const handleSubmit = async (
+    e: React.FormEvent<HTMLFormElement>
+  ) => {
     e.preventDefault();
 
-    const data = Object.fromEntries(
+    const formData = Object.fromEntries(
       new FormData(e.currentTarget).entries()
     );
 
+    // 🔑 TOKEN SESUAI AUTH KAMU
+    const token = localStorage.getItem('fwc_token');
+
+    if (!token) {
+      alert('Token not found. Please login again.');
+      return;
+    }
+
+    // 📦 PAYLOAD SESUAI API /members
     const payload = {
-      id: Date.now(),
-      ...data,
-      updatedAt: new Date().toISOString().split('T')[0],
+      name: formData.name,
+      identityNumber: formData.nik,
+      nationality: formData.nationality,
+      email: formData.email,
+      phone: formData.phone,
+      gender: formData.gender,
+      alamat: formData.address,
+      nipKai: '',
     };
 
-    const stored = JSON.parse(
-      localStorage.getItem('fwc_memberships') || '[]'
-    );
+    try {
+      const res = await fetch(
+        'http://localhost:3001/members',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        }
+      );
 
-    stored.push(payload);
+      if (!res.ok) {
+        const err = await res.json();
+        throw err;
+      }
 
-    localStorage.setItem(
-      'fwc_memberships',
-      JSON.stringify(stored)
-    );
+      const saved = await res.json();
 
-    // 🔥 SIMPAN DATA UNTUK DITAMPILKAN DI MODAL
-    setSavedData(payload);
-    setShowSuccess(true);
+      setSavedData({
+        ...formData,
+        createdAt: saved.createdAt,
+      });
+
+      setShowSuccess(true);
+    } catch (error) {
+      console.error('CREATE MEMBER ERROR', error);
+      alert('Failed to save member data');
+    }
   };
 
   return (
     <>
       <div className="space-y-6">
-        {/* HEADER */}
         <div className="flex items-center gap-3">
           <button onClick={() => router.back()}>
             <ArrowLeft />
           </button>
-          <h1 className="text-xl font-semibold">
-            Add Member
-          </h1>
+          <h1 className="text-xl font-semibold">Add Member</h1>
         </div>
 
-        {/* FORM */}
         <form
           onSubmit={handleSubmit}
           className="rounded-lg border bg-white p-6"
@@ -370,15 +385,6 @@ export default function AddMemberPage() {
                 required
               />
             </div>
-
-            <div className="md:col-span-2">
-              <input
-                name="operatorName"
-                placeholder="Operator Name"
-                className={base}
-                required
-              />
-            </div>
           </div>
 
           <div className="mt-8 flex justify-end">
@@ -392,7 +398,6 @@ export default function AddMemberPage() {
         </form>
       </div>
 
-      {/* ✅ SUCCESS POPUP DENGAN DATA */}
       <SuccessModal
         open={showSuccess}
         data={savedData}

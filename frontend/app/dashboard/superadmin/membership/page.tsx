@@ -18,10 +18,10 @@ import {
 } from '@/lib/services/membership.service';
 
 /* ======================
-   TYPES (IKUT API REAL)
+   TYPES (FE CONTRACT)
 ====================== */
 interface Membership {
-  id: string; // ✅ UUID STRING (WAJIB)
+  id: string;
   membership_date: string;
   name?: string | null;
   nik?: string | null;
@@ -40,6 +40,20 @@ interface Pagination {
   totalPages: number;
   total: number;
 }
+
+/* ======================
+   DATE FORMATTER
+====================== */
+const formatDate = (iso?: string) => {
+  if (!iso) return '-';
+
+  const d = new Date(iso);
+  return d.toLocaleDateString('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+};
 
 /* ======================
    DELETE MODAL
@@ -127,7 +141,6 @@ function SuccessModal({
 ====================== */
 export default function MembershipPage() {
   const router = useRouter();
-
   const LIMIT = 10;
 
   const [data, setData] = useState<Membership[]>([]);
@@ -149,79 +162,87 @@ export default function MembershipPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  /* ======================
-     LOAD DATA (API)
-  ====================== */
-
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
- const fetchMembers = async (page: number) => {
-  try {
-    setLoading(true);
+  /* ======================
+     FETCH DATA
+  ====================== */
+  const fetchMembers = async (page: number) => {
+    try {
+      setLoading(true);
 
-    const res = await getMembers({
-      page,
-      limit: LIMIT,
-      search: debouncedSearch || undefined,
-      gender: gender !== 'all' ? gender : undefined,
-      startDate: startDate || undefined,
-      endDate: endDate || undefined,
-    });
+      const res = await getMembers({
+        page,
+        limit: LIMIT,
+        search: debouncedSearch || undefined,
+        gender: gender !== 'all' ? gender : undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      });
 
-    setData(res.data.items);
-    setPagination(res.data.pagination);
-  } catch (err) {
-    console.error(err);
-  } finally {
-    setLoading(false);
-  }
-};
+      const mapped: Membership[] = res.data.items.map((item: any) => ({
+        id: item.id,
+        membership_date: formatDate(item.createdAt), // ✅ from createdAt
+        name: item.name,
+        nik: item.identityNumber,
+        nationality: item.nationality,
+        gender: item.gender,
+        email: item.email,
+        phone: item.phone,
+        address: item.alamat,
+        operator_name:
+          item.updatedByName ?? item.createdByName,
+        updated_at: formatDate(item.updatedAt), // ✅ formatted
+      }));
 
-useEffect(() => {
-  if (pagination.page !== 1) {
-    setPagination((p) => ({ ...p, page: 1 }));
-  } else {
-    // 🔥 page sudah 1, tapi search berubah → fetch langsung
-    fetchMembers(1);
-  }
-}, [debouncedSearch, gender, startDate, endDate]);
+      setData(mapped);
+      setPagination(res.data.pagination);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  /* ======================
+     EFFECTS
+  ====================== */
+  useEffect(() => {
+    if (pagination.page !== 1) {
+      setPagination((p) => ({ ...p, page: 1 }));
+    } else {
+      fetchMembers(1);
+    }
+  }, [debouncedSearch, gender, startDate, endDate]);
 
   useEffect(() => {
-  if (!search) {
-    setDebouncedSearch('');
-    return;
-  }
+    if (!search) {
+      setDebouncedSearch('');
+      return;
+    }
 
-  const t = setTimeout(() => {
-    setDebouncedSearch(search);
-  }, 200);
+    const t = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 200);
 
-  return () => clearTimeout(t);
-}, [search]);
+    return () => clearTimeout(t);
+  }, [search]);
 
   useEffect(() => {
     fetchMembers(pagination.page);
   }, [pagination.page]);
 
   const resetFilter = () => {
-  setSearch('');
-  setGender('all');
-  setStartDate('');
-  setEndDate('');
-};
+    setSearch('');
+    setGender('all');
+    setStartDate('');
+    setEndDate('');
+  };
+
+  const filteredData = useMemo(() => data, [data]);
 
   /* ======================
-     FILTER + SEARCH (NULL SAFE)
-  ====================== */
- const filteredData = useMemo(() => {
-  // NOTE: filtering is handled by backend (server-side search)
-  return data;
-}, [data]);
-
-
-  /* ======================
-     DELETE HANDLER
+     DELETE
   ====================== */
   const confirmDelete = async () => {
     if (!selectedId) return;
@@ -237,9 +258,8 @@ useEffect(() => {
     }
   };
 
-
   /* ======================
-     PAGINATION NUMBERS
+     PAGINATION
   ====================== */
   const pageNumbers = Array.from(
     { length: pagination.totalPages },
@@ -249,6 +269,9 @@ useEffect(() => {
     pagination.page + 2
   );
 
+  /* ======================
+     RENDER
+  ====================== */
   return (
     <div className="space-y-6">
       {/* HEADER */}
@@ -281,11 +304,10 @@ useEffect(() => {
       </div>
 
       {loading && (
-  <div className="text-xs text-gray-400">
-    Loading data...
-  </div>
-)}
-
+        <div className="text-xs text-gray-400">
+          Loading data...
+        </div>
+      )}
 
       {/* FILTER */}
       <div className="rounded-lg border bg-white px-4 py-3">
@@ -329,97 +351,132 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* TABLE */}
-      <div className="overflow-x-auto rounded-lg border bg-white">
-        <table className="min-w-[1600px] w-full">
-          <thead className="bg-gray-50 text-xs text-gray-600">
-            <tr>
-              <th className="px-4 py-3">Membership Date</th>
-              <th className="px-4 py-3">Customer Name</th>
-              <th className="px-4 py-3">Identity Number</th>
-              <th className="px-4 py-3">Nationality</th>
-              <th className="px-4 py-3">Gender</th>
-              <th className="px-4 py-3">Email</th>
-              <th className="px-4 py-3">Phone</th>
-              <th className="px-4 py-3">Address</th>
-              <th className="px-4 py-3">Last Updated</th>
-              <th className="px-4 py-3 text-center">View</th>
-              <th className="px-4 py-3 text-center">Aksi</th>
-            </tr>
-          </thead>
+     {/* TABLE */}
+     
+<div className="overflow-x-auto rounded-lg border bg-white">
+  <table className="min-w-[1600px] w-full">
+    <thead className="bg-gray-50 text-xs text-gray-600">
+      <tr>
+        <th className="px-4 py-3 text-center whitespace-nowrap">
+          Membership Date
+        </th>
+        <th className="px-4 py-3 text-left whitespace-nowrap">
+          Customer Name
+        </th>
+        <th className="px-4 py-3 text-center whitespace-nowrap">
+          Identity Number
+        </th>
+        <th className="px-4 py-3 text-left whitespace-nowrap min-w-[140px]">
+          Nationality
+        </th>
+        <th className="px-4 py-3 text-center whitespace-nowrap">
+          Gender
+        </th>
+        <th className="px-4 py-3 text-left whitespace-nowrap">
+          Email
+        </th>
+        <th className="px-4 py-3 text-center whitespace-nowrap">
+          Phone
+        </th>
+        <th className="px-4 py-3 text-left whitespace-nowrap min-w-[220px]">
+          Address
+        </th>
+        <th className="px-4 py-3 text-center whitespace-nowrap">
+          Last Updated
+        </th>
+        <th className="px-4 py-3 text-center">
+          View
+        </th>
+        <th className="px-4 py-3 text-center">
+          Aksi
+        </th>
+      </tr>
+    </thead>
 
-          <tbody>
-            {filteredData.map((item) => (
-              <tr key={item.id} className="border-t text-sm">
-                <td className="px-4 py-2">
-                  {item.membership_date || '-'}
-                </td>
-                <td className="px-4 py-2">
-                  {item.name || '-'}
-                </td>
-                <td className="px-4 py-2">
-                  {item.nik || '-'}
-                </td>
-                <td className="px-4 py-2">
-                  {item.nationality || '-'}
-                </td>
-                <td className="px-4 py-2">
-                  {item.gender || '-'}
-                </td>
-                <td className="px-4 py-2">
-                  {item.email || '-'}
-                </td>
-                <td className="px-4 py-2">
-                  {item.phone || '-'}
-                </td>
-                <td className="px-4 py-2">
-                  {item.address || '-'}
-                </td>
-                <td className="px-4 py-2">
-                  {item.updated_at || '-'}
-                </td>
+    <tbody>
+      {filteredData.map((item) => (
+        <tr
+          key={item.id}
+          className="border-t text-sm hover:bg-gray-50"
+        >
+          <td className="px-4 py-2 text-center whitespace-nowrap">
+            {item.membership_date || '-'}
+          </td>
 
-                <td className="px-4 py-2 text-center">
-                  <Eye
-                    size={16}
-                    className="mx-auto cursor-pointer text-gray-500 hover:text-blue-600"
-                    onClick={() =>
-                      router.push(
-                        `/dashboard/superadmin/membership/view/${item.id}`
-                      )
-                    }
-                  />
-                </td>
+          <td className="px-4 py-2 text-left whitespace-nowrap">
+            {item.name || '-'}
+          </td>
 
-                <td className="px-4 py-2 text-center">
-                  <div className="flex justify-center gap-2">
-                    <button
-                      onClick={() =>
-                        router.push(
-                          `/dashboard/superadmin/membership/edit/${item.id}`
-                        )
-                      }
-                      className="rounded bg-gray-200 px-3 py-1 text-xs"
-                    >
-                      Edit
-                    </button>
+          <td className="px-4 py-2 text-center font-mono whitespace-nowrap">
+            {item.nik || '-'}
+          </td>
 
-                    <button
-                      onClick={() => {
-                        setSelectedId(item.id);
-                        setShowDeleteModal(true);
-                      }}
-                      className="rounded bg-red-600 px-3 py-1 text-xs text-white"
-                    >
-                      Hapus
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          <td className="px-4 py-2 text-left whitespace-nowrap min-w-[140px]">
+            {item.nationality || '-'}
+          </td>
+
+          <td className="px-4 py-2 text-center whitespace-nowrap">
+            {item.gender || '-'}
+          </td>
+
+          <td className="px-4 py-2 text-left max-w-[240px] truncate">
+            {item.email || '-'}
+          </td>
+
+          <td className="px-4 py-2 text-center font-mono whitespace-nowrap">
+            {item.phone || '-'}
+          </td>
+
+          <td className="px-4 py-2 text-left max-w-[260px] truncate">
+            {item.address || '-'}
+          </td>
+
+          <td className="px-4 py-2 text-center whitespace-nowrap">
+            {item.updated_at || '-'}
+          </td>
+
+          <td className="px-4 py-2 text-center">
+            <Eye
+              size={16}
+              className="mx-auto cursor-pointer text-gray-500 hover:text-blue-600"
+              onClick={() =>
+                router.push(
+                  `/dashboard/superadmin/membership/view/${item.id}`
+                )
+              }
+            />
+          </td>
+
+          <td className="px-4 py-2 text-center">
+            <div className="flex justify-center gap-2">
+              <button
+                onClick={() =>
+                  router.push(
+                    `/dashboard/superadmin/membership/edit/${item.id}`
+                  )
+                }
+                className="rounded bg-gray-200 px-3 py-1 text-xs"
+              >
+                Edit
+              </button>
+
+              <button
+                onClick={() => {
+                  setSelectedId(item.id);
+                  setShowDeleteModal(true);
+                }}
+                className="rounded bg-red-600 px-3 py-1 text-xs text-white"
+              >
+                Hapus
+              </button>
+            </div>
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+
 
       {/* PAGINATION */}
       <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-600">

@@ -1,5 +1,7 @@
 'use client';
 
+import { useContext } from 'react';
+import { UserContext } from '@/components/dashboard-layout';
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
@@ -16,6 +18,7 @@ import {
   getMemberById,
   updateMember,
 } from '@/lib/services/membership.service';
+
 
 /* ======================
    BASE INPUT STYLE
@@ -98,6 +101,8 @@ export default function EditMemberPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
 
+  const userCtx = useContext(UserContext);
+
   const [loading, setLoading] = useState(true);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -123,6 +128,28 @@ export default function EditMemberPage() {
   });
 
   /* ======================
+     DISPLAY USER LOGIN (DISPLAY ONLY)
+  ====================== */
+const loggedInUser =
+  typeof document !== 'undefined'
+    ? (() => {
+        const cookies = document.cookie
+          .split(';')
+          .map((c) => c.trim());
+
+        const userCookie = cookies.find((c) =>
+          c.startsWith('fwc_user_name=')
+        );
+
+        if (!userCookie) return '';
+
+        return decodeURIComponent(
+          userCookie.split('=')[1]
+        );
+      })()
+    : '';
+
+  /* ======================
      LOAD DATA (API)
   ====================== */
   useEffect(() => {
@@ -132,7 +159,6 @@ export default function EditMemberPage() {
       try {
         setLoading(true);
         const res = await getMemberById(id);
-
         const d = res.data;
 
         setForm({
@@ -188,6 +214,7 @@ export default function EditMemberPage() {
     e.preventDefault();
 
     try {
+      // 🔒 update_by DIAMBIL BE DARI REQUEST
       await updateMember(id, form);
       setShowSuccess(true);
     } catch (err) {
@@ -419,16 +446,17 @@ export default function EditMemberPage() {
               />
             </div>
 
-            <div className="md:col-span-2">
-              <input
-                name="update_by"
-                value={form.update_by}
-                onChange={handleChange}
-                placeholder="Update By"
-                className={base}
-                required
-              />
-            </div>
+            {/* UPDATED BY – DISPLAY ONLY */}
+            {/* UPDATED BY – DISPLAY ONLY */}
+<div className="md:col-span-2">
+  <label className="mb-1 block text-xs text-gray-500">
+    Updated By
+  </label>
+  <div className="h-10 flex items-center rounded-md border border-gray-300 bg-gray-50 px-3 text-sm text-gray-700">
+    {form.update_by || userCtx?.userName || '-'}
+  </div>
+</div>
+
 
             <div className="md:col-span-2">
               <textarea
