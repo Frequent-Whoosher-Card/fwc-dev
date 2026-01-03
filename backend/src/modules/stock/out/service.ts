@@ -1,5 +1,6 @@
 import db from "../../../config/db";
 import { ValidationError } from "../../../utils/errors";
+import { parseSmartSerial } from "../../../utils/serialHelper";
 import { InboxService } from "../../inbox/service";
 
 function normalizeSerials(arr: string[]) {
@@ -28,41 +29,15 @@ export class StockOutService {
     userId: string,
     note?: string
   ) {
-    // 1. Validate Input
-    if (!startSerial || !endSerial) {
-      throw new ValidationError("startSerial dan endSerial wajib diisi");
-    }
-
-    // CHECK: Only Numeric Allowed
+    // 1. Validate Input - Basic Regex Only (remove strict length checks)
     if (!/^\d+$/.test(startSerial) || !/^\d+$/.test(endSerial)) {
       if (/[a-zA-Z]/.test(startSerial) || /[a-zA-Z]/.test(endSerial)) {
-        throw new ValidationError(
-          "Input harus berupa angka urutan (contoh: '1', '25'), JANGAN masukkan serial number lengkap."
-        );
+        throw new ValidationError("Input harus berupa angka.");
       }
       throw new ValidationError(
         "startSerial dan endSerial harus berupa digit string"
       );
     }
-
-    const startNum = Number(startSerial);
-    const endNum = Number(endSerial);
-
-    if (endNum < startNum) {
-      throw new ValidationError(
-        "endSerial harus lebih besar atau sama dengan startSerial"
-      );
-    }
-
-    const count = endNum - startNum + 1;
-    if (count > 10000) {
-      throw new ValidationError(
-        "Maksimal distribusi 10.000 kartu per transaksi"
-      );
-    }
-
-    const suffixLength = 5;
-    const yearSuffix = movementAt.getFullYear().toString().slice(-2);
 
     const transaction = await db.$transaction(async (tx) => {
       // Find valid Card Product first
@@ -83,6 +58,30 @@ export class StockOutService {
       }
 
       const { id: cardProductId, serialTemplate } = cardProduct;
+      const suffixLength = 5;
+      const yearSuffix = movementAt.getFullYear().toString().slice(-2);
+
+      // --- SMART PARSING ---
+      const startNum = parseSmartSerial(
+        startSerial,
+        serialTemplate,
+        yearSuffix
+      );
+      const endNum = parseSmartSerial(endSerial, serialTemplate, yearSuffix);
+
+      if (endNum < startNum) {
+        throw new ValidationError(
+          "endSerial harus lebih besar atau sama dengan startSerial"
+        );
+      }
+
+      const count = endNum - startNum + 1;
+      if (count > 10000) {
+        throw new ValidationError(
+          "Maksimal distribusi 10.000 kartu per transaksi"
+        );
+      }
+      // ---------------------
 
       // 2. Generate Full List
       const sent = Array.from({ length: count }, (_, i) => {
@@ -160,7 +159,7 @@ export class StockOutService {
           errMsg += ` Serial berikut bukan status IN_OFFICE (sudah terdistribusi/rusak/dll): ${alreadyDistributed.join(", ")}.`;
         }
         if (notFound.length > 0) {
-          errMsg += ` Serial berikut tidak ditemukan di database: ${notFound.join(", ")}.`;
+          errMsg += ` Serial berikut tidak ditemukan di database (Belum Stock In?): ${notFound.join(", ")}.`;
         }
 
         throw new ValidationError(errMsg);
@@ -880,23 +879,46 @@ export class StockOutService {
         }
 
         // 2. PREPARE NEW STOCK (Logic mirip create)
+        // 2. PREPARE NEW STOCK (Logic mirip create)
         // Validation
         const startSerial = body.startSerial;
         const endSerial = body.endSerial;
 
         if (!/^\d+$/.test(startSerial) || !/^\d+$/.test(endSerial)) {
           if (/[a-zA-Z]/.test(startSerial) || /[a-zA-Z]/.test(endSerial)) {
-            throw new ValidationError(
-              "Input harus berupa angka urutan. JANGAN masukkan serial number lengkap."
-            );
+            throw new ValidationError("Input harus berupa angka.");
           }
           throw new ValidationError(
             "startSerial dan endSerial harus berupa digit string"
           );
         }
 
-        const startNum = Number(startSerial);
-        const endNum = Number(endSerial);
+        // Determine Date
+        const mDate = body.movementAt
+          ? new Date(body.movementAt)
+          : movement.movementAt;
+        const yearSuffix = mDate.getFullYear().toString().slice(-2);
+
+        // Fetch Product First for Template
+        const cardProduct = await tx.cardProduct.findFirst({
+          where: { categoryId: movement.categoryId, typeId: movement.typeId },
+          select: { id: true, serialTemplate: true },
+        });
+        if (!cardProduct) throw new ValidationError("Produk tidak ditemukan");
+
+        // --- SMART PARSING ---
+        const startNum = parseSmartSerial(
+          startSerial,
+          cardProduct.serialTemplate,
+          yearSuffix
+        );
+        const endNum = parseSmartSerial(
+          endSerial,
+          cardProduct.serialTemplate,
+          yearSuffix
+        );
+        // ---------------------
+
         if (endNum < startNum)
           throw new ValidationError("endSerial harus >= startSerial");
 
@@ -904,17 +926,6 @@ export class StockOutService {
         if (count > 10000) throw new ValidationError("Maksimal 10.000 kartu");
 
         const suffixLength = 5;
-        // Use New Movement Date or Old One
-        const mDate = body.movementAt
-          ? new Date(body.movementAt)
-          : movement.movementAt;
-        const yearSuffix = mDate.getFullYear().toString().slice(-2);
-
-        const cardProduct = await tx.cardProduct.findFirst({
-          where: { categoryId: movement.categoryId, typeId: movement.typeId },
-          select: { id: true, serialTemplate: true },
-        });
-        if (!cardProduct) throw new ValidationError("Produk tidak ditemukan");
 
         const newSent = Array.from({ length: count }, (_, i) => {
           const sfx = String(startNum + i).padStart(suffixLength, "0");
