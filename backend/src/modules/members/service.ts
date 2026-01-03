@@ -34,6 +34,7 @@ export class MemberService {
         nippKai: data.nippKai || null,
         gender: data.gender || null,
         alamat: data.alamat || null,
+        notes: data.notes || null,
         createdBy: userId,
         updatedBy: userId,
       },
@@ -143,6 +144,7 @@ export class MemberService {
       nippKai: item.nippKai,
       gender: item.gender,
       alamat: item.alamat,
+      notes: item.notes,
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
       createdByName: item.createdBy
@@ -201,6 +203,7 @@ export class MemberService {
       nippKai: member.nippKai,
       gender: member.gender,
       alamat: member.alamat,
+      notes: member.notes,
       createdAt: member.createdAt.toISOString(),
       updatedAt: member.updatedAt.toISOString(),
       createdByName: creator?.fullName || null,
@@ -221,16 +224,35 @@ export class MemberService {
       throw new NotFoundError("Member tidak ditemukan");
     }
 
+    // Check duplicate identityNumber if it's being updated
+    if (data.identityNumber && data.identityNumber !== member.identityNumber) {
+      const existing = await db.member.findFirst({
+        where: {
+          identityNumber: data.identityNumber,
+          deletedAt: null,
+          id: { not: id }, // Exclude current member
+        },
+      });
+
+      if (existing) {
+        throw new ValidationError(
+          `Member dengan identity number '${data.identityNumber}' sudah terdaftar`
+        );
+      }
+    }
+
     await db.member.update({
       where: { id },
       data: {
         name: data.name,
+        identityNumber: data.identityNumber,
         nationality: data.nationality,
         email: data.email,
         phone: data.phone,
         nippKai: data.nippKai,
         gender: data.gender,
         alamat: data.alamat,
+        notes: data.notes || null,
         updatedBy: userId,
         updatedAt: new Date(),
       },

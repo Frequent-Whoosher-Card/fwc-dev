@@ -278,6 +278,7 @@ model Member {
   nippKai        String?   @map("nipp_kai")
   gender         String?
   alamat         String?
+  notes          String?
   createdAt      DateTime  @default(now()) @map("created_at")
   createdBy      String?   @map("created_by") @db.Uuid
   updatedAt      DateTime  @default(now()) @map("updated_at")
