@@ -290,7 +290,7 @@ const [cardCategory, setCardCategory] =
         <div className="flex items-center gap-3">
           <input
             type="text"
-            placeholder="Search by Customer Name or Identity Number"
+            placeholder="Search by name, identity number, email, or phone"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-9 w-96 rounded-md border px-3 text-sm"
