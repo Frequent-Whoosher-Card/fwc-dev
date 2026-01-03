@@ -8,7 +8,7 @@ export namespace PurchaseModel {
     memberId: t.Union([t.String({ format: "uuid" }), t.Null()]),
     operatorId: t.String({ format: "uuid" }),
     stationId: t.String({ format: "uuid" }),
-    transactionNumber: t.String(),
+    edcReferenceNumber: t.String(),
     purchaseDate: t.String({ format: "date-time" }),
     price: t.Number(),
     notes: t.Union([t.String(), t.Null()]),
@@ -21,6 +21,19 @@ export namespace PurchaseModel {
       id: t.String({ format: "uuid" }),
       serialNumber: t.String(),
       status: t.String(),
+      cardProduct: t.Object({
+        id: t.String({ format: "uuid" }),
+        category: t.Object({
+          id: t.String({ format: "uuid" }),
+          categoryCode: t.String(),
+          categoryName: t.String(),
+        }),
+        type: t.Object({
+          id: t.String({ format: "uuid" }),
+          typeCode: t.String(),
+          typeName: t.String(),
+        }),
+      }),
     }),
     member: t.Union([
       t.Object({
@@ -85,6 +98,18 @@ export namespace PurchaseModel {
       t.String({
         format: "uuid",
         description: "Filter by station ID",
+      })
+    ),
+    categoryId: t.Optional(
+      t.String({
+        format: "uuid",
+        description: "Filter by card category ID",
+      })
+    ),
+    typeId: t.Optional(
+      t.String({
+        format: "uuid",
+        description: "Filter by card type ID",
       })
     ),
     operatorId: t.Optional(

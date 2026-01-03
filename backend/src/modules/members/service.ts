@@ -53,8 +53,8 @@ export class MemberService {
     endDate?: string;
     gender?: string;
   }) {
-    const { page = 1, limit = 10, search, startDate, endDate, gender } = params;
-    const skip = (page - 1) * limit;
+    const { page, limit, search, startDate, endDate, gender } = params;
+    const skip = page && limit ? (page - 1) * limit : undefined;
 
     const where: any = {
       deletedAt: null, // Soft delete filter
@@ -157,9 +157,9 @@ export class MemberService {
       items: mappedItems,
       pagination: {
         total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
+        ...(page && { page }),
+        ...(limit && { limit }),
+        ...(page && limit && { totalPages: Math.ceil(total / limit) }),
       },
     };
   }

@@ -95,22 +95,22 @@ export class PurchaseService {
         throw new NotFoundError("Stasiun tidak ditemukan");
       }
 
-      // 7. Generate transaction number (ensure uniqueness)
-      let transactionNumber = this.generateTransactionNumber();
+      // 7. Generate EDC reference number (ensure uniqueness)
+      let edcReferenceNumber = this.generateTransactionNumber();
       let attempts = 0;
       while (
         (await tx.cardPurchase.findUnique({
-          where: { transactionNumber },
+          where: { edcReferenceNumber },
         })) &&
         attempts < 10
       ) {
-        transactionNumber = this.generateTransactionNumber();
+        edcReferenceNumber = this.generateTransactionNumber();
         attempts++;
       }
 
       if (attempts >= 10) {
         throw new ValidationError(
-          "Gagal generate transaction number. Silakan coba lagi."
+          "Gagal generate EDC reference number. Silakan coba lagi."
         );
       }
 
@@ -129,7 +129,7 @@ export class PurchaseService {
           memberId: data.memberId || null,
           operatorId: operatorId,
           stationId: stationId,
-          transactionNumber: transactionNumber,
+          edcReferenceNumber: edcReferenceNumber,
           purchaseDate: purchaseDate,
           price: data.price,
           notes: data.notes || null,
@@ -191,10 +191,12 @@ export class PurchaseService {
     startDate?: string;
     endDate?: string;
     stationId?: string;
+    categoryId?: string;
+    typeId?: string;
     operatorId?: string;
     search?: string;
   }) {
-    const { page = 1, limit = 10, startDate, endDate, stationId, operatorId, search } = params;
+    const { page = 1, limit = 10, startDate, endDate, stationId, categoryId, typeId, operatorId, search } = params;
     const skip = (page - 1) * limit;
 
     const where: any = {
@@ -221,6 +223,19 @@ export class PurchaseService {
       where.stationId = stationId;
     }
 
+    // Card Category and Type filter (nested in card.cardProduct)
+    if (categoryId || typeId) {
+      where.card = {
+        cardProduct: {},
+      };
+      if (categoryId) {
+        where.card.cardProduct.categoryId = categoryId;
+      }
+      if (typeId) {
+        where.card.cardProduct.typeId = typeId;
+      }
+    }
+
     // Operator filter
     if (operatorId) {
       where.operatorId = operatorId;
@@ -229,7 +244,7 @@ export class PurchaseService {
     // Search filter
     if (search) {
       where.OR = [
-        { transactionNumber: { contains: search, mode: "insensitive" } },
+        { edcReferenceNumber: { contains: search, mode: "insensitive" } },
         {
           card: {
             serialNumber: { contains: search, mode: "insensitive" },
@@ -265,6 +280,25 @@ export class PurchaseService {
               id: true,
               serialNumber: true,
               status: true,
+              cardProduct: {
+                select: {
+                  id: true,
+                  category: {
+                    select: {
+                      id: true,
+                      categoryCode: true,
+                      categoryName: true,
+                    },
+                  },
+                  type: {
+                    select: {
+                      id: true,
+                      typeCode: true,
+                      typeName: true,
+                    },
+                  },
+                },
+              },
             },
           },
           member: {
@@ -312,7 +346,7 @@ export class PurchaseService {
       memberId: item.memberId,
       operatorId: item.operatorId,
       stationId: item.stationId,
-      transactionNumber: item.transactionNumber,
+      edcReferenceNumber: item.edcReferenceNumber,
       purchaseDate: item.purchaseDate.toISOString(),
       price: Number(item.price),
       notes: item.notes,
@@ -353,6 +387,25 @@ export class PurchaseService {
             id: true,
             serialNumber: true,
             status: true,
+            cardProduct: {
+              select: {
+                id: true,
+                category: {
+                  select: {
+                    id: true,
+                    categoryCode: true,
+                    categoryName: true,
+                  },
+                },
+                type: {
+                  select: {
+                    id: true,
+                    typeCode: true,
+                    typeName: true,
+                  },
+                },
+              },
+            },
           },
         },
         member: {
@@ -404,7 +457,7 @@ export class PurchaseService {
       memberId: purchase.memberId,
       operatorId: purchase.operatorId,
       stationId: purchase.stationId,
-      transactionNumber: purchase.transactionNumber,
+      edcReferenceNumber: purchase.edcReferenceNumber,
       purchaseDate: purchase.purchaseDate.toISOString(),
       price: Number(purchase.price),
       notes: purchase.notes,

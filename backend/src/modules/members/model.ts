@@ -159,9 +159,9 @@ export namespace MemberModel {
       items: t.Array(memberData),
       pagination: t.Object({
         total: t.Number(),
-        page: t.Number(),
-        limit: t.Number(),
-        totalPages: t.Number(),
+        page: t.Optional(t.Number()),
+        limit: t.Optional(t.Number()),
+        totalPages: t.Optional(t.Number()),
       }),
     }),
     message: t.Optional(t.String()),

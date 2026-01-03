@@ -33,6 +33,8 @@ const baseRoutes = new Elysia()
           startDate: query.startDate,
           endDate: query.endDate,
           stationId: query.stationId,
+          categoryId: query.categoryId,
+          typeId: query.typeId,
           operatorId: query.operatorId,
           search: query.search,
         });
@@ -58,7 +60,7 @@ const baseRoutes = new Elysia()
         tags: ["Purchases"],
         summary: "Get all purchases",
         description:
-          "Retrieve all purchase transactions with pagination, filters, and search. Search supports: transaction number, card serial number, customer name, identity number, and operator name.",
+          "Retrieve all purchase transactions with pagination, filters, and search. Filters: purchase date (startDate, endDate), station (stationId), card category (categoryId), card type (typeId). Search supports: EDC reference number, card serial number, customer name, identity number, and operator name.",
       },
     }
   )
