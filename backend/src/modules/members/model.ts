@@ -120,7 +120,24 @@ export namespace MemberModel {
     page: t.Optional(t.String()),
     limit: t.Optional(t.String()),
     search: t.Optional(
-      t.String({ description: "Search by name, identity number, email, or phone" })
+      t.String({ description: "Search by name, identity number, email, phone, or updated by (user name)" })
+    ),
+    startDate: t.Optional(
+      t.String({ 
+        format: "date",
+        description: "Start date for membership date filter (YYYY-MM-DD)" 
+      })
+    ),
+    endDate: t.Optional(
+      t.String({ 
+        format: "date",
+        description: "End date for membership date filter (YYYY-MM-DD)" 
+      })
+    ),
+    gender: t.Optional(
+      t.String({ 
+        description: "Filter by gender (e.g., 'L', 'P', 'Male', 'Female', etc.)" 
+      })
     ),
   });
 
