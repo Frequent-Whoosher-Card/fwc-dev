@@ -95,22 +95,21 @@ export class PurchaseService {
         throw new NotFoundError("Stasiun tidak ditemukan");
       }
 
-      // 7. Generate EDC reference number (ensure uniqueness)
-      let edcReferenceNumber = this.generateTransactionNumber();
-      let attempts = 0;
-      while (
-        (await tx.cardPurchase.findUnique({
-          where: { edcReferenceNumber },
-        })) &&
-        attempts < 10
-      ) {
-        edcReferenceNumber = this.generateTransactionNumber();
-        attempts++;
+      // 7. Validate EDC reference number (ensure uniqueness)
+      const edcReferenceNumber = data.edcReferenceNumber.trim();
+      
+      if (!edcReferenceNumber) {
+        throw new ValidationError("No. Reference EDC tidak boleh kosong");
       }
 
-      if (attempts >= 10) {
+      // Check if EDC reference number already exists
+      const existingEdcRef = await tx.cardPurchase.findUnique({
+        where: { edcReferenceNumber },
+      });
+
+      if (existingEdcRef) {
         throw new ValidationError(
-          "Gagal generate EDC reference number. Silakan coba lagi."
+          `No. Reference EDC '${edcReferenceNumber}' sudah digunakan. Silakan gunakan nomor lain.`
         );
       }
 
@@ -122,6 +121,11 @@ export class PurchaseService {
       const expiredDate = new Date(purchaseDate);
       expiredDate.setDate(expiredDate.getDate() + masaBerlaku);
 
+      // 8.5. Determine final price: use input price or default to cardProduct.price
+      const finalPrice = data.price !== undefined && data.price !== null
+        ? data.price
+        : Number(card.cardProduct.price);
+
       // 9. Create purchase record
       const purchase = await tx.cardPurchase.create({
         data: {
@@ -131,7 +135,7 @@ export class PurchaseService {
           stationId: stationId,
           edcReferenceNumber: edcReferenceNumber,
           purchaseDate: purchaseDate,
-          price: data.price,
+          price: finalPrice,
           notes: data.notes || null,
           createdBy: userId,
           updatedBy: userId,

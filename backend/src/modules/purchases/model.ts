@@ -67,10 +67,17 @@ export namespace PurchaseModel {
         description: "Member ID (optional)",
       })
     ),
-    price: t.Number({
-      description: "Purchase price",
-      minimum: 0,
+    edcReferenceNumber: t.String({
+      minLength: 1,
+      maxLength: 100,
+      description: "EDC Reference Number (No. Reference EDC)",
     }),
+    price: t.Optional(
+      t.Number({
+        description: "Purchase price (default: from cardProduct.price, can be overridden for discounts/promos)",
+        minimum: 0,
+      })
+    ),
     notes: t.Optional(
       t.String({
         maxLength: 500,
