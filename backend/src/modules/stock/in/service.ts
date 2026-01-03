@@ -1,5 +1,6 @@
 import db from "../../../config/db";
 import { ValidationError } from "../../../utils/errors";
+import { parseSmartSerial } from "../../../utils/serialHelper";
 
 export class StockInService {
   /**
@@ -14,43 +15,15 @@ export class StockInService {
     userId: string,
     note?: string | null
   ) {
-    // 1. Validasi Input: Pastikan HANYA angka (bukan full serial number)
+    // 1. Validasi Input: Pastikan HANYA angka (bukan full serial number) - Relaxed for Smart Parsing
     if (!/^\d+$/.test(startSerial) || !/^\d+$/.test(endSerial)) {
-      // Jika user tidak sengaja input full serial (ada huruf), berikan pesan helper
       if (/[a-zA-Z]/.test(startSerial) || /[a-zA-Z]/.test(endSerial)) {
-        throw new ValidationError(
-          "Input harus berupa angka urutan (contoh: '1', '25'), JANGAN masukkan serial number lengkap (contoh: 'FWC...')."
-        );
+        throw new ValidationError("Input harus berupa angka.");
       }
       throw new ValidationError(
         "startSerial dan endSerial harus berupa digit string (angka saja)."
       );
     }
-
-    const startNum = Number(startSerial);
-    const endNum = Number(endSerial);
-
-    if (!Number.isSafeInteger(startNum) || !Number.isSafeInteger(endNum)) {
-      throw new ValidationError("Nomor serial terlalu besar");
-    }
-
-    if (endNum < startNum) {
-      throw new ValidationError(
-        "endSerial harus lebih besar atau sama dengan startSerial"
-      );
-    }
-
-    const quantity = endNum - startNum + 1;
-
-    if (quantity > 10000) {
-      throw new ValidationError("Maksimal produksi 10.000 kartu per batch");
-    }
-
-    const width = 5; // Fixed 5-digit padding as requested
-    const endSerialFormatted = String(endNum).padStart(width, "0");
-
-    // Extract YY from movementAt (ensure it is a Date object)
-    const yearSuffix = new Date(movementAt).getFullYear().toString().slice(-2);
 
     const transaction = await db.$transaction(async (tx) => {
       const product = await tx.cardProduct.findUnique({
@@ -74,6 +47,42 @@ export class StockInService {
           "CardProduct untuk kategori/tipe ini tidak ditemukan"
         );
       }
+
+      // --- SMART PARSING ---
+      const yearSuffix = new Date(movementAt)
+        .getFullYear()
+        .toString()
+        .slice(-2);
+      const startNum = parseSmartSerial(
+        startSerial,
+        product.serialTemplate,
+        yearSuffix
+      );
+      const endNum = parseSmartSerial(
+        endSerial,
+        product.serialTemplate,
+        yearSuffix
+      );
+      // ---------------------
+
+      if (!Number.isSafeInteger(startNum) || !Number.isSafeInteger(endNum)) {
+        throw new ValidationError("Nomor serial terlalu besar");
+      }
+
+      if (endNum < startNum) {
+        throw new ValidationError(
+          "endSerial harus lebih besar atau sama dengan startSerial"
+        );
+      }
+
+      const quantity = endNum - startNum + 1;
+
+      if (quantity > 10000) {
+        throw new ValidationError("Maksimal produksi 10.000 kartu per batch");
+      }
+
+      const width = 5; // Fixed 5-digit padding as requested
+      const endSerialFormatted = String(endNum).padStart(width, "0");
 
       // 2) Generate suffix serial berurutan
       const suffixSerials = Array.from({ length: quantity }, (_, i) =>
@@ -359,24 +368,11 @@ export class StockInService {
     const { startSerial, endSerial, movementAt, note } = body;
 
     // 1. Validasi Input Dasar
+    // 1. Validasi Input Dasar
     if (!/^\d+$/.test(startSerial) || !/^\d+$/.test(endSerial)) {
       throw new ValidationError(
         "startSerial dan endSerial harus berupa digit string (angka saja)."
       );
-    }
-
-    const newStartNum = Number(startSerial);
-    const newEndNum = Number(endSerial);
-
-    if (newEndNum < newStartNum) {
-      throw new ValidationError(
-        "endSerial harus lebih besar atau sama dengan startSerial"
-      );
-    }
-
-    const newQuantity = newEndNum - newStartNum + 1;
-    if (newQuantity > 10000) {
-      throw new ValidationError("Maksimal produksi 10.000 kartu per batch");
     }
 
     // 2. Transaksi Update
@@ -404,6 +400,35 @@ export class StockInService {
 
       if (!product) {
         throw new ValidationError("Produk tidak ditemukan");
+      }
+
+      // --- SMART PARSING ---
+      const yearSuffix = new Date(movementAt || movement.movementAt)
+        .getFullYear()
+        .toString()
+        .slice(-2);
+
+      const newStartNum = parseSmartSerial(
+        startSerial,
+        product.serialTemplate,
+        yearSuffix
+      );
+      const newEndNum = parseSmartSerial(
+        endSerial,
+        product.serialTemplate,
+        yearSuffix
+      );
+      // ---------------------
+
+      if (newEndNum < newStartNum) {
+        throw new ValidationError(
+          "endSerial harus lebih besar atau sama dengan startSerial"
+        );
+      }
+
+      const newQuantity = newEndNum - newStartNum + 1;
+      if (newQuantity > 10000) {
+        throw new ValidationError("Maksimal produksi 10.000 kartu per batch");
       }
 
       // 3. Validasi Serial Sequential (Strict Rule)
@@ -442,10 +467,6 @@ export class StockInService {
 
       // 4. Generate All New Serials
       const width = 5;
-      const yearSuffix = new Date(movementAt || movement.movementAt)
-        .getFullYear()
-        .toString()
-        .slice(-2);
 
       const newSuffixSerials = Array.from({ length: newQuantity }, (_, i) =>
         String(newStartNum + i).padStart(width, "0")
