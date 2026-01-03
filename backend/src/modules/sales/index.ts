@@ -1,10 +1,12 @@
 import { Elysia, t } from "elysia";
-import { authMiddleware } from "../../middleware/auth";
+import { rbacMiddleware } from "../../middleware/rbac";
 import { formatErrorResponse } from "../../utils/errors";
 import { SalesService } from "./service";
 import { SalesModel } from "./model";
 
+// Sales routes - admin and superadmin only (analytics data)
 const baseRoutes = new Elysia()
+  .use(rbacMiddleware(["admin", "superadmin"]))
   // Get Daily Sales Grouped (for dashboard table)
   .get(
     "/daily-grouped",
@@ -337,6 +339,5 @@ const baseRoutes = new Elysia()
   );
 
 export const sales = new Elysia({ prefix: "/sales" })
-  .use(authMiddleware)
   .use(baseRoutes);
 

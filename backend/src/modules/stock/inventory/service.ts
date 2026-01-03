@@ -296,22 +296,74 @@ export class CardInventoryService {
 
   static async getTotalSummary() {
     // Menghitung total jumlah seluruh kartu dari tabel Card
-    const [totalCards, totalLost, totalDamaged] = await Promise.all([
-      db.card.count({
-        where: {
-          status: {
-            notIn: ["LOST", "DAMAGED"],
+    const [totalCards, totalLost, totalDamaged, totalIn, totalOut] =
+      await Promise.all([
+        db.card.count({
+          where: {
+            status: {
+              notIn: ["LOST", "DAMAGED"],
+            },
           },
-        },
-      }),
-      db.card.count({ where: { status: "LOST" } }),
-      db.card.count({ where: { status: "DAMAGED" } }),
-    ]);
+        }),
+        db.card.count({ where: { status: "LOST" } }),
+        db.card.count({ where: { status: "DAMAGED" } }),
+        db.card.count({ where: { status: "IN_OFFICE" } }),
+        db.card.count({ where: { status: "IN_STATION" } }),
+      ]);
 
     return {
       totalCards,
       totalLost,
       totalDamaged,
+      totalIn,
+      totalOut,
     };
+  }
+
+  /**
+   * Get Station Inventory Monitor
+   * Returns inventory data for all stations formatted for monitoring table
+   */
+  static async getStationInventoryMonitor(stationId?: string) {
+    const where: any = {
+      stationId: {
+        not: null, // Only get entries assigned to a station
+      },
+    };
+
+    if (stationId) {
+      where.stationId = stationId;
+    }
+
+    const inventories = await db.cardInventory.findMany({
+      where,
+      include: {
+        category: true,
+        type: true,
+        station: true,
+      },
+      orderBy: [
+        { station: { stationName: "asc" } },
+        { category: { categoryName: "asc" } },
+        { type: { typeName: "asc" } },
+      ],
+    });
+
+    return inventories.map((inv) => {
+      const aktif = inv.cardAktif;
+      const nonAktif = inv.cardNonAktif;
+      const total = aktif + nonAktif;
+
+      return {
+        stationName: inv.station?.stationName || "Unknown Station",
+        cardCategory: inv.category.categoryName,
+        cardType: inv.type.typeName,
+        cardBeredar: inv.cardBeredar,
+        aktif,
+        nonAktif,
+        total,
+        cardBelumTerjual: inv.cardBelumTerjual,
+      };
+    });
   }
 }

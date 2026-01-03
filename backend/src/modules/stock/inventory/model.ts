@@ -141,6 +141,8 @@ export namespace CardInventoryModel {
       totalCards: t.Number(),
       totalLost: t.Number(),
       totalDamaged: t.Number(),
+      totalIn: t.Number(),
+      totalOut: t.Number(),
     }),
   });
 
@@ -160,6 +162,22 @@ export namespace CardInventoryModel {
         totalBelumTerjual: t.Number(),
       })
     ),
+  });
+
+  export const stationInventoryMonitorItem = t.Object({
+    stationName: t.String(),
+    cardCategory: t.String(),
+    cardType: t.String(),
+    cardBeredar: t.Number(),
+    aktif: t.Number(),
+    nonAktif: t.Number(),
+    total: t.Number(), // aktif + nonAktif
+    cardBelumTerjual: t.Number(),
+  });
+
+  export const getStationInventoryMonitorResponse = t.Object({
+    success: t.Boolean(),
+    data: t.Array(stationInventoryMonitorItem),
   });
 
   export const errorResponse = t.Object({
