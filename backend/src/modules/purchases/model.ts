@@ -61,12 +61,10 @@ export namespace PurchaseModel {
       format: "uuid",
       description: "Card ID to purchase",
     }),
-    memberId: t.Optional(
-      t.String({
-        format: "uuid",
-        description: "Member ID (optional)",
-      })
-    ),
+    memberId: t.String({
+      format: "uuid",
+      description: "Member ID (required - every transaction must have a member)",
+    }),
     edcReferenceNumber: t.String({
       minLength: 1,
       maxLength: 100,

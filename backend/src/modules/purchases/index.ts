@@ -156,7 +156,7 @@ const writeRoutes = new Elysia()
           tags: ["Purchases"],
           summary: "Create new purchase transaction",
           description:
-            "Create a new card purchase transaction. Operator and station are automatically taken from authenticated user context. EDC Reference Number must be provided by user and must be unique. Price is optional - if not provided, will use cardProduct.price as default. Can be overridden for discounts/promos.",
+            "Create a new card purchase transaction. Operator and station are automatically taken from authenticated user context. Member ID is required - every transaction must have a member. EDC Reference Number must be provided by user and must be unique. Price is optional - if not provided, will use cardProduct.price as default. Can be overridden for discounts/promos.",
         },
     }
   );

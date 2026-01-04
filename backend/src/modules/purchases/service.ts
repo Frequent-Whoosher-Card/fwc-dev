@@ -66,15 +66,17 @@ export class PurchaseService {
         );
       }
 
-      // 4. Validate member if provided
-      if (data.memberId) {
-        const member = await tx.member.findUnique({
-          where: { id: data.memberId },
-        });
+      // 4. Validate member (required)
+      if (!data.memberId) {
+        throw new ValidationError("Member ID wajib diisi. Setiap transaksi harus memiliki member.");
+      }
 
-        if (!member || member.deletedAt) {
-          throw new NotFoundError("Member tidak ditemukan");
-        }
+      const member = await tx.member.findUnique({
+        where: { id: data.memberId },
+      });
+
+      if (!member || member.deletedAt) {
+        throw new NotFoundError("Member tidak ditemukan");
       }
 
       // 5. Validate operator exists
@@ -130,7 +132,7 @@ export class PurchaseService {
       const purchase = await tx.cardPurchase.create({
         data: {
           cardId: data.cardId,
-          memberId: data.memberId || null,
+          memberId: data.memberId,
           operatorId: operatorId,
           stationId: stationId,
           edcReferenceNumber: edcReferenceNumber,
@@ -148,7 +150,7 @@ export class PurchaseService {
         data: {
           status: "SOLD_ACTIVE",
           purchaseDate: purchaseDate,
-          memberId: data.memberId || null,
+          memberId: data.memberId,
           expiredDate: expiredDate,
           quotaTicket: card.cardProduct.totalQuota, // Initialize quota from product
           updatedBy: userId,
