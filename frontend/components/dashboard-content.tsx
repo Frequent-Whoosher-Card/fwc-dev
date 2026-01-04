@@ -72,7 +72,7 @@ export function DashboardContent() {
     setErrorMessage(null);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/sales/daily-grouped?startDate=2025-12-01&endDate=2025-12-31`, {
+      const res = await fetch(`${API_BASE_URL}/sales/daily-grouped?startDate=2025-01-01&endDate=2025-01-31&stationId=`, {
         method: 'GET',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -105,11 +105,17 @@ export function DashboardContent() {
   // Fungsi fetch harus dideklarasikan **sebelum dipakai**
   const fetchStationSales = async () => {
     setStationLoading(true);
+
     try {
+      const token = localStorage.getItem('fwc_token');
+      if (!token) throw new Error('No auth token');
+
       const res = await fetch(`${API_BASE_URL}/sales/per-station?startDate=&endDate=`, {
         method: 'GET',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       if (!res.ok) throw new Error('Failed to fetch station sales');
@@ -122,10 +128,6 @@ export function DashboardContent() {
       setStationLoading(false);
     }
   };
-  useEffect(() => {
-    fetchDailySales();
-    fetchStationSales();
-  }, []);
 
   /* ======================
      CHART DATA
