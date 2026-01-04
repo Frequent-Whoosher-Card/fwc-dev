@@ -1,7 +1,12 @@
 import db from "../../config/db";
 import { CardStatus } from "@prisma/client";
+import { NotFoundError } from "../../utils/errors";
 
 export class RedeemService {
+  /**
+   * Check card details by serial number
+   * @param serialNumber Serial number of the card
+   */
   static async checkSerial(serialNumber: string) {
     const card = await db.card.findUnique({
       where: { serialNumber },
@@ -18,10 +23,7 @@ export class RedeemService {
     });
 
     if (!card) {
-      throw {
-        statusCode: 404,
-        message: "Card not found",
-      };
+      throw new NotFoundError("Card not found");
     }
 
     // Determine status text
@@ -31,8 +33,6 @@ export class RedeemService {
     } else if (card.status === CardStatus.SOLD_INACTIVE) {
       statusActive = "Expired";
     } else {
-      // For other statuses, just use the raw enum or keep "Tidak Aktif"
-      // Maybe formatted slightly better?
       statusActive = card.status;
     }
 
