@@ -1,120 +1,142 @@
 'use client';
 
-import { useStock } from '../context/StockContext';
-import type { StockIn, StockOut } from '../context/StockContext';
+import { useEffect, useState } from 'react';
+import axios from '@/lib/axios';
 
-type Mode = 'all' | 'in' | 'out';
-
-interface StockTableProps {
-  mode?: Mode;
+interface StockRow {
+  categoryId: string;
+  categoryName: string;
+  typeId: string;
+  typeName: string;
+  totalOffice: number;
+  totalBeredar: number;
+  totalAktif: number;
+  totalNonAktif: number;
+  totalStock: number;
+  totalBelumTerjual: number;
 }
 
-export function StockTable({ mode = 'all' }: StockTableProps) {
-  const { stockIn, stockOut } = useStock();
+const safeNumber = (value?: number) => (value ?? 0).toLocaleString();
 
-  /* =========================
-     MODE: ALL (STOCK AVAILABLE)
-  ========================= */
-  if (mode === 'all') {
-    const stockMap = new Map<string, number>();
+export function StockTable() {
+  const [rows, setRows] = useState<StockRow[]>([]);
+  const [loading, setLoading] = useState(true);
 
-    // STOCK IN
-    stockIn.forEach((item) => {
-      const key = `${item.category}-${item.type}`;
-      stockMap.set(key, (stockMap.get(key) || 0) + item.stock);
-    });
+  useEffect(() => {
+    const fetchSummary = async () => {
+      try {
+        const res = await axios.get('/inventory/category-type-summary');
+        const raw = res.data?.data ?? res.data ?? [];
 
-    // STOCK OUT
-    stockOut.forEach((item) => {
-      const key = `${item.category}-${item.type}`;
-      stockMap.set(key, (stockMap.get(key) || 0) - item.stock);
-    });
+        const normalized: StockRow[] = raw.map((item: any) => ({
+          categoryId: item.categoryId,
+          categoryName: item.categoryName ?? '-',
+          typeId: item.typeId,
+          typeName: item.typeName ?? '-',
+          totalOffice: Number(item.totalOffice ?? 0),
+          totalBeredar: Number(item.totalBeredar ?? 0),
+          totalAktif: Number(item.totalAktif ?? 0),
+          totalNonAktif: Number(item.totalNonAktif ?? 0),
+          totalStock: Number(item.totalStock ?? 0),
+          totalBelumTerjual: Number(item.totalBelumTerjual ?? 0),
+        }));
 
-    const rows = Array.from(stockMap.entries()).map(([key, stock]) => {
-      const [category, type] = key.split('-');
-      return { category, type, stock };
-    });
+        setRows(normalized);
+      } catch (err) {
+        console.error('FETCH SUMMARY ERROR:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    return (
-      <div className="rounded-lg border bg-white overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="border-b bg-gray-50">
-            <tr>
-              <th className="p-4 text-left">Category</th>
-              <th className="p-4 text-left">Type</th>
-              <th className="p-4 text-right">Stock Available</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, i) => (
-              <tr key={i} className="border-b">
-                <td className="p-4">{row.category}</td>
-                <td className="p-4">{row.type || '-'}</td>
-                <td className="p-4 text-right font-medium">
-                  {row.stock.toLocaleString()}
-                </td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={3} className="p-6 text-center text-gray-500">
-                  Belum ada data stock
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    );
+    fetchSummary();
+  }, []);
+
+  const total = rows.reduce(
+    (acc, row) => {
+      acc.totalOffice += row.totalOffice;
+      acc.totalBeredar += row.totalBeredar;
+      acc.totalAktif += row.totalAktif;
+      acc.totalNonAktif += row.totalNonAktif;
+      acc.totalBelumTerjual += row.totalBelumTerjual;
+      return acc;
+    },
+    {
+      totalOffice: 0,
+      totalBeredar: 0,
+      totalAktif: 0,
+      totalNonAktif: 0,
+      totalBelumTerjual: 0,
+    }
+  );
+
+  if (loading) {
+    return <div className="p-6 text-gray-500">Loading...</div>;
   }
 
-  /* =========================
-     MODE: IN / OUT (TRANSAKSI)
-  ========================= */
-  const rows: (StockIn | StockOut)[] =
-    mode === 'in' ? stockIn : stockOut;
-
   return (
-    <div className="rounded-lg border bg-white overflow-x-auto">
-      <table className="w-full text-sm min-w-[700px]">
-        <thead className="border-b bg-gray-50">
-          <tr>
-            <th className="p-3 text-left">Tanggal</th>
-            <th className="p-3 text-left">Category</th>
-            <th className="p-3 text-left">Type</th>
-            {mode === 'out' && (
-              <th className="p-3 text-left">Station</th>
-            )}
-            <th className="p-3 text-right">
-              {mode === 'in' ? 'Stock Masuk' : 'Stock Keluar'}
+    <div className="rounded-xl border bg-white overflow-x-auto">
+      <table className="w-full text-sm min-w-[1000px]">
+        <thead>
+          <tr className="border-b bg-gray-50">
+            <th rowSpan={2} className="p-4 text-center w-12">
+              No
+            </th>
+            <th rowSpan={2} className="p-4 text-center">
+              Card Category
+            </th>
+            <th rowSpan={2} className="p-4 text-center">
+              Card Type
+            </th>
+            <th rowSpan={2} className="p-4 text-center">
+              Card Office
+            </th>
+            <th rowSpan={2} className="p-4 text-center">
+              Card Beredar
+            </th>
+            <th colSpan={3} className="p-4 text-center bg-blue-50">
+              Terjual
+            </th>
+            <th rowSpan={2} className="p-4 text-center">
+              Card Belum Terjual
             </th>
           </tr>
+          <tr className="border-b bg-gray-50">
+            <th className="p-3 text-center">Aktif</th>
+            <th className="p-3 text-center">Non Aktif</th>
+            <th className="p-3 text-center">Total</th>
+          </tr>
         </thead>
+
         <tbody>
-          {rows.map((row) => (
-            <tr key={row.id} className="border-b">
-              <td className="p-3">{row.tanggal}</td>
-              <td className="p-3">{row.category}</td>
-              <td className="p-3">{row.type || '-'}</td>
-              {mode === 'out' && 'station' in row && (
-                <td className="p-3">{row.station}</td>
-              )}
-              <td className="p-3 text-right font-medium">
-                {row.stock.toLocaleString()}
-              </td>
+          {rows.map((row, i) => (
+            <tr key={`${row.categoryId}-${row.typeId}`} className="border-b">
+              <td className="p-4 text-center">{i + 1}</td>
+              <td className="p-4 text-center">{row.categoryName}</td>
+              <td className="p-4 text-center">{row.typeName}</td>
+              <td className="p-4 text-center">{safeNumber(row.totalOffice)}</td>
+              <td className="p-4 text-center">{safeNumber(row.totalBeredar)}</td>
+              <td className="p-4 text-center">{row.totalAktif}</td>
+              <td className="p-4 text-center">{row.totalNonAktif}</td>
+              <td className="p-4 text-center">{safeNumber(row.totalBeredar)}</td>
+              <td className="p-4 text-center">{safeNumber(row.totalBelumTerjual)}</td>
             </tr>
           ))}
-          {rows.length === 0 && (
-            <tr>
-              <td
-                colSpan={mode === 'out' ? 5 : 4}
-                className="p-6 text-center text-gray-500"
-              >
-                Belum ada data
-              </td>
-            </tr>
-          )}
         </tbody>
+
+        <tfoot>
+          <tr className="bg-[#00B54629] text-[#31b057] font-semibold">
+            <td colSpan={3} className="p-4 text-center">
+              Total
+            </td>
+            <td className="p-4 text-center">{safeNumber(total.totalOffice)}</td>
+            <td className="p-4 text-center">{safeNumber(total.totalBeredar)}</td>
+            <td className="p-4 text-center">{total.totalAktif}</td>
+            <td className="p-4 text-center">{total.totalNonAktif}</td>
+            <td className="p-4 text-center">{safeNumber(total.totalBeredar)}</td>
+            <td className="p-4 text-center">{safeNumber(total.totalBelumTerjual)}</td>
+          </tr>
+        </tfoot>
       </table>
     </div>
   );
