@@ -1,7 +1,8 @@
 'use client';
 
+
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import {
   ArrowLeft,
   Phone,
@@ -138,13 +139,14 @@ function SuccessModal({
   <PreviewRow label="Phone Number" value={data.phone} />
   <PreviewRow label="Email Address" value={data.email} />
 
+   {/* CARD INFO */}
+  <PreviewRow label="Card Category" value={data.cardCategory} />
+  <PreviewRow label="Card Type" value={data.cardType} />
+
   {/* MEMBERSHIP PERIOD */}
   <PreviewRow label="Membership Date" value={data.membershipDate} />
   <PreviewRow label="Expired Date" value={data.expiredDate} />
 
-  {/* CARD INFO */}
-  <PreviewRow label="Card Category" value={data.cardCategory} />
-  <PreviewRow label="Card Type" value={data.cardType} />
 
   {/* PURCHASE */}
   <PreviewRow label="Purchased Date" value={data.purchasedDate} />
@@ -182,6 +184,26 @@ function SuccessModal({
 /* ======================
    PAGE
 ====================== */
+
+const CARD_RULES = {
+  JaBan: {
+    Gold: { price: 2000000, days: 60 },
+    Silver: { price: 1350000, days: 30 },
+    KAI: { price: 500000, days: 30 }, // ✅ KAI INTERNAL
+  },
+  JaKa: {
+    Gold: { price: 500000, days: 60 },
+    Silver: { price: 450000, days: 30 },
+    KAI: { price: 200000, days: 30 }, // ✅ KAI INTERNAL
+  },
+  KaBan: {
+    Gold: { price: 1000000, days: 60 },
+    Silver: { price: 750000, days: 30 },
+    KAI: { price: 300000, days: 30 }, // ✅ KAI INTERNAL
+  },
+};
+
+
 export default function AddMemberPage() {
   const router = useRouter();
   const [showSuccess, setShowSuccess] = useState(false);
@@ -191,6 +213,32 @@ export default function AddMemberPage() {
   const onlyNumber = (e: React.FormEvent<HTMLInputElement>) => {
     e.currentTarget.value = e.currentTarget.value.replace(/\D/g, '');
   };
+
+    // ======================
+  // CARD AUTO CONFIG STATE
+  // ======================
+  const [cardCategory, setCardCategory] = useState('');
+  const [cardType, setCardType] = useState('');
+  const [price, setPrice] = useState('');
+  const [expiredDate, setExpiredDate] = useState('');
+    const [membershipDate, setMembershipDate] = useState('');
+
+
+useEffect(() => {
+  if (!cardCategory || !cardType || !membershipDate) return;
+
+  const rule = CARD_RULES[cardType]?.[cardCategory];
+  if (!rule) return;
+
+  // 💰 AUTO PRICE
+  setPrice(rule.price.toString());
+
+  // 📅 EXPIRED BASED ON MEMBERSHIP DATE
+  const baseDate = new Date(membershipDate);
+  baseDate.setDate(baseDate.getDate() + rule.days);
+
+  setExpiredDate(baseDate.toISOString().split('T')[0]);
+}, [cardCategory, cardType, membershipDate]);
 
   /* ======================
      SUBMIT (API + TOKEN)
@@ -353,8 +401,24 @@ export default function AddMemberPage() {
             </div>
 
             <SectionCard title="Membership Period">
-              <DateField name="membershipDate" label="Membership Date" />
-              <DateField name="expiredDate" label="Expired Date" />
+<Field label="Membership Date">
+  <input
+    type="date"
+    name="membershipDate"
+    className={base}
+    value={membershipDate}
+    onChange={(e) => setMembershipDate(e.target.value)}
+    required
+  />
+</Field>
+<Field label="Expired Date">
+  <input
+    name="expiredDate"
+    className={`${base} bg-gray-100`}
+    value={expiredDate}
+    readOnly
+  />
+</Field>
             </SectionCard>
 
             <SectionCard title="Purchase Information">
@@ -366,18 +430,26 @@ export default function AddMemberPage() {
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
                   />
                   <input
-                    name="price"
-                    className={`${base} pr-10`}
-                    onInput={onlyNumber}
-                    required
-                  />
+  name="price"
+  className={`${base} pr-10 bg-gray-100`}
+  value={price}
+  readOnly
+/>
+
                 </div>
               </Field>
             </SectionCard>
 
             <SectionCard title="Card Information">
               <Field label="Card Category">
-                <select name="cardCategory" className={base} required>
+                <select
+  name="cardCategory"
+  className={base}
+  required
+  value={cardCategory}
+  onChange={(e) => setCardCategory(e.target.value)}
+>
+
                   <option value="">Select</option>
                   <option value="Gold">Gold</option>
                   <option value="Silver">Silver</option>
@@ -386,7 +458,13 @@ export default function AddMemberPage() {
               </Field>
 
               <Field label="Card Type">
-                <select name="cardType" className={base} required>
+<select
+  name="cardType"
+  className={base}
+  required
+  value={cardType}
+  onChange={(e) => setCardType(e.target.value)}
+>
                   <option value="">Select</option>
                   <option value="JaBan">JaBan</option>
                   <option value="JaKa">JaKa</option>

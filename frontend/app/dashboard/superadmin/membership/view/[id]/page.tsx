@@ -5,7 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
 import { getMemberById } from '@/lib/services/membership.service';
-import { UserContext } from '@/components/dashboard-layout';
+import { UserContext } from '@/app/dashboard/superadmin/dashboard/dashboard-layout';
+
 
 /* ======================
    TYPES (IKUT API REAL)
@@ -48,7 +49,7 @@ interface Transaction {
 export default function MembershipDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const userCtx = useContext(UserContext);
+const userCtx = useContext(UserContext);
 
   const [member, setMember] = useState<Membership | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);

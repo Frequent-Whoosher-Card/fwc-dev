@@ -1,7 +1,7 @@
 'use client';
 
 import { useContext } from 'react';
-import { UserContext } from '@/components/dashboard-layout';
+import { UserContext } from '@/app/dashboard/superadmin/dashboard/dashboard-layout';
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
@@ -19,6 +19,25 @@ import {
   updateMember,
 } from '@/lib/services/membership.service';
 
+
+
+const CARD_RULES: any = {
+  JaBan: {
+    Gold: { price: 2000000, days: 60 },
+    Silver: { price: 1350000, days: 30 },
+    KAI: { price: 500000, days: 30 },
+  },
+  JaKa: {
+    Gold: { price: 500000, days: 60 },
+    Silver: { price: 450000, days: 30 },
+    KAI: { price: 200000, days: 30 },
+  },
+  KaBan: {
+    Gold: { price: 1000000, days: 60 },
+    Silver: { price: 750000, days: 30 },
+    KAI: { price: 300000, days: 30 },
+  },
+};
 
 /* ======================
    BASE INPUT STYLE
@@ -52,11 +71,13 @@ function DateField({
   label,
   value,
   onChange,
+  readOnly = false,
 }: {
   name: string;
   label: string;
   value: string;
-  onChange: (e: any) => void;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  readOnly?: boolean;
 }) {
   return (
     <Field label={label}>
@@ -65,12 +86,16 @@ function DateField({
         name={name}
         value={value}
         onChange={onChange}
-        className={base}
+        readOnly={readOnly}
+        className={`${base} ${
+          readOnly ? 'bg-gray-100 cursor-not-allowed' : ''
+        }`}
         required
       />
     </Field>
   );
 }
+
 
 /* ======================
    SECTION CARD
@@ -106,26 +131,61 @@ export default function EditMemberPage() {
   const [loading, setLoading] = useState(true);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  const [form, setForm] = useState<any>({
-    name: '',
-    nik: '',
-    nationality: '',
-    gender: '',
-    phone: '',
-    email: '',
-    address: '',
-    membership_date: '',
-    expired_date: '',
-    purchased_date: '',
-    price: '',
-    card_category: '',
-    card_type: '',
-    station: '',
-    shift_date: '',
-    serial_number: '',
-    update_by: '',
-    note: '',
-  });
+ const [form, setForm] = useState({
+  name: '',
+  nik: '',
+  nationality: '',
+  gender: '',
+  phone: '',
+  email: '',
+  address: '',
+
+  membership_date: '',
+  expired_date: '',
+
+  purchased_date: '',
+  price: '',
+
+  card_category: '',
+  card_type: '',
+
+  station: '',
+  shift_date: '',
+  serial_number: '',
+
+  update_by: '',
+  note: '',
+});
+
+useEffect(() => {
+  if (
+    !form.card_category ||
+    !form.card_type ||
+    !form.membership_date
+  )
+    return;
+
+  const rule =
+    CARD_RULES[form.card_type]?.[form.card_category];
+
+  if (!rule) return;
+
+  const baseDate = new Date(form.membership_date);
+  baseDate.setDate(baseDate.getDate() + rule.days);
+
+  setForm((prev: any) => ({
+    ...prev,
+    price: rule.price.toString(),
+    expired_date: baseDate
+      .toISOString()
+      .split('T')[0],
+  }));
+}, [
+  form.card_category,
+  form.card_type,
+  form.membership_date,
+]);
+
 
   /* ======================
      DISPLAY USER LOGIN (DISPLAY ONLY)
@@ -152,6 +212,35 @@ const loggedInUser =
   /* ======================
      LOAD DATA (API)
   ====================== */
+
+  useEffect(() => {
+  if (
+    !form.card_category ||
+    !form.card_type ||
+    !form.membership_date
+  ) {
+    return;
+  }
+
+  const rule =
+    CARD_RULES[form.card_type]?.[form.card_category];
+
+  if (!rule) return;
+
+  const baseDate = new Date(form.membership_date);
+  baseDate.setDate(baseDate.getDate() + rule.days);
+
+  setForm((prev: any) => ({
+    ...prev,
+    price: rule.price.toString(),
+    expired_date: baseDate.toISOString().split('T')[0],
+  }));
+}, [
+  form.card_category,
+  form.card_type,
+  form.membership_date,
+]);
+
   useEffect(() => {
     if (!id) return;
 
@@ -349,7 +438,7 @@ const loggedInUser =
                 name="expired_date"
                 label="Expired Date"
                 value={form.expired_date}
-                onChange={handleChange}
+                readOnly
               />
             </SectionCard>
 
@@ -367,13 +456,13 @@ const loggedInUser =
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
                   />
                   <input
-                    name="price"
-                    value={form.price}
-                    onChange={handleChange}
-                    onInput={onlyNumber}
-                    className={`${base} pr-10`}
-                    required
-                  />
+  name="price"
+  value={form.price}
+  readOnly
+  className={`${base} pr-10 bg-gray-100 cursor-not-allowed`}
+  required
+/>
+
                 </div>
               </Field>
             </SectionCard>
