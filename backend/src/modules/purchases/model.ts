@@ -59,73 +59,95 @@ export namespace PurchaseModel {
   export const createPurchaseBody = t.Object({
     cardId: t.String({
       format: "uuid",
-      description: "Card ID to purchase",
+      description: "Card ID to purchase. Card must exist and have status 'IN_STATION'.",
+      examples: ["123e4567-e89b-12d3-a456-426614174000"],
     }),
     memberId: t.String({
       format: "uuid",
       description: "Member ID (required - every transaction must have a member)",
+      examples: ["123e4567-e89b-12d3-a456-426614174001"],
     }),
     edcReferenceNumber: t.String({
       minLength: 1,
       maxLength: 100,
-      description: "EDC Reference Number (No. Reference EDC)",
+      description: "EDC Reference Number (No. Reference EDC). Must be unique across all purchases.",
+      examples: ["EDC-20260102-001", "REF-123456"],
     }),
     price: t.Optional(
       t.Number({
-        description: "Purchase price (default: from cardProduct.price, can be overridden for discounts/promos)",
+        description: "Purchase price (default: from cardProduct.price, can be overridden for discounts/promos). Must be >= 0.",
+        examples: [50000, 75000, 100000],
         minimum: 0,
       })
     ),
     notes: t.Optional(
       t.String({
         maxLength: 500,
-        description: "Optional notes",
+        description: "Optional notes for this transaction",
+        examples: ["Customer requested discount", "Promo special"],
       })
     ),
   });
 
   export const getPurchasesQuery = t.Object({
-    page: t.Optional(t.String()),
-    limit: t.Optional(t.String()),
+    page: t.Optional(
+      t.String({
+        description: "Page number for pagination (default: 1). Note: For petugas role, this filter applies to today's transactions only.",
+        examples: ["1"],
+      })
+    ),
+    limit: t.Optional(
+      t.String({
+        description: "Number of items per page (default: 10)",
+        examples: ["10", "20", "50"],
+      })
+    ),
     startDate: t.Optional(
       t.String({
         format: "date",
-        description: "Start date filter (YYYY-MM-DD)",
+        description: "Start date filter (YYYY-MM-DD). Note: Ignored for petugas role (always uses today). Only applies to admin/superadmin roles.",
+        examples: ["2026-01-01"],
       })
     ),
     endDate: t.Optional(
       t.String({
         format: "date",
-        description: "End date filter (YYYY-MM-DD)",
+        description: "End date filter (YYYY-MM-DD). Note: Ignored for petugas role (always uses today). Only applies to admin/superadmin roles.",
+        examples: ["2026-01-31"],
       })
     ),
     stationId: t.Optional(
       t.String({
         format: "uuid",
-        description: "Filter by station ID",
+        description: "Filter by station ID. Note: Ignored for supervisor role (always uses supervisor's station). Only applies to admin/superadmin roles.",
+        examples: ["123e4567-e89b-12d3-a456-426614174000"],
       })
     ),
     categoryId: t.Optional(
       t.String({
         format: "uuid",
         description: "Filter by card category ID",
+        examples: ["123e4567-e89b-12d3-a456-426614174000"],
       })
     ),
     typeId: t.Optional(
       t.String({
         format: "uuid",
         description: "Filter by card type ID",
+        examples: ["123e4567-e89b-12d3-a456-426614174000"],
       })
     ),
     operatorId: t.Optional(
       t.String({
         format: "uuid",
-        description: "Filter by operator ID",
+        description: "Filter by operator ID. Note: Ignored for petugas role (always uses petugas's own ID). Only applies to admin/superadmin roles.",
+        examples: ["123e4567-e89b-12d3-a456-426614174000"],
       })
     ),
     search: t.Optional(
       t.String({
-        description: "Search by transaction number, card serial number, customer name, identity number, or operator name",
+        description: "Search by EDC reference number, card serial number, customer name, identity number, or operator name (case-insensitive partial match)",
+        examples: ["EDC123", "CARD001", "John Doe", "1234567890"],
       })
     ),
   });

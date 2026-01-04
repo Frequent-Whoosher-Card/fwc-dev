@@ -71,12 +71,12 @@ export class PurchaseService {
         throw new ValidationError("Member ID wajib diisi. Setiap transaksi harus memiliki member.");
       }
 
-      const member = await tx.member.findUnique({
-        where: { id: data.memberId },
-      });
+        const member = await tx.member.findUnique({
+          where: { id: data.memberId },
+        });
 
-      if (!member || member.deletedAt) {
-        throw new NotFoundError("Member tidak ditemukan");
+        if (!member || member.deletedAt) {
+          throw new NotFoundError("Member tidak ditemukan");
       }
 
       // 5. Validate operator exists
@@ -201,16 +201,52 @@ export class PurchaseService {
     typeId?: string;
     operatorId?: string;
     search?: string;
+    userRole?: string;
+    userId?: string;
+    userStationId?: string | null;
   }) {
-    const { page = 1, limit = 10, startDate, endDate, stationId, categoryId, typeId, operatorId, search } = params;
+    const { 
+      page = 1, 
+      limit = 10, 
+      startDate, 
+      endDate, 
+      stationId, 
+      categoryId, 
+      typeId, 
+      operatorId, 
+      search,
+      userRole,
+      userId,
+      userStationId,
+    } = params;
     const skip = (page - 1) * limit;
 
     const where: any = {
       deletedAt: null, // Soft delete filter
     };
 
-    // Date range filter
-    if (startDate || endDate) {
+    // Role-based automatic filtering
+    if (userRole === "petugas" && userId) {
+      // Petugas: hanya transaksi hari ini yang di-handle oleh petugas tersebut
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+      
+      where.operatorId = userId; // Hanya transaksi yang dibuat oleh petugas ini
+      where.purchaseDate = {
+        gte: today,
+        lte: todayEnd,
+      };
+    } else if (userRole === "supervisor" && userStationId) {
+      // Supervisor: semua transaksi di stasiun tempat supervisor bertugas
+      where.stationId = userStationId;
+      // Tidak ada filter tanggal - semua data di stasiun tersebut
+    }
+    // admin dan superadmin: tidak ada filter otomatis, bisa filter manual via query params
+
+    // Date range filter (only apply if not already set by role-based filter)
+    if (!where.purchaseDate && (startDate || endDate)) {
       where.purchaseDate = {};
       if (startDate) {
         const start = new Date(startDate);
@@ -224,8 +260,8 @@ export class PurchaseService {
       }
     }
 
-    // Station filter
-    if (stationId) {
+    // Station filter (only apply if not already set by role-based filter)
+    if (!where.stationId && stationId) {
       where.stationId = stationId;
     }
 
@@ -242,8 +278,8 @@ export class PurchaseService {
       }
     }
 
-    // Operator filter
-    if (operatorId) {
+    // Operator filter (only apply if not already set by role-based filter)
+    if (!where.operatorId && operatorId) {
       where.operatorId = operatorId;
     }
 

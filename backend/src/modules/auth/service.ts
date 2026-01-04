@@ -207,6 +207,7 @@ export class AuthService {
       },
       isActive: user.isActive,
       lastLogin: user.lastLogin?.toISOString() || null,
+      stationId: user.stationId,
     };
   }
 }
