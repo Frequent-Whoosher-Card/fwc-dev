@@ -84,7 +84,7 @@ export default function StockOutPage() {
       if (toDate) params.endDate = new Date(toDate).toISOString();
 
       const response = await axiosInstance.get('/stock/out', { params });
-      
+
       if (response.data.success) {
         const { items, pagination: paging } = response.data.data;
         setData(items);
@@ -162,10 +162,7 @@ export default function StockOutPage() {
     doc.save('laporan-stock-out.pdf');
   };
 
-  const pageNumbers = Array.from(
-    { length: pagination.totalPages },
-    (_, i) => i + 1
-  );
+  const pageNumbers = Array.from({ length: pagination.totalPages }, (_, i) => i + 1);
 
   return (
     <div className="space-y-6">
@@ -179,27 +176,27 @@ export default function StockOutPage() {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-600">Dari</label>
-            <input 
-              type="date" 
-              value={fromDate} 
+            <input
+              type="date"
+              value={fromDate}
               onChange={(e) => {
                 setFromDate(e.target.value);
                 setPagination((p) => ({ ...p, page: 1 })); // Reset page
-              }} 
-              className="rounded-md border px-3 py-1.5 text-sm" 
+              }}
+              className="rounded-md border px-3 py-1.5 text-sm"
             />
           </div>
 
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-600">Sampai</label>
-            <input 
-              type="date" 
-              value={toDate} 
+            <input
+              type="date"
+              value={toDate}
               onChange={(e) => {
                 setToDate(e.target.value);
                 setPagination((p) => ({ ...p, page: 1 })); // Reset page
-              }} 
-              className="rounded-md border px-3 py-1.5 text-sm" 
+              }}
+              className="rounded-md border px-3 py-1.5 text-sm"
             />
           </div>
 
@@ -249,29 +246,18 @@ export default function StockOutPage() {
               ) : (
                 data.map((row, index) => (
                   <tr key={row.id} className="border-b hover:bg-gray-50">
-                    <td className="px-3 py-2 text-center">
-                      {(pagination.page - 1) * pagination.limit + index + 1}
-                    </td>
-                    <td className="px-3 py-2 text-center whitespace-nowrap">
-                      {new Date(row.movementAt).toLocaleDateString('id-ID')}
-                    </td>
+                    <td className="px-3 py-2 text-center">{(pagination.page - 1) * pagination.limit + index + 1}</td>
+                    <td className="px-3 py-2 text-center whitespace-nowrap">{new Date(row.movementAt).toLocaleDateString('id-ID')}</td>
                     <td className="px-3 py-2 text-center">{row.cardCategory.name}</td>
                     <td className="px-3 py-2 text-center">{row.cardType.name || '-'}</td>
                     <td className="px-3 py-2 text-center">{row.stationName || '-'}</td>
                     <td className="px-3 py-2 text-center font-medium">{row.quantity.toLocaleString()}</td>
-                    <td className="px-3 py-2 text-center whitespace-nowrap">
-                      {row.sentSerialNumbers?.[0] || '-'}
-                    </td>
+                    <td className="px-3 py-2 text-center whitespace-nowrap">{row.sentSerialNumbers?.[0] || '-'}</td>
 
                     <td className="px-3 py-2 text-center">
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-medium
-                          ${
-                            row.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
-                            row.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
-                            row.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
-                            'bg-gray-100 text-gray-600'
-                          }`}
+                          ${row.status === 'APPROVED' ? 'bg-green-100 text-green-700' : row.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : row.status === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}
                       >
                         {row.status}
                       </span>
@@ -305,7 +291,7 @@ export default function StockOutPage() {
         </div>
       </div>
 
-        {/* PAGINATION */}
+      {/* PAGINATION */}
       <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-600">
         <button
           disabled={pagination.page === 1}
@@ -329,20 +315,14 @@ export default function StockOutPage() {
                 page: p,
               }))
             }
-            className={`px-3 py-1 ${
-              p === pagination.page
-                ? 'font-semibold underline'
-                : ''
-            }`}
+            className={`px-3 py-1 ${p === pagination.page ? 'font-semibold underline' : ''}`}
           >
             {p}
           </button>
         ))}
 
         <button
-          disabled={
-            pagination.page === pagination.totalPages
-          }
+          disabled={pagination.page === pagination.totalPages}
           onClick={() =>
             setPagination((p) => ({
               ...p,

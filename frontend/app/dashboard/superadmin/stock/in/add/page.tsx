@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { ArrowLeft } from 'lucide-react';
@@ -11,12 +11,12 @@ export default function AddStockInPage() {
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [types, setTypes] = useState<Type[]>([]);
-  const [jabanTypeUUID, setJabanTypeUUID] = useState<string>('');
+  // const [jabanTypeUUID, setJabanTypeUUID] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     tanggal: '',
     categoryId: '',
-    typeId: '',
+    typeId: '', // kosong utk KAI
     initialSerial: '',
     lastSerial: '',
   });
@@ -25,28 +25,35 @@ export default function AddStockInPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const catData = await fetchCategories();
+        const [catData, typeData] = await Promise.all([fetchCategories(), fetchTypes()]);
+
         setCategories(catData);
-
-        const typeData = await fetchTypes();
         setTypes(typeData);
-
-        // Cari UUID type "JABAN"
-        const jabanType = typeData.find((t) => t.typeName.toUpperCase() === 'JABAN');
-        if (jabanType) setJabanTypeUUID(jabanType.id);
       } catch (err: any) {
         toast.error(err.message || 'Gagal mengambil category/type');
       }
     };
+
     fetchData();
   }, []);
 
   const handleCategoryChange = (categoryId: string) => {
     const selectedCategory = categories.find((c) => c.id === categoryId);
 
-    // Jika category KAI → set typeId otomatis ke UUID JABAN
-    const typeId = selectedCategory?.categoryName.toUpperCase() === 'KAI' ? jabanTypeUUID : '';
-    setForm({ ...form, categoryId, typeId });
+    if (selectedCategory?.categoryName === 'KAI') {
+      // 🔥 KAI → auto JaBan
+      setForm((prev) => ({
+        ...prev,
+        categoryId,
+      }));
+    } else {
+      // selain KAI → type kosong
+      setForm((prev) => ({
+        ...prev,
+        categoryId,
+        typeId: '',
+      }));
+    }
   };
 
   const handleSubmit = async () => {
@@ -57,7 +64,7 @@ export default function AddStockInPage() {
 
     // Tentukan typeId sesuai category
     const selectedCategory = categories.find((c) => c.id === form.categoryId);
-    const typeIdToSend = selectedCategory?.categoryName.toUpperCase() === 'KAI' ? jabanTypeUUID : form.typeId;
+    // const typeIdToSend = selectedCategory?.categoryName.toUpperCase() === 'KAI' ? jabanTypeUUID : form.typeId;
 
     if (!typeIdToSend) {
       toast.error('Card Type wajib diisi');
@@ -104,7 +111,16 @@ export default function AddStockInPage() {
           {/* Category */}
           <div>
             <label className="text-sm font-medium">Card Category</label>
-            <select className="w-full rounded-lg border px-4 py-2" value={form.categoryId} onChange={(e) => handleCategoryChange(e.target.value)}>
+            <select
+              className="w-full rounded-lg border px-4 py-2"
+              value={form.categoryId}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  categoryId: e.target.value,
+                }))
+              }
+            >
               <option value="">-- Pilih Category --</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -120,8 +136,12 @@ export default function AddStockInPage() {
             <select
               className="w-full rounded-lg border px-4 py-2"
               value={form.typeId}
-              onChange={(e) => setForm({ ...form, typeId: e.target.value })}
-              disabled={categories.find((c) => c.id === form.categoryId)?.categoryName.toUpperCase() === 'KAI'}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  typeId: e.target.value,
+                }))
+              }
             >
               <option value="">-- Pilih Type --</option>
               {types.map((t) => (
@@ -131,7 +151,7 @@ export default function AddStockInPage() {
               ))}
             </select>
 
-            {categories.find((c) => c.id === form.categoryId)?.categoryName.toUpperCase() === 'KAI' && <p className="text-xs text-gray-400 mt-1">Card type otomatis untuk KAI: JABAN</p>}
+            {/* {categories.find((c) => c.id === form.categoryId)?.categoryName.toUpperCase() === 'KAI' && <p className="text-xs text-gray-400 mt-1">Card type otomatis untuk KAI: JABAN</p>} */}
           </div>
 
           {/* Serial */}

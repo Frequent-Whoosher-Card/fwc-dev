@@ -21,7 +21,7 @@ export default function SuperAdminStockPage() {
       </div>
 
       {/* STOCK AVAILABLE (ALL) */}
-      <StockTable filters={filters} />
+      <StockTable />
     </div>
   );
 }

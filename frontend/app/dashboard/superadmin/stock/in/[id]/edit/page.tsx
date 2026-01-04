@@ -79,7 +79,7 @@ export default function EditStockInPage() {
     }
 
     // opsional: validasi urutan serial
-    if (form.startSerial < form.endSerial) {
+    if (form.startSerial > form.endSerial) {
       toast.error('Start Serial tidak boleh lebih besar dari End Serial');
       return;
     }
