@@ -110,11 +110,6 @@ export const docsConfig = swagger({
         description: "Card product management endpoints",
       },
       {
-        name: "Inventory",
-        description: "Inventory management endpoints for card inventory",
-      },
-
-      {
         name: "Stock",
         description: "Stock management endpoints for card inventory",
       },
