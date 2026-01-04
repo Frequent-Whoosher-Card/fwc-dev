@@ -1,0 +1,237 @@
+// FWC (Frequent Whoosher Card) System Database
+// Database Diagram for dbdiagram.io
+// Copy and paste this content to https://dbdiagram.io
+
+Project fwc_system {
+  database_type: 'MySQL'
+  Note: 'FWC System Database - PT Kereta Cepat Indonesia China'
+}
+
+// =====================================================
+// MASTER TABLES
+// =====================================================
+
+Table roles {
+  role_id uuid [pk]
+  role_code varchar(20) [unique, not null]
+  role_name varchar(100) [not null]
+  description text
+  is_active boolean [default: true]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  created_by uuid [ref: > users.user_id, null]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`, note: 'ON UPDATE CURRENT_TIMESTAMP']
+  updated_by uuid [ref: > users.user_id, null]
+  deleted_at timestamp [null, note: 'Soft delete timestamp']
+  deleted_by uuid [ref: > users.user_id, null]
+  
+  Note: 'Master data role: superadmin, admin, petugas'
+}
+
+Table card_categories {
+  category_id uuid [pk]
+  category_code varchar(20) [unique, not null]
+  category_name varchar(100) [not null]
+  description text
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  created_by uuid [ref: > users.user_id, note: 'User yang membuat']
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`, note: 'ON UPDATE CURRENT_TIMESTAMP']
+  updated_by uuid [ref: > users.user_id, note: 'User yang mengupdate']
+  deleted_at timestamp [null, note: 'Soft delete timestamp']
+  deleted_by uuid [ref: > users.user_id, null, note: 'User yang menghapus']
+  
+  Note: 'Master data kategori kartu (Gold, Silver, KAI)'
+}
+
+Table card_types {
+  type_id uuid [pk]
+  type_code varchar(20) [unique, not null]
+  type_name varchar(100) [not null]
+  route_description varchar(255)
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  created_by uuid [ref: > users.user_id, note: 'User yang membuat']
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`, note: 'ON UPDATE CURRENT_TIMESTAMP']
+  updated_by uuid [ref: > users.user_id, note: 'User yang mengupdate']
+  deleted_at timestamp [null, note: 'Soft delete timestamp']
+  deleted_by uuid [ref: > users.user_id, null, note: 'User yang menghapus']
+  
+  Note: 'Master data tipe kartu berdasarkan rute (JaBan, JaKa, KaBan)'
+}
+
+Table card_products {
+  card_product_id uuid [pk]
+  category_id uuid [ref: > card_categories.category_id, not null]
+  type_id uuid [ref: > card_types.type_id, not null]
+  total_quota int [not null, note: 'Total kuota untuk produk ini']
+  masa_berlaku int [not null, note: 'Masa berlaku dalam hari']
+  price decimal(15,2) [not null, note: 'Harga untuk produk ini']
+  is_active boolean [default: true]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  created_by uuid [ref: > users.user_id, note: 'User yang membuat']
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`, note: 'ON UPDATE CURRENT_TIMESTAMP']
+  updated_by uuid [ref: > users.user_id, note: 'User yang mengupdate']
+  deleted_at timestamp [null, note: 'Soft delete timestamp']
+  deleted_by uuid [ref: > users.user_id, null, note: 'User yang menghapus']
+  
+  indexes {
+    (category_id, type_id) [unique, name: 'unique_category_type']
+  }
+  
+  Note: 'Master data produk kartu dengan quota, masa berlaku, dan harga per kombinasi category + type'
+}
+
+Table stations {
+  station_id uuid [pk]
+  station_code varchar(20) [unique, not null]
+  station_name varchar(255) [not null]
+  location varchar(255)
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  created_by uuid [ref: > users.user_id, note: 'User yang membuat']
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`, note: 'ON UPDATE CURRENT_TIMESTAMP']
+  updated_by uuid [ref: > users.user_id, note: 'User yang mengupdate']
+  deleted_at timestamp [null, note: 'Soft delete timestamp']
+  deleted_by uuid [ref: > users.user_id, null, note: 'User yang menghapus']
+  
+  Note: 'Master data stasiun'
+}
+
+Table users {
+  user_id uuid [pk]
+  full_name varchar(255) [not null]
+  nip varchar(50) [unique, null, note: 'Nomor Induk Pegawai (opsional)']
+  username varchar(100) [unique, not null, note: 'Username untuk login']
+  password_hash varchar(255) [not null, note: 'Password hash untuk autentikasi']
+  email varchar(255)
+  phone varchar(20)
+  role_id uuid [ref: > roles.role_id, not null, note: 'Role: superadmin, admin, petugas']
+  is_active boolean [default: true]
+  last_login timestamp [null, note: 'Waktu login terakhir']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  created_by uuid [ref: > users.user_id, null, note: 'User yang membuat (self-reference)']
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`, note: 'ON UPDATE CURRENT_TIMESTAMP']
+  updated_by uuid [ref: > users.user_id, null, note: 'User yang mengupdate (self-reference)']
+  deleted_at timestamp [null, note: 'Soft delete timestamp']
+  deleted_by uuid [ref: > users.user_id, null, note: 'User yang menghapus (self-reference)']
+  
+  Note: 'Data user (admin/petugas) yang melakukan transaksi dan mengelola sistem'
+}
+
+// =====================================================
+// CORE TABLES
+// =====================================================
+
+Table members {
+  member_id uuid [pk]
+  member_name varchar(255) [not null]
+  identity_number varchar(50) [unique, not null]
+  nationality varchar(100) [not null, default: 'INDONESIA']
+  email varchar(255)
+  phone varchar(20)
+  nipp_kai varchar(20)
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  created_by uuid [ref: > users.user_id, note: 'User yang membuat']
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`, note: 'ON UPDATE CURRENT_TIMESTAMP']
+  updated_by uuid [ref: > users.user_id, note: 'User yang mengupdate']
+  deleted_at timestamp [null, note: 'Soft delete timestamp']
+  deleted_by uuid [ref: > users.user_id, null, note: 'User yang menghapus']
+  
+  Note: 'Data member yang membeli kartu FWC'
+}
+
+Table cards {
+  card_id uuid [pk]
+  serial_number varchar(50) [unique, not null]
+  member_id uuid [ref: > members.member_id, not null]
+  card_product_id uuid [ref: > card_products.card_product_id, not null, note: 'Reference ke card_products untuk default']
+  category_id uuid [ref: > card_categories.category_id, not null, note: 'Denormalized untuk query cepat']
+  type_id uuid [ref: > card_types.type_id, not null, note: 'Denormalized untuk query cepat']
+  quota_ticket int [not null, default: 0, note: 'Sisa kuota yang masih bisa digunakan']
+  total_quota int [not null, note: 'Total kuota awal (copy dari default atau override)']
+  fw_price decimal(15,2) [not null, note: 'Harga kartu (copy dari default atau override)']
+  purchase_date date [not null]
+  masa_berlaku int [not null, note: 'Masa berlaku dalam hari (copy dari default atau override)']
+  expired_date date [not null]
+  status_card enum('Aktif', 'Non Aktif') [not null, default: 'Aktif']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  created_by uuid [ref: > users.user_id, note: 'User yang membuat']
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`, note: 'ON UPDATE CURRENT_TIMESTAMP']
+  updated_by uuid [ref: > users.user_id, note: 'User yang mengupdate']
+  deleted_at timestamp [null, note: 'Soft delete timestamp']
+  deleted_by uuid [ref: > users.user_id, null, note: 'User yang menghapus']
+  
+  Note: 'Data kartu FWC yang dijual. card_product_id reference ke card_products untuk default, tapi total_quota, masa_berlaku, dan fw_price tetap disimpan untuk fleksibilitas override'
+}
+
+Table transactions {
+  transaction_id uuid [pk]
+  card_id uuid [ref: > cards.card_id, not null]
+  transaction_number varchar(50) [unique, not null, note: 'NO Reference EDC']
+  operator_id uuid [ref: > users.user_id, not null, note: 'User yang melakukan transaksi']
+  station_id uuid [ref: > stations.station_id, not null]
+  shift_date datetime [not null]
+  transaction_status enum('Success', 'Failed', 'Pending') [not null, default: 'Success']
+  notes text
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  created_by uuid [ref: > users.user_id, note: 'User yang membuat (sama dengan operator_id)']
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`, note: 'ON UPDATE CURRENT_TIMESTAMP']
+  updated_by uuid [ref: > users.user_id, note: 'User yang mengupdate']
+  deleted_at timestamp [null, note: 'Soft delete timestamp']
+  deleted_by uuid [ref: > users.user_id, null, note: 'User yang menghapus']
+  
+  Note: 'Data transaksi penjualan kartu'
+}
+
+// =====================================================
+// SUPPORTING TABLES
+// =====================================================
+
+Table card_usage_logs {
+  log_id uuid [pk]
+  card_id uuid [ref: > cards.card_id, not null]
+  quota_used int [not null, default: 1]
+  remaining_quota int [not null]
+  usage_date datetime [not null]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  created_by varchar(50) [null, note: 'System atau Gate ID yang membuat log']
+  
+  Note: 'Log penggunaan kuota kartu untuk tracking (tidak perlu soft delete)'
+}
+
+Table card_inventory {
+  inventory_id uuid [pk]
+  category_id uuid [ref: > card_categories.category_id, not null]
+  type_id uuid [ref: > card_types.type_id, not null]
+  station_id uuid [ref: > stations.station_id, null, note: 'NULL untuk inventory global, isi untuk inventory per stasiun']
+  card_beredar int [not null, default: 0, note: 'Jumlah kartu beredar']
+  card_terjual_aktif int [not null, default: 0, note: 'Jumlah kartu terjual (aktif)']
+  card_terjual_nonaktif int [not null, default: 0, note: 'Jumlah kartu terjual (non aktif)']
+  card_belum_terjual int [not null, default: 0, note: 'Jumlah kartu belum terjual']
+  last_updated timestamp [default: `CURRENT_TIMESTAMP`, note: 'ON UPDATE CURRENT_TIMESTAMP']
+  updated_by uuid [ref: > users.user_id, null, note: 'User/System yang mengupdate']
+  
+  indexes {
+    (category_id, type_id, station_id) [unique, name: 'unique_category_type_station']
+  }
+  
+  Note: 'Inventory kartu berdasarkan kategori, tipe, dan stasiun. station_id = NULL untuk inventory global, station_id = [id] untuk inventory per stasiun (unique per kombinasi category_id + type_id + station_id)'
+}
+
+// =====================================================
+// RELATIONSHIPS SUMMARY
+// =====================================================
+// 
+// members (1) : cards (N) - Satu member dapat memiliki banyak kartu
+// card_products (1) : cards (N) - Satu produk dapat memiliki banyak kartu
+// card_categories (1) : cards (N) - Satu kategori dapat memiliki banyak kartu (denormalized)
+// card_types (1) : cards (N) - Satu tipe dapat memiliki banyak kartu (denormalized)
+// card_categories (1) : card_products (N) - Satu kategori dapat memiliki banyak produk
+// card_types (1) : card_products (N) - Satu tipe dapat memiliki banyak produk
+// cards (1) : transactions (N) - Satu kartu dapat memiliki banyak transaksi
+// users (1) : transactions (N) - Satu user dapat melakukan banyak transaksi
+// stations (1) : transactions (N) - Satu stasiun dapat memiliki banyak transaksi
+// cards (1) : card_usage_logs (N) - Satu kartu dapat memiliki banyak log penggunaan
+// card_categories (1) : card_inventory (N) - Satu kategori dapat memiliki banyak inventory
+// card_types (1) : card_inventory (N) - Satu tipe dapat memiliki banyak inventory
+// stations (1) : card_inventory (N) - Satu stasiun dapat memiliki banyak inventory (atau NULL untuk global)
+// roles (1) : users (N) - Satu role dapat dimiliki banyak user
+// users (1) : transactions (N) - Satu user dapat melakukan banyak transaksi
+

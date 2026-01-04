@@ -50,6 +50,7 @@ export default function LoginPage() {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Penting: untuk menerima cookie dari backend
         body: JSON.stringify({ username, password }),
       });
 
