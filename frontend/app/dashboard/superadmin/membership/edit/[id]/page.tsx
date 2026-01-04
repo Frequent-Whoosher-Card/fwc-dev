@@ -1,5 +1,7 @@
 'use client';
 
+import { useContext } from 'react';
+import { UserContext } from '@/app/dashboard/superadmin/dashboard/dashboard-layout';
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
@@ -12,6 +14,30 @@ import {
 } from 'lucide-react';
 
 import SuccessModal from '../../components/ui/SuccessModal';
+import {
+  getMemberById,
+  updateMember,
+} from '@/lib/services/membership.service';
+
+
+
+const CARD_RULES: any = {
+  JaBan: {
+    Gold: { price: 2000000, days: 60 },
+    Silver: { price: 1350000, days: 30 },
+    KAI: { price: 500000, days: 30 },
+  },
+  JaKa: {
+    Gold: { price: 500000, days: 60 },
+    Silver: { price: 450000, days: 30 },
+    KAI: { price: 200000, days: 30 },
+  },
+  KaBan: {
+    Gold: { price: 1000000, days: 60 },
+    Silver: { price: 750000, days: 30 },
+    KAI: { price: 300000, days: 30 },
+  },
+};
 
 /* ======================
    BASE INPUT STYLE
@@ -45,11 +71,13 @@ function DateField({
   label,
   value,
   onChange,
+  readOnly = false,
 }: {
   name: string;
   label: string;
   value: string;
-  onChange: (e: any) => void;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  readOnly?: boolean;
 }) {
   return (
     <Field label={label}>
@@ -58,12 +86,16 @@ function DateField({
         name={name}
         value={value}
         onChange={onChange}
-        className={base}
+        readOnly={readOnly}
+        className={`${base} ${
+          readOnly ? 'bg-gray-100 cursor-not-allowed' : ''
+        }`}
         required
       />
     </Field>
   );
 }
+
 
 /* ======================
    SECTION CARD
@@ -92,53 +124,160 @@ function SectionCard({
 ====================== */
 export default function EditMemberPage() {
   const router = useRouter();
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
 
+  const userCtx = useContext(UserContext);
+
+  const [loading, setLoading] = useState(true);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  const [form, setForm] = useState<any>({
-    name: '',
-    nik: '',
-    nationality: '',
-    gender: '',
-    phone: '',
-    email: '',
-    address: '',
-    membershipDate: '',
-    expiredDate: '',
-    purchasedDate: '',
-    price: '',
-    cardCategory: '',
-    cardType: '',
-    station: '',
-    shiftDate: '',
-    serialNumber: '',
-    updateBy: '',
-    note: '',
-  });
+ const [form, setForm] = useState({
+  name: '',
+  nik: '',
+  nationality: '',
+  gender: '',
+  phone: '',
+  email: '',
+  address: '',
+
+  membership_date: '',
+  expired_date: '',
+
+  purchased_date: '',
+  price: '',
+
+  card_category: '',
+  card_type: '',
+
+  station: '',
+  shift_date: '',
+  serial_number: '',
+
+  update_by: '',
+  note: '',
+});
+
+useEffect(() => {
+  if (
+    !form.card_category ||
+    !form.card_type ||
+    !form.membership_date
+  )
+    return;
+
+  const rule =
+    CARD_RULES[form.card_type]?.[form.card_category];
+
+  if (!rule) return;
+
+  const baseDate = new Date(form.membership_date);
+  baseDate.setDate(baseDate.getDate() + rule.days);
+
+  setForm((prev: any) => ({
+    ...prev,
+    price: rule.price.toString(),
+    expired_date: baseDate
+      .toISOString()
+      .split('T')[0],
+  }));
+}, [
+  form.card_category,
+  form.card_type,
+  form.membership_date,
+]);
+
 
   /* ======================
-     LOAD DATA
+     DISPLAY USER LOGIN (DISPLAY ONLY)
   ====================== */
+const loggedInUser =
+  typeof document !== 'undefined'
+    ? (() => {
+        const cookies = document.cookie
+          .split(';')
+          .map((c) => c.trim());
+
+        const userCookie = cookies.find((c) =>
+          c.startsWith('fwc_user_name=')
+        );
+
+        if (!userCookie) return '';
+
+        return decodeURIComponent(
+          userCookie.split('=')[1]
+        );
+      })()
+    : '';
+
+  /* ======================
+     LOAD DATA (API)
+  ====================== */
+
   useEffect(() => {
-    const stored = JSON.parse(
-      localStorage.getItem('fwc_memberships') || '[]'
-    );
+  if (
+    !form.card_category ||
+    !form.card_type ||
+    !form.membership_date
+  ) {
+    return;
+  }
 
-    const found = stored.find(
-      (item: any) => item.id === Number(id)
-    );
+  const rule =
+    CARD_RULES[form.card_type]?.[form.card_category];
 
-    if (!found) {
-      router.push('/dashboard/superadmin/membership');
-      return;
-    }
+  if (!rule) return;
 
-    setForm({
-      ...found,
-      updateBy: found.updateBy || '',
-      note: found.note || '',
-    });
+  const baseDate = new Date(form.membership_date);
+  baseDate.setDate(baseDate.getDate() + rule.days);
+
+  setForm((prev: any) => ({
+    ...prev,
+    price: rule.price.toString(),
+    expired_date: baseDate.toISOString().split('T')[0],
+  }));
+}, [
+  form.card_category,
+  form.card_type,
+  form.membership_date,
+]);
+
+  useEffect(() => {
+    if (!id) return;
+
+    const fetchDetail = async () => {
+      try {
+        setLoading(true);
+        const res = await getMemberById(id);
+        const d = res.data;
+
+        setForm({
+          name: d.name ?? '',
+          nik: d.nik ?? '',
+          nationality: d.nationality ?? '',
+          gender: d.gender ?? '',
+          phone: d.phone ?? '',
+          email: d.email ?? '',
+          address: d.address ?? '',
+          membership_date: d.membership_date ?? '',
+          expired_date: d.expired_date ?? '',
+          purchased_date: d.purchased_date ?? '',
+          price: d.price ?? '',
+          card_category: d.card_category ?? '',
+          card_type: d.card_type ?? '',
+          station: d.station ?? '',
+          shift_date: d.shift_date ?? '',
+          serial_number: d.serial_number ?? '',
+          update_by: d.update_by ?? '',
+          note: d.note ?? '',
+        });
+      } catch (err) {
+        router.push('/dashboard/superadmin/membership');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDetail();
   }, [id, router]);
 
   /* ======================
@@ -158,32 +297,23 @@ export default function EditMemberPage() {
   };
 
   /* ======================
-     SAVE
+     SAVE (API)
   ====================== */
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const stored = JSON.parse(
-      localStorage.getItem('fwc_memberships') || '[]'
-    );
-
-    const updated = stored.map((item: any) =>
-      item.id === Number(id)
-        ? {
-            ...item,
-            ...form,
-            updatedAt: new Date().toISOString().split('T')[0],
-          }
-        : item
-    );
-
-    localStorage.setItem(
-      'fwc_memberships',
-      JSON.stringify(updated)
-    );
-
-    setShowSuccess(true);
+    try {
+      // 🔒 update_by DIAMBIL BE DARI REQUEST
+      await updateMember(id, form);
+      setShowSuccess(true);
+    } catch (err) {
+      console.error(err);
+    }
   };
+
+  if (loading) {
+    return <div className="p-6">Loading...</div>;
+  }
 
   return (
     <>
@@ -202,7 +332,6 @@ export default function EditMemberPage() {
           className="rounded-lg border bg-white p-6"
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-
             <div className="md:col-span-2">
               <input
                 name="name"
@@ -300,24 +429,24 @@ export default function EditMemberPage() {
 
             <SectionCard title="Membership Period">
               <DateField
-                name="membershipDate"
+                name="membership_date"
                 label="Membership Date"
-                value={form.membershipDate}
+                value={form.membership_date}
                 onChange={handleChange}
               />
               <DateField
-                name="expiredDate"
+                name="expired_date"
                 label="Expired Date"
-                value={form.expiredDate}
-                onChange={handleChange}
+                value={form.expired_date}
+                readOnly
               />
             </SectionCard>
 
             <SectionCard title="Purchase Information">
               <DateField
-                name="purchasedDate"
+                name="purchased_date"
                 label="Purchased Date"
-                value={form.purchasedDate}
+                value={form.purchased_date}
                 onChange={handleChange}
               />
               <Field label="FWC Price">
@@ -327,13 +456,13 @@ export default function EditMemberPage() {
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
                   />
                   <input
-                    name="price"
-                    value={form.price}
-                    onChange={handleChange}
-                    onInput={onlyNumber}
-                    className={`${base} pr-10`}
-                    required
-                  />
+  name="price"
+  value={form.price}
+  readOnly
+  className={`${base} pr-10 bg-gray-100 cursor-not-allowed`}
+  required
+/>
+
                 </div>
               </Field>
             </SectionCard>
@@ -341,8 +470,8 @@ export default function EditMemberPage() {
             <SectionCard title="Card Information">
               <Field label="Card Category">
                 <select
-                  name="cardCategory"
-                  value={form.cardCategory}
+                  name="card_category"
+                  value={form.card_category}
                   onChange={handleChange}
                   className={base}
                   required
@@ -356,8 +485,8 @@ export default function EditMemberPage() {
 
               <Field label="Card Type">
                 <select
-                  name="cardType"
-                  value={form.cardType}
+                  name="card_type"
+                  value={form.card_type}
                   onChange={handleChange}
                   className={base}
                   required
@@ -388,17 +517,17 @@ export default function EditMemberPage() {
               </Field>
 
               <DateField
-                name="shiftDate"
+                name="shift_date"
                 label="Shift Date"
-                value={form.shiftDate}
+                value={form.shift_date}
                 onChange={handleChange}
               />
             </SectionCard>
 
             <div className="md:col-span-2">
               <input
-                name="serialNumber"
-                value={form.serialNumber}
+                name="serial_number"
+                value={form.serial_number}
                 onChange={handleChange}
                 placeholder="Serial Number"
                 className={base}
@@ -406,19 +535,18 @@ export default function EditMemberPage() {
               />
             </div>
 
-            {/* UPDATE BY */}
-            <div className="md:col-span-2">
-              <input
-                name="updateBy"
-                value={form.updateBy}
-                onChange={handleChange}
-                placeholder="Update By"
-                className={base}
-                required
-              />
-            </div>
+            {/* UPDATED BY – DISPLAY ONLY */}
+            {/* UPDATED BY – DISPLAY ONLY */}
+<div className="md:col-span-2">
+  <label className="mb-1 block text-xs text-gray-500">
+    Updated By
+  </label>
+  <div className="h-10 flex items-center rounded-md border border-gray-300 bg-gray-50 px-3 text-sm text-gray-700">
+    {form.update_by || userCtx?.userName || '-'}
+  </div>
+</div>
 
-            {/* NOTE */}
+
             <div className="md:col-span-2">
               <textarea
                 name="note"
@@ -441,7 +569,6 @@ export default function EditMemberPage() {
         </form>
       </div>
 
-      {/* SUCCESS MODAL */}
       <SuccessModal
         open={showSuccess}
         onClose={() => {
