@@ -270,6 +270,14 @@ export default function AddMemberPage() {
       try {
         const token = localStorage.getItem('fwc_token');
         
+        // NOTE: Endpoint GET /cards belum ada di backend
+        // Endpoint yang diperlukan: GET /cards?cardProductId={id}&status=IN_STATION
+        // Response format: { success: true, data: [{ id, serialNumber, status, cardProductId }] }
+        
+        // Untuk sementara, kita akan menggunakan workaround:
+        // 1. Coba endpoint /cards jika sudah dibuat
+        // 2. Jika belum, tampilkan pesan bahwa endpoint perlu dibuat
+        
         const res = await fetch(
           `${API_BASE_URL}/cards?cardProductId=${selectedCardProductId}&status=IN_STATION`,
           {
@@ -618,20 +626,32 @@ export default function AddMemberPage() {
             </div>
 
             {/* Membership Period */}
-            <SectionCard title="Membership Period">
-              <DateField
-                name="membershipDate"
-                label="Membership Date"
-                value={form.membershipDate}
-                onChange={handleChange}
-              />
-              <DateField
-                name="expiredDate"
-                label="Expired Date"
-                value={form.expiredDate}
-                onChange={handleChange}
-              />
-            </SectionCard>
+           <SectionCard title="Membership Period">
+  <DateField
+    name="membershipDate"
+    label="Membership Date"
+    value={form.membershipDate}
+    onChange={handleChange}
+  />
+
+  {/* Expired Date - READ ONLY (AUTO) */}
+  <Field label="Expired Date">
+    <div className="relative">
+      <Calendar
+        size={16}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+      />
+      <input
+        type="date"
+        name="expiredDate"
+        value={form.expiredDate}
+        readOnly
+        className={`${base} pr-10 bg-gray-50 cursor-not-allowed`}
+      />
+    </div>
+  </Field>
+</SectionCard>
+
 
             {/* Purchase Information */}
             <SectionCard title="Purchase Information">
@@ -727,28 +747,39 @@ export default function AddMemberPage() {
 
             {/* Operational Information */}
             <SectionCard title="Operational Information">
-              <Field label="Stasiun">
-                <select
-                  name="station"
-                  value={form.station}
-                  onChange={handleChange}
-                  className={base}
-                >
-                  <option value="">Select</option>
-                  <option value="Halim">Halim</option>
-                  <option value="Karawang">Karawang</option>
-                  <option value="Padalarang">Padalarang</option>
-                  <option value="Tegalluar">Tegalluar</option>
-                </select>
-              </Field>
+  <Field label="Stasiun">
+    <select
+      name="station"
+      value={form.station}
+      onChange={handleChange}
+      className={base}
+    >
+      <option value="">Select</option>
+      <option value="Halim">Halim</option>
+      <option value="Karawang">Karawang</option>
+      <option value="Padalarang">Padalarang</option>
+      <option value="Tegalluar">Tegalluar</option>
+    </select>
+  </Field>
 
-              <DateField
-                name="shiftDate"
-                label="Shift Date"
-                value={form.shiftDate}
-                onChange={handleChange}
-              />
-            </SectionCard>
+  {/* Shift Date - READ ONLY */}
+  <Field label="Shift Date">
+    <div className="relative">
+      <Calendar
+        size={16}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+      />
+      <input
+        type="date"
+        name="shiftDate"
+        value={form.shiftDate}
+        readOnly
+        className={`${base} pr-10 bg-gray-50 cursor-not-allowed`}
+      />
+    </div>
+  </Field>
+</SectionCard>
+
 
 
             {/* No. Reference EDC - Full Width */}

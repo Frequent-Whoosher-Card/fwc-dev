@@ -104,6 +104,7 @@ export namespace AuthModel {
       }),
       isActive: t.Boolean(),
       lastLogin: t.Nullable(t.String()),
+      stationId: t.Nullable(t.String({ format: "uuid" })),
     }),
   });
 }

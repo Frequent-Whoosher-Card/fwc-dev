@@ -60,6 +60,16 @@ if (!res.ok) {
       localStorage.removeItem('fwc_user');
       window.location.href = '/login';
     }
+
+    // 🚨 WAJIB Error instance
+    // Backend error format: { success: false, error: { message: "...", code: "...", statusCode: 400 } }
+    const message =
+      json?.error?.message ||
+      json?.message ||
+      (typeof json?.error === 'string' ? json.error : null) ||
+      `API Error (${res.status})`;
+
+    throw new Error(message);
   }
 
   let message = `API Error (${res.status})`;

@@ -25,7 +25,7 @@ const baseRoutes = new Elysia()
   .get(
     "/",
     async (context) => {
-      const { query, set } = context;
+      const { query, set, user } = context as typeof context & AuthContextUser;
       try {
         const result = await PurchaseService.getAll({
           page: query.page ? parseInt(query.page) : undefined,
@@ -33,8 +33,14 @@ const baseRoutes = new Elysia()
           startDate: query.startDate,
           endDate: query.endDate,
           stationId: query.stationId,
+          categoryId: query.categoryId,
+          typeId: query.typeId,
           operatorId: query.operatorId,
           search: query.search,
+          // Pass user context for role-based filtering
+          userRole: user.role.roleCode,
+          userId: user.id,
+          userStationId: user.stationId,
         });
         return {
           success: true,
@@ -57,8 +63,31 @@ const baseRoutes = new Elysia()
       detail: {
         tags: ["Purchases"],
         summary: "Get all purchases",
-        description:
-          "Retrieve all purchase transactions with pagination, filters, and search. Search supports: transaction number, card serial number, customer name, identity number, and operator name.",
+        description: `Retrieve all purchase transactions with pagination, filters, and search.
+
+**Role-Based Automatic Filtering:**
+- **petugas**: Automatically filters to show only today's transactions created by the authenticated petugas user. Manual date/operator filters are ignored.
+- **supervisor**: Automatically filters to show all transactions in the supervisor's assigned station. Manual stationId filter is ignored.
+- **admin/superadmin**: No automatic filtering. Can use all manual filters.
+
+**Manual Filters (for admin/superadmin):**
+- **startDate/endDate**: Filter by purchase date range (YYYY-MM-DD format)
+- **stationId**: Filter by station UUID
+- **categoryId**: Filter by card category UUID
+- **typeId**: Filter by card type UUID
+- **operatorId**: Filter by operator/user UUID
+
+**Search:**
+Supports searching by:
+- EDC Reference Number
+- Card Serial Number
+- Customer Name (member name)
+- Customer Identity Number (NIK)
+- Operator Name
+
+**Pagination:**
+- **page**: Page number (default: 1)
+- **limit**: Items per page (default: 10)`,
       },
     }
   )
@@ -95,7 +124,18 @@ const baseRoutes = new Elysia()
       detail: {
         tags: ["Purchases"],
         summary: "Get purchase by ID",
-        description: "Retrieve a specific purchase transaction by ID",
+        description: `Retrieve a specific purchase transaction by its UUID.
+
+**Access Control:**
+- All authenticated users with roles: petugas, supervisor, admin, superadmin can access this endpoint.
+- Role-based filtering does NOT apply to this endpoint (you can view any purchase if you know the ID).
+
+**Response includes:**
+- Purchase details (EDC reference, price, dates, notes)
+- Card information (serial number, card product, category, type)
+- Member information (name, identity number)
+- Operator information (full name, username)
+- Station information (code, name)`,
       },
     }
   );
@@ -153,8 +193,30 @@ const writeRoutes = new Elysia()
       detail: {
         tags: ["Purchases"],
         summary: "Create new purchase transaction",
-        description:
-          "Create a new card purchase transaction. Operator and station are automatically taken from authenticated user context.",
+        description: `Create a new card purchase transaction.
+
+**Requirements:**
+- User must have a station assigned (stationId). If not, returns 400 error.
+- Member ID is required - every transaction must have a member.
+- Card must exist and have status "IN_STATION" to be purchased.
+- Card must not already have a purchase record (each card can only be purchased once).
+- EDC Reference Number must be provided by user and must be unique.
+
+**Automatic Fields:**
+- **operatorId**: Automatically set from authenticated user's ID
+- **stationId**: Automatically set from authenticated user's stationId
+- **purchaseDate**: Automatically set to current date/time
+- **price**: If not provided, automatically uses cardProduct.price. Can be overridden for discounts/promos.
+
+**Card Status Update:**
+After successful purchase, the card status is automatically updated to "SOLD_ACTIVE".
+
+**Card Expired Date:**
+Automatically calculated based on purchaseDate + cardProduct.masaBerlaku (in days).
+
+**Access Control:**
+- Roles allowed: petugas, supervisor, admin, superadmin
+- User must have stationId assigned`,
       },
     }
   );
