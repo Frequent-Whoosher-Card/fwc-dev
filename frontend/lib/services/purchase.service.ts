@@ -11,9 +11,29 @@ export interface CreatePurchasePayload {
   cardId: string;
   memberId: string;
   edcReferenceNumber: string;
+
+  /** TANGGAL PEMBELIAN (WAJIB) */
+  purchasedDate: string;
+
+  /** TANGGAL KADALUARSA (WAJIB) */
+  expiredDate: string;
+
+  /** SHIFT OPSIONAL */
+  shiftDate?: string;
+
+  /** HARGA (READONLY DARI CARD PRODUCT) */
   price?: number;
+
+  /** OPERATOR YANG MELAYANI */
+  operatorName?: string;
+
+  /** STASIUN (DARI AUTH / ME) */
+  stationId?: string;
+
+  /** CATATAN OPSIONAL */
   notes?: string;
 }
+
 
 export interface PurchaseListItem {
   id: string;
