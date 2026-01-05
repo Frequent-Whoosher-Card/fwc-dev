@@ -19,6 +19,8 @@ export namespace RedeemModel {
       serialNumber: t.String(),
       quotaRemaining: t.Number(),
       statusActive: t.String(),
+      purchaseDate: t.Union([t.String(), t.Null()]),
+      expiredDate: t.Union([t.String(), t.Null()]),
     }),
   });
 

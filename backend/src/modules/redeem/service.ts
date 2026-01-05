@@ -28,10 +28,16 @@ export class RedeemService {
 
     // Determine status text
     let statusActive = "Tidak Aktif";
+
+    // Status logic update:
+    // SOLD_ACTIVE -> Aktif
+    // SOLD_INACTIVE -> Tidak Aktif (but still return data)
+    // Others -> Use the raw status string (or map as needed, e.g. "Expired" was previously mapped from SOLD_INACTIVE)
+
     if (card.status === CardStatus.SOLD_ACTIVE) {
-      statusActive = "Aktif";
+      statusActive = "ACTIVE";
     } else if (card.status === CardStatus.SOLD_INACTIVE) {
-      statusActive = "Expired";
+      statusActive = "EXPIRED";
     } else {
       statusActive = card.status;
     }
@@ -56,6 +62,8 @@ export class RedeemService {
       serialNumber: card.serialNumber,
       quotaRemaining: card.quotaTicket,
       statusActive,
+      purchaseDate: card.purchaseDate ? card.purchaseDate.toISOString() : null,
+      expiredDate: card.expiredDate ? card.expiredDate.toISOString() : null,
     };
   }
 }
