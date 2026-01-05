@@ -13,25 +13,31 @@ export function parseSmartSerial(
   yearSuffix: string,
   maxSuffixLength = 5
 ): number {
-  // 1. Basic digit check
-  if (!/^\d+$/.test(input)) {
-    throw new ValidationError(`Input serial '${input}' harus berupa angka.`);
-  }
+  // 1. Basic digit check (Legacy behavior, but now we allow alphanumeric IF it matches prefix)
+  // We don't throw immediately if not digit.
 
-  // 2. If short, assume it's just the suffix (Number)
-  // We use a safe threshold, e.g., 8 digits is definitely not a full serial (Template 4 + Year 2 + Suffix 5 = 11 digits minimum usually)
-  // Let's stick to logic: If it's short enough to be a suffix (e.g. <= 8 digits, allowing for large batch sizes if needed, though usually 5)
-  // or explicitly if it doesn't start with template.
-
-  // Logic from plan:
-  // If input length <= 8: Treat as suffix.
+  // 2. If short, assume it's just the suffix.
+  // For suffix, we expect DIGITS generally, but let's be strict: Suffix IS digits.
+  // Input: "123" -> OK. "ABC" -> Logic below will check if it matches prefix.
   if (input.length <= 8) {
+    if (!/^\d+$/.test(input)) {
+      throw new ValidationError(`Input suffix '${input}' harus berupa angka.`);
+    }
     return Number(input);
   }
 
   // 3. If long, MUST match prefix
   const prefix = `${template}${yearSuffix}`;
   if (!input.startsWith(prefix)) {
+    // If it doesn't match prefix, checks if it is just a very long number?
+    // If user inputs "123456789", we might treat as suffix if digits.
+    if (/^\d+$/.test(input)) {
+      // Ambiguous case: Long digits input.
+      // Is it a suffix (e.g. 100000) or a typo'd full serial?
+      // Let's assume purely digits input that is long is just a suffix (Number(input)).
+      return Number(input);
+    }
+
     throw new ValidationError(
       `Input serial '${input}' tidak cocok dengan format produk ini. Harap masukkan nomor urut (suffix) saja, atau serial lengkap yang valid (${prefix}...).`
     );
@@ -43,7 +49,7 @@ export function parseSmartSerial(
   // Ensure suffix is valid
   if (!/^\d+$/.test(suffixPart)) {
     throw new ValidationError(
-      `Bagian suffix dari serial '${input}' tidak valid.`
+      `Bagian suffix dari serial '${input}' tidak valid (harus angka).`
     );
   }
 
