@@ -52,25 +52,31 @@ export async function apiFetch(
     json = null;
   }
 
-  // ❌ HANDLE ERROR GLOBAL
-  if (!res.ok) {
-    // 401 → token invalid / expired
-    if (res.status === 401) {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('fwc_token');
-        localStorage.removeItem('fwc_user');
-        window.location.href = '/login';
-      }
+// ❌ HANDLE ERROR GLOBAL
+if (!res.ok) {
+  if (res.status === 401) {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('fwc_token');
+      localStorage.removeItem('fwc_user');
+      window.location.href = '/login';
     }
-
-    // 🚨 WAJIB Error instance
-    const message =
-      json?.message ||
-      json?.error ||
-      `API Error (${res.status})`;
-
-    throw new Error(message);
   }
+
+  let message = `API Error (${res.status})`;
+
+  if (typeof json?.message === 'string') {
+    message = json.message;
+  } else if (typeof json?.error === 'string') {
+    message = json.error;
+  } else if (json?.error?.message) {
+    message = json.error.message;
+  } else if (Array.isArray(json?.error)) {
+    message = json.error.join(', ');
+  }
+
+  throw new Error(message);
+}
+
 
   return json;
 }

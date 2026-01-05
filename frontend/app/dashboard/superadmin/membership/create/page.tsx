@@ -207,8 +207,24 @@ const CARD_RULES = {
 export default function AddMemberPage() {
   const router = useRouter();
   const [showSuccess, setShowSuccess] = useState(false);
+  const [shiftDate, setShiftDate] = useState('');
   const [savedData, setSavedData] =
+  
     useState<Record<string, any> | null>(null);
+
+    useEffect(() => {
+  const today = new Date().toISOString().split('T')[0];
+
+  setMembershipDate(today);
+}, []);
+
+    useEffect(() => {
+  const today = new Date().toISOString().split('T')[0];
+
+  setMembershipDate(today);
+  setShiftDate(today);
+}, []);
+
 
   const onlyNumber = (e: React.FormEvent<HTMLInputElement>) => {
     e.currentTarget.value = e.currentTarget.value.replace(/\D/g, '');
@@ -403,13 +419,13 @@ useEffect(() => {
             <SectionCard title="Membership Period">
 <Field label="Membership Date">
   <input
-    type="date"
-    name="membershipDate"
-    className={base}
-    value={membershipDate}
-    onChange={(e) => setMembershipDate(e.target.value)}
-    required
-  />
+  type="date"
+  name="membershipDate"
+  className={`${base} bg-gray-100 cursor-not-allowed`}
+  value={membershipDate}
+  readOnly
+/>
+
 </Field>
 <Field label="Expired Date">
   <input
@@ -422,23 +438,33 @@ useEffect(() => {
             </SectionCard>
 
             <SectionCard title="Purchase Information">
-              <DateField name="purchasedDate" label="Purchased Date" />
-              <Field label="FWC Price">
-                <div className="relative">
-                  <DollarSign
-                    size={16}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-                  />
-                  <input
-  name="price"
-  className={`${base} pr-10 bg-gray-100`}
-  value={price}
-  readOnly
-/>
+  <Field label="Purchased Date">
+    <input
+      type="date"
+      name="purchasedDate"
+      value={membershipDate}
+      readOnly
+      className={`${base} bg-gray-100 cursor-not-allowed`}
+    />
+  </Field>
 
-                </div>
-              </Field>
-            </SectionCard>
+  <Field label="FWC Price">
+    <div className="relative">
+      <DollarSign
+        size={16}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+      />
+      <input
+        name="price"
+        value={price}
+        readOnly
+        className={`${base} pr-10 bg-gray-100 cursor-not-allowed`}
+        required
+      />
+    </div>
+  </Field>
+</SectionCard>
+
 
             <SectionCard title="Card Information">
               <Field label="Card Category">
