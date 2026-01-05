@@ -63,7 +63,7 @@ const baseRoutes = new Elysia()
         500: CardModel.errorResponse,
       },
       detail: {
-        tags: ["Cards"],
+        tags: ["Card"],
         summary: "Get all cards",
         description:
           "Get all cards with optional filters. Supports filtering by cardProductId, status (IN_STATION, IN_OFFICE, SOLD_ACTIVE, etc.), and searching by serial number. Includes pagination support.",
@@ -101,9 +101,10 @@ const baseRoutes = new Elysia()
         500: CardModel.errorResponse,
       },
       detail: {
-        tags: ["Cards"],
+        tags: ["Card"],
         summary: "Get card by ID",
-        description: "Get detailed card information by card ID. Returns card data including card product information (category and type), member information (if assigned), and card status.",
+        description:
+          "Get detailed card information by card ID. Returns card data including card product information (category and type), member information (if assigned), and card status.",
       },
     }
   )
@@ -113,7 +114,9 @@ const baseRoutes = new Elysia()
     async (context) => {
       const { params, set } = context as typeof context;
       try {
-        const card = await CardService.getCardBySerialNumber(params.serialNumber);
+        const card = await CardService.getCardBySerialNumber(
+          params.serialNumber
+        );
 
         return {
           success: true,
@@ -138,13 +141,12 @@ const baseRoutes = new Elysia()
         500: CardModel.errorResponse,
       },
       detail: {
-        tags: ["Cards"],
+        tags: ["Card"],
         summary: "Get card by serial number",
-        description: "Get detailed card information by serial number. Useful for looking up cards when you only have the serial number. Returns card data including card product information (category and type).",
+        description:
+          "Get detailed card information by serial number. Useful for looking up cards when you only have the serial number. Returns card data including card product information (category and type).",
       },
     }
   );
 
-export const cards = new Elysia({ prefix: "/cards" })
-  .use(baseRoutes);
-
+export const cards = new Elysia({ prefix: "/cards" }).use(baseRoutes);

@@ -159,7 +159,7 @@ model CardProduct {
 model Card {
   id            String     @id @default(uuid()) @map("card_id") @db.Uuid
   serialNumber  String     @unique @map("serial_number")
-  fileObjectId  String?    @map("file_object_id")
+  fileObjectId  String?    @map("file_object_id") @db.Uuid
   memberId      String?    @map("member_id") @db.Uuid
   userId        String?    @map("user_id") @db.Uuid
   cardProductId String     @map("card_product_id") @db.Uuid
@@ -183,6 +183,7 @@ model Card {
   redeems       Redeem[]
   purchases     CardPurchase[]
 
+  @@index([cardProductId, serialNumber])
   @@map("cards")
 }
 
@@ -341,21 +342,21 @@ model Redeem {
 }
 
 model CardPurchase {
-  id                String    @id @default(uuid()) @map("purchase_id") @db.Uuid
-  cardId            String    @map("card_id") @db.Uuid
-  memberId          String?   @map("member_id") @db.Uuid
-  operatorId        String    @map("operator_id") @db.Uuid
-  stationId         String    @map("station_id") @db.Uuid
+  id                 String    @id @default(uuid()) @map("purchase_id") @db.Uuid
+  cardId             String    @map("card_id") @db.Uuid
+  memberId           String?   @map("member_id") @db.Uuid
+  operatorId         String    @map("operator_id") @db.Uuid
+  stationId          String    @map("station_id") @db.Uuid
   edcReferenceNumber String    @unique @map("edc_reference_number")
-  purchaseDate      DateTime  @map("purchase_date")
-  price             Decimal   @map("price") @db.Decimal(15, 2)
-  notes             String?
-  createdAt         DateTime  @default(now()) @map("created_at")
-  createdBy         String?   @map("created_by") @db.Uuid
-  updatedAt         DateTime  @default(now()) @map("updated_at")
-  updatedBy         String?   @map("updated_by") @db.Uuid
-  deletedAt         DateTime? @map("deleted_at")
-  deletedBy         String?   @map("deleted_by") @db.Uuid
+  purchaseDate       DateTime  @map("purchase_date")
+  price              Decimal   @map("price") @db.Decimal(15, 2)
+  notes              String?
+  createdAt          DateTime  @default(now()) @map("created_at")
+  createdBy          String?   @map("created_by") @db.Uuid
+  updatedAt          DateTime  @default(now()) @map("updated_at")
+  updatedBy          String?   @map("updated_by") @db.Uuid
+  deletedAt          DateTime? @map("deleted_at")
+  deletedBy          String?   @map("deleted_by") @db.Uuid
 
   // Relasi
   card     Card    @relation(fields: [cardId], references: [id], onDelete: Restrict)
