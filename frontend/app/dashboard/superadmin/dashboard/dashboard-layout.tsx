@@ -1,6 +1,7 @@
 'use client';
 
 import type React from 'react';
+import { createContext } from 'react';
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -22,6 +23,14 @@ import { API_BASE_URL } from '@/lib/apiConfig';
    ROLE TYPE
 ========================= */
 type Role = 'superadmin' | 'admin' | 'petugas';
+
+/* =========================
+   USER CONTEXT (SINGLE SOURCE)
+========================= */
+export const UserContext = createContext<{
+  userName: string;
+  role: Role;
+} | null>(null);
 
 /* =========================
    MENU CONFIG
@@ -113,21 +122,18 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         }
 
         const json = await res.json();
-
         const user = json.data;
 
-        /* ===== ROLE NORMALIZATION ===== */
         const rawRole = user.role.roleCode.toUpperCase();
 
         const roleMap: Record<string, Role> = {
           SUPERADMIN: 'superadmin',
           ADMIN: 'admin',
           PETUGAS: 'petugas',
-          OFFICER: 'petugas', // fallback aman
+          OFFICER: 'petugas',
         };
 
         const mappedRole = roleMap[rawRole];
-
         if (!mappedRole) {
           throw new Error(`Unknown role: ${rawRole}`);
         }
@@ -135,7 +141,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         setUserName(user.fullName || user.username);
         setRole(mappedRole);
 
-        /* ===== FORCE ROUTE SYNC ===== */
         const basePath = `/dashboard/${mappedRole}`;
         if (!pathname.startsWith(basePath)) {
           router.replace(basePath);
@@ -153,7 +158,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   }, [router, pathname]);
 
   if (loading || !role) {
-    return null; // boleh diganti skeleton
+    return null;
   }
 
   const menuItems = menuByRole[role] ?? [];
@@ -166,14 +171,19 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
     setTimeout(() => {
       localStorage.removeItem('fwc_token');
-      localStorage.removeItem('fwc_user');
       router.replace('/');
     }, 300);
   };
 
   return (
     <div className="min-h-screen bg-background">
-      {sidebarOpen && <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+      {/* SIDEBAR OVERLAY */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
       {/* SIDEBAR */}
       <aside className={cn('fixed left-0 top-0 z-50 h-full w-64 bg-[#8D1231] transition-transform lg:translate-x-0', sidebarOpen ? 'translate-x-0' : '-translate-x-full')}>
@@ -270,7 +280,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </ClientOnly>
         </header>
 
-        <main className="p-6">{children}</main>
+        {/* USER CONTEXT PROVIDER */}
+        <UserContext.Provider value={{ userName, role }}>
+          <main className="p-6">{children}</main>
+        </UserContext.Provider>
       </div>
     </div>
   );

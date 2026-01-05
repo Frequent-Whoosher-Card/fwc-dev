@@ -1,24 +1,29 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useContext } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
 import { getMemberById } from '@/lib/services/membership.service';
+import { UserContext } from '@/app/dashboard/superadmin/dashboard/dashboard-layout';
+
 
 /* ======================
-   TYPES (IKUT API)
+   TYPES (IKUT API REAL)
 ====================== */
 interface Membership {
-  id: number;
-  membership_date: string;
+  id: string;
   name: string;
-  nik: string;
-  gender: string;
-  email: string;
-  phone: string;
-  operator_name: string;
-  station: string;
+  identityNumber: string;
+  nationality: string;
+  email: string | null;
+  phone: string | null;
+  gender: string | null;
+  alamat: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdByName: string;
+  updatedByName: string;
 }
 
 interface Transaction {
@@ -44,6 +49,7 @@ interface Transaction {
 export default function MembershipDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+const userCtx = useContext(UserContext);
 
   const [member, setMember] = useState<Membership | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -54,22 +60,25 @@ export default function MembershipDetailPage() {
      FETCH MEMBER DETAIL
   ====================== */
   useEffect(() => {
-    async function fetchDetail() {
+    if (!id) return;
+
+    const fetchDetail = async () => {
       try {
         setLoading(true);
+
         const res = await getMemberById(id);
         const data: Membership = res.data;
 
         setMember(data);
 
         /**
-         * Transaction sementara:
-         * karena BE belum expose endpoint transaction
-         * → derive dari membership
+         * TRANSACTION (DUMMY – BELUM ADA API)
+         * membership date = createdAt
+         * operator = user login
          */
         setTransactions([
           {
-            purchaseDate: data.membership_date,
+            purchaseDate: data.createdAt,
             duration: '60 Days',
             expiredDate: '2026-02-12',
             status: 'Active',
@@ -77,12 +86,15 @@ export default function MembershipDetailPage() {
             cardType: 'JaBan',
             quota: 20,
             remaining: 6,
-            serialNumber: data.id.toString(),
-            referenceEdc: data.id.toString(),
+            serialNumber: data.id,
+            referenceEdc: data.id,
             price: '2.000.000',
-            shiftDate: data.membership_date,
-            operatorName: data.operator_name,
-            station: data.station,
+            shiftDate: data.createdAt,
+            operatorName:
+              userCtx?.userName ??
+              data.updatedByName ??
+              '-',
+            station: '-',
           },
         ]);
       } catch (err: any) {
@@ -90,10 +102,10 @@ export default function MembershipDetailPage() {
       } finally {
         setLoading(false);
       }
-    }
+    };
 
     fetchDetail();
-  }, [id]);
+  }, [id, userCtx]);
 
   /* ======================
      STATE HANDLER
@@ -128,6 +140,9 @@ export default function MembershipDetailPage() {
     0
   );
 
+  const formatDate = (d: string) =>
+    new Date(d).toLocaleDateString('id-ID');
+
   /* ======================
      RENDER
   ====================== */
@@ -158,10 +173,20 @@ export default function MembershipDetailPage() {
             <p className="text-base font-semibold">
               {member.name}
             </p>
-            <p>NIK: {member.nik}</p>
-            <p>{member.gender}</p>
-            <p>{member.email}</p>
-            <p>{member.phone}</p>
+            <p>NIK: {member.identityNumber}</p>
+            <p>Gender: {member.gender ?? '-'}</p>
+            <p>Email: {member.email ?? '-'}</p>
+            <p>Phone: {member.phone ?? '-'}</p>
+            <p>
+              Membership Date:{' '}
+              {formatDate(member.createdAt)}
+            </p>
+            <p>
+              Operator:{' '}
+              {userCtx?.userName ??
+                member.updatedByName ??
+                '-'}
+            </p>
           </div>
         </div>
 
@@ -208,9 +233,15 @@ export default function MembershipDetailPage() {
                   key={index}
                   className="border-t hover:bg-gray-50"
                 >
-                  <td className="px-4 py-2">{trx.purchaseDate}</td>
-                  <td className="px-4 py-2">{trx.duration}</td>
-                  <td className="px-4 py-2">{trx.expiredDate}</td>
+                  <td className="px-4 py-2">
+                    {formatDate(trx.purchaseDate)}
+                  </td>
+                  <td className="px-4 py-2">
+                    {trx.duration}
+                  </td>
+                  <td className="px-4 py-2">
+                    {trx.expiredDate}
+                  </td>
 
                   <td className="px-4 py-2">
                     <span className="rounded bg-green-100 px-2 py-1 text-xs text-green-700">
@@ -218,16 +249,36 @@ export default function MembershipDetailPage() {
                     </span>
                   </td>
 
-                  <td className="px-4 py-2">{trx.cardCategory}</td>
-                  <td className="px-4 py-2">{trx.cardType}</td>
-                  <td className="px-4 py-2">{trx.quota}</td>
-                  <td className="px-4 py-2">{trx.remaining}</td>
-                  <td className="px-4 py-2">{trx.serialNumber}</td>
-                  <td className="px-4 py-2">{trx.referenceEdc}</td>
-                  <td className="px-4 py-2">{trx.price}</td>
-                  <td className="px-4 py-2">{trx.shiftDate}</td>
-                  <td className="px-4 py-2">{trx.operatorName}</td>
-                  <td className="px-4 py-2">{trx.station}</td>
+                  <td className="px-4 py-2">
+                    {trx.cardCategory}
+                  </td>
+                  <td className="px-4 py-2">
+                    {trx.cardType}
+                  </td>
+                  <td className="px-4 py-2">
+                    {trx.quota}
+                  </td>
+                  <td className="px-4 py-2">
+                    {trx.remaining}
+                  </td>
+                  <td className="px-4 py-2">
+                    {trx.serialNumber}
+                  </td>
+                  <td className="px-4 py-2">
+                    {trx.referenceEdc}
+                  </td>
+                  <td className="px-4 py-2">
+                    {trx.price}
+                  </td>
+                  <td className="px-4 py-2">
+                    {formatDate(trx.shiftDate)}
+                  </td>
+                  <td className="px-4 py-2">
+                    {trx.operatorName}
+                  </td>
+                  <td className="px-4 py-2">
+                    {trx.station}
+                  </td>
                 </tr>
               ))}
             </tbody>

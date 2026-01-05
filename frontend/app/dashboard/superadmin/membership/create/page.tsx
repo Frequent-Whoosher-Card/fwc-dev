@@ -1,5 +1,6 @@
 'use client';
 
+
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import {
@@ -156,9 +157,30 @@ interface Card {
   cardProductId: string;
 }
 
+
 /* ======================
    PAGE
 ====================== */
+
+const CARD_RULES = {
+  JaBan: {
+    Gold: { price: 2000000, days: 60 },
+    Silver: { price: 1350000, days: 30 },
+    KAI: { price: 500000, days: 30 }, // ✅ KAI INTERNAL
+  },
+  JaKa: {
+    Gold: { price: 500000, days: 60 },
+    Silver: { price: 450000, days: 30 },
+    KAI: { price: 200000, days: 30 }, // ✅ KAI INTERNAL
+  },
+  KaBan: {
+    Gold: { price: 1000000, days: 60 },
+    Silver: { price: 750000, days: 30 },
+    KAI: { price: 300000, days: 30 }, // ✅ KAI INTERNAL
+  },
+};
+
+
 export default function AddMemberPage() {
   const router = useRouter();
   const [showSuccess, setShowSuccess] = useState(false);
@@ -484,7 +506,6 @@ export default function AddMemberPage() {
   return (
     <>
       <div className="space-y-6">
-        {/* HEADER */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.back()}

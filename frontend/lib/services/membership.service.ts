@@ -14,6 +14,7 @@ export interface MemberListItem {
   gender?: string | null;
   alamat?: string | null;
   operatorName?: string | null;
+  createdAt?: string | null;
   updatedAt?: string;
 }
 
@@ -32,14 +33,13 @@ export const getMembers = async (params?: {
   gender?: string;
   startDate?: string;
   endDate?: string;
+  cardCategory?: string; 
 }) => {
   const query = new URLSearchParams();
 
-  // ✅ pagination (WAJIB)
   query.append('page', String(params?.page ?? 1));
   query.append('limit', String(params?.limit ?? 50));
 
-  // ✅ optional filters (HANYA KIRIM JIKA ADA)
   if (params?.search) {
     query.append('search', params.search);
   }
@@ -78,6 +78,7 @@ export const getMembers = async (params?: {
             gender: item.gender ?? null,
             alamat: item.alamat ?? null,
             operatorName: item.createdByName ?? null,
+            createdAt: item.createdAt ?? null, 
             updatedAt: item.updatedAt ?? null,
           }))
         : [],
@@ -122,4 +123,16 @@ export const deleteMember = (id: string | number) => {
   return apiFetch(`/members/${id}`, {
     method: 'DELETE',
   });
+};
+
+/**
+ * GET MEMBER TRANSACTIONS
+ */
+export const getMemberTransactions = (
+  memberId: string | number
+) => {
+  return apiFetch(
+    `/members/${memberId}/transactions`,
+    { method: 'GET' }
+  );
 };
