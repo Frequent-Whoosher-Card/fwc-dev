@@ -12,6 +12,7 @@ export namespace MemberModel {
     nippKai: t.Union([t.String(), t.Null()]),
     gender: t.Union([t.String(), t.Null()]),
     alamat: t.Union([t.String(), t.Null()]),
+    notes: t.Union([t.String(), t.Null()]),
     createdAt: t.String({ format: "date-time" }),
     updatedAt: t.String({ format: "date-time" }),
     createdByName: t.Union([t.String(), t.Null()]),
@@ -67,6 +68,12 @@ export namespace MemberModel {
         description: "Address",
       })
     ),
+    notes: t.Optional(
+      t.String({
+        maxLength: 1000,
+        description: "Notes or additional information",
+      })
+    ),
   });
 
   export const updateMemberBody = t.Object({
@@ -75,6 +82,13 @@ export namespace MemberModel {
         minLength: 1,
         maxLength: 200,
         description: "Member name",
+      })
+    ),
+    identityNumber: t.Optional(
+      t.String({
+        minLength: 1,
+        maxLength: 50,
+        description: "Identity number (unique)",
       })
     ),
     nationality: t.Optional(
@@ -112,6 +126,12 @@ export namespace MemberModel {
       t.String({
         maxLength: 500,
         description: "Address",
+      })
+    ),
+    notes: t.Optional(
+      t.String({
+        maxLength: 1000,
+        description: "Notes or additional information",
       })
     ),
   });
@@ -159,9 +179,9 @@ export namespace MemberModel {
       items: t.Array(memberData),
       pagination: t.Object({
         total: t.Number(),
-        page: t.Number(),
-        limit: t.Number(),
-        totalPages: t.Number(),
+        page: t.Optional(t.Number()),
+        limit: t.Optional(t.Number()),
+        totalPages: t.Optional(t.Number()),
       }),
     }),
     message: t.Optional(t.String()),

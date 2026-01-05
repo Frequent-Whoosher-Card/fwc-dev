@@ -120,7 +120,7 @@ const baseRoutes = new Elysia()
     }
   );
 
-// Write routes (Create, Update) - petugas, supervisor, admin, superadmin
+// Write routes (Create) - petugas, supervisor, admin, superadmin
 const writeRoutes = new Elysia()
   .use(rbacMiddleware(["petugas", "supervisor", "admin", "superadmin"]))
   .post(
@@ -158,7 +158,11 @@ const writeRoutes = new Elysia()
           "Create a new member (petugas, supervisor, admin, superadmin)",
       },
     }
-  )
+  );
+
+// Update routes - petugas, supervisor, superadmin only
+const updateRoutes = new Elysia()
+  .use(rbacMiddleware(["petugas", "supervisor", "superadmin"]))
   .put(
     "/:id",
     async (context) => {
@@ -196,7 +200,7 @@ const writeRoutes = new Elysia()
         tags: ["Members"],
         summary: "Update member",
         description:
-          "Update a member (petugas, supervisor, admin, superadmin)",
+          "Update a member (petugas, supervisor, superadmin only)",
       },
     }
   );
@@ -243,4 +247,5 @@ const deleteRoutes = new Elysia()
 export const members = new Elysia({ prefix: "/members" })
   .use(baseRoutes)
   .use(writeRoutes)
+  .use(updateRoutes)
   .use(deleteRoutes);

@@ -1,5 +1,12 @@
-import { DashboardContent } from '@/components/dashboard-content';
+'use client';
+
+import { DashboardLayout } from './dashboard/dashboard-layout';
+// import { DashboardContent } from '../../../components/dashboard-content';
 
 export default function DashboardPage() {
-  return <DashboardContent />;
+  return (
+    <DashboardLayout>
+      <DashboardContent />
+    </DashboardLayout>
+  );
 }
