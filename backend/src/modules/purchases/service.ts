@@ -66,15 +66,17 @@ export class PurchaseService {
         );
       }
 
-      // 4. Validate member if provided
-      if (data.memberId) {
+      // 4. Validate member (required)
+      if (!data.memberId) {
+        throw new ValidationError("Member ID wajib diisi. Setiap transaksi harus memiliki member.");
+      }
+
         const member = await tx.member.findUnique({
           where: { id: data.memberId },
         });
 
         if (!member || member.deletedAt) {
           throw new NotFoundError("Member tidak ditemukan");
-        }
       }
 
       // 5. Validate operator exists
@@ -95,22 +97,21 @@ export class PurchaseService {
         throw new NotFoundError("Stasiun tidak ditemukan");
       }
 
-      // 7. Generate transaction number (ensure uniqueness)
-      let transactionNumber = this.generateTransactionNumber();
-      let attempts = 0;
-      while (
-        (await tx.cardPurchase.findUnique({
-          where: { transactionNumber },
-        })) &&
-        attempts < 10
-      ) {
-        transactionNumber = this.generateTransactionNumber();
-        attempts++;
+      // 7. Validate EDC reference number (ensure uniqueness)
+      const edcReferenceNumber = data.edcReferenceNumber.trim();
+      
+      if (!edcReferenceNumber) {
+        throw new ValidationError("No. Reference EDC tidak boleh kosong");
       }
 
-      if (attempts >= 10) {
+      // Check if EDC reference number already exists
+      const existingEdcRef = await tx.cardPurchase.findUnique({
+        where: { edcReferenceNumber },
+      });
+
+      if (existingEdcRef) {
         throw new ValidationError(
-          "Gagal generate transaction number. Silakan coba lagi."
+          `No. Reference EDC '${edcReferenceNumber}' sudah digunakan. Silakan gunakan nomor lain.`
         );
       }
 
@@ -122,16 +123,21 @@ export class PurchaseService {
       const expiredDate = new Date(purchaseDate);
       expiredDate.setDate(expiredDate.getDate() + masaBerlaku);
 
+      // 8.5. Determine final price: use input price or default to cardProduct.price
+      const finalPrice = data.price !== undefined && data.price !== null
+        ? data.price
+        : Number(card.cardProduct.price);
+
       // 9. Create purchase record
       const purchase = await tx.cardPurchase.create({
         data: {
           cardId: data.cardId,
-          memberId: data.memberId || null,
+          memberId: data.memberId,
           operatorId: operatorId,
           stationId: stationId,
-          transactionNumber: transactionNumber,
+          edcReferenceNumber: edcReferenceNumber,
           purchaseDate: purchaseDate,
-          price: data.price,
+          price: finalPrice,
           notes: data.notes || null,
           createdBy: userId,
           updatedBy: userId,
@@ -144,7 +150,7 @@ export class PurchaseService {
         data: {
           status: "SOLD_ACTIVE",
           purchaseDate: purchaseDate,
-          memberId: data.memberId || null,
+          memberId: data.memberId,
           expiredDate: expiredDate,
           quotaTicket: card.cardProduct.totalQuota, // Initialize quota from product
           updatedBy: userId,
@@ -191,18 +197,56 @@ export class PurchaseService {
     startDate?: string;
     endDate?: string;
     stationId?: string;
+    categoryId?: string;
+    typeId?: string;
     operatorId?: string;
     search?: string;
+    userRole?: string;
+    userId?: string;
+    userStationId?: string | null;
   }) {
-    const { page = 1, limit = 10, startDate, endDate, stationId, operatorId, search } = params;
+    const { 
+      page = 1, 
+      limit = 10, 
+      startDate, 
+      endDate, 
+      stationId, 
+      categoryId, 
+      typeId, 
+      operatorId, 
+      search,
+      userRole,
+      userId,
+      userStationId,
+    } = params;
     const skip = (page - 1) * limit;
 
     const where: any = {
       deletedAt: null, // Soft delete filter
     };
 
-    // Date range filter
-    if (startDate || endDate) {
+    // Role-based automatic filtering
+    if (userRole === "petugas" && userId) {
+      // Petugas: hanya transaksi hari ini yang di-handle oleh petugas tersebut
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+      
+      where.operatorId = userId; // Hanya transaksi yang dibuat oleh petugas ini
+      where.purchaseDate = {
+        gte: today,
+        lte: todayEnd,
+      };
+    } else if (userRole === "supervisor" && userStationId) {
+      // Supervisor: semua transaksi di stasiun tempat supervisor bertugas
+      where.stationId = userStationId;
+      // Tidak ada filter tanggal - semua data di stasiun tersebut
+    }
+    // admin dan superadmin: tidak ada filter otomatis, bisa filter manual via query params
+
+    // Date range filter (only apply if not already set by role-based filter)
+    if (!where.purchaseDate && (startDate || endDate)) {
       where.purchaseDate = {};
       if (startDate) {
         const start = new Date(startDate);
@@ -216,20 +260,33 @@ export class PurchaseService {
       }
     }
 
-    // Station filter
-    if (stationId) {
+    // Station filter (only apply if not already set by role-based filter)
+    if (!where.stationId && stationId) {
       where.stationId = stationId;
     }
 
-    // Operator filter
-    if (operatorId) {
+    // Card Category and Type filter (nested in card.cardProduct)
+    if (categoryId || typeId) {
+      where.card = {
+        cardProduct: {},
+      };
+      if (categoryId) {
+        where.card.cardProduct.categoryId = categoryId;
+      }
+      if (typeId) {
+        where.card.cardProduct.typeId = typeId;
+      }
+    }
+
+    // Operator filter (only apply if not already set by role-based filter)
+    if (!where.operatorId && operatorId) {
       where.operatorId = operatorId;
     }
 
     // Search filter
     if (search) {
       where.OR = [
-        { transactionNumber: { contains: search, mode: "insensitive" } },
+        { edcReferenceNumber: { contains: search, mode: "insensitive" } },
         {
           card: {
             serialNumber: { contains: search, mode: "insensitive" },
@@ -265,6 +322,25 @@ export class PurchaseService {
               id: true,
               serialNumber: true,
               status: true,
+              cardProduct: {
+                select: {
+                  id: true,
+                  category: {
+                    select: {
+                      id: true,
+                      categoryCode: true,
+                      categoryName: true,
+                    },
+                  },
+                  type: {
+                    select: {
+                      id: true,
+                      typeCode: true,
+                      typeName: true,
+                    },
+                  },
+                },
+              },
             },
           },
           member: {
@@ -312,7 +388,7 @@ export class PurchaseService {
       memberId: item.memberId,
       operatorId: item.operatorId,
       stationId: item.stationId,
-      transactionNumber: item.transactionNumber,
+      edcReferenceNumber: item.edcReferenceNumber,
       purchaseDate: item.purchaseDate.toISOString(),
       price: Number(item.price),
       notes: item.notes,
@@ -353,6 +429,25 @@ export class PurchaseService {
             id: true,
             serialNumber: true,
             status: true,
+            cardProduct: {
+              select: {
+                id: true,
+                category: {
+                  select: {
+                    id: true,
+                    categoryCode: true,
+                    categoryName: true,
+                  },
+                },
+                type: {
+                  select: {
+                    id: true,
+                    typeCode: true,
+                    typeName: true,
+                  },
+                },
+              },
+            },
           },
         },
         member: {
@@ -404,7 +499,7 @@ export class PurchaseService {
       memberId: purchase.memberId,
       operatorId: purchase.operatorId,
       stationId: purchase.stationId,
-      transactionNumber: purchase.transactionNumber,
+      edcReferenceNumber: purchase.edcReferenceNumber,
       purchaseDate: purchase.purchaseDate.toISOString(),
       price: Number(purchase.price),
       notes: purchase.notes,
