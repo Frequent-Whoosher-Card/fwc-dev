@@ -2,7 +2,7 @@
 
 
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ArrowLeft,
   Phone,
@@ -10,8 +10,14 @@ import {
   MapPin,
   ChevronDown,
   DollarSign,
+  Calendar,
   CheckCircle,
+  Search,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { API_BASE_URL } from '@/lib/apiConfig';
+import { createMember } from '@/lib/services/membership.service';
+import { createPurchase } from '@/lib/services/purchase.service';
 
 /* ======================
    BASE INPUT STYLE
@@ -43,13 +49,30 @@ function Field({
 function DateField({
   name,
   label,
+  value,
+  onChange,
 }: {
   name: string;
   label: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
   return (
     <Field label={label}>
-      <input type="date" name={name} className={base} required />
+      <div className="relative">
+        <Calendar
+          size={16}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+        />
+      <input
+        type="date"
+        name={name}
+          value={value}
+          onChange={onChange}
+          className={`${base} pr-10`}
+        required
+      />
+      </div>
     </Field>
   );
 }
@@ -66,32 +89,10 @@ function SectionCard({
 }) {
   return (
     <div className="md:col-span-2 rounded-md border border-gray-200 p-4">
-      <h3 className="mb-4 text-sm font-semibold text-gray-700">
-        {title}
-      </h3>
+      <h3 className="mb-4 text-sm font-semibold text-gray-700">{title}</h3>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 items-start">
         {children}
       </div>
-    </div>
-  );
-}
-
-/* ======================
-   ROW PREVIEW
-====================== */
-function PreviewRow({
-  label,
-  value,
-}: {
-  label: string;
-  value?: string;
-}) {
-  return (
-    <div className="flex justify-between gap-4 border-b py-1 last:border-b-0">
-      <span className="text-gray-500">{label}</span>
-      <span className="font-medium text-gray-800">
-        {value || '-'}
-      </span>
     </div>
   );
 }
@@ -101,83 +102,59 @@ function PreviewRow({
 ====================== */
 function SuccessModal({
   open,
-  data,
-  onBack,
-  onConfirm,
+  onClose,
 }: {
   open: boolean;
-  data: Record<string, any> | null;
-  onBack: () => void;
-  onConfirm: () => void;
+  onClose: () => void;
 }) {
-  if (!open || !data) return null;
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="w-[560px] max-h-[85vh] rounded-xl bg-white p-6 flex flex-col">
-        {/* HEADER */}
-        <div className="mb-4 text-center">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
+      <div className="w-[380px] rounded-xl bg-white p-6 text-center">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
             <CheckCircle size={28} className="text-green-600" />
-          </div>
-          <h2 className="text-lg font-semibold">
-            Data Member
-          </h2>
-          <p className="mt-1 text-sm text-gray-600">
-            Please review the member data before continuing
-          </p>
         </div>
-
-        {/* PREVIEW DATA */}
-       <div className="mt-4 flex-1 overflow-auto rounded-md border bg-gray-50 p-4 text-sm">
-  {/* MEMBER INFO */}
-  <PreviewRow label="Membership Name" value={data.name} />
-  <PreviewRow label="Nationality" value={data.nationality} />
-  <PreviewRow label="Gender" value={data.gender} />
-  <PreviewRow label="Identity Number" value={data.nik} />
-  <PreviewRow label="Address" value={data.address} />
-  <PreviewRow label="Phone Number" value={data.phone} />
-  <PreviewRow label="Email Address" value={data.email} />
-
-   {/* CARD INFO */}
-  <PreviewRow label="Card Category" value={data.cardCategory} />
-  <PreviewRow label="Card Type" value={data.cardType} />
-
-  {/* MEMBERSHIP PERIOD */}
-  <PreviewRow label="Membership Date" value={data.membershipDate} />
-  <PreviewRow label="Expired Date" value={data.expiredDate} />
-
-
-  {/* PURCHASE */}
-  <PreviewRow label="Purchased Date" value={data.purchasedDate} />
-  <PreviewRow label="Kuota" value={data.price} />
-
-  {/* OPERATIONAL */}
-  <PreviewRow label="Stasiun" value={data.station} />
-  <PreviewRow label="Shift Date" value={data.shiftDate} />
-  <PreviewRow label="Serial Number" value={data.serialNumber} />
-</div>
-
-
-        {/* ACTION BUTTON */}
-        <div className="mt-6 flex gap-3">
-          <button
-            onClick={onBack}
-            className="w-1/2 rounded-md border border-gray-300 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            Back
-          </button>
-
-          <button
-            onClick={onConfirm}
-            className="w-1/2 rounded-md bg-[#8B1538] py-2 text-sm font-medium text-white hover:bg-[#73122E]"
-          >
-            OK
-          </button>
-        </div>
+        <h2 className="text-lg font-semibold">Data Saved</h2>
+        <p className="mt-2 text-sm text-gray-600">
+          Member dan transaksi berhasil disimpan
+        </p>
+        <button
+          onClick={onClose}
+          className="mt-6 w-full rounded-md bg-[#8B1538] py-2 text-sm font-medium text-white hover:bg-[#73122E]"
+        >
+          OK
+        </button>
       </div>
     </div>
   );
+}
+
+/* ======================
+   TYPES
+====================== */
+interface CardProduct {
+  id: string;
+  categoryId: string;
+  typeId: string;
+  price: string;
+  masaBerlaku: number;
+  totalQuota: number;
+  category: {
+    id: string;
+    categoryName: string;
+  };
+  type: {
+    id: string;
+    typeName: string;
+  };
+}
+
+interface Card {
+  id: string;
+  serialNumber: string;
+  status: string;
+  cardProductId: string;
 }
 
 
@@ -207,100 +184,322 @@ const CARD_RULES = {
 export default function AddMemberPage() {
   const router = useRouter();
   const [showSuccess, setShowSuccess] = useState(false);
-  const [savedData, setSavedData] =
-    useState<Record<string, any> | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [operatorName, setOperatorName] = useState('');
+
+  // Card Products
+  const [cardProducts, setCardProducts] = useState<CardProduct[]>([]);
+  const [selectedCardProductId, setSelectedCardProductId] = useState('');
+  const [selectedCardProduct, setSelectedCardProduct] = useState<CardProduct | null>(null);
+
+  // Available Cards (IN_STATION)
+  const [availableCards, setAvailableCards] = useState<Card[]>([]);
+  const [selectedCardId, setSelectedCardId] = useState('');
+  const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+  const [isLoadingCards, setIsLoadingCards] = useState(false);
+
+  // Form State
+  const [form, setForm] = useState({
+    name: '',
+    nik: '',
+    nationality: '',
+    gender: '',
+    phone: '',
+    email: '',
+    address: '',
+    membershipDate: '',
+    expiredDate: '',
+    purchasedDate: '',
+    price: '',
+    cardProductId: '',
+    station: '',
+    shiftDate: '',
+    serialNumber: '',
+    edcReferenceNumber: '',
+    notes: '',
+  });
+
+  // Load operator name and card categories/types
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        // Get operator name from localStorage
+        const userStr = localStorage.getItem('fwc_user');
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          setOperatorName(user.fullName || user.username || '');
+        }
+
+        // Load card products
+        const token = localStorage.getItem('fwc_token');
+        const productsRes = await fetch(`${API_BASE_URL}/card/product`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (productsRes.ok) {
+          const productsData = await productsRes.json();
+          setCardProducts(productsData.data || []);
+        }
+
+        // Set default dates
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayStr = today.toISOString().split('T')[0];
+        setForm((prev) => ({
+          ...prev,
+          membershipDate: todayStr,
+          purchasedDate: todayStr,
+          shiftDate: todayStr,
+        }));
+      } catch (error) {
+        console.error('Failed to load initial data:', error);
+      }
+    };
+
+    loadInitialData();
+  }, []);
+
+  // Load available cards when card product is selected
+  useEffect(() => {
+    if (!selectedCardProductId) {
+      setAvailableCards([]);
+      setSelectedCard(null);
+      setSelectedCardId('');
+      setForm((prev) => ({ ...prev, serialNumber: '', price: '' }));
+      return;
+    }
+
+    const loadAvailableCards = async () => {
+      setIsLoadingCards(true);
+      try {
+        const token = localStorage.getItem('fwc_token');
+        
+        // NOTE: Endpoint GET /cards belum ada di backend
+        // Endpoint yang diperlukan: GET /cards?cardProductId={id}&status=IN_STATION
+        // Response format: { success: true, data: [{ id, serialNumber, status, cardProductId }] }
+        
+        // Untuk sementara, kita akan menggunakan workaround:
+        // 1. Coba endpoint /cards jika sudah dibuat
+        // 2. Jika belum, tampilkan pesan bahwa endpoint perlu dibuat
+        
+        const res = await fetch(
+          `${API_BASE_URL}/cards?cardProductId=${selectedCardProductId}&status=IN_STATION`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (res.ok) {
+          const data = await res.json();
+          // Parse cards from response
+          // Response format: { success: true, data: { items: [...], pagination: {...} } }
+          if (data.success && data.data) {
+            const cards = data.data.items || [];
+            setAvailableCards(cards);
+            console.log(`✅ Loaded ${cards.length} available cards for product ${selectedCardProductId}`);
+          } else {
+            setAvailableCards([]);
+            console.warn('⚠️ Unexpected response format:', data);
+          }
+        } else {
+          // Handle error responses
+          const errorData = await res.json().catch(() => ({}));
+          setAvailableCards([]);
+          console.error(`❌ Error loading cards (${res.status}):`, errorData);
+          
+          if (res.status === 404) {
+            console.warn('⚠️ Cards endpoint returned 404. Make sure backend is restarted and endpoint is registered.');
+          } else if (res.status === 401) {
+            console.error('❌ Unauthorized. Check authentication token.');
+          } else if (res.status === 403) {
+            console.error('❌ Forbidden. Check user permissions.');
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load available cards:', error);
+        setAvailableCards([]);
+      } finally {
+        setIsLoadingCards(false);
+      }
+    };
+
+    loadAvailableCards();
+  }, [selectedCardProductId]);
+
+  // Handle card product selection
+  const handleSelectCardProduct = (productId: string) => {
+    setSelectedCardProductId(productId);
+    const product = cardProducts.find((p) => p.id === productId);
+    setSelectedCardProduct(product || null);
+    
+    // Reset card selection
+    setSelectedCard(null);
+    setSelectedCardId('');
+    setForm((prev) => ({
+      ...prev,
+      serialNumber: '',
+      price: product ? parseFloat(product.price).toString() : '',
+    }));
+  };
+
+  // Handle card selection
+  const handleSelectCard = (cardId: string) => {
+    const card = availableCards.find((c) => c.id === cardId);
+    if (card) {
+      setSelectedCardId(cardId);
+      setSelectedCard(card);
+      setForm((prev) => ({
+        ...prev,
+        serialNumber: card.serialNumber,
+      }));
+
+      // Calculate expired date if card product is selected
+      if (selectedCardProduct) {
+        const purchasedDate = new Date(form.purchasedDate || new Date());
+        const expiredDate = new Date(purchasedDate);
+        expiredDate.setDate(expiredDate.getDate() + selectedCardProduct.masaBerlaku);
+        setForm((prev) => ({
+          ...prev,
+          expiredDate: expiredDate.toISOString().split('T')[0],
+        }));
+      }
+    }
+  };
 
   const onlyNumber = (e: React.FormEvent<HTMLInputElement>) => {
     e.currentTarget.value = e.currentTarget.value.replace(/\D/g, '');
   };
 
-    // ======================
-  // CARD AUTO CONFIG STATE
-  // ======================
-  const [cardCategory, setCardCategory] = useState('');
-  const [cardType, setCardType] = useState('');
-  const [price, setPrice] = useState('');
-  const [expiredDate, setExpiredDate] = useState('');
-    const [membershipDate, setMembershipDate] = useState('');
-
-
-useEffect(() => {
-  if (!cardCategory || !cardType || !membershipDate) return;
-
-  const rule = CARD_RULES[cardType]?.[cardCategory];
-  if (!rule) return;
-
-  // 💰 AUTO PRICE
-  setPrice(rule.price.toString());
-
-  // 📅 EXPIRED BASED ON MEMBERSHIP DATE
-  const baseDate = new Date(membershipDate);
-  baseDate.setDate(baseDate.getDate() + rule.days);
-
-  setExpiredDate(baseDate.toISOString().split('T')[0]);
-}, [cardCategory, cardType, membershipDate]);
-
-  /* ======================
-     SUBMIT (API + TOKEN)
-  ====================== */
-  const handleSubmit = async (
-    e: React.FormEvent<HTMLFormElement>
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
   ) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
-    const formData = Object.fromEntries(
-      new FormData(e.currentTarget).entries()
-    );
-
-    // 🔑 TOKEN SESUAI AUTH KAMU
-    const token = localStorage.getItem('fwc_token');
-
-    if (!token) {
-      alert('Token not found. Please login again.');
-      return;
-    }
-
-    // 📦 PAYLOAD SESUAI API /members
-    const payload = {
-      name: formData.name,
-      identityNumber: formData.nik,
-      nationality: formData.nationality,
-      email: formData.email,
-      phone: formData.phone,
-      gender: formData.gender,
-      alamat: formData.address,
-      nipKai: '',
-    };
+    setIsSubmitting(true);
 
     try {
-      const res = await fetch(
-        'http://localhost:3001/members',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
-        }
-      );
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw err;
+      // Check if user has stationId (required for purchase)
+      const token = localStorage.getItem('fwc_token');
+      if (!token) {
+        toast.error('Session expired. Silakan login kembali.');
+        setIsSubmitting(false);
+        return;
       }
 
-      const saved = await res.json();
+      try {
+        const meRes = await fetch(`${API_BASE_URL}/auth/me`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          if (!meData.data?.stationId) {
+            toast.error(
+              'User tidak memiliki stasiun. Silakan hubungi administrator untuk menetapkan stasiun.',
+              { duration: 5000 }
+            );
+            setIsSubmitting(false);
+            return;
+          }
+        }
+      } catch (meError) {
+        console.warn('Could not verify user station:', meError);
+        // Continue anyway, backend will validate
+      }
 
-      setSavedData({
-        ...formData,
-        createdAt: saved.createdAt,
-      });
+      // Validation
+      if (!selectedCardProductId) {
+        toast.error('Card Product wajib dipilih');
+        setIsSubmitting(false);
+        return;
+      }
 
+      if (!selectedCardId || !form.serialNumber.trim()) {
+        toast.error('Serial Number wajib dipilih');
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (!form.edcReferenceNumber.trim()) {
+        toast.error('No. Reference EDC wajib diisi');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 1. Create Member
+      const memberPayload = {
+        name: form.name,
+        identityNumber: form.nik,
+        nationality: form.nationality || undefined,
+        email: form.email || undefined,
+        phone: form.phone || undefined,
+        gender: form.gender || undefined,
+        alamat: form.address || undefined,
+        notes: form.notes || undefined,
+      };
+
+      const memberRes = await createMember(memberPayload);
+      if (!memberRes.success) {
+        throw new Error(memberRes.error?.message || 'Gagal membuat member');
+      }
+
+      const memberId = memberRes.data.id;
+
+      // 2. Use selected card ID
+      if (!selectedCardId || !selectedCard) {
+        throw new Error('Card tidak dipilih. Pastikan memilih serial number dari dropdown.');
+      }
+
+      const cardId = selectedCard.id;
+
+      // 2. Create Purchase
+      const purchasePayload: any = {
+        cardId: cardId,
+        memberId: memberId,
+        edcReferenceNumber: form.edcReferenceNumber.trim(),
+      };
+
+      // Only include optional fields if they have values
+      if (form.price && form.price.trim()) {
+        purchasePayload.price = parseFloat(form.price);
+      }
+      if (form.notes && form.notes.trim()) {
+        purchasePayload.notes = form.notes.trim();
+      }
+
+      console.log('Creating purchase with payload:', purchasePayload);
+      const purchaseRes = await createPurchase(purchasePayload);
+      console.log('Purchase response:', purchaseRes);
+      
+      // apiFetch throws error if !res.ok, so if we reach here, it's successful
+      if (!purchaseRes || !purchaseRes.success) {
+        throw new Error(purchaseRes?.error?.message || purchaseRes?.message || 'Gagal membuat transaksi');
+      }
+
+      toast.success('Member dan transaksi berhasil disimpan');
       setShowSuccess(true);
-    } catch (error) {
-      console.error('CREATE MEMBER ERROR', error);
-      alert('Failed to save member data');
+    } catch (error: any) {
+      console.error('Submit error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        error: error,
+      });
+      toast.error(error.message || 'Gagal menyimpan data');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -308,174 +507,230 @@ useEffect(() => {
     <>
       <div className="space-y-6">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.back()}>
-            <ArrowLeft />
+          <button
+            onClick={() => router.back()}
+            className="rounded p-1 hover:bg-gray-100"
+          >
+            <ArrowLeft size={20} />
           </button>
           <h1 className="text-xl font-semibold">Add Member</h1>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-lg border bg-white p-6"
-        >
+        {/* FORM */}
+        <form onSubmit={handleSubmit} className="rounded-lg border bg-white p-6">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {/* Membership Name - Full Width */}
             <div className="md:col-span-2">
               <input
                 name="name"
+                value={form.name}
+                onChange={handleChange}
                 placeholder="Membership Name"
                 className={base}
                 required
               />
             </div>
 
+            {/* NIK & Nationality */}
             <input
               name="nik"
+              value={form.nik}
+              onChange={handleChange}
+              onInput={onlyNumber}
               placeholder="NIK"
               className={base}
-              onInput={onlyNumber}
               required
             />
 
             <input
               name="nationality"
+              value={form.nationality}
+              onChange={handleChange}
               placeholder="Nationality"
               className={base}
-              required
             />
 
+            {/* Gender & Phone */}
             <div className="relative">
               <select
                 name="gender"
+                value={form.gender}
+                onChange={handleChange}
                 className={`${base} appearance-none pr-10`}
-                required
               >
                 <option value="">Gender</option>
-                <option value="Laki - Laki">Laki - Laki</option>
-                <option value="Perempuan">Perempuan</option>
+                <option value="L">Laki - Laki</option>
+                <option value="P">Perempuan</option>
               </select>
               <ChevronDown
                 size={16}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
               />
             </div>
 
             <div className="relative">
               <Phone
                 size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
               />
               <input
                 name="phone"
+                value={form.phone}
+                onChange={handleChange}
+                onInput={onlyNumber}
                 placeholder="Phone Number"
                 className={`${base} pl-10`}
-                onInput={onlyNumber}
-                required
               />
             </div>
 
+            {/* Email - Full Width */}
             <div className="relative md:col-span-2">
               <Mail
                 size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
               />
               <input
                 type="email"
                 name="email"
+                value={form.email}
+                onChange={handleChange}
                 placeholder="Email Address"
                 className={`${base} pl-10`}
-                required
               />
             </div>
 
+            {/* Alamat - Full Width */}
             <div className="relative md:col-span-2">
               <MapPin
                 size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
               />
               <input
                 name="address"
+                value={form.address}
+                onChange={handleChange}
                 placeholder="Alamat"
                 className={`${base} pl-10`}
-                required
               />
             </div>
 
+            {/* Membership Period */}
             <SectionCard title="Membership Period">
-<Field label="Membership Date">
-  <input
-    type="date"
-    name="membershipDate"
-    className={base}
-    value={membershipDate}
-    onChange={(e) => setMembershipDate(e.target.value)}
-    required
-  />
-</Field>
-<Field label="Expired Date">
-  <input
-    name="expiredDate"
-    className={`${base} bg-gray-100`}
-    value={expiredDate}
-    readOnly
-  />
-</Field>
+              <DateField
+                name="membershipDate"
+                label="Membership Date"
+                value={form.membershipDate}
+                onChange={handleChange}
+              />
+              <DateField
+                name="expiredDate"
+                label="Expired Date"
+                value={form.expiredDate}
+                onChange={handleChange}
+              />
             </SectionCard>
 
+            {/* Purchase Information */}
             <SectionCard title="Purchase Information">
-              <DateField name="purchasedDate" label="Purchased Date" />
+              <DateField
+                name="purchasedDate"
+                label="Purchased Date"
+                value={form.purchasedDate}
+                onChange={handleChange}
+              />
               <Field label="FWC Price">
                 <div className="relative">
                   <DollarSign
                     size={16}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
                   />
                   <input
-  name="price"
-  className={`${base} pr-10 bg-gray-100`}
-  value={price}
-  readOnly
-/>
-
+                    name="price"
+                    value={form.price}
+                    onChange={handleChange}
+                    onInput={onlyNumber}
+                    placeholder="FWC Price"
+                    className={`${base} pr-10`}
+                    required
+                  />
                 </div>
               </Field>
             </SectionCard>
 
+            {/* Card Information */}
             <SectionCard title="Card Information">
-              <Field label="Card Category">
-                <select
-  name="cardCategory"
-  className={base}
-  required
-  value={cardCategory}
-  onChange={(e) => setCardCategory(e.target.value)}
->
-
-                  <option value="">Select</option>
-                  <option value="Gold">Gold</option>
-                  <option value="Silver">Silver</option>
-                  <option value="KAI">KAI</option>
+              <Field label="Card Product">
+                <div className="relative">
+                  <select
+                    name="cardProductId"
+                    value={selectedCardProductId}
+                    onChange={(e) => handleSelectCardProduct(e.target.value)}
+                    className={`${base} appearance-none pr-10`}
+                    required
+                  >
+                    <option value="">Select Card Product</option>
+                    {cardProducts.map((product) => (
+                      <option key={product.id} value={product.id}>
+                        {product.category.categoryName} - {product.type.typeName}
+                      </option>
+                    ))}
                 </select>
+                  <ChevronDown
+                    size={16}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                  />
+                </div>
               </Field>
 
-              <Field label="Card Type">
-<select
-  name="cardType"
-  className={base}
-  required
-  value={cardType}
-  onChange={(e) => setCardType(e.target.value)}
->
-                  <option value="">Select</option>
-                  <option value="JaBan">JaBan</option>
-                  <option value="JaKa">JaKa</option>
-                  <option value="KaBan">KaBan</option>
+              <Field label="Serial Number">
+                <div className="relative">
+                  <select
+                    name="serialNumber"
+                    value={selectedCardId}
+                    onChange={(e) => handleSelectCard(e.target.value)}
+                    className={`${base} appearance-none pr-10`}
+                    disabled={!selectedCardProductId || isLoadingCards}
+                    required
+                  >
+                    <option value="">
+                      {isLoadingCards
+                        ? 'Loading...'
+                        : !selectedCardProductId
+                        ? 'Pilih Card Product terlebih dahulu'
+                        : availableCards.length === 0
+                        ? 'Tidak ada kartu tersedia'
+                        : 'Pilih Serial Number'}
+                    </option>
+                    {availableCards.map((card) => (
+                      <option key={card.id} value={card.id}>
+                        {card.serialNumber}
+                      </option>
+                    ))}
                 </select>
+                  <ChevronDown
+                    size={16}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                  />
+                </div>
+                {selectedCardProductId && availableCards.length === 0 && !isLoadingCards && (
+                  <p className="text-xs text-yellow-600 mt-1">
+                    {isLoadingCards 
+                      ? 'Memuat kartu...'
+                      : 'Tidak ada kartu tersedia untuk product ini dengan status IN_STATION. Pastikan ada kartu yang tersedia di sistem.'}
+                  </p>
+                )}
               </Field>
             </SectionCard>
 
+            {/* Operational Information */}
             <SectionCard title="Operational Information">
               <Field label="Stasiun">
-                <select name="station" className={base} required>
+                <select
+                  name="station"
+                  value={form.station}
+                  onChange={handleChange}
+                  className={base}
+                >
                   <option value="">Select</option>
                   <option value="Halim">Halim</option>
                   <option value="Karawang">Karawang</option>
@@ -484,15 +739,45 @@ useEffect(() => {
                 </select>
               </Field>
 
-              <DateField name="shiftDate" label="Shift Date" />
+              <DateField
+                name="shiftDate"
+                label="Shift Date"
+                value={form.shiftDate}
+                onChange={handleChange}
+              />
             </SectionCard>
 
+
+            {/* No. Reference EDC - Full Width */}
             <div className="md:col-span-2">
               <input
-                name="serialNumber"
-                placeholder="Serial Number"
+                name="edcReferenceNumber"
+                value={form.edcReferenceNumber}
+                onChange={handleChange}
+                placeholder="No. Reference EDC"
                 className={base}
                 required
+              />
+            </div>
+
+            {/* Operator Name - Full Width, Read-only */}
+            <div className="md:col-span-2">
+              <input
+                name="operatorName"
+                value={operatorName || 'Operator Name (akan diisi otomatis dari akun Anda)'}
+                readOnly
+                className={`${base} bg-gray-50`}
+              />
+            </div>
+
+            {/* Notes - Full Width */}
+            <div className="md:col-span-2">
+              <textarea
+                name="notes"
+                value={form.notes}
+                onChange={handleChange}
+                placeholder="Notes (optional)"
+                className="h-24 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
               />
             </div>
           </div>
@@ -500,22 +785,23 @@ useEffect(() => {
           <div className="mt-8 flex justify-end">
             <button
               type="submit"
-              className="rounded-md bg-[#8B1538] px-8 py-2 text-sm font-medium text-white hover:bg-[#73122E]"
+              disabled={isSubmitting}
+              className="rounded-md bg-[#8B1538] px-8 py-2 text-sm font-medium text-white hover:bg-[#73122E] disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Save
+              {isSubmitting ? 'Menyimpan...' : 'Save'}
             </button>
           </div>
         </form>
       </div>
 
+      {/* SUCCESS MODAL */}
       <SuccessModal
-  open={showSuccess}
-  data={savedData}
-  onBack={() => setShowSuccess(false)}
-  onConfirm={() =>
-    router.push('/dashboard/superadmin/membership')
-  }
-/>
+        open={showSuccess}
+        onClose={() => {
+          setShowSuccess(false);
+          router.push('/dashboard/superadmin/membership');
+        }}
+      />
     </>
   );
 }

@@ -5,10 +5,11 @@ import { auth } from "./modules/auth";
 import { users } from "./modules/users";
 import { cardCategory } from "./modules/cards/category";
 import { cardTypes } from "./modules/cards/type";
+import { cardProducts } from "./modules/cards/product";
+import { cards } from "./modules/cards/card";
 import { sales } from "./modules/sales";
 import { metrics } from "./modules/metrics";
 import { stock } from "./modules/stock";
-import { cardProducts } from "./modules/cards/product";
 import { station } from "./modules/station";
 import { cardInventory } from "./modules/stock/inventory";
 import { members } from "./modules/members";
@@ -32,6 +33,7 @@ const app = new Elysia()
   .use(cardCategory)
   .use(cardTypes)
   .use(cardProducts)
+  .use(cards)
   .use(station)
   .use(cardInventory)
   .use(stock)

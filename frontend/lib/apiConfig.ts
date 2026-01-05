@@ -64,9 +64,11 @@ export async function apiFetch(
     }
 
     // 🚨 WAJIB Error instance
+    // Backend error format: { success: false, error: { message: "...", code: "...", statusCode: 400 } }
     const message =
+      json?.error?.message ||
       json?.message ||
-      json?.error ||
+      (typeof json?.error === 'string' ? json.error : null) ||
       `API Error (${res.status})`;
 
     throw new Error(message);
