@@ -139,6 +139,7 @@ export class CardService {
       updatedAt: card.updatedAt.toISOString(),
       purchaseDate: card.purchaseDate?.toISOString() || null,
       expiredDate: card.expiredDate?.toISOString() || null,
+      member: card.member || null, // Ensure member is always present (can be null)
     };
   }
 
@@ -166,6 +167,13 @@ export class CardService {
             },
           },
         },
+        member: {
+          select: {
+            id: true,
+            name: true,
+            identityNumber: true,
+          },
+        },
       },
     });
 
@@ -180,6 +188,7 @@ export class CardService {
       updatedAt: card.updatedAt.toISOString(),
       purchaseDate: card.purchaseDate?.toISOString() || null,
       expiredDate: card.expiredDate?.toISOString() || null,
+      member: card.member || null, // Ensure member is always present (can be null)
     };
   }
 }
