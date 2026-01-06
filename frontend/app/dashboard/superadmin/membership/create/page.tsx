@@ -1,6 +1,7 @@
 'use client';
 
 
+import SuccessModal from '../components/ui/SuccessModal';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import {
@@ -13,13 +14,11 @@ import {
   Calendar,
   CheckCircle,
   Search,
-  Loader2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '@/lib/apiConfig';
-import { createMember, extractKTPFields } from '@/lib/services/membership.service';
+import { createMember } from '@/lib/services/membership.service';
 import { createPurchase } from '@/lib/services/purchase.service';
-import { ImageCropUpload } from '@/components/ui/image-crop-upload';
 
 /* ======================
    BASE INPUT STYLE
@@ -102,35 +101,6 @@ function SectionCard({
 /* ======================
    SUCCESS MODAL
 ====================== */
-function SuccessModal({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="w-[380px] rounded-xl bg-white p-6 text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
-            <CheckCircle size={28} className="text-green-600" />
-        </div>
-        <h2 className="text-lg font-semibold">Data Saved</h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Member dan transaksi berhasil disimpan
-        </p>
-        <button
-          onClick={onClose}
-          className="mt-6 w-full rounded-md bg-[#8B1538] py-2 text-sm font-medium text-white hover:bg-[#73122E]"
-        >
-          OK
-        </button>
-      </div>
-    </div>
-  );
-}
 
 /* ======================
    TYPES
@@ -158,38 +128,33 @@ interface Card {
   status: string;
   cardProductId: string;
 }
+const calculateExpiredDate = (
+  purchasedDate: string,
+  masaBerlaku: number
+) => {
+  if (!purchasedDate || !masaBerlaku) return '';
 
+  const date = new Date(purchasedDate);
+  date.setDate(date.getDate() + masaBerlaku);
+
+  return date.toISOString().split('T')[0];
+};
 
 /* ======================
    PAGE
 ====================== */
-
-const CARD_RULES = {
-  JaBan: {
-    Gold: { price: 2000000, days: 60 },
-    Silver: { price: 1350000, days: 30 },
-    KAI: { price: 500000, days: 30 }, // ✅ KAI INTERNAL
-  },
-  JaKa: {
-    Gold: { price: 500000, days: 60 },
-    Silver: { price: 450000, days: 30 },
-    KAI: { price: 200000, days: 30 }, // ✅ KAI INTERNAL
-  },
-  KaBan: {
-    Gold: { price: 1000000, days: 60 },
-    Silver: { price: 750000, days: 30 },
-    KAI: { price: 300000, days: 30 }, // ✅ KAI INTERNAL
-  },
-};
-
+interface Card {
+  id: string;
+  serialNumber: string;
+  status: string;
+  cardProductId: string;
+}
 
 export default function AddMemberPage() {
   const router = useRouter();
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [operatorName, setOperatorName] = useState('');
-  const [ktpImage, setKtpImage] = useState<File | null>(null);
-  const [isExtractingOCR, setIsExtractingOCR] = useState(false);
 
   // Card Products
   const [cardProducts, setCardProducts] = useState<CardProduct[]>([]);
@@ -220,7 +185,6 @@ export default function AddMemberPage() {
     shiftDate: '',
     serialNumber: '',
     edcReferenceNumber: '',
-    notes: '',
   });
 
   // Load operator name and card categories/types
@@ -333,6 +297,18 @@ export default function AddMemberPage() {
 
     loadAvailableCards();
   }, [selectedCardProductId]);
+  useEffect(() => {
+  if (!selectedCardProduct || !form.purchasedDate) return;
+
+  setForm((prev) => ({
+    ...prev,
+    expiredDate: calculateExpiredDate(
+      prev.purchasedDate,
+      selectedCardProduct.masaBerlaku
+    ),
+  }));
+}, [form.purchasedDate, selectedCardProduct]);
+
 
   // Handle card product selection
   const handleSelectCardProduct = (productId: string) => {
@@ -344,11 +320,17 @@ export default function AddMemberPage() {
     setSelectedCard(null);
     setSelectedCardId('');
     setForm((prev) => ({
-      ...prev,
-      serialNumber: '',
-      price: product ? parseFloat(product.price).toString() : '',
-    }));
-  };
+  ...prev,
+  serialNumber: '',
+  price: product ? product.price : '',
+  expiredDate: product
+    ? calculateExpiredDate(
+        prev.purchasedDate,
+        product.masaBerlaku
+      )
+    : '',
+}));
+  }
 
   // Handle card selection
   const handleSelectCard = (cardId: string) => {
@@ -387,160 +369,104 @@ export default function AddMemberPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleKTPImageChange = async (file: File | null) => {
-    setKtpImage(file);
-    if (file) {
-      setIsExtractingOCR(true);
-      try {
-        const ocrResult = await extractKTPFields(file);
-        if (ocrResult.success && ocrResult.data) {
-          const data = ocrResult.data;
-          
-          // Auto-fill form dengan data dari OCR (NIK, Nama, Jenis Kelamin, dan Alamat)
-          setForm((prev) => ({
-            ...prev,
-            nik: data.identityNumber || prev.nik,
-            name: data.name || prev.name,
-            gender: data.gender === 'Laki-laki' ? 'L' : data.gender === 'Perempuan' ? 'P' : prev.gender,
-            address: data.alamat || prev.address,
-          }));
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+  setShowSuccess(true); // cuma buka modal review
+};
 
-          toast.success('Data KTP berhasil diekstrak!');
-        } else {
-          toast.error('Gagal mengekstrak data KTP. Silakan isi manual.');
-        }
-      } catch (error: any) {
-        console.error('OCR Error:', error);
-        toast.error(error.message || 'Gagal mengekstrak data KTP. Silakan isi manual.');
-      } finally {
-        setIsExtractingOCR(false);
-      }
+const handleConfirmSubmit = async () => {
+  if (isSubmitting) return;
+  setIsSubmitting(true);
+
+  try {
+    // 1. TOKEN
+    const token = localStorage.getItem('fwc_token');
+    if (!token) {
+      toast.error('Session expired. Silakan login kembali.');
+      return;
     }
-  };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+    // 2. GET STATION
+    const meRes = await fetch(`${API_BASE_URL}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!meRes.ok) throw new Error('Gagal mengambil data user');
 
-    try {
-      // Check if user has stationId (required for purchase)
-      const token = localStorage.getItem('fwc_token');
-      if (!token) {
-        toast.error('Session expired. Silakan login kembali.');
-        setIsSubmitting(false);
-        return;
-      }
-
-      try {
-        const meRes = await fetch(`${API_BASE_URL}/auth/me`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        
-        if (meRes.ok) {
-          const meData = await meRes.json();
-          if (!meData.data?.stationId) {
-            toast.error(
-              'User tidak memiliki stasiun. Silakan hubungi administrator untuk menetapkan stasiun.',
-              { duration: 5000 }
-            );
-            setIsSubmitting(false);
-            return;
-          }
-        }
-      } catch (meError) {
-        console.warn('Could not verify user station:', meError);
-        // Continue anyway, backend will validate
-      }
-
-      // Validation
-      if (!selectedCardProductId) {
-        toast.error('Card Product wajib dipilih');
-        setIsSubmitting(false);
-        return;
-      }
-
-      if (!selectedCardId || !form.serialNumber.trim()) {
-        toast.error('Serial Number wajib dipilih');
-        setIsSubmitting(false);
-        return;
-      }
-
-      if (!form.edcReferenceNumber.trim()) {
-        toast.error('No. Reference EDC wajib diisi');
-        setIsSubmitting(false);
-        return;
-      }
-
-      // 1. Create Member
-      const memberPayload = {
-        name: form.name,
-        identityNumber: form.nik,
-        nationality: form.nationality || undefined,
-        email: form.email || undefined,
-        phone: form.phone || undefined,
-        gender: form.gender || undefined,
-        alamat: form.address || undefined,
-        notes: form.notes || undefined,
-      };
-
-      const memberRes = await createMember(memberPayload);
-      if (!memberRes.success) {
-        throw new Error(memberRes.error?.message || 'Gagal membuat member');
-      }
-
-      const memberId = memberRes.data.id;
-
-      // 2. Use selected card ID
-      if (!selectedCardId || !selectedCard) {
-        throw new Error('Card tidak dipilih. Pastikan memilih serial number dari dropdown.');
-      }
-
-      const cardId = selectedCard.id;
-
-      // 2. Create Purchase
-      const purchasePayload: any = {
-        cardId: cardId,
-        memberId: memberId,
-        edcReferenceNumber: form.edcReferenceNumber.trim(),
-      };
-
-      // Only include optional fields if they have values
-      if (form.price && form.price.trim()) {
-        purchasePayload.price = parseFloat(form.price);
-      }
-      if (form.notes && form.notes.trim()) {
-        purchasePayload.notes = form.notes.trim();
-      }
-
-      console.log('Creating purchase with payload:', purchasePayload);
-      const purchaseRes = await createPurchase(purchasePayload);
-      console.log('Purchase response:', purchaseRes);
-      
-      // apiFetch throws error if !res.ok, so if we reach here, it's successful
-      if (!purchaseRes || !purchaseRes.success) {
-        throw new Error(purchaseRes?.error?.message || purchaseRes?.message || 'Gagal membuat transaksi');
-      }
-
-      toast.success('Member dan transaksi berhasil disimpan');
-      setShowSuccess(true);
-    } catch (error: any) {
-      console.error('Submit error:', error);
-      console.error('Error details:', {
-        message: error.message,
-        stack: error.stack,
-        error: error,
-      });
-      toast.error(error.message || 'Gagal menyimpan data');
-    } finally {
-      setIsSubmitting(false);
+    const meData = await meRes.json();
+    if (!meData.data?.stationId) {
+      toast.error(
+        'User tidak memiliki stasiun. Silakan hubungi administrator.',
+        { duration: 5000 }
+      );
+      return;
     }
-  };
+    const stationIdFromMe = meData.data.stationId;
+
+    // 3. VALIDATION
+    if (!selectedCardProductId) {
+      toast.error('Card Product wajib dipilih');
+      return;
+    }
+    if (!selectedCard) {
+      toast.error('Serial Number wajib dipilih');
+      return;
+    }
+    if (!form.edcReferenceNumber.trim()) {
+      toast.error('No. Reference EDC wajib diisi');
+      return;
+    }
+
+    // 4. CREATE MEMBER
+    const memberRes = await createMember({
+      name: form.name,
+      identityNumber: form.nik,
+      nationality: form.nationality || undefined,
+      email: form.email || undefined,
+      phone: form.phone || undefined,
+      gender: form.gender || undefined,
+      alamat: form.address || undefined,
+    });
+    if (!memberRes.success) {
+      throw new Error(memberRes.error?.message || 'Gagal membuat member');
+    }
+
+    const memberId = memberRes.data.id;
+
+    // 5. CREATE PURCHASE
+    const purchaseRes = await createPurchase({
+      cardId: selectedCard.id,
+      memberId,
+      edcReferenceNumber: form.edcReferenceNumber.trim(),
+      purchasedDate: form.membershipDate,
+      expiredDate: form.expiredDate,
+      shiftDate: form.shiftDate,
+      price: form.price ? parseFloat(form.price) : undefined,
+      operatorName,
+      stationId: stationIdFromMe,
+    });
+
+    if (!purchaseRes?.success) {
+      throw new Error(
+        purchaseRes?.message || 'Gagal membuat transaksi'
+      );
+    }
+
+    router.push('/dashboard/superadmin/membership');
+  } catch (err: any) {
+    console.error(err);
+    toast.error(err.message || 'Gagal menyimpan data');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
+
+
 
   return (
     <>
       <div className="space-y-6">
+        {/* HEADER */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.back()}
@@ -554,23 +480,6 @@ export default function AddMemberPage() {
         {/* FORM */}
         <form onSubmit={handleSubmit} className="rounded-lg border bg-white p-6">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {/* KTP Upload dengan Crop - Full Width */}
-            <div className="md:col-span-2">
-              <Field label="Upload & Crop Gambar KTP (Opsional - untuk auto-fill)">
-                <ImageCropUpload
-                  onImageChange={handleKTPImageChange}
-                  maxSize={400}
-                  className="w-full"
-                />
-                {isExtractingOCR && (
-                  <div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
-                    <Loader2 className="animate-spin" size={16} />
-                    <span>Mengekstrak data dari KTP...</span>
-                  </div>
-                )}
-              </Field>
-            </div>
-
             {/* Membership Name - Full Width */}
             <div className="md:col-span-2">
               <input
@@ -667,20 +576,32 @@ export default function AddMemberPage() {
             </div>
 
             {/* Membership Period */}
-            <SectionCard title="Membership Period">
-              <DateField
-                name="membershipDate"
-                label="Membership Date"
-                value={form.membershipDate}
-                onChange={handleChange}
-              />
-              <DateField
-                name="expiredDate"
-                label="Expired Date"
-                value={form.expiredDate}
-                onChange={handleChange}
-              />
-            </SectionCard>
+           <SectionCard title="Membership Period">
+  <DateField
+    name="membershipDate"
+    label="Membership Date"
+    value={form.membershipDate}
+    onChange={handleChange}
+  />
+
+  {/* Expired Date - READ ONLY (AUTO) */}
+  <Field label="Expired Date">
+    <div className="relative">
+      <Calendar
+        size={16}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+      />
+      <input
+        type="date"
+        name="expiredDate"
+        value={form.expiredDate}
+        readOnly
+        className={`${base} pr-10 bg-gray-50 cursor-not-allowed`}
+      />
+    </div>
+  </Field>
+</SectionCard>
+
 
             {/* Purchase Information */}
             <SectionCard title="Purchase Information">
@@ -697,14 +618,14 @@ export default function AddMemberPage() {
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
                   />
                   <input
-                    name="price"
-                    value={form.price}
-                    onChange={handleChange}
-                    onInput={onlyNumber}
-                    placeholder="FWC Price"
-                    className={`${base} pr-10`}
-                    required
-                  />
+                   name="price"
+                   value={form.price}
+                   readOnly
+                  placeholder="FWC Price"
+                  className={`${base} pr-10 bg-gray-50 cursor-not-allowed`}
+                  required
+/>
+
                 </div>
               </Field>
             </SectionCard>
@@ -776,28 +697,39 @@ export default function AddMemberPage() {
 
             {/* Operational Information */}
             <SectionCard title="Operational Information">
-              <Field label="Stasiun">
-                <select
-                  name="station"
-                  value={form.station}
-                  onChange={handleChange}
-                  className={base}
-                >
-                  <option value="">Select</option>
-                  <option value="Halim">Halim</option>
-                  <option value="Karawang">Karawang</option>
-                  <option value="Padalarang">Padalarang</option>
-                  <option value="Tegalluar">Tegalluar</option>
-                </select>
-              </Field>
+  <Field label="Stasiun">
+    <select
+      name="station"
+      value={form.station}
+      onChange={handleChange}
+      className={base}
+    >
+      <option value="">Select</option>
+      <option value="Halim">Halim</option>
+      <option value="Karawang">Karawang</option>
+      <option value="Padalarang">Padalarang</option>
+      <option value="Tegalluar">Tegalluar</option>
+    </select>
+  </Field>
 
-              <DateField
-                name="shiftDate"
-                label="Shift Date"
-                value={form.shiftDate}
-                onChange={handleChange}
-              />
-            </SectionCard>
+  {/* Shift Date - READ ONLY */}
+  <Field label="Shift Date">
+    <div className="relative">
+      <Calendar
+        size={16}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+      />
+      <input
+        type="date"
+        name="shiftDate"
+        value={form.shiftDate}
+        readOnly
+        className={`${base} pr-10 bg-gray-50 cursor-not-allowed`}
+      />
+    </div>
+  </Field>
+</SectionCard>
+
 
 
             {/* No. Reference EDC - Full Width */}
@@ -822,16 +754,7 @@ export default function AddMemberPage() {
               />
             </div>
 
-            {/* Notes - Full Width */}
-            <div className="md:col-span-2">
-              <textarea
-                name="notes"
-                value={form.notes}
-                onChange={handleChange}
-                placeholder="Notes (optional)"
-                className="h-24 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
-              />
-            </div>
+  
           </div>
 
           <div className="mt-8 flex justify-end">
@@ -846,14 +769,30 @@ export default function AddMemberPage() {
         </form>
       </div>
 
-      {/* SUCCESS MODAL */}
-      <SuccessModal
-        open={showSuccess}
-        onClose={() => {
-          setShowSuccess(false);
-          router.push('/dashboard/superadmin/membership');
-        }}
-      />
+<SuccessModal
+  open={showSuccess}
+  title="Data Member"
+  message="Please review the member data before continuing"
+  data={{
+    'Membership Name': form.name,
+    'Membership Date': form.membershipDate,
+    'Expired Date': form.expiredDate,
+    Nationality: form.nationality || 'Indonesia',
+    'Identity Number': form.nik,
+    Address: form.address,
+    'Phone Number': form.phone,
+    'Email Address': form.email,
+    'Card Category': selectedCardProduct?.category.categoryName,
+    'Card Type': selectedCardProduct?.type.typeName,
+    'Purchased Date': form.purchasedDate,
+    'Total Quota (Trips)': selectedCardProduct?.totalQuota,
+  }}
+  onClose={() => setShowSuccess(false)}
+  onConfirm={handleConfirmSubmit}
+
+/>
+
+
     </>
   );
 }
