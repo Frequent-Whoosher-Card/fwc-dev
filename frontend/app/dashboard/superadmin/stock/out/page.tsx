@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { FileDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileDown, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -75,13 +75,25 @@ export default function StockOutPage() {
   const fetchStockOut = useCallback(async () => {
     setLoading(true);
     try {
-      const params: any = {
+      const params: Record<string, any> = {
         page: pagination.page,
         limit: pagination.limit,
       };
 
-      if (fromDate) params.startDate = new Date(fromDate).toISOString();
-      if (toDate) params.endDate = new Date(toDate).toISOString();
+      // =========================
+      // FILTER TANGGAL (1 HARI PENUH)
+      // =========================
+      if (fromDate) {
+        const start = new Date(fromDate);
+        start.setHours(0, 0, 0, 0); // awal hari
+        params.startDate = start.toISOString();
+      }
+
+      if (toDate) {
+        const end = new Date(toDate);
+        end.setHours(23, 59, 59, 999); // akhir hari
+        params.endDate = end.toISOString();
+      }
 
       const response = await axiosInstance.get('/stock/out', { params });
 
@@ -137,25 +149,44 @@ export default function StockOutPage() {
       return;
     }
 
-    const doc = new jsPDF();
+    const doc = new jsPDF('p', 'mm', 'a4');
+
+    const title = 'Laporan Stock Out (Admin ke Outlet)';
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
-    doc.text('Laporan Stock Out (Admin → Outlet)', 14, 15);
+    doc.text(title, pageWidth / 2, 18, { align: 'center' });
+
+    doc.setLineWidth(0.3);
+    doc.line(14, 22, pageWidth - 14, 22);
 
     autoTable(doc, {
-      startY: 22,
+      startY: 26,
       head: [['Tanggal', 'Card Category', 'Card Type', 'Stasiun', 'Stock Out', 'Serial Awal', 'Status', 'Note']],
       body: data.map((item) => [
         new Date(item.movementAt).toLocaleDateString('id-ID'),
-        item.cardCategory.name,
-        item.cardType.name || '-',
-        item.stationName || '-',
+        item.cardCategory?.name ?? '-',
+        item.cardType?.name ?? '-',
+        item.stationName ?? '-',
         item.quantity.toLocaleString(),
-        item.sentSerialNumbers?.[0] || '-',
-        item.status,
-        item.note || '-',
+        item.sentSerialNumbers?.[0] ?? '-',
+        item.status ?? '-',
+        item.note ?? '-',
       ]),
+      styles: {
+        font: 'helvetica',
+        fontSize: 9,
+        cellPadding: 3,
+        halign: 'center',
+      },
       headStyles: {
         fillColor: [141, 18, 49],
+        textColor: 255,
+        fontStyle: 'bold',
+      },
+      columnStyles: {
+        7: { halign: 'left' },
       },
     });
 
@@ -226,6 +257,7 @@ export default function StockOutPage() {
                 <th className="px-3 py-2 text-center whitespace-nowrap">Serial Number Awal</th>
                 <th className="px-3 py-2 text-center">Status</th>
                 <th className="px-3 py-2 text-center">Note</th>
+                <th className="px-4 py-3 text-center">View</th>
                 <th className="px-3 py-2 text-center">Aksi</th>
               </tr>
             </thead>
@@ -265,6 +297,9 @@ export default function StockOutPage() {
 
                     <td className="px-3 py-2 text-center max-w-[200px] truncate">{row.note || '-'}</td>
 
+                    <td className="px-4 py-2 text-center">
+                      <Eye size={16} className="mx-auto cursor-pointer text-gray-500 hover:text-blue-600" onClick={() => router.push(`/dashboard/superadmin/stock/out/view/${row.id}`)} />{' '}
+                    </td>
                     <td className="px-3 py-2 text-center">
                       <div className="flex justify-center gap-2">
                         {/* Only show Edit if PENDING? (Ideally yes, but let's keep it open, backend will reject if not allowed, or user can view) */}
