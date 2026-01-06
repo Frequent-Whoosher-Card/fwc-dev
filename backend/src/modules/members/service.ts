@@ -1,6 +1,10 @@
 import db from "../../config/db";
 import { ValidationError, NotFoundError } from "../../utils/errors";
 import { MemberModel } from "./model";
+import { spawn } from "bun";
+import { writeFile, unlink } from "fs/promises";
+import { join } from "path";
+import { tmpdir } from "os";
 
 export class MemberService {
   /**
@@ -296,6 +300,124 @@ export class MemberService {
     });
 
     return { success: true, message: "Member berhasil dihapus" };
+  }
+
+  /**
+   * Extract KTP fields using OCR
+   */
+  static async extractKTPFields(imageFile: File): Promise<typeof MemberModel.ocrExtractResponse.static> {
+    // Path ke Python script (relatif dari backend directory)
+    const pythonScriptPath = join(process.cwd(), "scripts/ocr/ktp_extract.py");
+    
+    // Simpan file temporary
+    const tempDir = tmpdir();
+    const tempFilePath = join(tempDir, `ktp_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`);
+    
+    try {
+      // Write file ke temporary location
+      const arrayBuffer = await imageFile.arrayBuffer();
+      await writeFile(tempFilePath, Buffer.from(arrayBuffer));
+
+      // Call Python script via subprocess
+      // Set environment variable to suppress warnings
+      const pythonProcess = spawn([
+        "python3",
+        pythonScriptPath,
+        tempFilePath,
+      ], {
+        stdout: "pipe",
+        stderr: "pipe",
+        env: {
+          ...process.env,
+          DISABLE_MODEL_SOURCE_CHECK: "True",
+          PYTHONUNBUFFERED: "1",
+          SUPPRESS_OCR_LOGS: "1", // Suppress print statements in Python
+        },
+      });
+
+      // Read output (JSON should be in stdout, last line)
+      // Ignore stderr as it contains warnings/logs from PaddleOCR
+      const output = await new Response(pythonProcess.stdout).text();
+      
+      // Read stderr but only use it if process fails (ignore warnings)
+      let errorOutput = '';
+      try {
+        errorOutput = await new Response(pythonProcess.stderr).text();
+      } catch {
+        // Ignore stderr read errors
+      }
+
+      // Wait for process to finish
+      const exitCode = await pythonProcess.exited;
+
+      // Cleanup temporary file
+      try {
+        await unlink(tempFilePath);
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+
+      // Extract JSON from output (might have warnings/logs before JSON)
+      // JSON should be the last line or last valid JSON object
+      let jsonOutput = output.trim();
+      
+      // Try to find JSON in output (might be mixed with warnings)
+      const jsonMatch = jsonOutput.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        jsonOutput = jsonMatch[0];
+      }
+
+      // Try to parse JSON
+      let result;
+      try {
+        result = JSON.parse(jsonOutput);
+      } catch (parseError) {
+        // If parsing fails and exit code is non-zero, it's a real error
+        if (exitCode !== 0) {
+          // Only use stderr if it contains actual error (not warnings)
+          const actualError = errorOutput.includes('Error:') || errorOutput.includes('Traceback') 
+            ? errorOutput 
+            : "OCR process failed";
+          throw new Error(`OCR process failed: ${actualError}`);
+        }
+        // If exit code is 0 but can't parse, it's a parsing error
+        throw new Error(`Failed to parse OCR output: ${parseError}`);
+      }
+
+      // Check if Python script returned error response
+      if (!result.success) {
+        throw new Error(result.error || "OCR extraction failed");
+      }
+      
+      // If exit code is non-zero but result.success is true, log warning but continue
+      if (exitCode !== 0) {
+        console.warn(`OCR process exited with code ${exitCode} but returned success. Stderr: ${errorOutput.substring(0, 200)}`);
+      }
+
+      return {
+        success: true,
+        data: {
+          identityNumber: result.data?.identityNumber || null,
+          name: result.data?.name || null,
+          gender: result.data?.gender || null,
+          alamat: result.data?.alamat || null,
+        },
+        raw: result.raw,
+        message: "KTP fields extracted successfully",
+      };
+    } catch (error) {
+      // Cleanup temporary file on error
+      try {
+        await unlink(tempFilePath);
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+
+      if (error instanceof Error) {
+        throw new ValidationError(`OCR extraction failed: ${error.message}`);
+      }
+      throw new ValidationError("OCR extraction failed: Unknown error");
+    }
   }
 }
 

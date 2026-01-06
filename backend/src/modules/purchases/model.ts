@@ -63,7 +63,7 @@ export namespace PurchaseModel {
       examples: ["123e4567-e89b-12d3-a456-426614174000"],
     }),
     memberId: t.String({
-      format: "uuid",
+        format: "uuid",
       description: "Member ID (required - every transaction must have a member)",
       examples: ["123e4567-e89b-12d3-a456-426614174001"],
     }),
@@ -77,7 +77,7 @@ export namespace PurchaseModel {
       t.Number({
         description: "Purchase price (default: from cardProduct.price, can be overridden for discounts/promos). Must be >= 0.",
         examples: [50000, 75000, 100000],
-        minimum: 0,
+      minimum: 0,
       })
     ),
     notes: t.Optional(
