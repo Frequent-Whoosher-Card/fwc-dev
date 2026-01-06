@@ -10,7 +10,7 @@ import Image from 'next/image';
 import toast from 'react-hot-toast';
 import ClientOnly from '@/components/ui/client-only';
 
-import { LayoutDashboard, CreditCard, UserPlus, Receipt, Users, Menu, X, User, LogOut, IdCard, ArrowDownToLine, ArrowUpNarrowWide, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, CreditCard, UserPlus, Receipt, Users, Menu, X, User, LogOut, IdCard, ArrowDownToLine, ArrowUpNarrowWide, ChevronDown, FolderKanban } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -49,6 +49,8 @@ const superadminMenuItems = [
       { title: 'Stock Out', href: '/dashboard/superadmin/stock/out', icon: ArrowUpNarrowWide },
     ],
   },
+  { title: 'Generate Number', icon: FolderKanban, href: '/dashboard/superadmin/generatenumber' },
+
   { title: 'Membership', icon: UserPlus, href: '/dashboard/superadmin/membership' },
   { title: 'Transaksi', icon: Receipt, href: '/dashboard/superadmin/transaksi' },
   { title: 'User', icon: Users, href: '/dashboard/superadmin/user' },
@@ -178,12 +180,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       {/* SIDEBAR OVERLAY */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+      {sidebarOpen && <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
       {/* SIDEBAR */}
       <aside className={cn('fixed left-0 top-0 z-50 h-full w-64 bg-[#8D1231] transition-transform lg:translate-x-0', sidebarOpen ? 'translate-x-0' : '-translate-x-full')}>
