@@ -5,11 +5,11 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
 import { getMemberById } from '@/lib/services/membership.service';
+import { getPurchases } from '@/lib/services/purchase.service';
 import { UserContext } from '@/app/dashboard/superadmin/dashboard/dashboard-layout';
 
-
 /* ======================
-   TYPES (IKUT API REAL)
+   TYPES
 ====================== */
 interface Membership {
   id: string;
@@ -49,7 +49,7 @@ interface Transaction {
 export default function MembershipDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-const userCtx = useContext(UserContext);
+  const userCtx = useContext(UserContext);
 
   const [member, setMember] = useState<Membership | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -57,78 +57,102 @@ const userCtx = useContext(UserContext);
   const [error, setError] = useState<string | null>(null);
 
   /* ======================
-     FETCH MEMBER DETAIL
+     FETCH DATA
   ====================== */
-  useEffect(() => {
-    if (!id) return;
+useEffect(() => {
+  if (!id) return;
 
-    const fetchDetail = async () => {
-      try {
-        setLoading(true);
+  const fetchDetail = async () => {
+    try {
+      setLoading(true);
 
-        const res = await getMemberById(id);
-        const data: Membership = res.data;
+      // 1️⃣ GET MEMBER
+      const memberRes = await getMemberById(id);
+      const memberData: Membership = memberRes.data;
+      setMember(memberData);
 
-        setMember(data);
+      // 2️⃣ GET PURCHASES BY NIK
+      const purchaseRes = await getPurchases({
+        search: memberData.identityNumber,
+        limit: 50,
+      });
 
-        /**
-         * TRANSACTION (DUMMY – BELUM ADA API)
-         * membership date = createdAt
-         * operator = user login
-         */
-        setTransactions([
-          {
-            purchaseDate: data.createdAt,
-            duration: '60 Days',
-            expiredDate: '2026-02-12',
-            status: 'Active',
-            cardCategory: 'Gold',
-            cardType: 'JaBan',
-            quota: 20,
-            remaining: 6,
-            serialNumber: data.id,
-            referenceEdc: data.id,
-            price: '2.000.000',
-            shiftDate: data.createdAt,
-            operatorName:
-              userCtx?.userName ??
-              data.updatedByName ??
-              '-',
-            station: '-',
-          },
-        ]);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load member');
-      } finally {
-        setLoading(false);
-      }
-    };
+      const items = purchaseRes.data?.items ?? [];
 
-    fetchDetail();
-  }, [id, userCtx]);
+      const mapped: Transaction[] = items.map((p: any) => {
+        const purchaseDate = p.purchaseDate;
+        const expiredDate = p.expiredDate ?? '';
+
+        let duration = '-';
+        if (purchaseDate && expiredDate) {
+          const diff =
+            new Date(expiredDate).getTime() -
+            new Date(purchaseDate).getTime();
+          duration = `${Math.ceil(
+            diff / (1000 * 60 * 60 * 24)
+          )} Days`;
+        }
+
+        return {
+          purchaseDate,
+          duration,
+          expiredDate,
+          status:
+            p.card?.status === 'SOLD_ACTIVE'
+              ? 'Active'
+              : 'Expired',
+          cardCategory:
+            p.card?.cardProduct?.category?.categoryName ?? '-',
+          cardType:
+            p.card?.cardProduct?.type?.typeName ?? '-',
+          quota:
+            p.card?.cardProduct?.totalQuota ?? 0,
+          remaining:
+            p.card?.remainingQuota ??
+            p.card?.cardProduct?.totalQuota ??
+            0,
+          serialNumber: p.card?.serialNumber ?? '-',
+          referenceEdc: p.edcReferenceNumber ?? '-',
+          price: p.price
+            ? p.price.toLocaleString('id-ID')
+            : '-',
+          shiftDate: p.purchaseDate,
+          operatorName:
+            p.operator?.fullName ??
+            p.createdByName ??
+            '-',
+          station: p.station?.stationName ?? '-',
+        };
+      });
+
+      setTransactions(mapped);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchDetail();
+}, [id]);
+
 
   /* ======================
-     STATE HANDLER
+     STATE
   ====================== */
-  if (loading) {
-    return <div className="p-6">Loading...</div>;
-  }
+  if (loading) return <div className="p-6">Loading...</div>;
 
-  if (error) {
+  if (error)
     return (
-      <div className="p-6 text-red-600">
-        {error}
-      </div>
+      <div className="p-6 text-red-600">{error}</div>
     );
-  }
 
-  if (!member) {
+  if (!member)
     return (
       <div className="p-6 text-gray-500">
         Data not found
       </div>
     );
-  }
 
   const totalQuota = transactions.reduce(
     (sum, t) => sum + t.quota,
@@ -141,14 +165,14 @@ const userCtx = useContext(UserContext);
   );
 
   const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString('id-ID');
+    d ? new Date(d).toLocaleDateString('id-ID') : '-';
 
   /* ======================
      RENDER
   ====================== */
   return (
     <div className="space-y-6">
-      {/* ================= HEADER ================= */}
+      {/* HEADER */}
       <div className="flex items-center gap-3">
         <button
           onClick={() => router.back()}
@@ -156,13 +180,12 @@ const userCtx = useContext(UserContext);
         >
           <ArrowLeft size={20} />
         </button>
-
         <h1 className="text-lg font-semibold">
           Detailed Member
         </h1>
       </div>
 
-      {/* ================= MEMBER CARD ================= */}
+      {/* MEMBER CARD */}
       <div className="flex items-center justify-between rounded-lg border bg-white p-6">
         <div className="flex gap-6">
           <div className="flex h-24 w-40 items-center justify-center rounded bg-yellow-400 text-sm font-semibold text-black">
@@ -192,15 +215,17 @@ const userCtx = useContext(UserContext);
 
         <div className="text-sm text-right">
           <p>
-            Kuota Ticket : <b>{totalQuota}</b>
+            Total Quota (Trips):{' '}
+            <b>{totalQuota}</b>
           </p>
           <p>
-            Redeemed : <b>{redeemed}</b>
+            Redeemed:{' '}
+            <b>{redeemed}</b>
           </p>
         </div>
       </div>
 
-      {/* ================= TRANSACTION HISTORY ================= */}
+      {/* TRANSACTION HISTORY */}
       <div className="rounded-lg border bg-white">
         <div className="border-b px-4 py-3 font-semibold">
           Transaction History
@@ -208,7 +233,7 @@ const userCtx = useContext(UserContext);
 
         <div className="overflow-x-auto">
           <table className="min-w-[2400px] w-full text-sm">
-            <thead className="sticky top-0 bg-gray-50 text-left text-xs text-gray-600">
+            <thead className="bg-gray-50 text-xs text-gray-600">
               <tr>
                 <th className="px-4 py-3">Purchase Date</th>
                 <th className="px-4 py-3">Masa Berlaku</th>
@@ -216,21 +241,29 @@ const userCtx = useContext(UserContext);
                 <th className="px-4 py-3">Status Card</th>
                 <th className="px-4 py-3">Card Category</th>
                 <th className="px-4 py-3">Card Type</th>
-                <th className="px-4 py-3">Kuota Ticket</th>
-                <th className="px-4 py-3">Remaining Quota</th>
-                <th className="px-4 py-3">Serial Number</th>
-                <th className="px-4 py-3">No. Reference EDC</th>
+                <th className="px-4 py-3">Total Quota</th>
+                <th className="px-4 py-3">
+                  Remaining Quota
+                </th>
+                <th className="px-4 py-3">
+                  Serial Number
+                </th>
+                <th className="px-4 py-3">
+                  No. Reference EDC
+                </th>
                 <th className="px-4 py-3">FWC Price</th>
                 <th className="px-4 py-3">Shift Date</th>
-                <th className="px-4 py-3">Operator Name</th>
+                <th className="px-4 py-3">
+                  Operator Name
+                </th>
                 <th className="px-4 py-3">Stasiun</th>
               </tr>
             </thead>
 
             <tbody>
-              {transactions.map((trx, index) => (
+              {transactions.map((trx, i) => (
                 <tr
-                  key={index}
+                  key={i}
                   className="border-t hover:bg-gray-50"
                 >
                   <td className="px-4 py-2">
@@ -240,15 +273,13 @@ const userCtx = useContext(UserContext);
                     {trx.duration}
                   </td>
                   <td className="px-4 py-2">
-                    {trx.expiredDate}
+                    {formatDate(trx.expiredDate)}
                   </td>
-
                   <td className="px-4 py-2">
                     <span className="rounded bg-green-100 px-2 py-1 text-xs text-green-700">
                       {trx.status}
                     </span>
                   </td>
-
                   <td className="px-4 py-2">
                     {trx.cardCategory}
                   </td>
