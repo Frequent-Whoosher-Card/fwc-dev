@@ -18,6 +18,21 @@ export interface MemberListItem {
   updatedAt?: string;
 }
 
+export interface OCRExtractResponse {
+  success: boolean;
+  data: {
+    identityNumber: string | null;
+    name: string | null;
+    gender: string | null;
+    alamat: string | null;
+  };
+  raw?: {
+    text_blocks_count: number;
+    combined_text: string;
+  };
+  message?: string;
+}
+
 /* =========================
    MEMBERSHIP SERVICE
 ========================= */
@@ -135,4 +150,33 @@ export const getMemberTransactions = (
     `/members/${memberId}/transactions`,
     { method: 'GET' }
   );
+};
+
+/**
+ * EXTRACT KTP FIELDS USING OCR
+ */
+export const extractKTPFields = async (imageFile: File): Promise<OCRExtractResponse> => {
+  const formData = new FormData();
+  formData.append('image', imageFile);
+
+  const token = localStorage.getItem('fwc_token');
+  if (!token) {
+    throw new Error('No authentication token found. Please login.');
+  }
+
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
+  const res = await fetch(`${API_BASE_URL}/members/ocr-extract`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData?.error?.message || errorData?.message || 'OCR extraction failed');
+  }
+
+  return res.json();
 };
