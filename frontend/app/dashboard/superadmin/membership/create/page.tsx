@@ -167,6 +167,17 @@ export default function AddMemberPage() {
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [isLoadingCards, setIsLoadingCards] = useState(false);
 
+
+  const [fieldError, setFieldError] = useState<{
+  nik?: string;
+  edcReferenceNumber?: string;
+}>({});
+
+const [checking, setChecking] = useState<{
+  nik?: boolean;
+  edcReferenceNumber?: boolean;
+}>({});
+
   // Form State
   const [form, setForm] = useState({
     name: '',
@@ -360,6 +371,48 @@ export default function AddMemberPage() {
     e.currentTarget.value = e.currentTarget.value.replace(/\D/g, '');
   };
 
+  const checkUniqueField = async (
+  field: 'nik' | 'edcReferenceNumber',
+  value: string
+) => {
+  if (!value) return;
+
+  setChecking((p) => ({ ...p, [field]: true }));
+
+  try {
+    const token = localStorage.getItem('fwc_token');
+
+    const url =
+      field === 'nik'
+        ? `${API_BASE_URL}/members?identityNumber=${value}`
+        : `${API_BASE_URL}/purchases?edcReferenceNumber=${value}`;
+
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) return;
+
+    const data = await res.json();
+
+    if (data.data?.items?.length > 0) {
+      setFieldError((p) => ({
+        ...p,
+        [field]:
+          field === 'nik'
+            ? 'NIK sudah terdaftar'
+            : 'No. Reference EDC sudah digunakan',
+      }));
+    } else {
+      setFieldError((p) => ({ ...p, [field]: undefined }));
+    }
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setChecking((p) => ({ ...p, [field]: false }));
+  }
+};
+
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
@@ -493,15 +546,47 @@ const handleConfirmSubmit = async () => {
             </div>
 
             {/* NIK & Nationality */}
-            <input
-              name="nik"
-              value={form.nik}
-              onChange={handleChange}
-              onInput={onlyNumber}
-              placeholder="NIK"
-              className={base}
-              required
-            />
+          <div className="relative">
+  <input
+  name="nik"
+  value={form.nik}
+  onChange={(e) => {
+    handleChange(e);
+
+    // 🔥 RESET ERROR SAAT USER NGEDIT / HAPUS
+    if (!e.target.value) {
+      setFieldError((p) => ({ ...p, nik: undefined }));
+    }
+  }}
+  onInput={onlyNumber}
+  onBlur={() => {
+    if (form.nik) {
+      checkUniqueField('nik', form.nik);
+    }
+  }}
+  placeholder="NIK"
+  className={`${base} pr-32 ${
+    fieldError.nik ? 'border-red-500' : ''
+  }`}
+  required
+/>
+
+
+  {/* ERROR DI DALAM FIELD */}
+  {fieldError.nik && (
+    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-red-600">
+      {fieldError.nik}
+    </span>
+  )}
+
+  {/* CHECKING */}
+  {!fieldError.nik && checking.nik && (
+    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+      Checking...
+    </span>
+  )}
+</div>
+
 
             <input
               name="nationality"
@@ -577,12 +662,22 @@ const handleConfirmSubmit = async () => {
 
             {/* Membership Period */}
            <SectionCard title="Membership Period">
-  <DateField
-    name="membershipDate"
-    label="Membership Date"
-    value={form.membershipDate}
-    onChange={handleChange}
-  />
+  <Field label="Membership Date">
+  <div className="relative">
+    <Calendar
+      size={16}
+      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+    />
+    <input
+      type="date"
+      name="membershipDate"
+      value={form.membershipDate}
+      readOnly
+      className={`${base} pr-10 bg-gray-50 cursor-not-allowed`}
+    />
+  </div>
+</Field>
+
 
   {/* Expired Date - READ ONLY (AUTO) */}
   <Field label="Expired Date">
@@ -603,32 +698,44 @@ const handleConfirmSubmit = async () => {
 </SectionCard>
 
 
-            {/* Purchase Information */}
-            <SectionCard title="Purchase Information">
-              <DateField
-                name="purchasedDate"
-                label="Purchased Date"
-                value={form.purchasedDate}
-                onChange={handleChange}
-              />
-              <Field label="FWC Price">
-                <div className="relative">
-                  <DollarSign
-                    size={16}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                  />
-                  <input
-                   name="price"
-                   value={form.price}
-                   readOnly
-                  placeholder="FWC Price"
-                  className={`${base} pr-10 bg-gray-50 cursor-not-allowed`}
-                  required
-/>
+        {/* Purchase Information */}
+<SectionCard title="Purchase Information">
+  {/* Purchased Date - READ ONLY */}
+  <Field label="Purchased Date">
+    <div className="relative">
+      <Calendar
+        size={16}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+      />
+      <input
+        type="date"
+        name="purchasedDate"
+        value={form.purchasedDate}
+        readOnly
+        className={`${base} pr-10 bg-gray-50 cursor-not-allowed`}
+      />
+    </div>
+  </Field>
 
-                </div>
-              </Field>
-            </SectionCard>
+  {/* FWC Price - READ ONLY */}
+  <Field label="FWC Price">
+    <div className="relative">
+      <DollarSign
+        size={16}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+      />
+      <input
+        name="price"
+        value={form.price}
+        readOnly
+        placeholder="FWC Price"
+        className={`${base} pr-10 bg-gray-50 cursor-not-allowed`}
+        required
+      />
+    </div>
+  </Field>
+</SectionCard>
+
 
             {/* Card Information */}
             <SectionCard title="Card Information">
@@ -731,18 +838,55 @@ const handleConfirmSubmit = async () => {
 </SectionCard>
 
 
-
             {/* No. Reference EDC - Full Width */}
-            <div className="md:col-span-2">
-              <input
-                name="edcReferenceNumber"
-                value={form.edcReferenceNumber}
-                onChange={handleChange}
-                placeholder="No. Reference EDC"
-                className={base}
-                required
-              />
-            </div>
+    {/* No. Reference EDC - Full Width */}
+<div className="relative md:col-span-2">
+  <input
+    name="edcReferenceNumber"
+    value={form.edcReferenceNumber}
+    onChange={(e) => {
+      handleChange(e);
+
+      if (!e.target.value) {
+        setFieldError((p) => ({
+          ...p,
+          edcReferenceNumber: undefined,
+        }));
+      }
+    }}
+    onBlur={() => {
+      if (form.edcReferenceNumber) {
+        checkUniqueField(
+          'edcReferenceNumber',
+          form.edcReferenceNumber
+        );
+      }
+    }}
+    placeholder="No. Reference EDC"
+    className={`${base} pr-40 ${
+      fieldError.edcReferenceNumber
+        ? 'border-red-500'
+        : ''
+    }`}
+    required
+  />
+
+  {/* ERROR DI DALAM FIELD */}
+  {fieldError.edcReferenceNumber && (
+    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-red-600">
+      {fieldError.edcReferenceNumber}
+    </span>
+  )}
+
+  {/* CHECKING */}
+  {!fieldError.edcReferenceNumber &&
+    checking.edcReferenceNumber && (
+      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+        Checking...
+      </span>
+    )}
+</div>
+
 
             {/* Operator Name - Full Width, Read-only */}
             <div className="md:col-span-2">
@@ -758,9 +902,15 @@ const handleConfirmSubmit = async () => {
           </div>
 
           <div className="mt-8 flex justify-end">
-            <button
-              type="submit"
-              disabled={isSubmitting}
+           <button
+  type="submit"
+  disabled={
+    isSubmitting ||
+    checking.nik ||
+    checking.edcReferenceNumber ||
+    !!fieldError.nik ||
+    !!fieldError.edcReferenceNumber
+  }
               className="rounded-md bg-[#8B1538] px-8 py-2 text-sm font-medium text-white hover:bg-[#73122E] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Menyimpan...' : 'Save'}
