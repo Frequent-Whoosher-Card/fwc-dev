@@ -201,5 +201,23 @@ export namespace MemberModel {
       statusCode: t.Number(),
     }),
   });
+
+  // --- OCR Response ---
+  export const ocrExtractResponse = t.Object({
+    success: t.Boolean(),
+    data: t.Object({
+      identityNumber: t.Union([t.String(), t.Null()]),
+      name: t.Union([t.String(), t.Null()]),
+      gender: t.Union([t.String(), t.Null()]),
+      alamat: t.Union([t.String(), t.Null()]),
+    }),
+    raw: t.Optional(
+      t.Object({
+        text_blocks_count: t.Number(),
+        combined_text: t.String(),
+      })
+    ),
+    message: t.Optional(t.String()),
+  });
 }
 
