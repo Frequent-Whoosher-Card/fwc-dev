@@ -1,25 +1,69 @@
-type Props = {
-  status: 'accepted' | 'missing' | 'damaged';
-};
+export default function StatusBadge({
+  status,
+}: {
+  status: string;
+}) {
+  if (!status) return null;
 
-export default function StatusBadge({ status }: Props) {
-  const map = {
-    accepted: 'bg-green-100 text-green-700',
-    missing: 'bg-yellow-100 text-yellow-700',
-    damaged: 'bg-red-100 text-red-700',
-  };
+  switch (status) {
+    case 'ACCEPTED':
+      return (
+        <span
+          className="
+            inline-flex
+            w-fit
+            items-center
+            rounded-full
+            bg-green-100
+            px-3 py-1
+            text-xs
+            font-medium
+            text-green-700
+          "
+        >
+          Accepted
+        </span>
+      );
 
-  const label = {
-    accepted: 'Accepted',
-    missing: 'Missing',
-    damaged: 'Damaged',
-  };
+    case 'CARD_MISSING':
+      return (
+        <span
+          className="
+            inline-flex
+            w-fit
+            items-center
+            rounded-full
+            bg-yellow-100
+            px-3 py-1
+            text-xs
+            font-medium
+            text-yellow-700
+          "
+        >
+          Card Missing
+        </span>
+      );
 
-  return (
-    <span
-      className={`px-3 py-1 rounded-full text-xs font-medium ${map[status]}`}
-    >
-      {label[status]}
-    </span>
-  );
+    case 'CARD_DAMAGED':
+      return (
+        <span
+          className="
+            inline-flex
+            w-fit
+            items-center
+            rounded-full
+            bg-red-100
+            px-3 py-1
+            text-xs
+            font-medium
+            text-red-700
+          "
+        >
+          Card Damaged
+        </span>
+      );
+
+    default:
+      return null;
+  }
 }
