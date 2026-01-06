@@ -324,8 +324,68 @@ const ocrRoutes = new Elysia()
       detail: {
         tags: ["Members"],
         summary: "Extract KTP fields using OCR",
-        description:
-          "Extract KTP fields (NIK, name, gender, address, etc.) from uploaded KTP image using OCR (petugas, supervisor, admin, superadmin)",
+        description: `Extract KTP fields (NIK, name, gender, address) from uploaded KTP image using OCR.
+
+**File Requirements:**
+- **Format**: JPEG, JPG, PNG, or WebP
+- **Max Size**: 10MB
+- **Field Name**: \`image\` (also accepts \`file\` or \`ktp\`)
+
+**How to Test in Swagger UI:**
+1. Click "Try it out" button
+2. Click "Choose File" and select a KTP image
+3. Click "Execute"
+4. View the extracted fields in the response
+
+**Response Fields:**
+- \`identityNumber\`: NIK from KTP (can be null if not found)
+- \`name\`: Name from KTP (can be null if not found)
+- \`gender\`: Gender from KTP (can be null if not found)
+- \`alamat\`: Address from KTP (can be null if not found)
+- \`raw\`: Raw OCR data including text blocks count and combined text
+
+**Access Control:**
+- Roles allowed: petugas, supervisor, admin, superadmin
+
+**Example Response:**
+\`\`\`json
+{
+  "success": true,
+  "data": {
+    "identityNumber": "3201012345678901",
+    "name": "JOHN DOE",
+    "gender": "L",
+    "alamat": "JL. EXAMPLE NO. 123"
+  },
+  "raw": {
+    "text_blocks_count": 15,
+    "combined_text": "PROVINSI JAWA BARAT\\nKABUPATEN BANDUNG\\n..."
+  },
+  "message": "KTP fields extracted successfully"
+}
+\`\`\``,
+        requestBody: {
+          content: {
+            "multipart/form-data": {
+              schema: {
+                type: "object",
+                required: ["image"],
+                properties: {
+                  image: {
+                    type: "string",
+                    format: "binary",
+                    description: "KTP image file (JPEG, PNG, or WebP, max 10MB)",
+                  },
+                },
+              },
+              encoding: {
+                image: {
+                  contentType: "image/jpeg, image/png, image/webp",
+                },
+              },
+            },
+          },
+        },
       },
     }
   );
