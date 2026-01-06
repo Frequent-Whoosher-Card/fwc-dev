@@ -120,6 +120,9 @@ export default function LoginPage() {
         case 'petugas':
           router.push('/dashboard/petugas');
           break;
+        case 'supervisor':
+          router.push('/dashboard/supervisor');
+          break;
         default:
           router.push('/dashboard');
       }

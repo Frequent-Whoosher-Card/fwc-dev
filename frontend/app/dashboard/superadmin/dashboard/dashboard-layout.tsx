@@ -10,7 +10,7 @@ import Image from 'next/image';
 import toast from 'react-hot-toast';
 import ClientOnly from '@/components/ui/client-only';
 
-import { LayoutDashboard, CreditCard, UserPlus, Receipt, Users, Menu, X, User, LogOut, IdCard, ArrowDownToLine, ArrowUpNarrowWide, ChevronDown, FolderKanban } from 'lucide-react';
+import { LayoutDashboard, CreditCard, UserPlus, Receipt, Users, Menu, X, User, LogOut, IdCard, ArrowDownToLine, ArrowUpNarrowWide, ChevronDown, ClipboardList } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,7 @@ import { API_BASE_URL } from '@/lib/apiConfig';
 /* =========================
    ROLE TYPE
 ========================= */
-type Role = 'superadmin' | 'admin' | 'petugas';
+type Role = 'superadmin' | 'admin' | 'petugas' | 'supervisor';
 
 /* =========================
    USER CONTEXT (SINGLE SOURCE)
@@ -49,11 +49,12 @@ const superadminMenuItems = [
       { title: 'Stock Out', href: '/dashboard/superadmin/stock/out', icon: ArrowUpNarrowWide },
     ],
   },
-  { title: 'Generate Number', icon: FolderKanban, href: '/dashboard/superadmin/generatenumber' },
+  // { title: 'Generate Number', icon: FolderKanban, href: '/dashboard/superadmin/generatenumber' },
 
   { title: 'Membership', icon: UserPlus, href: '/dashboard/superadmin/membership' },
   { title: 'Transaksi', icon: Receipt, href: '/dashboard/superadmin/transaksi' },
   { title: 'User', icon: Users, href: '/dashboard/superadmin/user' },
+  { title: 'Inbox', icon: ArrowDownToLine, href: '/dashboard/superadmin/inbox' }
 ];
 
 /* ADMIN */
@@ -69,7 +70,8 @@ const adminMenuItems = [
     ],
   },
   { title: 'Membership', icon: UserPlus, href: '/dashboard/admin/membership' },
-  { title: 'Transaksi', icon: Receipt, href: '/dashboard/admin/transaksi' },
+  { title: 'Transaksi', icon: Receipt, href: '/dashboard/admin/transaction' },
+  { title: 'Inbox', icon: ArrowDownToLine, href: '/dashboard/admin/inbox' }
 ];
 
 /* PETUGAS */
@@ -80,10 +82,36 @@ const petugasMenuItems = [
   { title: 'Transaksi', icon: Receipt, href: '/dashboard/petugas/transaksi' },
 ];
 
+/* SUPERVISOR */
+const supervisorMenuItems = [
+  { 
+    title: 'Membership', 
+    icon: UserPlus, 
+    href: '/dashboard/supervisor/membership' 
+  },
+  { 
+    title: 'Stock', 
+    icon: CreditCard, 
+    href: '/dashboard/supervisor/stock' 
+  },
+  { 
+    title: 'Redeem Kuota', 
+    icon: IdCard, 
+    href: '/dashboard/supervisor/redeemkuota' 
+  },
+  { 
+    title: 'Noted/Catatan', 
+    icon: ClipboardList, // 
+    href: '/dashboard/supervisor/noted' 
+  },
+  
+];
+
 const menuByRole: Record<Role, any[]> = {
   superadmin: superadminMenuItems,
   admin: adminMenuItems,
   petugas: petugasMenuItems,
+  supervisor: supervisorMenuItems,
 };
 
 /* =========================
@@ -133,6 +161,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           ADMIN: 'admin',
           PETUGAS: 'petugas',
           OFFICER: 'petugas',
+          SUPERVISOR: 'supervisor',
         };
 
         const mappedRole = roleMap[rawRole];

@@ -27,6 +27,9 @@ export default function DashboardRedirect() {
       case 'petugas':
         router.replace('/dashboard/petugas');
         break;
+      case 'supervisor':
+        router.replace('/dashboard/supervisor');
+        break;
       default:
         router.replace('/login');
     }
