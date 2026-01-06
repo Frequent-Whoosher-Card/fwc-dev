@@ -12,6 +12,17 @@ type GetInventoryParams = {
   stationName?: string;
 };
 
+interface InventoryMonitorOptions {
+  stationId?: string;
+  categoryId?: string;
+  typeId?: string;
+  startDate?: Date;
+  endDate?: Date;
+  categoryName?: string;
+  typeName?: string;
+  stationName?: string;
+}
+
 export class CardInventoryService {
   static async getAll(params: GetInventoryParams) {
     const {
@@ -108,10 +119,54 @@ export class CardInventoryService {
   /**
    * Get Summary Grouped by Category & Type
    */
-  static async getCategoryTypeSummary() {
+  static async getCategoryTypeSummary(
+    options: InventoryMonitorOptions | string = {}
+  ) {
+    const opts: InventoryMonitorOptions =
+      typeof options === "string" ? { stationId: options } : options;
+    const {
+      stationId,
+      categoryId,
+      typeId,
+      startDate,
+      endDate,
+      categoryName,
+      typeName,
+      stationName,
+    } = opts;
+
+    const where: any = {};
+
+    if (stationId) where.stationId = stationId;
+    if (categoryId) where.categoryId = categoryId;
+    if (typeId) where.typeId = typeId;
+
+    if (categoryName) {
+      where.category = {
+        categoryName: { contains: categoryName, mode: "insensitive" },
+      };
+    }
+    if (typeName) {
+      where.type = { typeName: { contains: typeName, mode: "insensitive" } };
+    }
+    if (stationName) {
+      where.station = {
+        stationName: { contains: stationName, mode: "insensitive" },
+      };
+    }
+
+    if (startDate && endDate) {
+      where.updatedAt = { gte: startDate, lte: endDate };
+    } else if (startDate) {
+      where.updatedAt = { gte: startDate };
+    } else if (endDate) {
+      where.updatedAt = { lte: endDate };
+    }
+
     // 1. Group by Category & Type
     const grouped = await db.cardInventory.groupBy({
       by: ["categoryId", "typeId"],
+      where,
       _sum: {
         cardOffice: true,
         cardBeredar: true,
@@ -301,7 +356,7 @@ export class CardInventoryService {
         db.card.count({
           where: {
             status: {
-              notIn: ["LOST", "DAMAGED"],
+              in: ["IN_OFFICE", "IN_STATION"],
             },
           },
         }),
@@ -324,7 +379,23 @@ export class CardInventoryService {
    * Get Station Inventory Monitor
    * Returns inventory data for all stations formatted for monitoring table
    */
-  static async getStationInventoryMonitor(stationId?: string) {
+  static async getStationInventoryMonitor(
+    options: InventoryMonitorOptions | string = {}
+  ) {
+    // Handle overload for backwards compatibility or single arg usage if any
+    const opts: InventoryMonitorOptions =
+      typeof options === "string" ? { stationId: options } : options;
+    const {
+      stationId,
+      categoryId,
+      typeId,
+      startDate,
+      endDate,
+      categoryName,
+      typeName,
+      stationName,
+    } = opts;
+
     const where: any = {
       stationId: {
         not: null, // Only get entries assigned to a station
@@ -333,6 +404,45 @@ export class CardInventoryService {
 
     if (stationId) {
       where.stationId = stationId;
+    }
+
+    if (categoryId) {
+      where.categoryId = categoryId;
+    }
+
+    if (typeId) {
+      where.typeId = typeId;
+    }
+
+    if (categoryName) {
+      where.category = {
+        categoryName: { contains: categoryName, mode: "insensitive" },
+      };
+    }
+
+    if (typeName) {
+      where.type = { typeName: { contains: typeName, mode: "insensitive" } };
+    }
+
+    if (stationName) {
+      where.station = {
+        stationName: { contains: stationName, mode: "insensitive" },
+      };
+    }
+
+    if (startDate && endDate) {
+      where.updatedAt = {
+        gte: startDate,
+        lte: endDate,
+      };
+    } else if (startDate) {
+      where.updatedAt = {
+        gte: startDate,
+      };
+    } else if (endDate) {
+      where.updatedAt = {
+        lte: endDate,
+      };
     }
 
     const inventories = await db.cardInventory.findMany({
