@@ -10,7 +10,13 @@ export class CardService {
     page?: number;
     limit?: number;
   }) {
-    const { cardProductId, status, search, page = 1, limit = 50 } = params || {};
+    const {
+      cardProductId,
+      status,
+      search,
+      page = 1,
+      limit = 50,
+    } = params || {};
 
     const where: any = {
       deletedAt: null,
@@ -23,7 +29,7 @@ export class CardService {
 
     // Filter by status
     if (status) {
-      where.status = status;
+      where.status = status.toUpperCase();
     }
 
     // Search by serialNumber
@@ -68,6 +74,14 @@ export class CardService {
                   typeName: true,
                 },
               },
+            },
+          },
+          fileObject: {
+            select: {
+              id: true,
+              originalName: true,
+              relativePath: true,
+              mimeType: true,
             },
           },
         },
@@ -125,6 +139,14 @@ export class CardService {
             identityNumber: true,
           },
         },
+        fileObject: {
+          select: {
+            id: true,
+            originalName: true,
+            relativePath: true,
+            mimeType: true,
+          },
+        },
       },
     });
 
@@ -166,6 +188,21 @@ export class CardService {
             },
           },
         },
+        member: {
+          select: {
+            id: true,
+            name: true,
+            identityNumber: true,
+          },
+        },
+        fileObject: {
+          select: {
+            id: true,
+            originalName: true,
+            relativePath: true,
+            mimeType: true,
+          },
+        },
       },
     });
 
@@ -183,4 +220,3 @@ export class CardService {
     };
   }
 }
-
