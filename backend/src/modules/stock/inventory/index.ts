@@ -268,6 +268,7 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
           }
         },
         {
+          query: CardInventoryModel.getCategoryTypeSummaryQuery,
           response: {
             200: CardInventoryModel.getCategoryTypeSummaryResponse,
             400: CardInventoryModel.errorResponse,

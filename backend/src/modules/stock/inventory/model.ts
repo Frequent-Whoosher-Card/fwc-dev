@@ -23,6 +23,17 @@ export namespace CardInventoryModel {
     typeName: t.Optional(t.String()),
   });
 
+  export const getCategoryTypeSummaryQuery = t.Object({
+    stationId: t.Optional(t.String()),
+    categoryId: t.Optional(t.String()),
+    typeId: t.Optional(t.String()),
+    startDate: t.Optional(t.String()),
+    endDate: t.Optional(t.String()),
+    categoryName: t.Optional(t.String()),
+    typeName: t.Optional(t.String()),
+    stationName: t.Optional(t.String()),
+  });
+
   export const inventoryItem = t.Object({
     id: t.String(),
     categoryId: t.String(),
