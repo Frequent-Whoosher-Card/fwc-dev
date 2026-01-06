@@ -13,11 +13,13 @@ import {
   Calendar,
   CheckCircle,
   Search,
+  Loader2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '@/lib/apiConfig';
-import { createMember } from '@/lib/services/membership.service';
+import { createMember, extractKTPFields } from '@/lib/services/membership.service';
 import { createPurchase } from '@/lib/services/purchase.service';
+import { ImageCropUpload } from '@/components/ui/image-crop-upload';
 
 /* ======================
    BASE INPUT STYLE
@@ -186,6 +188,8 @@ export default function AddMemberPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [operatorName, setOperatorName] = useState('');
+  const [ktpImage, setKtpImage] = useState<File | null>(null);
+  const [isExtractingOCR, setIsExtractingOCR] = useState(false);
 
   // Card Products
   const [cardProducts, setCardProducts] = useState<CardProduct[]>([]);
@@ -383,6 +387,37 @@ export default function AddMemberPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleKTPImageChange = async (file: File | null) => {
+    setKtpImage(file);
+    if (file) {
+      setIsExtractingOCR(true);
+      try {
+        const ocrResult = await extractKTPFields(file);
+        if (ocrResult.success && ocrResult.data) {
+          const data = ocrResult.data;
+          
+          // Auto-fill form dengan data dari OCR (NIK, Nama, Jenis Kelamin, dan Alamat)
+          setForm((prev) => ({
+            ...prev,
+            nik: data.identityNumber || prev.nik,
+            name: data.name || prev.name,
+            gender: data.gender === 'Laki-laki' ? 'L' : data.gender === 'Perempuan' ? 'P' : prev.gender,
+            address: data.alamat || prev.address,
+          }));
+
+          toast.success('Data KTP berhasil diekstrak!');
+        } else {
+          toast.error('Gagal mengekstrak data KTP. Silakan isi manual.');
+        }
+      } catch (error: any) {
+        console.error('OCR Error:', error);
+        toast.error(error.message || 'Gagal mengekstrak data KTP. Silakan isi manual.');
+      } finally {
+        setIsExtractingOCR(false);
+      }
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -519,6 +554,23 @@ export default function AddMemberPage() {
         {/* FORM */}
         <form onSubmit={handleSubmit} className="rounded-lg border bg-white p-6">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {/* KTP Upload dengan Crop - Full Width */}
+            <div className="md:col-span-2">
+              <Field label="Upload & Crop Gambar KTP (Opsional - untuk auto-fill)">
+                <ImageCropUpload
+                  onImageChange={handleKTPImageChange}
+                  maxSize={400}
+                  className="w-full"
+                />
+                {isExtractingOCR && (
+                  <div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
+                    <Loader2 className="animate-spin" size={16} />
+                    <span>Mengekstrak data dari KTP...</span>
+                  </div>
+                )}
+              </Field>
+            </div>
+
             {/* Membership Name - Full Width */}
             <div className="md:col-span-2">
               <input

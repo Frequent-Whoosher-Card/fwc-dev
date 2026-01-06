@@ -243,9 +243,97 @@ const deleteRoutes = new Elysia()
     }
   );
 
+// OCR Extract routes - petugas, supervisor, admin, superadmin
+const ocrRoutes = new Elysia()
+  .use(rbacMiddleware(["petugas", "supervisor", "admin", "superadmin"]))
+  .post(
+    "/ocr-extract",
+    async (context) => {
+      const { body, set } = context as typeof context & AuthContextUser;
+      try {
+        // Handle multipart/form-data
+        // Elysia automatically parses multipart/form-data
+        const formData = body as any;
+        const file = formData?.image || formData?.file || formData?.ktp;
+
+        if (!file) {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("Image file is required. Please upload a KTP image.")
+          );
+        }
+
+        // Convert to File object if it's not already
+        let fileObj: File;
+        if (file instanceof File) {
+          fileObj = file;
+        } else if (file && typeof file === "object" && "data" in file) {
+          // Handle case where file might be in different format
+          const fileData = file as any;
+          fileObj = new File([fileData.data], fileData.name || "ktp.jpg", {
+            type: fileData.type || "image/jpeg",
+          });
+        } else {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("Invalid file format. Please upload a valid image file.")
+          );
+        }
+
+        // Validate file type
+        const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+        if (!allowedTypes.includes(fileObj.type)) {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("Invalid file type. Please upload a JPEG, PNG, or WebP image.")
+          );
+        }
+
+        // Validate file size (max 10MB)
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (fileObj.size > maxSize) {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("File size too large. Maximum size is 10MB.")
+          );
+        }
+
+        const result = await MemberService.extractKTPFields(fileObj);
+        return result;
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      body: t.Object({
+        image: t.File({
+          type: ["image/jpeg", "image/jpg", "image/png", "image/webp"],
+        }),
+      }),
+      response: {
+        200: MemberModel.ocrExtractResponse,
+        400: MemberModel.errorResponse,
+        401: MemberModel.errorResponse,
+        403: MemberModel.errorResponse,
+        500: MemberModel.errorResponse,
+      },
+      detail: {
+        tags: ["Members"],
+        summary: "Extract KTP fields using OCR",
+        description:
+          "Extract KTP fields (NIK, name, gender, address, etc.) from uploaded KTP image using OCR (petugas, supervisor, admin, superadmin)",
+      },
+    }
+  );
+
 // Combine all routes
 export const members = new Elysia({ prefix: "/members" })
   .use(baseRoutes)
   .use(writeRoutes)
   .use(updateRoutes)
-  .use(deleteRoutes);
+  .use(deleteRoutes)
+  .use(ocrRoutes);
