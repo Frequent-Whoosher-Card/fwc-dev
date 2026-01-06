@@ -1,10 +1,15 @@
-export default function SuperAdminTransactionPage() {
+'use client';
+
+import TransactionToolbar from './components/TransactionToolbar';
+import TransactionFilter from './components/TransactionFilter';
+import TransactionTable from './components/TransactionTable';
+
+export default function TransactionPage() {
   return (
-    <div className="p-6">
-      <h1 className="text-xl font-semibold">SuperAdmin Transaction</h1>
-      <p className="mt-2 text-sm text-gray-500">
-        Halaman ini masih dalam pengembangan.
-      </p>
+    <div className="space-y-4">
+      <TransactionToolbar />
+      <TransactionFilter />
+      <TransactionTable />
     </div>
   );
 }
