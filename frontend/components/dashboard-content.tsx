@@ -72,12 +72,16 @@ export function DashboardContent() {
     setErrorMessage(null);
 
     try {
+      const token = localStorage.getItem('fwc_token');
+      if (!token) throw new Error('No auth token');
+
       const res = await fetch(`${API_BASE_URL}/sales/daily-grouped?startDate=2025-01-01&endDate=2025-01-31&stationId=`, {
         method: 'GET',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
       });
-
       const json: DailySalesResponse = await res.json();
 
       if (!res.ok || !json.success) {
