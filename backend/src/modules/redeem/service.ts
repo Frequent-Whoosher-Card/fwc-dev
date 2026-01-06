@@ -1,7 +1,12 @@
 import db from "../../config/db";
 import { CardStatus } from "@prisma/client";
+import { NotFoundError } from "../../utils/errors";
 
 export class RedeemService {
+  /**
+   * Check card details by serial number
+   * @param serialNumber Serial number of the card
+   */
   static async checkSerial(serialNumber: string) {
     const card = await db.card.findUnique({
       where: { serialNumber },
@@ -18,21 +23,22 @@ export class RedeemService {
     });
 
     if (!card) {
-      throw {
-        statusCode: 404,
-        message: "Card not found",
-      };
+      throw new NotFoundError("Card not found");
     }
 
     // Determine status text
     let statusActive = "Tidak Aktif";
+
+    // Status logic update:
+    // SOLD_ACTIVE -> Aktif
+    // SOLD_INACTIVE -> Tidak Aktif (but still return data)
+    // Others -> Use the raw status string (or map as needed, e.g. "Expired" was previously mapped from SOLD_INACTIVE)
+
     if (card.status === CardStatus.SOLD_ACTIVE) {
-      statusActive = "Aktif";
+      statusActive = "ACTIVE";
     } else if (card.status === CardStatus.SOLD_INACTIVE) {
-      statusActive = "Expired";
+      statusActive = "EXPIRED";
     } else {
-      // For other statuses, just use the raw enum or keep "Tidak Aktif"
-      // Maybe formatted slightly better?
       statusActive = card.status;
     }
 
@@ -56,6 +62,8 @@ export class RedeemService {
       serialNumber: card.serialNumber,
       quotaRemaining: card.quotaTicket,
       statusActive,
+      purchaseDate: card.purchaseDate ? card.purchaseDate.toISOString() : null,
+      expiredDate: card.expiredDate ? card.expiredDate.toISOString() : null,
     };
   }
 }

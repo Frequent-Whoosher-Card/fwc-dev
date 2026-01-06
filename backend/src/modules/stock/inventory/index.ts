@@ -13,9 +13,36 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
       .get(
         "/station-monitor",
         async ({ query }) => {
-          const { stationId } = query as { stationId?: string };
-          const data =
-            await CardInventoryService.getStationInventoryMonitor(stationId);
+          const {
+            stationId,
+            categoryId,
+            typeId,
+            startDate,
+            endDate,
+            categoryName,
+            typeName,
+            stationName,
+          } = query as {
+            stationId?: string;
+            categoryId?: string;
+            typeId?: string;
+            startDate?: string;
+            endDate?: string;
+            categoryName?: string;
+            typeName?: string;
+            stationName?: string;
+          };
+
+          const data = await CardInventoryService.getStationInventoryMonitor({
+            stationId,
+            categoryId,
+            typeId,
+            startDate: startDate ? new Date(startDate) : undefined,
+            endDate: endDate ? new Date(endDate) : undefined,
+            categoryName,
+            typeName,
+            stationName,
+          });
           return {
             success: true,
             data,
@@ -199,9 +226,38 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
       .get(
         "/category-type-summary",
         async (context) => {
-          const { set } = context;
+          const { set, query } = context;
+          const {
+            stationId,
+            categoryId,
+            typeId,
+            startDate,
+            endDate,
+            categoryName,
+            typeName,
+            stationName,
+          } = query as {
+            stationId?: string;
+            categoryId?: string;
+            typeId?: string;
+            startDate?: string;
+            endDate?: string;
+            categoryName?: string;
+            typeName?: string;
+            stationName?: string;
+          };
+
           try {
-            const result = await CardInventoryService.getCategoryTypeSummary();
+            const result = await CardInventoryService.getCategoryTypeSummary({
+              stationId,
+              categoryId,
+              typeId,
+              startDate: startDate ? new Date(startDate) : undefined,
+              endDate: endDate ? new Date(endDate) : undefined,
+              categoryName,
+              typeName,
+              stationName,
+            });
             return {
               success: true,
               data: result,
@@ -212,6 +268,7 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
           }
         },
         {
+          query: CardInventoryModel.getCategoryTypeSummaryQuery,
           response: {
             200: CardInventoryModel.getCategoryTypeSummaryResponse,
             400: CardInventoryModel.errorResponse,

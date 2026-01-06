@@ -22,6 +22,15 @@ export namespace CardModel {
         typeName: t.String(),
       }),
     }),
+    fileObject: t.Union([
+      t.Object({
+        id: t.String({ format: "uuid" }),
+        originalName: t.String(),
+        relativePath: t.String(),
+        mimeType: t.String(),
+      }),
+      t.Null(),
+    ]),
   });
 
   // Get Cards Query
@@ -29,17 +38,20 @@ export namespace CardModel {
     cardProductId: t.Optional(
       t.String({
         format: "uuid",
-        description: "Filter by card product ID. Returns only cards belonging to the specified card product.",
+        description:
+          "Filter by card product ID. Returns only cards belonging to the specified card product.",
       })
     ),
     status: t.Optional(
       t.String({
-        description: "Filter by card status. Valid values: IN_OFFICE, IN_TRANSIT, IN_STATION, LOST, DAMAGED, SOLD_ACTIVE, SOLD_INACTIVE",
+        description:
+          "Filter by card status. Valid values: IN_OFFICE, IN_TRANSIT, IN_STATION, LOST, DAMAGED, SOLD_ACTIVE, SOLD_INACTIVE",
       })
     ),
     search: t.Optional(
       t.String({
-        description: "Search by serial number (case-insensitive partial match). Useful for finding cards by serial number.",
+        description:
+          "Search by serial number (case-insensitive partial match). Useful for finding cards by serial number.",
       })
     ),
     page: t.Optional(
@@ -102,6 +114,15 @@ export namespace CardModel {
         }),
         t.Null(),
       ]),
+      fileObject: t.Union([
+        t.Object({
+          id: t.String({ format: "uuid" }),
+          originalName: t.String(),
+          relativePath: t.String(),
+          mimeType: t.String(),
+        }),
+        t.Null(),
+      ]),
     }),
   });
 
@@ -115,4 +136,3 @@ export namespace CardModel {
     }),
   });
 }
-

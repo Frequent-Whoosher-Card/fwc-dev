@@ -94,36 +94,49 @@ export class StockInService {
         (sfx) => `${product.serialTemplate}${yearSuffix}${sfx}`
       );
 
-      // 4) Validasi serialNumber belum ada
-      const existing = await tx.card.findFirst({
-        where: { serialNumber: { in: serialNumbers } },
-        select: { serialNumber: true },
+      // 4) Validasi Kartu SUDAH DI-GENERATE (Status: ON_REQUEST)
+      // Logikanya berubah: Dulu cek existing -> error. Sekarang cek existing -> harus ada & status ON_REQUEST.
+      const existingCards = await tx.card.findMany({
+        where: {
+          serialNumber: { in: serialNumbers },
+          cardProductId: product.id,
+        },
+        select: { id: true, serialNumber: true, status: true },
       });
 
-      if (existing) {
-        // Fetch the last created card for this product to give a hint
-        const lastCard = await tx.card.findFirst({
-          where: { cardProductId: product.id },
-          orderBy: { serialNumber: "desc" }, // Sort by serialNumber to get the true "last" one
-          select: { serialNumber: true },
-        });
-
+      // a. Cek jumlah
+      if (existingCards.length !== serialNumbers.length) {
+        const foundSerials = new Set(existingCards.map((c) => c.serialNumber));
+        const missing = serialNumbers.filter((s) => !foundSerials.has(s));
         throw new ValidationError(
-          `Serial ${existing.serialNumber} sudah terdaftar. Nomor serial terakhir untuk kategori & tipe ini: ${
-            lastCard?.serialNumber || "Tidak diketahui"
-          }`
+          `Beberapa kartu belum di-generate: ${missing.slice(0, 3).join(", ")}... (Total hilang: ${missing.length}). Silakan generate kartu terlebih dahulu.`
         );
       }
 
-      // 5) Insert batch cards (status IN_OFFICE)
-      await tx.card.createMany({
-        data: serialNumbers.map((sn) => ({
-          serialNumber: sn,
+      // b. Cek status (Harus ON_REQUEST atau mungkin boleh IN_OFFICE jika re-stock?
+      // Asumsi strict flow: Generate -> StockIn. Jika sudah IN_OFFICE berarti duplikat stock in?)
+      // Kita anggap hanya boleh ON_REQUEST.
+      const invalidStatus = existingCards.filter(
+        (c) => c.status !== "ON_REQUEST"
+      );
+      if (invalidStatus.length > 0) {
+        throw new ValidationError(
+          `Beberapa kartu memiliki status tidak valid (bukan ON_REQUEST): ${invalidStatus[0].serialNumber} (${invalidStatus[0].status}).`
+        );
+      }
+
+      // 5) Update Status Kartu menjadi IN_OFFICE
+      // Karena kita sudah validasi semua cards ada dan status ok, kita bisa updateMany by serialNumbers
+      await tx.card.updateMany({
+        where: {
           cardProductId: product.id,
-          quotaTicket: product.totalQuota, // Initialize quota from product
+          serialNumber: { in: serialNumbers },
+        },
+        data: {
           status: "IN_OFFICE",
-          createdBy: userId,
-        })),
+          updatedBy: userId,
+          updatedAt: new Date(),
+        },
       });
 
       // 6) Catat stock movement IN
