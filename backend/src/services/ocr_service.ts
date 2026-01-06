@@ -74,9 +74,16 @@ class OCRService {
           "scripts/ocr/ocr_daemon.py"
         );
 
+        // Use venv Python if available, otherwise fall back to system python3
+        const venvPython = join(
+          process.cwd(),
+          "scripts/ocr/venv/bin/python3"
+        );
+        const pythonExecutable = venvPython;
+
         // Spawn Python daemon process
         this.pythonProcess = spawn([
-          "python3",
+          pythonExecutable,
           pythonScriptPath,
           this.requestDir,
           this.responseDir,
@@ -91,8 +98,42 @@ class OCRService {
           },
         });
 
+        // Collect stderr for debugging (non-blocking)
+        let stderrChunks: string[] = [];
+        if (this.pythonProcess.stderr) {
+          (async () => {
+            try {
+              for await (const chunk of this.pythonProcess.stderr!) {
+                stderrChunks.push(new TextDecoder().decode(chunk));
+              }
+            } catch (e) {
+              // Ignore stderr reading errors
+            }
+          })();
+        }
+
+        // Monitor process exit
+        this.pythonProcess.exited.then((code) => {
+          console.error(`OCR daemon process exited with code ${code}`);
+          if (stderrChunks.length > 0) {
+            console.error("OCR daemon stderr:", stderrChunks.join('').slice(-500));
+          }
+          this.pythonProcess = null;
+        }).catch((error) => {
+          console.error("OCR daemon process error:", error);
+          this.pythonProcess = null;
+        });
+
         // Wait a bit for model to load
         await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        // Check if process is still running
+        if (!this.pythonProcess || this.pythonProcess.killed) {
+          const errorMsg = stderrChunks.length > 0
+            ? `OCR daemon process crashed during initialization. Last error: ${stderrChunks.join('').slice(-500)}`
+            : "OCR daemon process failed to start or crashed during initialization";
+          throw new Error(errorMsg);
+        }
 
         console.log("OCR daemon initialized - model cached in memory");
       } catch (error) {

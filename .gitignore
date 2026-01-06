@@ -66,6 +66,15 @@ package-lock.json
 # Prisma
 backend/prisma/generated/*
 
+# Python virtual environments
+backend/scripts/ocr/venv/
+**/venv/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
 ############################
 # FRONTEND (Next.js)
 ############################
