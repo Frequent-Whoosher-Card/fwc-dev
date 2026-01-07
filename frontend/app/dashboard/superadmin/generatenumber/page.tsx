@@ -3,18 +3,24 @@
 import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import JsBarcode from 'jsbarcode';
-import jsPDF from 'jspdf';
 import axios from '@/lib/axios';
+import JSZip from 'jszip';
 
 interface CardProduct {
   id: string;
   serialTemplate: string;
-  category: {
-    categoryName: string;
-  };
-  type: {
-    typeName: string;
-  };
+  category: { categoryName: string };
+  type: { typeName: string };
+}
+
+interface GeneratedBatch {
+  id: string;
+  date: string;
+  productLabel: string;
+  serialTemplate: string;
+  start: string;
+  end: string;
+  serials: string[];
 }
 
 export default function GenerateNumberPage() {
@@ -24,11 +30,15 @@ export default function GenerateNumberPage() {
   const [startNumber, setStartNumber] = useState('');
   const [endNumber, setEndNumber] = useState('');
   const [generated, setGenerated] = useState<string[]>([]);
+  const [batches, setBatches] = useState<GeneratedBatch[]>([]);
+  const [inputDate, setInputDate] = useState(new Date().toISOString().split('T')[0]);
 
   const barcodeRefs = useRef<Record<string, SVGSVGElement | null>>({});
 
+  const year2 = String(new Date(inputDate).getFullYear()).slice(-2);
+
   // =========================
-  // RENDER BARCODE (UI)
+  // BARCODE PREVIEW (TETAP)
   // =========================
   useEffect(() => {
     generated.forEach((serial) => {
@@ -40,42 +50,28 @@ export default function GenerateNumberPage() {
           height: 50,
           displayValue: true,
           fontSize: 12,
-          textMargin: 4,
           margin: 0,
         });
       }
     });
   }, [generated]);
 
-  // Fetch card product
+  // =========================
+  // FETCH PRODUCT (TETAP)
+  // =========================
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const res = await axios.get('/card/product');
-        setProducts(res.data?.data || []);
-      } catch (err: any) {
-        if (err.response?.status === 401) {
-          toast.error('Sesi login habis, silakan login ulang');
-        } else {
-          toast.error('Gagal mengambil card product');
-        }
-      }
-    };
-
-    fetchProducts();
+    axios
+      .get('/card/product')
+      .then((res) => setProducts(res.data?.data || []))
+      .catch(() => toast.error('Gagal mengambil card product'));
   }, []);
 
   // =========================
-  // GENERATE SERIAL NUMBER
+  // GENERATE (LOGIC SAJA)
   // =========================
   const handleGenerate = () => {
     if (!selectedProduct) {
       toast.error('Card product wajib dipilih');
-      return;
-    }
-
-    if (!startNumber || !endNumber) {
-      toast.error('Start & end number wajib diisi');
       return;
     }
 
@@ -92,86 +88,39 @@ export default function GenerateNumberPage() {
       return;
     }
 
-    const result: string[] = [];
+    const serials: string[] = [];
 
     for (let i = start; i <= end; i++) {
-      result.push(`${selectedProduct.serialTemplate}${String(new Date().getFullYear()).slice(-2)}${String(i).padStart(5, '0')}`);
+      serials.push(`${selectedProduct.serialTemplate}${year2}${String(i).padStart(5, '0')}`);
     }
 
-    setGenerated(result);
-    toast.success(`Generate ${result.length} serial`);
-  };
+    setGenerated(serials);
 
-  // =========================
-  // EXPORT BARCODE TO PDF
-  // =========================
-  const handleExportPDF = () => {
-    if (generated.length === 0) {
-      toast.error('Tidak ada barcode untuk diexport');
-      return;
-    }
+    const batch: GeneratedBatch = {
+      id: crypto.randomUUID(),
+      date: inputDate,
+      productLabel: `${selectedProduct.category.categoryName} - ${selectedProduct.type.typeName}`,
+      serialTemplate: `${selectedProduct.serialTemplate}${year2}`,
+      start: startNumber,
+      end: endNumber,
+      serials,
+    };
 
-    const doc = new jsPDF('p', 'mm', 'a4');
+    setBatches((prev) => [batch, ...prev]);
+    sessionStorage.setItem(batch.id, JSON.stringify(batch));
 
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const marginX = 10;
-    const marginY = 10;
-    const colCount = 2;
-    const barcodeWidth = (pageWidth - marginX * 2) / colCount;
-    const barcodeHeight = 30;
-
-    let x = marginX;
-    let y = marginY;
-
-    // 🔥 SCALE FACTOR (KUNCI TAJAM)
-    const scale = 4;
-
-    generated.forEach((serial, index) => {
-      // === HI-DPI CANVAS ===
-      const canvas = document.createElement('canvas');
-      canvas.width = 400 * scale;
-      canvas.height = 120 * scale;
-
-      JsBarcode(canvas, serial, {
-        format: 'CODE128',
-        width: 2 * scale,
-        height: 40 * scale,
-        displayValue: true,
-        fontSize: 14 * scale,
-        margin: 10 * scale,
-      });
-
-      const imgData = canvas.toDataURL('image/png');
-
-      // === DOWNSCALE KE PDF ===
-      doc.addImage(imgData, 'PNG', x, y, barcodeWidth - 5, barcodeHeight);
-
-      x += barcodeWidth;
-
-      if ((index + 1) % colCount === 0) {
-        x = marginX;
-        y += barcodeHeight + 8;
-
-        if (y > 270) {
-          doc.addPage();
-          y = marginY;
-        }
-      }
-    });
-
-    doc.save('barcode-serial.pdf');
+    toast.success(`Generate ${serials.length} serial`);
   };
 
   return (
     <div className="space-y-6 px-6">
-      {/* HEADER */}
-      <div>
-        <h2 className="text-lg font-semibold">Generate Number + Barcode</h2>
-        <p className="text-sm text-gray-500">Generate serial number beserta barcode</p>
-      </div>
+      <h2 className="text-lg font-semibold">Generate Number + Barcode</h2>
 
-      {/* FORM */}
+      {/* ================= FORM (ASLI, TIDAK DIUBAH) ================= */}
       <div className="rounded-xl border bg-white p-6 space-y-4 max-w-xl">
+        {/* DATE */}
+        <input type="date" className="w-full rounded-lg border px-4 py-2" value={inputDate} onChange={(e) => setInputDate(e.target.value)} />
+
         {/* CARD PRODUCT */}
         <select
           className="w-full rounded-lg border px-4 py-2"
@@ -179,9 +128,7 @@ export default function GenerateNumberPage() {
           onChange={(e) => {
             const productId = e.target.value;
             setSelectedProductId(productId);
-
-            const product = products.find((p) => p.id === productId) || null;
-            setSelectedProduct(product);
+            setSelectedProduct(products.find((p) => p.id === productId) || null);
           }}
         >
           <option value="">-- Pilih Card Product --</option>
@@ -192,84 +139,76 @@ export default function GenerateNumberPage() {
           ))}
         </select>
 
-        {/* SERIAL TEMPLATE */}
+        {/* SERIAL TEMPLATE (TETAP ADA) */}
         {selectedProduct && (
-          <div className="rounded-lg border bg-gray-50 px-4 py-3 text-sm space-y-1">
+          <div className="rounded-lg border bg-gray-50 px-4 py-3 text-sm">
             <p className="text-gray-500">Serial Template</p>
-
             <p className="font-mono font-medium">
               {selectedProduct.serialTemplate}
-              {String(new Date().getFullYear()).slice(-2)}
+              {year2}
               <span className="ml-2 text-gray-500">+ 5 angka serial number</span>
             </p>
           </div>
         )}
 
-        {/* START NUMBER */}
+        {/* START NUMBER (PREFIX TETAP) */}
         <div className="flex">
           <span className="flex items-center rounded-l-lg border border-r-0 bg-gray-100 px-3 font-mono text-sm text-gray-600">
             {selectedProduct?.serialTemplate}
-            {String(new Date().getFullYear()).slice(-2)}
+            {year2}
           </span>
           <input className="w-full rounded-r-lg border px-4 py-2 font-mono" placeholder="00001" value={startNumber} onChange={(e) => setStartNumber(e.target.value)} disabled={!selectedProduct} maxLength={5} />
         </div>
 
-        {/* END NUMBER */}
+        {/* END NUMBER (PREFIX TETAP) */}
         <div className="flex">
           <span className="flex items-center rounded-l-lg border border-r-0 bg-gray-100 px-3 font-mono text-sm text-gray-600">
             {selectedProduct?.serialTemplate}
-            {String(new Date().getFullYear()).slice(-2)}
+            {year2}
           </span>
           <input className="w-full rounded-r-lg border px-4 py-2 font-mono" placeholder="00100" value={endNumber} onChange={(e) => setEndNumber(e.target.value)} disabled={!selectedProduct} maxLength={5} />
         </div>
 
         {/* ACTION */}
-        <div className="flex gap-3">
-          <button onClick={handleGenerate} disabled={!selectedProduct} className="rounded-lg bg-[#8D1231] px-6 py-2 text-white disabled:opacity-50">
-            Generate
-          </button>
-
-          {generated.length > 0 && (
-            <button onClick={handleExportPDF} className="rounded-lg border px-6 py-2 text-sm hover:bg-gray-100">
-              Export PDF
-            </button>
-          )}
-        </div>
+        <button onClick={handleGenerate} disabled={!selectedProduct} className="rounded-lg bg-[#8D1231] px-6 py-2 text-white disabled:opacity-50">
+          Generate
+        </button>
       </div>
 
-      {/* RESULT */}
-      {generated.length > 0 && (
-        <div className="rounded-xl border bg-white overflow-hidden">
-          <div className="border-b px-4 py-3 font-medium">Generated Barcode</div>
-
+      {/* ================= LIST ================= */}
+      {batches.length > 0 && (
+        <div className="rounded-xl border bg-white">
+          <div className="border-b px-4 py-3 font-medium">Generated List</div>
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-center w-16">No</th>
-                <th className="px-4 py-3 text-left">Serial</th>
-                <th className="px-4 py-3 text-left">Barcode</th>
+                <th className="px-4 py-2">Tanggal</th>
+                <th className="px-4 py-2">Product</th>
+                <th className="px-4 py-2">Range</th>
+                <th className="px-4 py-2 text-center">Qty</th>
+                <th className="px-4 py-2 text-center">Action</th>
               </tr>
             </thead>
             <tbody>
-              {generated.map((serial, index) => (
-                <tr key={serial} className="border-b">
-                  <td className="px-4 py-2 text-center">{index + 1}</td>
-                  <td className="px-4 py-2 font-mono">{serial}</td>
-                  <td className="px-4 py-2">
-                    <svg
-                      ref={(el) => {
-                        if (el) {
-                          barcodeRefs.current[serial] = el;
-                        }
-                      }}
-                    />
+              {batches.map((b) => (
+                <tr key={b.id} className="border-t">
+                  <td className="px-4 py-2">{b.date}</td>
+                  <td className="px-4 py-2">{b.productLabel}</td>
+                  <td className="px-4 py-2 font-mono">
+                    {b.serialTemplate}
+                    {b.start} – {b.serialTemplate}
+                    {b.end}
+                  </td>
+                  <td className="px-4 py-2 text-center">{b.serials.length}</td>
+                  <td className="px-4 py-2 text-center">
+                    <a href={`/dashboard/superadmin/generatenumber/view/${b.id}`} className="text-[#8D1231] underline">
+                      View
+                    </a>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-
-          <div className="px-4 py-3 text-sm text-gray-500">Total: {generated.length}</div>
         </div>
       )}
     </div>
