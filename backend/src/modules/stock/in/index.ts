@@ -154,6 +154,54 @@ export const stockIn = new Elysia({ prefix: "/in" })
           },
         }
       )
+      .post(
+        "/damaged",
+        async (context) => {
+          const { body, set, user } = context as typeof context &
+            AuthContextUser;
+          try {
+            const result = await StockInService.reportDamaged(
+              body.serialNumbers,
+              user.id,
+              body.note
+            );
+
+            return {
+              success: true,
+              message: result.message,
+              data: result.movements,
+            };
+          } catch (error) {
+            set.status =
+              error instanceof Error && "statusCode" in error
+                ? (error as any).statusCode
+                : 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          body: StockInModel.reportDamagedBody,
+          response: {
+            200: t.Object({
+              success: t.Boolean(),
+              message: t.String(),
+              data: t.Array(t.Any()), // Dynamic array of movements
+            }),
+            400: StockInModel.errorResponse,
+            401: StockInModel.errorResponse,
+            403: StockInModel.errorResponse,
+            404: StockInModel.errorResponse,
+            422: StockInModel.errorResponse,
+            500: StockInModel.errorResponse,
+          },
+          detail: {
+            tags: ["Stock In"],
+            summary: "Report Damaged Cards (QC)",
+            description:
+              "Melaporkan kartu IN_OFFICE sebagai DAMAGED. Mencatat movement OUT (Adjustment) dan mengurangi stok office.",
+          },
+        }
+      )
   )
   .group("", (app) =>
     app

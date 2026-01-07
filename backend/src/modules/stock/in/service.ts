@@ -109,7 +109,9 @@ export class StockInService {
         const foundSerials = new Set(existingCards.map((c) => c.serialNumber));
         const missing = serialNumbers.filter((s) => !foundSerials.has(s));
         throw new ValidationError(
-          `Beberapa kartu belum di-generate: ${missing.slice(0, 3).join(", ")}... (Total hilang: ${missing.length}). Silakan generate kartu terlebih dahulu.`
+          `Nomor serial tersebut belum digenerate: ${missing
+            .slice(0, 3)
+            .join(", ")}${missing.length > 3 ? "..." : ""}`
         );
       }
 
@@ -880,6 +882,129 @@ export class StockInService {
       });
 
       return { success: true, message: "Batch status updated successfully" };
+    });
+  }
+
+  /**
+   * Report Damaged Cards
+   * Moves cards from IN_OFFICE to DAMAGED
+   * Creates an OUT movement (with stationId=null) to record the loss.
+   */
+  static async reportDamaged(
+    serialNumbers: string[],
+    userId: string,
+    note?: string
+  ) {
+    if (!serialNumbers.length) {
+      throw new ValidationError("No serial numbers provided");
+    }
+
+    return await db.$transaction(async (tx) => {
+      // 1. Find Cards
+      const cards = await tx.card.findMany({
+        where: { serialNumber: { in: serialNumbers } },
+        select: {
+          id: true,
+          serialNumber: true,
+          status: true,
+          cardProduct: {
+            select: {
+              categoryId: true,
+              typeId: true,
+            },
+          },
+        },
+      });
+
+      // 2. Validate Existence & Status
+      if (cards.length !== serialNumbers.length) {
+        const found = new Set(cards.map((c) => c.serialNumber));
+        const missing = serialNumbers.filter((s) => !found.has(s));
+        throw new ValidationError(
+          `Serial numbers not found: ${missing.join(", ")}`
+        );
+      }
+
+      const invalidStatus = cards.filter((c) => c.status !== "IN_OFFICE");
+      if (invalidStatus.length > 0) {
+        throw new ValidationError(
+          `Only cards with status IN_OFFICE can be reported damaged. Invalid: ${invalidStatus
+            .map((c) => c.serialNumber)
+            .join(", ")}`
+        );
+      }
+
+      // 3. Group by Product for Inventory Management
+      const groups = new Map<string, typeof cards>();
+
+      for (const card of cards) {
+        const key = `${card.cardProduct.categoryId}:${card.cardProduct.typeId}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push(card);
+      }
+
+      const results = [];
+
+      for (const [key, groupCards] of groups) {
+        const categoryId = groupCards[0].cardProduct.categoryId;
+        const typeId = groupCards[0].cardProduct.typeId;
+        const quantity = groupCards.length;
+        const groupSerials = groupCards.map((c) => c.serialNumber);
+
+        // a. Update Cards Status -> DAMAGED
+        await tx.card.updateMany({
+          where: { serialNumber: { in: groupSerials } },
+          data: {
+            status: "DAMAGED",
+            updatedAt: new Date(),
+            updatedBy: userId,
+          },
+        });
+
+        // b. Create Movement (Type OUT, Station NULL = Loss/Adj)
+        const movement = await tx.cardStockMovement.create({
+          data: {
+            movementAt: new Date(),
+            type: "OUT",
+            status: "APPROVED",
+            categoryId,
+            typeId,
+            quantity,
+            stationId: null, // Indicates Office/System Adjustment
+            sentSerialNumbers: groupSerials,
+            damagedSerialNumbers: groupSerials, // Explicitly mark as damaged for stats
+            note: note || "Reported Damaged from Office",
+            createdAt: new Date(),
+            createdBy: userId,
+            updatedAt: new Date(),
+            updatedBy: userId,
+          },
+        });
+
+        // c. Decrement Office Inventory
+        const officeInv = await tx.cardInventory.findFirst({
+          where: { categoryId, typeId, stationId: null },
+        });
+
+        if (officeInv) {
+          await tx.cardInventory.update({
+            where: { id: officeInv.id },
+            data: {
+              cardOffice: { decrement: quantity },
+              updatedAt: new Date(),
+              updatedBy: userId,
+            },
+          });
+        }
+
+        results.push(movement);
+      }
+
+      return {
+        success: true,
+        message: `${serialNumbers.length} cards marked as DAMAGED`,
+        movements: results,
+      };
     });
   }
 }

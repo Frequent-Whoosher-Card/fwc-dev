@@ -124,6 +124,12 @@ export namespace StockInModel {
     }),
   });
 
+  // Report Damaged Body
+  export const reportDamagedBody = t.Object({
+    serialNumbers: t.Array(t.String()),
+    note: t.Optional(t.String({ maxLength: 500 })),
+  });
+
   // Update Body
   export const updateStockInBody = t.Object({
     movementAt: t.Optional(
