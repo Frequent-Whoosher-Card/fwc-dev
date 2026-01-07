@@ -69,10 +69,15 @@ export const auth = new Elysia({ prefix: "/auth" })
     "/login",
     async ({ body, jwt, cookie: { session }, set }) => {
       try {
-        const { username, password } = body;
+        const { username, password, appCheckToken, recaptchaToken } = body;
 
-        // Authenticate user
-        const { user } = await AuthService.login(username, password);
+        // Authenticate user (with token verification)
+        const { user } = await AuthService.login(
+          username,
+          password,
+          appCheckToken,
+          recaptchaToken
+        );
 
         // Generate JWT token
         const token = await jwt.sign({
