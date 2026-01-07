@@ -103,14 +103,79 @@ class OCRDaemon:
         
         while True:
             try:
-                # Check for request files
-                request_files = list(self.request_dir.glob("*.json"))
+                # Check for request files (exclude .tmp and .processing files)
+                request_files = [
+                    f for f in self.request_dir.glob("*.json")
+                    if f.suffix == '.json' and not f.name.endswith('.tmp') and not f.name.endswith('.processing')
+                ]
                 
                 for request_file in request_files:
+                    # Skip temp files
+                    if request_file.suffix == '.tmp':
+                        continue
+                    
+                    # Lock mechanism: rename file to .processing to claim ownership
+                    # This prevents multiple daemon instances from processing the same file
+                    processing_file = request_file.with_suffix('.processing')
+                    request_id = request_file.stem
+                    
                     try:
-                        # Read request
-                        with open(request_file, 'r') as f:
-                            request = json.load(f)
+                        # Try to claim the file by renaming it
+                        # If rename fails, another process is already handling it
+                        try:
+                            request_file.rename(processing_file)
+                        except (FileNotFoundError, OSError):
+                            # File was already claimed or deleted, skip
+                            continue
+                        
+                        # Now we own the file, read it safely
+                        max_retries = 10
+                        retry_count = 0
+                        file_ready = False
+                        request = None
+                        
+                        while retry_count < max_retries:
+                            try:
+                                # Check file size
+                                if not processing_file.exists():
+                                    # File was deleted somehow, skip
+                                    break
+                                
+                                file_size = processing_file.stat().st_size
+                                if file_size == 0:
+                                    # File is empty, might still be writing (shouldn't happen after rename)
+                                    retry_count += 1
+                                    time.sleep(0.1)
+                                    continue
+                                
+                                # Try to read file
+                                with open(processing_file, 'r') as f:
+                                    request = json.load(f)
+                                
+                                # Verify request has required fields
+                                if request and isinstance(request, dict) and 'image' in request:
+                                    file_ready = True
+                                    break
+                                else:
+                                    # Invalid request format, skip
+                                    break
+                                    
+                            except (json.JSONDecodeError, IOError, OSError, FileNotFoundError) as e:
+                                # File might still be writing or was deleted
+                                if isinstance(e, FileNotFoundError):
+                                    # File was deleted, skip
+                                    break
+                                retry_count += 1
+                                time.sleep(0.1)
+                        
+                        if not file_ready or request is None:
+                            # File not ready after retries or was deleted, cleanup and skip
+                            try:
+                                if processing_file.exists():
+                                    processing_file.unlink()
+                            except:
+                                pass
+                            continue
                         
                         # Extract image data
                         image_data = request.get('image')
@@ -124,28 +189,63 @@ class OCRDaemon:
                             response = self.process_request(image_data)
                         
                         # Write response
-                        request_id = request_file.stem
                         response_file = self.response_dir / f"{request_id}.json"
-                        with open(response_file, 'w') as f:
+                        
+                        # Ensure response directory exists
+                        response_file.parent.mkdir(parents=True, exist_ok=True)
+                        
+                        # Write response atomically using temp file then rename
+                        temp_response_file = response_file.with_suffix('.tmp')
+                        with open(temp_response_file, 'w') as f:
                             json.dump(response, f, ensure_ascii=False)
+                        temp_response_file.replace(response_file)
                         
-                        # Delete request file
-                        request_file.unlink()
-                        
-                    except Exception as e:
-                        # Write error response
-                        request_id = request_file.stem
-                        response_file = self.response_dir / f"{request_id}.json"
-                        error_response = {
-                            'success': False,
-                            'error': f'Processing error: {str(e)}'
-                        }
+                        # Delete processing file after response is written
                         try:
-                            with open(response_file, 'w') as f:
-                                json.dump(error_response, f, ensure_ascii=False)
-                            request_file.unlink()
+                            if processing_file.exists():
+                                processing_file.unlink()
                         except:
                             pass
+                        
+                    except FileNotFoundError:
+                        # File was deleted before we could process it (race condition)
+                        # This is normal, just cleanup and continue
+                        try:
+                            if 'processing_file' in locals() and processing_file.exists():
+                                processing_file.unlink()
+                        except:
+                            pass
+                        continue
+                    except Exception as e:
+                        # Write error response only if we successfully claimed the file
+                        if 'processing_file' in locals() and processing_file.exists():
+                            response_file = self.response_dir / f"{request_id}.json"
+                            error_response = {
+                                'success': False,
+                                'error': f'Processing error: {str(e)}'
+                            }
+                            try:
+                                # Ensure response directory exists
+                                response_file.parent.mkdir(parents=True, exist_ok=True)
+                                
+                                # Write error response atomically
+                                temp_response_file = response_file.with_suffix('.tmp')
+                                with open(temp_response_file, 'w') as f:
+                                    json.dump(error_response, f, ensure_ascii=False)
+                                temp_response_file.replace(response_file)
+                            except Exception as cleanup_error:
+                                if os.getenv('SUPPRESS_OCR_LOGS') != '1':
+                                    print(f"Error writing error response: {cleanup_error}", file=sys.stderr)
+                        
+                        # Always cleanup processing file
+                        try:
+                            if 'processing_file' in locals() and processing_file.exists():
+                                processing_file.unlink()
+                        except:
+                            pass
+                        
+                        if os.getenv('SUPPRESS_OCR_LOGS') != '1':
+                            print(f"Error processing request {request_id}: {e}", file=sys.stderr)
                 
                 # Sleep a bit to avoid busy waiting
                 time.sleep(0.1)
