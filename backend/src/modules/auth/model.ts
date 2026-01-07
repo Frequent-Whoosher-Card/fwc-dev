@@ -16,6 +16,16 @@ export namespace AuthModel {
       default: 'ramaPassword',
       examples: ['ramaPassword'],
     }),
+    appCheckToken: t.Optional(
+      t.String({
+        description: 'Firebase App Check token',
+      })
+    ),
+    recaptchaToken: t.Optional(
+      t.String({
+        description: 'Google reCAPTCHA v3 token',
+      })
+    ),
   });
 
   // Login Response
