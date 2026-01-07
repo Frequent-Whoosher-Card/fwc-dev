@@ -16,16 +16,16 @@ export namespace AuthModel {
       default: 'ramaPassword',
       examples: ['ramaPassword'],
     }),
-    appCheckToken: t.Optional(
-      t.String({
-        description: 'Firebase App Check token',
-      })
-    ),
-    recaptchaToken: t.Optional(
-      t.String({
-        description: 'Google reCAPTCHA v3 token',
-      })
-    ),
+    appCheckToken: t.String({
+      description: 'Firebase App Check token (required) - Verifies request comes from legitimate application',
+      minLength: 1,
+      examples: ['eyJraWQiOiJ2ckU4dWciLCJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...'],
+    }),
+    recaptchaToken: t.String({
+      description: 'Google reCAPTCHA v3 token (required) - Verifies human interaction (score-based)',
+      minLength: 1,
+      examples: ['03AGdBq27...'],
+    }),
   });
 
   // Login Response

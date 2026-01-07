@@ -28,9 +28,23 @@ export default function LoginPage() {
 
   // Initialize Firebase App Check on component mount
   useEffect(() => {
-    if (isAppCheckEnabled()) {
-      setupAppCheck();
-    }
+    const initializeSecurity = async () => {
+      if (isAppCheckEnabled()) {
+        // Initialize App Check
+        setupAppCheck();
+        // Pre-warm App Check by getting a token (this ensures it's ready)
+        try {
+          // Wait a bit for initialization
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          await getAppCheckToken();
+        } catch (error) {
+          // Silent fail - will retry on login with retry logic
+          console.warn('[App Check] Pre-warm failed, will retry on login');
+        }
+      }
+    };
+    
+    initializeSecurity();
   }, []);
 
   const handleLogin = async () => {
@@ -58,44 +72,91 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      // Get Firebase App Check token (if enabled)
+      // Ensure App Check is initialized before getting token
+      if (isAppCheckEnabled()) {
+        setupAppCheck();
+        // Wait a bit for App Check to initialize if needed
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+
+      // Get Firebase App Check token (required)
       let appCheckToken: string | null = null;
       if (isAppCheckEnabled()) {
-        try {
-          appCheckToken = await getAppCheckToken();
-        } catch (error) {
-          console.warn('[App Check] Failed to get token:', error);
+        let retries = 3;
+        while (retries > 0) {
+          try {
+            appCheckToken = await getAppCheckToken();
+            if (appCheckToken) {
+              break;
+            }
+          } catch (error) {
+            console.warn(`[App Check] Failed to get token, retries left: ${retries - 1}`, error);
+            retries--;
+            if (retries > 0) {
+              await new Promise(resolve => setTimeout(resolve, 500));
+            }
+          }
         }
+
+        if (!appCheckToken) {
+          console.error('[App Check] Failed to get token after retries');
+          setAuthErrorMessage('Gagal memverifikasi aplikasi. Silakan refresh halaman dan coba lagi.');
+          setShowAuthError(true);
+          setIsLoading(false);
+          return;
+        }
+      } else {
+        setAuthErrorMessage('Konfigurasi keamanan tidak lengkap. Silakan hubungi administrator.');
+        setShowAuthError(true);
+        setIsLoading(false);
+        return;
       }
 
-      // Execute reCAPTCHA v3 (if enabled)
+      // Execute reCAPTCHA v3 (required)
       let recaptchaToken: string | null = null;
       if (isRecaptchaEnabled()) {
-        try {
-          recaptchaToken = await executeRecaptcha('login');
-        } catch (error) {
-          console.warn('[reCAPTCHA] Failed to execute:', error);
+        let retries = 3;
+        while (retries > 0) {
+          try {
+            recaptchaToken = await executeRecaptcha('login');
+            if (recaptchaToken) {
+              break;
+            }
+          } catch (error) {
+            console.warn(`[reCAPTCHA] Failed to execute, retries left: ${retries - 1}`, error);
+            retries--;
+            if (retries > 0) {
+              await new Promise(resolve => setTimeout(resolve, 500));
+            }
+          }
         }
+
+        if (!recaptchaToken) {
+          console.error('[reCAPTCHA] Failed to get token after retries');
+          setAuthErrorMessage('Gagal memverifikasi keamanan. Silakan refresh halaman dan coba lagi.');
+          setShowAuthError(true);
+          setIsLoading(false);
+          return;
+        }
+      } else {
+        setAuthErrorMessage('Konfigurasi keamanan tidak lengkap. Silakan hubungi administrator.');
+        setShowAuthError(true);
+        setIsLoading(false);
+        return;
       }
 
-      // Prepare request body with tokens
+      // Prepare request body with required tokens
       const requestBody: {
         username: string;
         password: string;
-        appCheckToken?: string;
-        recaptchaToken?: string;
+        appCheckToken: string;
+        recaptchaToken: string;
       } = {
         username,
         password,
+        appCheckToken,
+        recaptchaToken,
       };
-
-      if (appCheckToken) {
-        requestBody.appCheckToken = appCheckToken;
-      }
-
-      if (recaptchaToken) {
-        requestBody.recaptchaToken = recaptchaToken;
-      }
 
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
