@@ -4,6 +4,10 @@ import StatusBadge from './StatusBadge';
 interface Sender {
   fullName: string;
   station?: string;
+  batch_card?: string;
+  card_category?: string;
+  card_type?: string;
+  amount_card?: string;
 }
 
 interface InboxPayload {
@@ -12,9 +16,10 @@ interface InboxPayload {
 
 export interface InboxDetail {
   id: string;
-  type: 'damaged' | 'missing';
+  status: 'accepted' | 'damaged' | 'missing';
   message: string;
-  createdAt: string;
+  date_label: string;
+  time_label: string;
   sender: Sender;
   payload?: InboxPayload;
 }
@@ -26,87 +31,82 @@ export default function ModalDetailInbox({
   data: InboxDetail;
   onClose: () => void;
 }) {
+  const avatarLetter =
+    data.sender?.fullName?.trim().charAt(0).toUpperCase() ?? '?';
+
+  const isSerialCase =
+    data.status === 'damaged' || data.status === 'missing';
+
+  const createdAt = new Date(`${data.date_label} ${data.time_label}`);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
       <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
-        {/* ================= Header ================= */}
-        <div className="flex items-center gap-4 border-b border-dashed px-6 py-5">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-lg font-bold text-maroon-700">
-            {data.sender.fullName?.[0]}
+        {/* ===== Header ===== */}
+        <div className="flex items-center justify-between border-b px-6 py-4">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full border text-lg font-bold">
+              {avatarLetter}
+            </div>
+
+            <div>
+              <p className="font-semibold text-gray-800">
+                {data.sender.fullName}
+              </p>
+              <p className="text-xs text-gray-500">
+                {data.sender.station ?? '-'}
+              </p>
+            </div>
           </div>
 
-          <div className="flex flex-col">
-            <span className="text-base font-semibold text-gray-800">
-              {data.sender.fullName}
+          <div className="flex flex-col text-right whitespace-nowrap">
+            <span className="text-xs text-gray-500 font-medium">
+              {data.date_label}
             </span>
             <span className="text-xs text-gray-400">
-              {data.sender.station ?? '-'} •{' '}
-              {new Date(data.createdAt).toLocaleDateString()}
+              {data.time_label}
             </span>
+      </div>
+        </div>
+
+        {/* ===== Body ===== */}
+        <div className="space-y-4 px-6 py-6">
+          <Row label="Batch Card:" value={data.sender.batch_card ?? '-'} />
+          <Row label="Card Category:" value={data.sender.card_category ?? '-'} />
+          <Row label="Card Type:" value={data.sender.card_type ?? '-'} />
+          <Row label="Amount Card:" value={data.sender.amount_card ?? '-'} />
+          <Row label="Station:" value={data.sender.station ?? '-'} />
+
+          <div className="grid grid-cols-[180px_1fr] items-center gap-4">
+            <span className="text-sm text-gray-700">Card Condition:</span>
+            <StatusBadge status={data.status} />
+          </div>
+
+          {isSerialCase &&
+            data.payload?.serials?.map((sn, i) => (
+              <Row
+                key={sn}
+                label={i === 0 ? 'Serial Number Card:' : ''}
+                value={`${i + 1}. ${sn}`}
+              />
+            ))}
+
+          <div className="grid grid-cols-[180px_1fr] items-start gap-4">
+            <span className="text-sm text-gray-700">Messages:</span>
+            <textarea
+              disabled
+              value={data.message}
+              className="min-h-[80px] w-full rounded-md border bg-gray-50 px-3 py-2 text-sm text-gray-700"
+            />
           </div>
         </div>
 
-        {/* ================= Body ================= */}
-        <div className="space-y-8 px-6 py-7">
-          {/* Info Grid */}
-          <div className="grid grid-cols-2 gap-x-10 gap-y-6">
-            <Info label="Batch Card" value="Received Card" />
-            <Info label="Card Category" value="Inventory" />
-            <Info label="Card Type" value="Gold" />
-            <Info label="Station" value={data.sender.station ?? '-'} />
-          </div>
-
-          {/* Condition */}
-          <div className="flex flex-col gap-1 items-start">
-            <span className="truncate text-sm font-semibold text-gray-900">
-              {data.sender.fullName}
-            </span>
-
-            <StatusBadge status={data.type} />
-          </div>
-
-          {/* Serial Numbers */}
-          {data.payload?.serials?.length ? (
-            <div>
-              <span className="block text-[11px] font-semibold uppercase tracking-widest text-gray-400">
-                Serial Number
-              </span>
-
-              <div className="mt-3 max-h-40 space-y-2 overflow-auto rounded-lg border bg-gray-50 p-3">
-                {data.payload.serials.map((sn, i) => (
-                  <div
-                    key={sn}
-                    className="flex items-center gap-3 text-sm text-gray-700"
-                  >
-                    <span className="w-5 text-right text-gray-400">
-                      {i + 1}.
-                    </span>
-                    <span className="rounded-md border bg-white px-3 py-1.5">
-                      {sn}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {/* Message */}
-          <div>
-            <span className="block text-[11px] font-semibold uppercase tracking-widest text-gray-400">
-              Message
-            </span>
-            <p className="mt-2 rounded-lg border bg-gray-50 p-4 text-sm leading-relaxed text-gray-700">
-              {data.message}
-            </p>
-          </div>
-        </div>
-
-        {/* ================= Footer ================= */}
+        {/* ===== Footer ===== */}
         <div className="flex justify-end border-t border-gray-200 bg-white px-8 py-5">
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex items-center justify-center rounded-full bg-red-700 px-10 py-3 text-sm font-semibold text-white shadow-md transition-colors hover:bg-red-800 active:scale-95"
+            className="inline-flex items-center justify-center rounded-full bg-red-700 px-10 py-3 text-sm font-semibold text-white shadow-md hover:bg-red-800 active:scale-95"
           >
             Close
           </button>
@@ -116,16 +116,12 @@ export default function ModalDetailInbox({
   );
 }
 
-/* ================= Helpers ================= */
-function Info({ label, value }: { label: string; value: string }) {
+/* ===== Helper Row ===== */
+function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col gap-1">
-      <span className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">
-        {label}
-      </span>
-      <span className="border-b pb-1 text-sm font-medium text-gray-800">
-        {value}
-      </span>
+    <div className="grid grid-cols-[180px_1fr] items-center gap-4">
+      <span className="text-sm text-gray-700">{label}</span>
+      <span className="text-sm text-gray-600">{value}</span>
     </div>
   );
 }

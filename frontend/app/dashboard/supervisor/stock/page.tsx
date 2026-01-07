@@ -1,3 +1,5 @@
-export default function StockPage() {
-  return <div>Halaman Stock</div>;
+import SuperadminStockPage from "@/app/dashboard/superadmin/stock/page";
+
+export default function SPVStockPage() {
+  return <SuperadminStockPage />;
 }

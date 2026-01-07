@@ -1,60 +1,108 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import InboxFilter from './components/InboxFilter';
 import InboxList from './components/InboxList';
+import ModalDetailInbox from './components/modalDetailInbox';
+import { API_BASE_URL } from '@/lib/apiConfig';
 
 export default function InboxPage() {
+  const router = useRouter();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeItem, setActiveItem] = useState<any | null>(null);
 
-  const fetchInbox = useCallback(async (filters = {}) => {
+  const fetchInbox = useCallback(async (filters: any = {}) => {
     setLoading(true);
     try {
-      const { status, startDate, endDate } = filters as any;
-      let url = `https://fwc-kcic.me/api/inbox/?limit=10`;
+      let url = `${API_BASE_URL}/inbox/?limit=10`;
+      if (filters.status) url += `&status=${filters.status}`;
+      if (filters.startDate) url += `&start_date=${filters.startDate}`;
+      if (filters.endDate) url += `&end_date=${filters.endDate}`;
 
-      if (status) url += `&status=${status}`;
-      if (startDate) url += `&start_date=${startDate}`;
-      if (endDate) url += `&end_date=${endDate}`;
+      const token = localStorage.getItem('fwc_token');
+      if (!token) return router.push('/');
 
-      const res = await fetch(url);
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
       const result = await res.json();
-
       if (result.success) {
-        setItems(result.data.items);
+        setItems(
+          result.data.items.map((item: any) => {
+            const d = new Date(item.sentAt);
+            return {
+              id: item.id,
+              title: item.title,
+              message: item.message,
+              sender: item.sender,
+              status: item.status, // ENUM BACKEND
+              date_label: d.toLocaleDateString('id-ID'),
+              time_label: d.toLocaleTimeString('id-ID', {
+                hour: '2-digit',
+                minute: '2-digit',
+              }),
+            };
+          })
+        );
       }
-    } catch (err) {
-      console.error(err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     fetchInbox();
   }, [fetchInbox]);
 
-  return (
-    <main className="p-8 bg-[#F8F9FA] min-h-screen">
-      <div className="max-w-[1440px] mx-auto">
-        <div className="bg-white rounded-[32px] shadow-sm border border-gray-100 flex flex-col h-[80vh]">
-          <div className="p-6 border-b border-gray-100">
-            <h2 className="text-lg font-bold text-[#0054A6] mb-6">
-              List Inbox
-            </h2>
-            <InboxFilter onFilter={fetchInbox} />
-          </div>
+  // 🔥 ADD NOTE → OPEN MODAL
+  const handleAddNote = () => {
+    setActiveItem({
+      id: 'NEW',
+      title: '',
+      message: '',
+      sender: { fullName: 'You', station: '-' },
+      status: 'ACCEPTED',
+      date_label: '-',
+      time_label: '-',
+      isNew: true,
+    });
+  };
 
-          <div className="flex-1 overflow-y-auto">
-            <InboxList
-              items={items}
-              loading={loading}
-              onRefresh={fetchInbox}
-            />
-          </div>
+  return (
+    <div className="space-y-6 h-full">
+      {/* HEADER */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-gray-900">
+          Noted History
+        </h1>
+      </div>
+
+      {/* FILTER */}
+      <div className="rounded-xl border bg-white px-4 py-3 shadow-sm">
+        <InboxFilter onFilter={fetchInbox} onAddNote={handleAddNote} />
+      </div>
+
+      {/* LIST */}
+      <div className="rounded-xl border bg-white shadow-sm h-[65vh] overflow-hidden">
+        <div className="h-full overflow-y-auto">
+          <InboxList
+            items={items}
+            loading={loading}
+            onRefresh={fetchInbox}
+          />
         </div>
       </div>
-    </main>
+
+      {/* MODAL DETAIL INBOX */}
+      {activeItem && (
+        <ModalDetailInbox
+          item={activeItem}
+          onClose={() => setActiveItem(null)}
+        />
+      )}
+    </div>
   );
 }

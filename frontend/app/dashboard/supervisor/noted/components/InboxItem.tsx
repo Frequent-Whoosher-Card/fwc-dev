@@ -1,70 +1,67 @@
 'use client';
-
-import { useState } from 'react';
 import StatusBadge from './StatusBadge';
-import ModalAccepted from '../modal/modalAccepted';
-import ModalDamaged from '../modal/modalDamaged';
-import ModalMissing from '../modal/modalMissing';
-import ModalNoted from '../modal/modalNoted';
 
 export default function InboxItem({
   item,
-  onRefresh,
+  onClick,
 }: {
   item: any;
-  onRefresh: () => void;
+  onClick: () => void;
 }) {
-  const [open, setOpen] = useState<
-    null | 'accepted' | 'damaged' | 'missing' | 'noted'
-  >(null);
+  const senderName = item.sender?.fullName || '';
+  const avatarLetter = senderName.charAt(0).toUpperCase();
 
   return (
-    <>
-      <div className="flex justify-between p-4 border-b items-center">
-        <div>
-          <p className="font-medium">{item.name}</p>
-          <StatusBadge status={item.status} />
-        </div>
-
-        <div className="flex gap-2">
-          <button onClick={() => setOpen('accepted')}>Accepted</button>
-          <button onClick={() => setOpen('damaged')}>Damaged</button>
-          <button onClick={() => setOpen('missing')}>Missing</button>
-          <button onClick={() => setOpen('noted')}>Noted</button>
+    <div
+      onClick={onClick}
+      className="
+        grid grid-cols-[56px_184px_1fr_160px]
+        items-center
+        gap-6
+        px-6 py-5
+        border-b border-gray-200
+        hover:bg-gray-50
+        transition
+        cursor-pointer
+      "
+    >
+      {/* AVATAR */}
+      <div className="flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full bg-gray-600 text-white flex items-center justify-center font-semibold">
+          {avatarLetter}
         </div>
       </div>
 
-      {open === 'accepted' && (
-        <ModalAccepted
-          inboxId={item.id}
-          onClose={() => setOpen(null)}
-          onSuccess={onRefresh}
-        />
-      )}
+      {/* LEFT : SENDER + CARD CONDITION */}
+      <div className="flex flex-col gap-1">
+        <span className="text-sm font-semibold text-gray-900 truncate">
+          {senderName}
+        </span>
 
-      {open === 'damaged' && (
-        <ModalDamaged
-          inboxId={item.id}
-          onClose={() => setOpen(null)}
-          onSuccess={onRefresh}
-        />
-      )}
+        {/* Card Condition from backend */}
+        <StatusBadge status={item.status} />
+      </div>
 
-      {open === 'missing' && (
-        <ModalMissing
-          inboxId={item.id}
-          onClose={() => setOpen(null)}
-          onSuccess={onRefresh}
-        />
-      )}
+      {/* MIDDLE : SUBJECT + MESSAGE */}
+      <div className="flex flex-col gap-0.5">
+        <span className="text-sm font-medium text-gray-800">
+          {item.title}
+        </span>
 
-      {open === 'noted' && (
-        <ModalNoted
-          inboxId={item.id}
-          onClose={() => setOpen(null)}
-          onSuccess={onRefresh}
-        />
-      )}
-    </>
+        <span className="text-xs text-gray-500 line-clamp-1">
+          {item.message}
+        </span>
+      </div>
+
+      {/* RIGHT : INBOX DATE & TIME */}
+      <div className="flex flex-col text-right whitespace-nowrap">
+        <span className="text-xs text-gray-500 font-medium">
+          {item.date_label}
+        </span>
+        <span className="text-xs text-gray-400">
+          {item.time_label}
+        </span>
+      </div>
+    </div>
   );
 }

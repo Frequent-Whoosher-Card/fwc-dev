@@ -1,3 +1,5 @@
-export default function MembershipPage() {
-  return <div>Halaman Membership</div>;
+import SuperadminMembershipPage from "@/app/dashboard/superadmin/membership/page";
+
+export default function SPVMembershipPage() {
+  return <SuperadminMembershipPage />;
 }

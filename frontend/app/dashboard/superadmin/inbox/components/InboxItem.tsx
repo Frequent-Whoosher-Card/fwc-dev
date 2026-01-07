@@ -9,11 +9,14 @@ export default function InboxItem({
   item: any;
   onClick: () => void;
 }) {
+  const senderName = item.sender?.fullName || '';
+  const avatarLetter = senderName.charAt(0).toUpperCase();
+
   return (
     <div
       onClick={onClick}
       className="
-        grid grid-cols-[240px_1fr_160px]
+        grid grid-cols-[56px_184px_1fr_160px]
         items-center
         gap-6
         px-6 py-5
@@ -23,10 +26,17 @@ export default function InboxItem({
         cursor-pointer
       "
     >
+      {/* AVATAR */}
+      <div className="flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full bg-gray-600 text-white flex items-center justify-center font-semibold">
+          {avatarLetter}
+        </div>
+      </div>
+
       {/* LEFT : SENDER + CARD CONDITION */}
       <div className="flex flex-col gap-1">
         <span className="text-sm font-semibold text-gray-900 truncate">
-          {item.sender?.fullName}
+          {senderName}
         </span>
 
         {/* Card Condition from backend */}
@@ -44,7 +54,7 @@ export default function InboxItem({
         </span>
       </div>
 
-      {/* RIGHT : INBOX DATE & TIME (from backend) */}
+      {/* RIGHT : INBOX DATE & TIME */}
       <div className="flex flex-col text-right whitespace-nowrap">
         <span className="text-xs text-gray-500 font-medium">
           {item.date_label}
