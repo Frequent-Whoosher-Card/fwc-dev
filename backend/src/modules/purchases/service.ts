@@ -322,9 +322,13 @@ export class PurchaseService {
               id: true,
               serialNumber: true,
               status: true,
+              expiredDate: true,
+              quotaTicket: true,
               cardProduct: {
                 select: {
                   id: true,
+                  totalQuota: true,
+                  masaBerlaku: true,
                   category: {
                     select: {
                       id: true,
@@ -400,7 +404,15 @@ export class PurchaseService {
       updatedByName: item.updatedBy
         ? userMap.get(item.updatedBy) || null
         : null,
-      card: item.card,
+      card: {
+        ...item.card,
+        expiredDate: item.card.expiredDate ? item.card.expiredDate.toISOString() : null,
+        cardProduct: {
+          ...item.card.cardProduct,
+          totalQuota: item.card.cardProduct.totalQuota,
+          masaBerlaku: item.card.cardProduct.masaBerlaku,
+        },
+      },
       member: item.member,
       operator: item.operator,
       station: item.station,
@@ -429,9 +441,13 @@ export class PurchaseService {
             id: true,
             serialNumber: true,
             status: true,
+            expiredDate: true,
+            quotaTicket: true,
             cardProduct: {
               select: {
                 id: true,
+                totalQuota: true,
+                masaBerlaku: true,
                 category: {
                   select: {
                     id: true,
@@ -507,7 +523,15 @@ export class PurchaseService {
       updatedAt: purchase.updatedAt.toISOString(),
       createdByName: creator?.fullName || null,
       updatedByName: updater?.fullName || null,
-      card: purchase.card,
+      card: {
+        ...purchase.card,
+        expiredDate: purchase.card.expiredDate ? purchase.card.expiredDate.toISOString() : null,
+        cardProduct: {
+          ...purchase.card.cardProduct,
+          totalQuota: purchase.card.cardProduct.totalQuota,
+          masaBerlaku: purchase.card.cardProduct.masaBerlaku,
+        },
+      },
       member: purchase.member,
       operator: purchase.operator,
       station: purchase.station,

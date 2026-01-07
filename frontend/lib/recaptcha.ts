@@ -132,12 +132,14 @@ export async function executeRecaptcha(action: string = 'login'): Promise<string
       return null;
     }
 
-    // Wait for grecaptcha to be ready
+    // Wait for grecaptcha to be ready with timeout
     await new Promise<void>((resolve) => {
       if (window.grecaptcha) {
         window.grecaptcha.ready(() => {
           resolve();
         });
+        // Timeout after 5 seconds
+        setTimeout(() => resolve(), 5000);
       } else {
         resolve();
       }
@@ -148,6 +150,9 @@ export async function executeRecaptcha(action: string = 'login'): Promise<string
       console.error('[reCAPTCHA] grecaptcha is not available after ready');
       return null;
     }
+
+    // Additional wait to ensure everything is ready
+    await new Promise(resolve => setTimeout(resolve, 200));
 
     const token = await window.grecaptcha.execute(siteKey, { action });
     return token;

@@ -88,8 +88,13 @@ export function setupAppCheck(): AppCheck | null {
  * Returns token string or null if unavailable
  */
 export async function getAppCheckToken(): Promise<string | null> {
+  // Ensure App Check is initialized
   if (!appCheck) {
     appCheck = setupAppCheck();
+    // Wait a bit for App Check to be ready
+    if (appCheck) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
   }
 
   if (!appCheck) {
