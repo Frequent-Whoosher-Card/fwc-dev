@@ -50,12 +50,94 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
       body: CardGenerateModel.generateBody,
       response: {
         200: CardGenerateModel.generateResponse,
-        // Add error responses as needed in model or generic error format
+        400: CardGenerateModel.errorResponse,
+        401: CardGenerateModel.errorResponse,
+        403: CardGenerateModel.errorResponse,
+        404: CardGenerateModel.errorResponse,
+        409: CardGenerateModel.errorResponse,
+        422: CardGenerateModel.errorResponse,
+        500: CardGenerateModel.errorResponse,
       },
       detail: {
         tags: ["Cards Generate"],
         summary: "Generate Cards",
         description: "Generate cards and barcode images.",
+      },
+    }
+  )
+  .get(
+    "/history",
+    async (context) => {
+      const { query, set } = context;
+      try {
+        const result = await CardGenerateService.getHistory(query);
+        return {
+          success: true,
+          message: "History retrieved successfully",
+          data: result,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      query: CardGenerateModel.getHistoryQuery,
+      response: {
+        200: CardGenerateModel.getHistoryResponse,
+        400: CardGenerateModel.errorResponse,
+        401: CardGenerateModel.errorResponse,
+        403: CardGenerateModel.errorResponse,
+        404: CardGenerateModel.errorResponse,
+        422: CardGenerateModel.errorResponse,
+        500: CardGenerateModel.errorResponse,
+      },
+      detail: {
+        tags: ["Cards Generate"],
+        summary: "Get History",
+        description: "Get history of card generation.",
+      },
+    }
+  )
+  .get(
+    "/history/:id",
+    async (context) => {
+      const { params, set } = context;
+      try {
+        const result = await CardGenerateService.getHistoryDetail(params.id);
+        return {
+          success: true,
+          message: "History detail retrieved successfully",
+          data: result,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      params: t.Object({
+        id: t.String({ format: "uuid" }),
+      }),
+      response: {
+        200: CardGenerateModel.getHistoryDetailResponse,
+        400: CardGenerateModel.errorResponse,
+        401: CardGenerateModel.errorResponse,
+        403: CardGenerateModel.errorResponse,
+        404: CardGenerateModel.errorResponse,
+        500: CardGenerateModel.errorResponse,
+      },
+      detail: {
+        tags: ["Cards Generate"],
+        summary: "Get History Detail",
+        description:
+          "Get detailed history of a specific card generation batch.",
       },
     }
   );

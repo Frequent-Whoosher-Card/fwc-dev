@@ -85,6 +85,9 @@ export const stockIn = new Elysia({ prefix: "/in" })
                 : undefined,
               endDate: query.endDate ? new Date(query.endDate) : undefined,
               categoryId: query.categoryId,
+              typeId: query.typeId,
+              categoryName: query.categoryName,
+              typeName: query.typeName,
             });
 
             return {
@@ -196,6 +199,45 @@ export const stockIn = new Elysia({ prefix: "/in" })
             summary: "Update Stock In (Metadata Only)",
             description:
               "Mengupdate data stock in. Bisa mengedit serial number (dengan logic strict), note, dan movementAt.",
+          },
+        }
+      )
+      .put(
+        "/:id/status-batch",
+        async (context) => {
+          const { params, body, set, user } = context as typeof context &
+            AuthContextUser;
+          try {
+            const result = await StockInService.updateBatchCardStatus(
+              params.id,
+              body.updates,
+              user.id
+            );
+            return result;
+          } catch (error) {
+            set.status =
+              error instanceof Error && "statusCode" in error
+                ? (error as any).statusCode
+                : 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          body: StockInModel.updateBatchStatusBody,
+          response: {
+            200: StockInModel.updateStockInResponse, // Reusing generic response
+            400: StockInModel.errorResponse,
+            401: StockInModel.errorResponse,
+            403: StockInModel.errorResponse,
+            404: StockInModel.errorResponse,
+            422: StockInModel.errorResponse,
+            500: StockInModel.errorResponse,
+          },
+          detail: {
+            tags: ["Stock In"],
+            summary: "Update Batch Cards Status (QC)",
+            description:
+              "Mengubah status kartu (DAMAGED/LOST) dalam batch produksi ini. Mengupdate inventory office secara otomatis.",
           },
         }
       )

@@ -1,3 +1,4 @@
+import path from "path";
 import { Elysia } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { docsConfig } from "./docs";
@@ -106,8 +107,38 @@ const app = new Elysia()
       },
     };
   })
+  // Static File Serving
+  .get("/storage/*", async ({ params }) => {
+    // Basic Path Traversal Protection
+    const cleanPath = params["*"].replace(/\.\./g, "");
+    const filePath = path.join(process.cwd(), "storage", cleanPath);
+    return Bun.file(filePath);
+  })
   .listen(3001);
 
 console.log(
   `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`
 );
+
+// Graceful shutdown untuk OCR daemon
+process.on("SIGTERM", async () => {
+  console.log("SIGTERM received, shutting down gracefully...");
+  try {
+    const { ocrService } = await import("./services/ocr_service");
+    await ocrService.shutdown();
+  } catch (e) {
+    // Ignore if OCR service not initialized
+  }
+  process.exit(0);
+});
+
+process.on("SIGINT", async () => {
+  console.log("SIGINT received, shutting down gracefully...");
+  try {
+    const { ocrService } = await import("./services/ocr_service");
+    await ocrService.shutdown();
+  } catch (e) {
+    // Ignore if OCR service not initialized
+  }
+  process.exit(0);
+});
