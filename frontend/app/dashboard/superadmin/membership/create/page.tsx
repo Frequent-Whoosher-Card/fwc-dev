@@ -3,7 +3,7 @@
 
 import SuccessModal from '../components/ui/SuccessModal';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft,
   Phone,
@@ -31,18 +31,24 @@ const base =
 ====================== */
 function Field({
   label,
+  required,
   children,
 }: {
   label: string;
+  required?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs text-gray-500">{label}</label>
+      <label className="text-xs text-gray-500">
+        {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
+      </label>
       {children}
     </div>
   );
 }
+
 
 /* ======================
    DATE FIELD
@@ -150,8 +156,13 @@ interface Card {
   cardProductId: string;
 }
 
+
 export default function AddMemberPage() {
   const router = useRouter();
+  const lastCheckRef = useRef<{
+    nik?: string;
+    edcReferenceNumber?: string;
+  }>({});
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [operatorName, setOperatorName] = useState('');
@@ -216,10 +227,18 @@ const [checking, setChecking] = useState<{
             Authorization: `Bearer ${token}`,
           },
         });
-        if (productsRes.ok) {
-          const productsData = await productsRes.json();
-          setCardProducts(productsData.data || []);
-        }
+       if (productsRes.ok) {
+  const productsData = await productsRes.json();
+
+  const sortedProducts = (productsData.data || []).sort(
+    (a: CardProduct, b: CardProduct) => {
+      const nameA = `${a.category.categoryName} - ${a.type.typeName}`;
+      const nameB = `${b.category.categoryName} - ${b.type.typeName}`;
+      return nameA.localeCompare(nameB);
+    }
+  );
+  setCardProducts(sortedProducts);
+}
 
         // Set default dates
         const today = new Date();
@@ -277,9 +296,18 @@ const [checking, setChecking] = useState<{
           // Parse cards from response
           // Response format: { success: true, data: { items: [...], pagination: {...} } }
           if (data.success && data.data) {
-            const cards = data.data.items || [];
-            setAvailableCards(cards);
-            console.log(`✅ Loaded ${cards.length} available cards for product ${selectedCardProductId}`);
+           const cards = data.data.items || [];
+
+const sortedCards = cards
+  .filter((c) => c.serialNumber)
+  .sort((a: Card, b: Card) =>
+    a.serialNumber.localeCompare(b.serialNumber)
+  );
+
+setAvailableCards(sortedCards);
+
+
+console.log(`✅ Loaded ${sortedCards.length} available cards for product ${selectedCardProductId}`);
           } else {
             setAvailableCards([]);
             console.warn('⚠️ Unexpected response format:', data);
@@ -377,6 +405,8 @@ const [checking, setChecking] = useState<{
 ) => {
   if (!value) return;
 
+  // 🔐 tandai request terakhir
+  lastCheckRef.current[field] = value;
   setChecking((p) => ({ ...p, [field]: true }));
 
   try {
@@ -395,23 +425,45 @@ const [checking, setChecking] = useState<{
 
     const data = await res.json();
 
-    if (data.data?.items?.length > 0) {
-      setFieldError((p) => ({
-        ...p,
-        [field]:
-          field === 'nik'
-            ? 'NIK sudah terdaftar'
-            : 'No. Reference EDC sudah digunakan',
-      }));
-    } else {
-      setFieldError((p) => ({ ...p, [field]: undefined }));
-    }
+    // ❌ response lama → buang
+    if (lastCheckRef.current[field] !== value) return;
+
+    const items = data.data?.items || [];
+
+const isExactMatch = items.some((item: any) => {
+  if (field === 'nik') {
+    return item.identityNumber === value;
+  }
+  if (field === 'edcReferenceNumber') {
+    return item.edcReferenceNumber === value;
+  }
+  return false;
+});
+
+if (isExactMatch) {
+  setFieldError((p) => ({
+    ...p,
+    [field]:
+      field === 'nik'
+        ? 'NIK sudah terdaftar'
+        : 'No. Reference EDC sudah digunakan',
+  }));
+} else {
+  setFieldError((p) => ({
+    ...p,
+    [field]: undefined,
+  }));
+}
+
   } catch (err) {
     console.error(err);
   } finally {
-    setChecking((p) => ({ ...p, [field]: false }));
+    if (lastCheckRef.current[field] === value) {
+      setChecking((p) => ({ ...p, [field]: false }));
+    }
   }
 };
+
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -422,10 +474,98 @@ const [checking, setChecking] = useState<{
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+ const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
   e.preventDefault();
-  setShowSuccess(true); // cuma buka modal review
+
+  if (!form.name.trim()) {
+    toast.error('Membership Name wajib diisi');
+    return;
+  }
+
+  if (!form.nik.trim()) {
+    toast.error('NIK wajib diisi');
+    return;
+  }
+
+  if (form.nik.length !== 16) {
+    toast.error('NIK harus terdiri dari 16 digit');
+    return;
+  }
+
+  if (!form.nationality.trim()) {
+    toast.error('Nationality wajib diisi');
+    return;
+  }
+
+  if (!form.gender) {
+    toast.error('Gender wajib dipilih');
+    return;
+  }
+
+  if (!form.phone.trim()) {
+    toast.error('Phone Number wajib diisi');
+    return;
+  }
+
+  if (!form.email.trim()) {
+    toast.error('Email Address wajib diisi');
+    return;
+  }
+
+  if (!form.address.trim()) {
+    toast.error('Alamat wajib diisi');
+    return;
+  }
+
+  if (!selectedCardProductId) {
+    toast.error('Card Product wajib dipilih');
+    return;
+  }
+
+  if (!selectedCard) {
+    toast.error('Serial Number wajib dipilih');
+    return;
+  }
+
+  if (!form.membershipDate) {
+    toast.error('Membership Date tidak valid');
+    return;
+  }
+
+  if (!form.expiredDate) {
+    toast.error('Expired Date belum terisi');
+    return;
+  }
+
+  if (!form.purchasedDate) {
+    toast.error('Purchased Date tidak valid');
+    return;
+  }
+
+  if (!form.price) {
+    toast.error('FWC Price belum terisi');
+    return;
+  }
+
+  if (!form.station) {
+    toast.error('Stasiun wajib dipilih');
+    return;
+  }
+
+  if (!form.shiftDate) {
+    toast.error('Shift Date tidak valid');
+    return;
+  }
+
+  if (!form.edcReferenceNumber.trim()) {
+    toast.error('No. Reference EDC wajib diisi');
+    return;
+  }
+
+  // ✅ LULUS SEMUA VALIDASI
+  setShowSuccess(true);
 };
+
 
 const handleConfirmSubmit = async () => {
   if (isSubmitting) return;
@@ -535,152 +675,251 @@ const handleConfirmSubmit = async () => {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {/* Membership Name - Full Width */}
             <div className="md:col-span-2">
-              <input
-                name="name"
-                value={form.name}
-                onChange={handleChange}
-                placeholder="Membership Name"
-                className={base}
-                required
-              />
+            <Field label="Membership Name" required>
+  <input
+    name="name"
+    value={form.name}
+    onChange={handleChange}
+    placeholder="Masukkan nama member"
+    className={base}
+    required
+  />
+</Field>
+
             </div>
 
-            {/* NIK & Nationality */}
-          <div className="relative">
+       {/* NIK & Nationality */}
+<Field label="NIK" required>
+  <div className="relative">
+    <input
+      name="nik"
+      value={form.nik}
+      onChange={(e) => {
+        const value = e.target.value;
+
+        setForm((prev) => ({ ...prev, nik: value }));
+
+        if (value.length > 0 && value.length < 16) {
+          setFieldError((p) => ({
+            ...p,
+            nik: 'NIK harus terdiri dari 16 digit',
+          }));
+        } else {
+          setFieldError((p) => ({ ...p, nik: undefined }));
+        }
+      }}
+      onInput={(e) => {
+        e.currentTarget.value = e.currentTarget.value
+          .replace(/\D/g, '')
+          .slice(0, 16);
+      }}
+      onBlur={() => {
+        if (form.nik.length === 16) {
+          checkUniqueField('nik', form.nik);
+        }
+      }}
+      placeholder="NIK (16 digit)"
+      className={`${base} pr-32 ${
+        fieldError.nik ? 'border-red-500' : ''
+      }`}
+      required
+    />
+
+    {/* ERROR */}
+    {fieldError.nik && (
+      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-red-600">
+        {fieldError.nik}
+      </span>
+    )}
+
+    {/* CHECKING */}
+    {!fieldError.nik && checking.nik && (
+      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+        Checking...
+      </span>
+    )}
+  </div>
+</Field>
+
+<Field label="Nationality" required>
   <input
-  name="nik"
-  value={form.nik}
-  onChange={(e) => {
-    handleChange(e);
+    name="nationality"
+    value={form.nationality}
+    onChange={handleChange}
+    placeholder="Masukkan kewarganegaraan"
+    className={base}
+    required
+  />
+</Field>
 
-    // 🔥 RESET ERROR SAAT USER NGEDIT / HAPUS
-    if (!e.target.value) {
-      setFieldError((p) => ({ ...p, nik: undefined }));
-    }
-  }}
-  onInput={onlyNumber}
-  onBlur={() => {
-    if (form.nik) {
-      checkUniqueField('nik', form.nik);
-    }
-  }}
-  placeholder="NIK"
-  className={`${base} pr-32 ${
-    fieldError.nik ? 'border-red-500' : ''
-  }`}
-  required
-/>
-
-
-  {/* ERROR DI DALAM FIELD */}
-  {fieldError.nik && (
-    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-red-600">
-      {fieldError.nik}
-    </span>
-  )}
-
-  {/* CHECKING */}
-  {!fieldError.nik && checking.nik && (
-    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-      Checking...
-    </span>
-  )}
-</div>
-
-
-            <input
-              name="nationality"
-              value={form.nationality}
-              onChange={handleChange}
-              placeholder="Nationality"
-              className={base}
-            />
 
             {/* Gender & Phone */}
-            <div className="relative">
-              <select
-                name="gender"
-                value={form.gender}
-                onChange={handleChange}
-                className={`${base} appearance-none pr-10`}
-              >
-                <option value="">Gender</option>
-                <option value="L">Laki - Laki</option>
-                <option value="P">Perempuan</option>
-              </select>
-              <ChevronDown
-                size={16}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-              />
-            </div>
-
-            <div className="relative">
-              <Phone
-                size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-              />
-              <input
-                name="phone"
-                value={form.phone}
-                onChange={handleChange}
-                onInput={onlyNumber}
-                placeholder="Phone Number"
-                className={`${base} pl-10`}
-              />
-            </div>
-
-            {/* Email - Full Width */}
-            <div className="relative md:col-span-2">
-              <Mail
-                size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-              />
-              <input
-                type="email"
-                name="email"
-                value={form.email}
-                onChange={handleChange}
-                placeholder="Email Address"
-                className={`${base} pl-10`}
-              />
-            </div>
-
-            {/* Alamat - Full Width */}
-            <div className="relative md:col-span-2">
-              <MapPin
-                size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-              />
-              <input
-                name="address"
-                value={form.address}
-                onChange={handleChange}
-                placeholder="Alamat"
-                className={`${base} pl-10`}
-              />
-            </div>
-
-            {/* Membership Period */}
-           <SectionCard title="Membership Period">
-  <Field label="Membership Date">
+          <Field label="Gender" required>
   <div className="relative">
-    <Calendar
+    <select
+      name="gender"
+      value={form.gender}
+      onChange={handleChange}
+      className={`${base} appearance-none pr-10`}
+      required
+    >
+      <option value="">Pilih gender</option>
+      <option value="L">Laki - Laki</option>
+      <option value="P">Perempuan</option>
+    </select>
+    <ChevronDown
       size={16}
       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
     />
+  </div>
+</Field>
+
+<Field label="Phone Number" required>
+  <div className="relative">
+    <Phone
+      size={16}
+      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+    />
     <input
-      type="date"
-      name="membershipDate"
-      value={form.membershipDate}
-      readOnly
-      className={`${base} pr-10 bg-gray-50 cursor-not-allowed`}
+      name="phone"
+      value={form.phone}
+      onChange={handleChange}
+      onInput={onlyNumber}
+      placeholder="Masukkan nomor telepon"
+      className={`${base} pl-10`}
+      required
+    />
+  </div>
+</Field>
+
+            {/* Email - Full Width */}
+      <Field label="Email Address" required>
+  <div className="relative md:col-span-2">
+    <Mail
+      size={16}
+      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+    />
+    <input
+      type="email"
+      name="email"
+      value={form.email}
+      onChange={handleChange}
+      placeholder="Masukkan alamat email"
+      className={`${base} pl-10`}
+      required
+    />
+  </div>
+</Field>
+
+            {/* Alamat - Full Width */}
+    <Field label="Alamat" required>
+  <div className="relative md:col-span-2">
+    <MapPin
+      size={16}
+      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+    />
+    <input
+      name="address"
+      value={form.address}
+      onChange={handleChange}
+      placeholder="Masukkan alamat lengkap"
+      className={`${base} pl-10`}
+      required
     />
   </div>
 </Field>
 
 
-  {/* Expired Date - READ ONLY (AUTO) */}
-  <Field label="Expired Date">
+
+
+                  {/* Card Information */}
+<SectionCard title="Card Information">
+  <Field label="Card Product" required>
+    <div className="relative">
+      <select
+        name="cardProductId"
+        value={selectedCardProductId}
+        onChange={(e) => handleSelectCardProduct(e.target.value)}
+        className={`${base} appearance-none pr-10`}
+        required
+      >
+        <option value="">Select Card Product</option>
+        {cardProducts.map((product) => (
+          <option key={product.id} value={product.id}>
+            {product.category.categoryName} - {product.type.typeName}
+          </option>
+        ))}
+      </select>
+      <ChevronDown
+        size={16}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+      />
+    </div>
+  </Field>
+
+  <Field label="Serial Number" required>
+    <div className="relative">
+      <select
+        name="serialNumber"
+        value={selectedCardId}
+        onChange={(e) => handleSelectCard(e.target.value)}
+        className={`${base} appearance-none pr-10`}
+        disabled={!selectedCardProductId || isLoadingCards}
+        required
+      >
+        <option value="">
+          {isLoadingCards
+            ? 'Loading...'
+            : !selectedCardProductId
+            ? 'Pilih Card Product terlebih dahulu'
+            : availableCards.length === 0
+            ? 'Tidak ada kartu tersedia'
+            : 'Pilih Serial Number'}
+        </option>
+        {availableCards.map((card) => (
+          <option key={card.id} value={card.id}>
+            {card.serialNumber}
+          </option>
+        ))}
+      </select>
+      <ChevronDown
+        size={16}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+      />
+    </div>
+
+    {selectedCardProductId &&
+      availableCards.length === 0 &&
+      !isLoadingCards && (
+        <p className="text-xs text-yellow-600 mt-1">
+          {isLoadingCards
+            ? 'Memuat kartu...'
+            : 'Tidak ada kartu tersedia untuk product ini dengan status IN_STATION. Pastikan ada kartu yang tersedia di sistem.'}
+        </p>
+      )}
+  </Field>
+</SectionCard>
+
+
+            {/* Membership Period */}
+<SectionCard title="Membership Period">
+  <Field label="Membership Date" required>
+    <div className="relative">
+      <Calendar
+        size={16}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+      />
+      <input
+        type="date"
+        name="membershipDate"
+        value={form.membershipDate}
+        readOnly
+        className={`${base} pr-10 bg-gray-50 cursor-not-allowed`}
+      />
+    </div>
+  </Field>
+
+  <Field label="Expired Date" required>
     <div className="relative">
       <Calendar
         size={16}
@@ -697,11 +936,10 @@ const handleConfirmSubmit = async () => {
   </Field>
 </SectionCard>
 
-
-        {/* Purchase Information */}
+{/* Purchase Information */}
 <SectionCard title="Purchase Information">
   {/* Purchased Date - READ ONLY */}
-  <Field label="Purchased Date">
+  <Field label="Purchased Date" required>
     <div className="relative">
       <Calendar
         size={16}
@@ -718,7 +956,7 @@ const handleConfirmSubmit = async () => {
   </Field>
 
   {/* FWC Price - READ ONLY */}
-  <Field label="FWC Price">
+  <Field label="FWC Price" required>
     <div className="relative">
       <DollarSign
         size={16}
@@ -736,80 +974,16 @@ const handleConfirmSubmit = async () => {
   </Field>
 </SectionCard>
 
-
-            {/* Card Information */}
-            <SectionCard title="Card Information">
-              <Field label="Card Product">
-                <div className="relative">
-                  <select
-                    name="cardProductId"
-                    value={selectedCardProductId}
-                    onChange={(e) => handleSelectCardProduct(e.target.value)}
-                    className={`${base} appearance-none pr-10`}
-                    required
-                  >
-                    <option value="">Select Card Product</option>
-                    {cardProducts.map((product) => (
-                      <option key={product.id} value={product.id}>
-                        {product.category.categoryName} - {product.type.typeName}
-                      </option>
-                    ))}
-                </select>
-                  <ChevronDown
-                    size={16}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                  />
-                </div>
-              </Field>
-
-              <Field label="Serial Number">
-                <div className="relative">
-                  <select
-                    name="serialNumber"
-                    value={selectedCardId}
-                    onChange={(e) => handleSelectCard(e.target.value)}
-                    className={`${base} appearance-none pr-10`}
-                    disabled={!selectedCardProductId || isLoadingCards}
-                    required
-                  >
-                    <option value="">
-                      {isLoadingCards
-                        ? 'Loading...'
-                        : !selectedCardProductId
-                        ? 'Pilih Card Product terlebih dahulu'
-                        : availableCards.length === 0
-                        ? 'Tidak ada kartu tersedia'
-                        : 'Pilih Serial Number'}
-                    </option>
-                    {availableCards.map((card) => (
-                      <option key={card.id} value={card.id}>
-                        {card.serialNumber}
-                      </option>
-                    ))}
-                </select>
-                  <ChevronDown
-                    size={16}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                  />
-                </div>
-                {selectedCardProductId && availableCards.length === 0 && !isLoadingCards && (
-                  <p className="text-xs text-yellow-600 mt-1">
-                    {isLoadingCards 
-                      ? 'Memuat kartu...'
-                      : 'Tidak ada kartu tersedia untuk product ini dengan status IN_STATION. Pastikan ada kartu yang tersedia di sistem.'}
-                  </p>
-                )}
-              </Field>
-            </SectionCard>
-
-            {/* Operational Information */}
-            <SectionCard title="Operational Information">
-  <Field label="Stasiun">
+{/* Operational Information */}
+<SectionCard title="Operational Information">
+  {/* Stasiun */}
+  <Field label="Stasiun" required>
     <select
       name="station"
       value={form.station}
       onChange={handleChange}
       className={base}
+      required
     >
       <option value="">Select</option>
       <option value="Halim">Halim</option>
@@ -820,7 +994,7 @@ const handleConfirmSubmit = async () => {
   </Field>
 
   {/* Shift Date - READ ONLY */}
-  <Field label="Shift Date">
+  <Field label="Shift Date" required>
     <div className="relative">
       <Calendar
         size={16}
@@ -838,54 +1012,55 @@ const handleConfirmSubmit = async () => {
 </SectionCard>
 
 
-            {/* No. Reference EDC - Full Width */}
-    {/* No. Reference EDC - Full Width */}
-<div className="relative md:col-span-2">
-  <input
-    name="edcReferenceNumber"
-    value={form.edcReferenceNumber}
-    onChange={(e) => {
-      handleChange(e);
-
-      if (!e.target.value) {
+  {/* No. Reference EDC - Full Width */}
+<Field label="No. Reference EDC" required>
+  <div className="relative md:col-span-2">
+    <input
+      name="edcReferenceNumber"
+      value={form.edcReferenceNumber}
+      onChange={(e) => {
+        handleChange(e);
         setFieldError((p) => ({
           ...p,
           edcReferenceNumber: undefined,
         }));
-      }
-    }}
-    onBlur={() => {
-      if (form.edcReferenceNumber) {
-        checkUniqueField(
-          'edcReferenceNumber',
-          form.edcReferenceNumber
-        );
-      }
-    }}
-    placeholder="No. Reference EDC"
-    className={`${base} pr-40 ${
-      fieldError.edcReferenceNumber
-        ? 'border-red-500'
-        : ''
-    }`}
-    required
-  />
+      }}
+      onInput={onlyNumber}
+      onBlur={() => {
+        // ✅ cek hanya kalau panjang masuk akal
+        if (form.edcReferenceNumber.length >= 6) {
+          checkUniqueField(
+            'edcReferenceNumber',
+            form.edcReferenceNumber
+          );
+        }
+      }}
+      placeholder="No. Reference EDC"
+      className={`${base} pr-40 ${
+        fieldError.edcReferenceNumber
+          ? 'border-red-500'
+          : ''
+      }`}
+      required
+    />
 
-  {/* ERROR DI DALAM FIELD */}
-  {fieldError.edcReferenceNumber && (
-    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-red-600">
-      {fieldError.edcReferenceNumber}
-    </span>
-  )}
-
-  {/* CHECKING */}
-  {!fieldError.edcReferenceNumber &&
-    checking.edcReferenceNumber && (
-      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-        Checking...
+    {/* ERROR DI DALAM FIELD */}
+    {fieldError.edcReferenceNumber && (
+      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-red-600">
+        {fieldError.edcReferenceNumber}
       </span>
     )}
-</div>
+
+    {/* CHECKING */}
+    {!fieldError.edcReferenceNumber &&
+      checking.edcReferenceNumber && (
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+          Checking...
+        </span>
+      )}
+  </div>
+</Field>
+
 
 
             {/* Operator Name - Full Width, Read-only */}
@@ -924,23 +1099,45 @@ const handleConfirmSubmit = async () => {
   title="Data Member"
   message="Please review the member data before continuing"
   data={{
+    // MEMBER
     'Membership Name': form.name,
-    'Membership Date': form.membershipDate,
-    'Expired Date': form.expiredDate,
-    Nationality: form.nationality || 'Indonesia',
     'Identity Number': form.nik,
-    Address: form.address,
+    Nationality: form.nationality || 'Indonesia',
+    Gender:
+      form.gender === 'L'
+        ? 'Laki - Laki'
+        : form.gender === 'P'
+        ? 'Perempuan'
+        : '-',
     'Phone Number': form.phone,
     'Email Address': form.email,
+    Address: form.address,
+
+    // CARD
     'Card Category': selectedCardProduct?.category.categoryName,
     'Card Type': selectedCardProduct?.type.typeName,
+    'Serial Number': selectedCard?.serialNumber,
+
+    // MEMBERSHIP
+    'Membership Date': form.membershipDate,
+    'Expired Date': form.expiredDate,
+
+    // PURCHASE
     'Purchased Date': form.purchasedDate,
+    'FWC Price': form.price,
     'Total Quota (Trips)': selectedCardProduct?.totalQuota,
+
+    // OPERATIONAL
+    Stasiun: form.station,
+    'Shift Date': form.shiftDate,
+
+    // TRANSACTION
+    'No. Reference EDC': form.edcReferenceNumber,
   }}
   onClose={() => setShowSuccess(false)}
   onConfirm={handleConfirmSubmit}
-
 />
+
 
 
     </>
