@@ -487,8 +487,8 @@ if (isExactMatch) {
     return;
   }
 
-  if (form.nik.length !== 16) {
-    toast.error('NIK harus terdiri dari 16 digit');
+  if (form.nik.length !== 20) {
+    toast.error('NIK harus terdiri dari 20 digit');
     return;
   }
 
@@ -699,7 +699,7 @@ const handleConfirmSubmit = async () => {
 
         setForm((prev) => ({ ...prev, nik: value }));
 
-        if (value.length > 0 && value.length < 16) {
+        if (value.length > 0 && value.length < 20) {
           setFieldError((p) => ({
             ...p,
             nik: 'NIK harus terdiri dari 16 digit',
@@ -711,10 +711,10 @@ const handleConfirmSubmit = async () => {
       onInput={(e) => {
         e.currentTarget.value = e.currentTarget.value
           .replace(/\D/g, '')
-          .slice(0, 16);
+          .slice(0, 20);
       }}
       onBlur={() => {
-        if (form.nik.length === 16) {
+        if (form.nik.length === 20) {
           checkUniqueField('nik', form.nik);
         }
       }}
