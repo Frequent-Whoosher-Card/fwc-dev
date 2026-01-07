@@ -123,13 +123,15 @@ export const auth = new Elysia({ prefix: "/auth" })
       detail: {
         tags: ["Authentication"],
         summary: "Login with username/email and password",
-        description: "Authenticate user and create session",
+        description: "Authenticate user and create session. Requires Firebase App Check token and Google reCAPTCHA v3 token for double layer security protection.",
         requestBody: {
           content: {
             "application/json": {
               example: {
                 username: "rama",
                 password: "ramaPassword",
+                appCheckToken: "eyJraWQiOiJ2ckU4dWciLCJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...",
+                recaptchaToken: "03AGdBq27...",
               },
             },
           },

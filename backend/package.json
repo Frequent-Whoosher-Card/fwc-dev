@@ -22,7 +22,7 @@
     "jsbarcode": "^3.12.1",
     "nodemailer": "^7.0.12",
     "prismabox": "^1.1.26",
-    "sharp": "^0.34.5",
+    "xlsx": "^0.18.5",
     "xmldom": "^0.6.0"
   },
   "devDependencies": {
