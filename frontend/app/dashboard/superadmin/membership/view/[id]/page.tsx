@@ -30,7 +30,7 @@ interface Transaction {
   purchaseDate: string;
   duration: string;
   expiredDate: string;
-  status: 'Active' | 'Expired';
+  status: 'Active' | 'Expired' | '-';
   cardCategory: string;
   cardType: string;
   quota: number;
@@ -59,99 +59,115 @@ export default function MembershipDetailPage() {
   /* ======================
      FETCH DATA
   ====================== */
-useEffect(() => {
-  if (!id) return;
+  useEffect(() => {
+    if (!id) return;
 
-  const fetchDetail = async () => {
-    try {
-      setLoading(true);
+    const fetchDetail = async () => {
+      try {
+        setLoading(true);
 
-      // 1️⃣ GET MEMBER
-      const memberRes = await getMemberById(id);
-      const memberData: Membership = memberRes.data;
-      setMember(memberData);
+        // 1️⃣ GET MEMBER
+        const memberRes = await getMemberById(id);
+        const memberData: Membership = memberRes.data;
+        setMember(memberData);
 
-      // 2️⃣ GET PURCHASES BY NIK
-      const purchaseRes = await getPurchases({
-        search: memberData.identityNumber,
-        limit: 50,
-      });
+        // 2️⃣ GET PURCHASES BY NIK
+        const purchaseRes = await getPurchases({
+          search: memberData.identityNumber,
+          limit: 50,
+        });
 
-      const items = purchaseRes.data?.items ?? [];
+        const items = purchaseRes.data?.items ?? [];
 
-      const mapped: Transaction[] = items.map((p: any) => {
-        const purchaseDate = p.purchaseDate;
-        const expiredDate = p.expiredDate ?? '';
+        const mapped: Transaction[] = items.map((p: any) => {
+          const purchaseDate = p.purchaseDate;
+          const masaBerlaku =
+            p.card?.cardProduct?.masaBerlaku ?? 0;
 
-        let duration = '-';
-        if (purchaseDate && expiredDate) {
-          const diff =
-            new Date(expiredDate).getTime() -
-            new Date(purchaseDate).getTime();
-          duration = `${Math.ceil(
-            diff / (1000 * 60 * 60 * 24)
-          )} Days`;
-        }
+          // ✅ EXPIRED DATE = purchaseDate + masaBerlaku
+          const expiredDate =
+            purchaseDate && masaBerlaku
+              ? new Date(
+                  new Date(purchaseDate).getTime() +
+                    masaBerlaku * 24 * 60 * 60 * 1000
+                ).toISOString()
+              : '';
 
-        return {
-          purchaseDate,
-          duration,
-          expiredDate,
-          status:
-            p.card?.status === 'SOLD_ACTIVE'
-              ? 'Active'
-              : 'Expired',
-          cardCategory:
-            p.card?.cardProduct?.category?.categoryName ?? '-',
-          cardType:
-            p.card?.cardProduct?.type?.typeName ?? '-',
-          quota:
-            p.card?.cardProduct?.totalQuota ?? 0,
-          remaining:
-            p.card?.remainingQuota ??
-            p.card?.cardProduct?.totalQuota ??
-            0,
-          serialNumber: p.card?.serialNumber ?? '-',
-          referenceEdc: p.edcReferenceNumber ?? '-',
-          price: p.price
-            ? p.price.toLocaleString('id-ID')
-            : '-',
-          shiftDate: p.purchaseDate,
-          operatorName:
-            p.operator?.fullName ??
-            p.createdByName ??
-            '-',
-          station: p.station?.stationName ?? '-',
-        };
-      });
+          const duration = masaBerlaku
+            ? `${masaBerlaku} Days`
+            : '-';
 
-      setTransactions(mapped);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load data');
-    } finally {
-      setLoading(false);
-    }
-  };
+          const price =
+            typeof p.price === 'number'
+              ? p.price.toLocaleString('id-ID')
+              : '-';
 
-  fetchDetail();
-}, [id]);
+          const totalQuota =
+            p.card?.cardProduct?.totalQuota ?? 0;
 
+          return {
+            purchaseDate,
+            expiredDate,
+            duration,
+
+            status:
+              p.card?.status === 'SOLD_ACTIVE'
+                ? 'Active'
+                : p.card?.status === 'SOLD_EXPIRED'
+                ? 'Expired'
+                : '-',
+
+            cardCategory:
+              p.card?.cardProduct?.category?.categoryName ??
+              '-',
+
+            cardType:
+              p.card?.cardProduct?.type?.typeName ?? '-',
+
+            // ✅ dari cardProduct
+            quota: totalQuota,
+
+            // ⚠️ BE belum supply remaining → sementara
+            remaining: totalQuota,
+
+            serialNumber: p.card?.serialNumber ?? '-',
+
+            referenceEdc: p.edcReferenceNumber ?? '-',
+
+            price,
+
+            // ✅ shift date = tanggal transaksi
+            shiftDate: purchaseDate,
+
+            operatorName:
+              p.operator?.fullName ??
+              p.createdByName ??
+              '-',
+
+            station: p.station?.stationName ?? '-',
+          };
+        });
+
+        setTransactions(mapped);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDetail();
+  }, [id]);
 
   /* ======================
      STATE
   ====================== */
   if (loading) return <div className="p-6">Loading...</div>;
-
   if (error)
-    return (
-      <div className="p-6 text-red-600">{error}</div>
-    );
-
+    return <div className="p-6 text-red-600">{error}</div>;
   if (!member)
     return (
-      <div className="p-6 text-gray-500">
-        Data not found
-      </div>
+      <div className="p-6 text-gray-500">Data not found</div>
     );
 
   const totalQuota = transactions.reduce(
@@ -166,6 +182,13 @@ useEffect(() => {
 
   const formatDate = (d: string) =>
     d ? new Date(d).toLocaleDateString('id-ID') : '-';
+
+  const genderLabel =
+    member.gender === 'L'
+      ? 'Laki - Laki'
+      : member.gender === 'P'
+      ? 'Perempuan'
+      : '-';
 
   /* ======================
      RENDER
@@ -188,7 +211,7 @@ useEffect(() => {
       {/* MEMBER CARD */}
       <div className="flex items-center justify-between rounded-lg border bg-white p-6">
         <div className="flex gap-6">
-          <div className="flex h-24 w-40 items-center justify-center rounded bg-yellow-400 text-sm font-semibold text-black">
+          <div className="flex h-24 w-40 items-center justify-center rounded bg-yellow-400 text-sm font-semibold">
             JaBan
           </div>
 
@@ -197,7 +220,7 @@ useEffect(() => {
               {member.name}
             </p>
             <p>NIK: {member.identityNumber}</p>
-            <p>Gender: {member.gender ?? '-'}</p>
+            <p>Gender: {genderLabel}</p>
             <p>Email: {member.email ?? '-'}</p>
             <p>Phone: {member.phone ?? '-'}</p>
             <p>
@@ -215,12 +238,10 @@ useEffect(() => {
 
         <div className="text-sm text-right">
           <p>
-            Total Quota (Trips):{' '}
-            <b>{totalQuota}</b>
+            Total Quota (Trips): <b>{totalQuota}</b>
           </p>
           <p>
-            Redeemed:{' '}
-            <b>{redeemed}</b>
+            Redeemed: <b>{redeemed}</b>
           </p>
         </div>
       </div>
