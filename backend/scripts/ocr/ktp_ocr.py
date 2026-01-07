@@ -13,7 +13,7 @@ from pathlib import Path
 
 
 class KTPOCR:
-    def __init__(self, lang='id', max_image_size=400):
+    def __init__(self, lang='id', max_image_size=1200):
         """
         Inisialisasi PaddleOCR untuk ekstraksi teks KTP
         
@@ -21,12 +21,22 @@ class KTPOCR:
             lang: Bahasa (default: 'id' untuk Indonesia)
             max_image_size: Ukuran maksimal gambar (lebar atau tinggi) sebelum resize.
                            Jika None, tidak akan di-resize. Default: 1200 pixels
+                           (Optimal untuk KTP: cukup besar untuk akurasi, cukup kecil untuk kecepatan)
         """
         # Suppress print statements when called from subprocess
         if os.getenv('SUPPRESS_OCR_LOGS') != '1':
             print("Memuat model PaddleOCR...", file=sys.stderr)
-        # Gunakan parameter minimal yang pasti didukung
-        self.ocr = PaddleOCR(lang=lang)
+        
+        # Optimasi PaddleOCR untuk kecepatan:
+        # - use_angle_cls=False: Skip angle classification (KTP biasanya sudah lurus)
+        # - det_db_thresh=0.3: Threshold untuk deteksi teks (default 0.3, bisa dinaikkan untuk skip area non-teks)
+        # - rec_batch_num=6: Batch size untuk recognition (default 6, bisa disesuaikan dengan RAM)
+        self.ocr = PaddleOCR(
+            lang=lang,
+            use_angle_cls=False,  # Skip angle classification untuk mempercepat (KTP biasanya lurus)
+            det_db_thresh=0.3,    # Threshold untuk deteksi teks
+            rec_batch_num=6       # Batch size untuk recognition
+        )
         self.max_image_size = max_image_size
         if os.getenv('SUPPRESS_OCR_LOGS') != '1':
             print("Model PaddleOCR siap digunakan!", file=sys.stderr)
@@ -64,9 +74,17 @@ class KTPOCR:
             new_width = int(original_width * scale)
             new_height = int(original_height * scale)
             
+            # Resize dengan INTER_AREA untuk downscaling (lebih cepat dan lebih baik untuk teks)
             img = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_AREA)
             if os.getenv('SUPPRESS_OCR_LOGS') != '1':
                 print(f"Gambar di-resize menjadi: {new_width}x{new_height} pixels (scale: {scale:.2f}) untuk mempercepat proses", file=sys.stderr)
+        
+        # Convert ke grayscale untuk mempercepat OCR (KTP biasanya hitam putih)
+        # Ini mengurangi data yang diproses tanpa mengurangi akurasi signifikan
+        if len(img.shape) == 3:
+            img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            # Convert kembali ke BGR untuk PaddleOCR (beberapa model expect BGR)
+            img = cv2.cvtColor(img_gray, cv2.COLOR_GRAY2BGR)
         
         # Lakukan OCR
         result = self.ocr.predict(img)
@@ -309,9 +327,15 @@ class KTPOCR:
                         break
         
         # 3. Jenis Kelamin
+        # Pattern lebih fleksibel untuk menangani variasi OCR seperti "LAK-LAKI", "LAKI-LAKI", "Laki-laki", dll
         jenis_kelamin_patterns = [
             r'Jenis\s+kelamin[:\s]*([A-Za-z/]+)',
-            r'(Laki\s*[-\s]?laki|Perempuan)',
+            # Pattern untuk menangkap "LAK-LAKI" (prioritas tinggi karena sering terjadi di OCR)
+            r'(LAK\s*[-]?\s*LAKI)',
+            # Pattern untuk "LAKI-LAKI" atau "Laki-laki"
+            r'(LAKI\s*[-]?\s*LAKI|Laki\s*[-\s]?laki)',
+            # Pattern untuk "Perempuan"
+            r'(Perempuan)',
         ]
         for pattern in jenis_kelamin_patterns:
             match = re.search(pattern, all_text, re.IGNORECASE)
@@ -322,13 +346,39 @@ class KTPOCR:
                 else:
                     jk_text = match.group(0)
                 
-                if 'laki' in jk_text.lower() or 'male' in jk_text.lower():
-                    fields['jenis_kelamin'] = 'Laki-laki'
-                elif 'perempuan' in jk_text.lower() or 'female' in jk_text.lower():
+                # Normalize text untuk matching (remove spaces and hyphens)
+                jk_lower = jk_text.lower().replace('-', '').replace(' ', '')
+                
+                # Check untuk laki-laki (menangani variasi: laklaki, lak-laki, laki-laki, dll)
+                if 'lak' in jk_lower:
+                    # Jika mengandung "lak" dan panjang <= 8 karakter (untuk "laklaki" = 7 chars)
+                    # atau mengandung "laki" (untuk "laki-laki")
+                    if 'laki' in jk_lower or len(jk_lower) <= 8:
+                        fields['jenis_kelamin'] = 'Laki-laki'
+                    else:
+                        fields['jenis_kelamin'] = 'Laki-laki'  # Default to Laki-laki if contains "lak"
+                elif 'perempuan' in jk_lower or 'female' in jk_lower:
                     fields['jenis_kelamin'] = 'Perempuan'
+                elif 'laki' in jk_text.lower() or 'male' in jk_text.lower():
+                    fields['jenis_kelamin'] = 'Laki-laki'
                 else:
+                    # Jika tidak match, coba extract dari text asli
                     fields['jenis_kelamin'] = jk_text.strip()
                 break
+        
+        # Fallback: cari langsung di text jika pattern tidak match
+        # Ini penting untuk kasus seperti "LAK-LAKI" yang mungkin tidak terdeteksi pattern di atas
+        if not fields['jenis_kelamin']:
+            # Cari kata "LAK" diikuti oleh "-" atau spasi lalu "LAKI" (untuk kasus "LAK-LAKI")
+            lak_match = re.search(r'LAK\s*[-]?\s*LAKI', all_text, re.IGNORECASE)
+            if lak_match:
+                fields['jenis_kelamin'] = 'Laki-laki'
+            # Cari "LAKI-LAKI" atau variasi lainnya
+            elif re.search(r'LAKI\s*[-]?\s*LAKI', all_text, re.IGNORECASE):
+                fields['jenis_kelamin'] = 'Laki-laki'
+            # Cari "PEREMPUAN"
+            elif re.search(r'PEREMPUAN', all_text, re.IGNORECASE):
+                fields['jenis_kelamin'] = 'Perempuan'
         
         # 4. Alamat - bisa setelah label "Alamat" atau setelah "Gol Darah" atau sebelum RT/RW
         # Pattern 1: Setelah label "Alamat"

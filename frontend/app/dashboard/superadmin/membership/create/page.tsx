@@ -1,6 +1,7 @@
 'use client';
 
 
+import SuccessModal from '../components/ui/SuccessModal';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import {
@@ -102,35 +103,6 @@ function SectionCard({
 /* ======================
    SUCCESS MODAL
 ====================== */
-function SuccessModal({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="w-[380px] rounded-xl bg-white p-6 text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
-            <CheckCircle size={28} className="text-green-600" />
-        </div>
-        <h2 className="text-lg font-semibold">Data Saved</h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Member dan transaksi berhasil disimpan
-        </p>
-        <button
-          onClick={onClose}
-          className="mt-6 w-full rounded-md bg-[#8B1538] py-2 text-sm font-medium text-white hover:bg-[#73122E]"
-        >
-          OK
-        </button>
-      </div>
-    </div>
-  );
-}
 
 /* ======================
    TYPES
@@ -158,30 +130,27 @@ interface Card {
   status: string;
   cardProductId: string;
 }
+const calculateExpiredDate = (
+  purchasedDate: string,
+  masaBerlaku: number
+) => {
+  if (!purchasedDate || !masaBerlaku) return '';
 
+  const date = new Date(purchasedDate);
+  date.setDate(date.getDate() + masaBerlaku);
+
+  return date.toISOString().split('T')[0];
+};
 
 /* ======================
    PAGE
 ====================== */
-
-const CARD_RULES = {
-  JaBan: {
-    Gold: { price: 2000000, days: 60 },
-    Silver: { price: 1350000, days: 30 },
-    KAI: { price: 500000, days: 30 }, // ✅ KAI INTERNAL
-  },
-  JaKa: {
-    Gold: { price: 500000, days: 60 },
-    Silver: { price: 450000, days: 30 },
-    KAI: { price: 200000, days: 30 }, // ✅ KAI INTERNAL
-  },
-  KaBan: {
-    Gold: { price: 1000000, days: 60 },
-    Silver: { price: 750000, days: 30 },
-    KAI: { price: 300000, days: 30 }, // ✅ KAI INTERNAL
-  },
-};
-
+interface Card {
+  id: string;
+  serialNumber: string;
+  status: string;
+  cardProductId: string;
+}
 
 export default function AddMemberPage() {
   const router = useRouter();
@@ -201,6 +170,17 @@ export default function AddMemberPage() {
   const [selectedCardId, setSelectedCardId] = useState('');
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [isLoadingCards, setIsLoadingCards] = useState(false);
+
+
+  const [fieldError, setFieldError] = useState<{
+  nik?: string;
+  edcReferenceNumber?: string;
+}>({});
+
+const [checking, setChecking] = useState<{
+  nik?: boolean;
+  edcReferenceNumber?: boolean;
+}>({});
 
   // Form State
   const [form, setForm] = useState({
@@ -333,6 +313,18 @@ export default function AddMemberPage() {
 
     loadAvailableCards();
   }, [selectedCardProductId]);
+  useEffect(() => {
+  if (!selectedCardProduct || !form.purchasedDate) return;
+
+  setForm((prev) => ({
+    ...prev,
+    expiredDate: calculateExpiredDate(
+      prev.purchasedDate,
+      selectedCardProduct.masaBerlaku
+    ),
+  }));
+}, [form.purchasedDate, selectedCardProduct]);
+
 
   // Handle card product selection
   const handleSelectCardProduct = (productId: string) => {
@@ -344,11 +336,17 @@ export default function AddMemberPage() {
     setSelectedCard(null);
     setSelectedCardId('');
     setForm((prev) => ({
-      ...prev,
-      serialNumber: '',
-      price: product ? parseFloat(product.price).toString() : '',
-    }));
-  };
+  ...prev,
+  serialNumber: '',
+  price: product ? product.price : '',
+  expiredDate: product
+    ? calculateExpiredDate(
+        prev.purchasedDate,
+        product.masaBerlaku
+      )
+    : '',
+}));
+  }
 
   // Handle card selection
   const handleSelectCard = (cardId: string) => {
@@ -376,15 +374,6 @@ export default function AddMemberPage() {
 
   const onlyNumber = (e: React.FormEvent<HTMLInputElement>) => {
     e.currentTarget.value = e.currentTarget.value.replace(/\D/g, '');
-  };
-
-  const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
-  ) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleKTPImageChange = async (file: File | null) => {
@@ -418,129 +407,156 @@ export default function AddMemberPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+  const checkUniqueField = async (
+  field: 'nik' | 'edcReferenceNumber',
+  value: string
+) => {
+  if (!value) return;
 
-    try {
-      // Check if user has stationId (required for purchase)
-      const token = localStorage.getItem('fwc_token');
-      if (!token) {
-        toast.error('Session expired. Silakan login kembali.');
-        setIsSubmitting(false);
-        return;
-      }
+  setChecking((p) => ({ ...p, [field]: true }));
 
-      try {
-        const meRes = await fetch(`${API_BASE_URL}/auth/me`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        
-        if (meRes.ok) {
-          const meData = await meRes.json();
-          if (!meData.data?.stationId) {
-            toast.error(
-              'User tidak memiliki stasiun. Silakan hubungi administrator untuk menetapkan stasiun.',
-              { duration: 5000 }
-            );
-            setIsSubmitting(false);
-            return;
-          }
-        }
-      } catch (meError) {
-        console.warn('Could not verify user station:', meError);
-        // Continue anyway, backend will validate
-      }
+  try {
+    const token = localStorage.getItem('fwc_token');
 
-      // Validation
-      if (!selectedCardProductId) {
-        toast.error('Card Product wajib dipilih');
-        setIsSubmitting(false);
-        return;
-      }
+    const url =
+      field === 'nik'
+        ? `${API_BASE_URL}/members?identityNumber=${value}`
+        : `${API_BASE_URL}/purchases?edcReferenceNumber=${value}`;
 
-      if (!selectedCardId || !form.serialNumber.trim()) {
-        toast.error('Serial Number wajib dipilih');
-        setIsSubmitting(false);
-        return;
-      }
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-      if (!form.edcReferenceNumber.trim()) {
-        toast.error('No. Reference EDC wajib diisi');
-        setIsSubmitting(false);
-        return;
-      }
+    if (!res.ok) return;
 
-      // 1. Create Member
-      const memberPayload = {
-        name: form.name,
-        identityNumber: form.nik,
-        nationality: form.nationality || undefined,
-        email: form.email || undefined,
-        phone: form.phone || undefined,
-        gender: form.gender || undefined,
-        alamat: form.address || undefined,
-        notes: form.notes || undefined,
-      };
+    const data = await res.json();
 
-      const memberRes = await createMember(memberPayload);
-      if (!memberRes.success) {
-        throw new Error(memberRes.error?.message || 'Gagal membuat member');
-      }
-
-      const memberId = memberRes.data.id;
-
-      // 2. Use selected card ID
-      if (!selectedCardId || !selectedCard) {
-        throw new Error('Card tidak dipilih. Pastikan memilih serial number dari dropdown.');
-      }
-
-      const cardId = selectedCard.id;
-
-      // 2. Create Purchase
-      const purchasePayload: any = {
-        cardId: cardId,
-        memberId: memberId,
-        edcReferenceNumber: form.edcReferenceNumber.trim(),
-      };
-
-      // Only include optional fields if they have values
-      if (form.price && form.price.trim()) {
-        purchasePayload.price = parseFloat(form.price);
-      }
-      if (form.notes && form.notes.trim()) {
-        purchasePayload.notes = form.notes.trim();
-      }
-
-      console.log('Creating purchase with payload:', purchasePayload);
-      const purchaseRes = await createPurchase(purchasePayload);
-      console.log('Purchase response:', purchaseRes);
-      
-      // apiFetch throws error if !res.ok, so if we reach here, it's successful
-      if (!purchaseRes || !purchaseRes.success) {
-        throw new Error(purchaseRes?.error?.message || purchaseRes?.message || 'Gagal membuat transaksi');
-      }
-
-      toast.success('Member dan transaksi berhasil disimpan');
-      setShowSuccess(true);
-    } catch (error: any) {
-      console.error('Submit error:', error);
-      console.error('Error details:', {
-        message: error.message,
-        stack: error.stack,
-        error: error,
-      });
-      toast.error(error.message || 'Gagal menyimpan data');
-    } finally {
-      setIsSubmitting(false);
+    if (data.data?.items?.length > 0) {
+      setFieldError((p) => ({
+        ...p,
+        [field]:
+          field === 'nik'
+            ? 'NIK sudah terdaftar'
+            : 'No. Reference EDC sudah digunakan',
+      }));
+    } else {
+      setFieldError((p) => ({ ...p, [field]: undefined }));
     }
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setChecking((p) => ({ ...p, [field]: false }));
+  }
+};
+
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
+  ) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+  setShowSuccess(true); // cuma buka modal review
+};
+
+const handleConfirmSubmit = async () => {
+  if (isSubmitting) return;
+  setIsSubmitting(true);
+
+  try {
+    // 1. TOKEN
+    const token = localStorage.getItem('fwc_token');
+    if (!token) {
+      toast.error('Session expired. Silakan login kembali.');
+      return;
+    }
+
+    // 2. GET STATION
+    const meRes = await fetch(`${API_BASE_URL}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!meRes.ok) throw new Error('Gagal mengambil data user');
+
+    const meData = await meRes.json();
+    if (!meData.data?.stationId) {
+      toast.error(
+        'User tidak memiliki stasiun. Silakan hubungi administrator.',
+        { duration: 5000 }
+      );
+      return;
+    }
+    const stationIdFromMe = meData.data.stationId;
+
+    // 3. VALIDATION
+    if (!selectedCardProductId) {
+      toast.error('Card Product wajib dipilih');
+      return;
+    }
+    if (!selectedCard) {
+      toast.error('Serial Number wajib dipilih');
+      return;
+    }
+    if (!form.edcReferenceNumber.trim()) {
+      toast.error('No. Reference EDC wajib diisi');
+      return;
+    }
+
+    // 4. CREATE MEMBER
+    const memberRes = await createMember({
+      name: form.name,
+      identityNumber: form.nik,
+      nationality: form.nationality || undefined,
+      email: form.email || undefined,
+      phone: form.phone || undefined,
+      gender: form.gender || undefined,
+      alamat: form.address || undefined,
+      notes: form.notes || undefined,
+    });
+    if (!memberRes.success) {
+      throw new Error(memberRes.error?.message || 'Gagal membuat member');
+    }
+
+    const memberId = memberRes.data.id;
+
+    // 5. CREATE PURCHASE
+    const purchaseRes = await createPurchase({
+      cardId: selectedCard.id,
+      memberId,
+      edcReferenceNumber: form.edcReferenceNumber.trim(),
+      purchasedDate: form.membershipDate,
+      expiredDate: form.expiredDate,
+      shiftDate: form.shiftDate,
+      price: form.price ? parseFloat(form.price) : undefined,
+      operatorName,
+      stationId: stationIdFromMe,
+    });
+
+    if (!purchaseRes?.success) {
+      throw new Error(
+        purchaseRes?.message || 'Gagal membuat transaksi'
+      );
+    }
+
+    router.push('/dashboard/superadmin/membership');
+  } catch (err: any) {
+    console.error(err);
+    toast.error(err.message || 'Gagal menyimpan data');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
+
+
 
   return (
     <>
       <div className="space-y-6">
+        {/* HEADER */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.back()}
@@ -584,15 +600,47 @@ export default function AddMemberPage() {
             </div>
 
             {/* NIK & Nationality */}
-            <input
-              name="nik"
-              value={form.nik}
-              onChange={handleChange}
-              onInput={onlyNumber}
-              placeholder="NIK"
-              className={base}
-              required
-            />
+          <div className="relative">
+  <input
+  name="nik"
+  value={form.nik}
+  onChange={(e) => {
+    handleChange(e);
+
+    // 🔥 RESET ERROR SAAT USER NGEDIT / HAPUS
+    if (!e.target.value) {
+      setFieldError((p) => ({ ...p, nik: undefined }));
+    }
+  }}
+  onInput={onlyNumber}
+  onBlur={() => {
+    if (form.nik) {
+      checkUniqueField('nik', form.nik);
+    }
+  }}
+  placeholder="NIK"
+  className={`${base} pr-32 ${
+    fieldError.nik ? 'border-red-500' : ''
+  }`}
+  required
+/>
+
+
+  {/* ERROR DI DALAM FIELD */}
+  {fieldError.nik && (
+    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-red-600">
+      {fieldError.nik}
+    </span>
+  )}
+
+  {/* CHECKING */}
+  {!fieldError.nik && checking.nik && (
+    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+      Checking...
+    </span>
+  )}
+</div>
+
 
             <input
               name="nationality"
@@ -667,47 +715,81 @@ export default function AddMemberPage() {
             </div>
 
             {/* Membership Period */}
-            <SectionCard title="Membership Period">
-              <DateField
-                name="membershipDate"
-                label="Membership Date"
-                value={form.membershipDate}
-                onChange={handleChange}
-              />
-              <DateField
-                name="expiredDate"
-                label="Expired Date"
-                value={form.expiredDate}
-                onChange={handleChange}
-              />
-            </SectionCard>
+           <SectionCard title="Membership Period">
+  <Field label="Membership Date">
+  <div className="relative">
+    <Calendar
+      size={16}
+      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+    />
+    <input
+      type="date"
+      name="membershipDate"
+      value={form.membershipDate}
+      readOnly
+      className={`${base} pr-10 bg-gray-50 cursor-not-allowed`}
+    />
+  </div>
+</Field>
 
-            {/* Purchase Information */}
-            <SectionCard title="Purchase Information">
-              <DateField
-                name="purchasedDate"
-                label="Purchased Date"
-                value={form.purchasedDate}
-                onChange={handleChange}
-              />
-              <Field label="FWC Price">
-                <div className="relative">
-                  <DollarSign
-                    size={16}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                  />
-                  <input
-                    name="price"
-                    value={form.price}
-                    onChange={handleChange}
-                    onInput={onlyNumber}
-                    placeholder="FWC Price"
-                    className={`${base} pr-10`}
-                    required
-                  />
-                </div>
-              </Field>
-            </SectionCard>
+
+  {/* Expired Date - READ ONLY (AUTO) */}
+  <Field label="Expired Date">
+    <div className="relative">
+      <Calendar
+        size={16}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+      />
+      <input
+        type="date"
+        name="expiredDate"
+        value={form.expiredDate}
+        readOnly
+        className={`${base} pr-10 bg-gray-50 cursor-not-allowed`}
+      />
+    </div>
+  </Field>
+</SectionCard>
+
+
+        {/* Purchase Information */}
+<SectionCard title="Purchase Information">
+  {/* Purchased Date - READ ONLY */}
+  <Field label="Purchased Date">
+    <div className="relative">
+      <Calendar
+        size={16}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+      />
+      <input
+        type="date"
+        name="purchasedDate"
+        value={form.purchasedDate}
+        readOnly
+        className={`${base} pr-10 bg-gray-50 cursor-not-allowed`}
+      />
+    </div>
+  </Field>
+
+  {/* FWC Price - READ ONLY */}
+  <Field label="FWC Price">
+    <div className="relative">
+      <DollarSign
+        size={16}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+      />
+      <input
+        name="price"
+        value={form.price}
+        readOnly
+        placeholder="FWC Price"
+        className={`${base} pr-10 bg-gray-50 cursor-not-allowed`}
+        required
+      />
+    </div>
+  </Field>
+</SectionCard>
+
 
             {/* Card Information */}
             <SectionCard title="Card Information">
@@ -776,41 +858,89 @@ export default function AddMemberPage() {
 
             {/* Operational Information */}
             <SectionCard title="Operational Information">
-              <Field label="Stasiun">
-                <select
-                  name="station"
-                  value={form.station}
-                  onChange={handleChange}
-                  className={base}
-                >
-                  <option value="">Select</option>
-                  <option value="Halim">Halim</option>
-                  <option value="Karawang">Karawang</option>
-                  <option value="Padalarang">Padalarang</option>
-                  <option value="Tegalluar">Tegalluar</option>
-                </select>
-              </Field>
+  <Field label="Stasiun">
+    <select
+      name="station"
+      value={form.station}
+      onChange={handleChange}
+      className={base}
+    >
+      <option value="">Select</option>
+      <option value="Halim">Halim</option>
+      <option value="Karawang">Karawang</option>
+      <option value="Padalarang">Padalarang</option>
+      <option value="Tegalluar">Tegalluar</option>
+    </select>
+  </Field>
 
-              <DateField
-                name="shiftDate"
-                label="Shift Date"
-                value={form.shiftDate}
-                onChange={handleChange}
-              />
-            </SectionCard>
+  {/* Shift Date - READ ONLY */}
+  <Field label="Shift Date">
+    <div className="relative">
+      <Calendar
+        size={16}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+      />
+      <input
+        type="date"
+        name="shiftDate"
+        value={form.shiftDate}
+        readOnly
+        className={`${base} pr-10 bg-gray-50 cursor-not-allowed`}
+      />
+    </div>
+  </Field>
+</SectionCard>
 
 
             {/* No. Reference EDC - Full Width */}
-            <div className="md:col-span-2">
-              <input
-                name="edcReferenceNumber"
-                value={form.edcReferenceNumber}
-                onChange={handleChange}
-                placeholder="No. Reference EDC"
-                className={base}
-                required
-              />
-            </div>
+    {/* No. Reference EDC - Full Width */}
+<div className="relative md:col-span-2">
+  <input
+    name="edcReferenceNumber"
+    value={form.edcReferenceNumber}
+    onChange={(e) => {
+      handleChange(e);
+
+      if (!e.target.value) {
+        setFieldError((p) => ({
+          ...p,
+          edcReferenceNumber: undefined,
+        }));
+      }
+    }}
+    onBlur={() => {
+      if (form.edcReferenceNumber) {
+        checkUniqueField(
+          'edcReferenceNumber',
+          form.edcReferenceNumber
+        );
+      }
+    }}
+    placeholder="No. Reference EDC"
+    className={`${base} pr-40 ${
+      fieldError.edcReferenceNumber
+        ? 'border-red-500'
+        : ''
+    }`}
+    required
+  />
+
+  {/* ERROR DI DALAM FIELD */}
+  {fieldError.edcReferenceNumber && (
+    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-red-600">
+      {fieldError.edcReferenceNumber}
+    </span>
+  )}
+
+  {/* CHECKING */}
+  {!fieldError.edcReferenceNumber &&
+    checking.edcReferenceNumber && (
+      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+        Checking...
+      </span>
+    )}
+</div>
+
 
             {/* Operator Name - Full Width, Read-only */}
             <div className="md:col-span-2">
@@ -835,9 +965,15 @@ export default function AddMemberPage() {
           </div>
 
           <div className="mt-8 flex justify-end">
-            <button
-              type="submit"
-              disabled={isSubmitting}
+           <button
+  type="submit"
+  disabled={
+    isSubmitting ||
+    checking.nik ||
+    checking.edcReferenceNumber ||
+    !!fieldError.nik ||
+    !!fieldError.edcReferenceNumber
+  }
               className="rounded-md bg-[#8B1538] px-8 py-2 text-sm font-medium text-white hover:bg-[#73122E] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Menyimpan...' : 'Save'}
@@ -846,14 +982,30 @@ export default function AddMemberPage() {
         </form>
       </div>
 
-      {/* SUCCESS MODAL */}
-      <SuccessModal
-        open={showSuccess}
-        onClose={() => {
-          setShowSuccess(false);
-          router.push('/dashboard/superadmin/membership');
-        }}
-      />
+<SuccessModal
+  open={showSuccess}
+  title="Data Member"
+  message="Please review the member data before continuing"
+  data={{
+    'Membership Name': form.name,
+    'Membership Date': form.membershipDate,
+    'Expired Date': form.expiredDate,
+    Nationality: form.nationality || 'Indonesia',
+    'Identity Number': form.nik,
+    Address: form.address,
+    'Phone Number': form.phone,
+    'Email Address': form.email,
+    'Card Category': selectedCardProduct?.category.categoryName,
+    'Card Type': selectedCardProduct?.type.typeName,
+    'Purchased Date': form.purchasedDate,
+    'Total Quota (Trips)': selectedCardProduct?.totalQuota,
+  }}
+  onClose={() => setShowSuccess(false)}
+  onConfirm={handleConfirmSubmit}
+
+/>
+
+
     </>
   );
 }
