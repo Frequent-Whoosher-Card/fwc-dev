@@ -27,8 +27,12 @@ export class SupersetService {
 
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`Superset guest token failed: ${text}`);
+      console.error("[superset] guest token failed:", text);
+      return Promise.reject(
+        new Error(`Superset guest token failed: ${text}`)
+      );
     }
+
 
     const data = await res.json();
     return data.token;
