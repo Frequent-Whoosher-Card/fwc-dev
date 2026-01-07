@@ -436,6 +436,7 @@ export class CardGenerateService {
         id: true,
         serialNumber: true,
         status: true,
+        createdAt: true,
         fileObject: { select: { relativePath: true } },
       },
     });
@@ -471,6 +472,7 @@ export class CardGenerateService {
           serialNumber: c.serialNumber,
           status: c.status,
           barcodeUrl: c.fileObject ? `/${c.fileObject.relativePath}` : null,
+          createdAt: c.createdAt.toISOString(),
         })),
       };
     });

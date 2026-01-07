@@ -67,6 +67,7 @@ export namespace CardGenerateModel {
               serialNumber: t.String(),
               status: t.String(),
               barcodeUrl: t.Union([t.String(), t.Null()]),
+              createdAt: t.String(),
             })
           ),
         })
