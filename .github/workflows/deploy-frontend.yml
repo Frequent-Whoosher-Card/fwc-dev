@@ -18,7 +18,7 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Deploy Frontend (Safe Git Update + Blocking Lock)
+      - name: Deploy Frontend (Safe Update + Ensure main + Lock)
         run: |
           ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
             set -e
@@ -29,19 +29,24 @@ jobs:
             flock 9
             echo "Lock acquired"
 
-            # === Load NVM & Node 24.12.0 ===
+            echo "== Load NVM & Node 24.12.0 =="
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
             nvm use 24.12.0
 
             PM2="$HOME/.nvm/versions/node/v24.12.0/bin/pm2"
 
-            echo "== Update source code safely =="
+            echo "== Verify runtime =="
+            node -v
+            npm -v
+
+            echo "== Ensure branch is main & sync code safely =="
             cd /home/fwc/fwc-dev
             git fetch origin
+            git checkout main
             git reset --hard origin/main
 
-            echo "== Install frontend deps =="
+            echo "== Install frontend dependencies =="
             cd frontend
             npm install
 
@@ -51,5 +56,5 @@ jobs:
             echo "== Restart frontend via PM2 =="
             $PM2 restart fwc-frontend --update-env
 
-            echo "Frontend deploy finished"
+            echo "== Frontend deploy finished successfully =="
           EOF

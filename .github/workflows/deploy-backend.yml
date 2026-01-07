@@ -18,7 +18,7 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Deploy Backend (Safe Git Update + Blocking Lock)
+      - name: Deploy Backend (Safe Update + Ensure main + Lock + Bun PATH)
         run: |
           ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
             set -e
@@ -29,27 +29,38 @@ jobs:
             flock 9
             echo "Lock acquired"
 
-            # === Load NVM & Node 24.12.0 ===
+            echo "== Load NVM & Node 24.12.0 =="
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
             nvm use 24.12.0
 
+            echo "== Load Bun (non-interactive SSH fix) =="
+            export BUN_INSTALL="$HOME/.bun"
+            export PATH="$BUN_INSTALL/bin:$PATH"
+
+            echo "== Verify runtime =="
+            node -v
+            npm -v
+            command -v bun
+            bun --version
+
             PM2="$HOME/.nvm/versions/node/v24.12.0/bin/pm2"
 
-            echo "== Update source code safely =="
+            echo "== Ensure branch is main & sync code safely =="
             cd /home/fwc/fwc-dev
             git fetch origin
+            git checkout main
             git reset --hard origin/main
 
-            echo "== Install backend deps =="
+            echo "== Install backend dependencies =="
             cd backend
             bun install
 
-            echo "== Prisma generate =="
+            echo "== Generate Prisma client =="
             bunx prisma generate
 
             echo "== Restart backend via PM2 =="
             $PM2 restart fwc-backend --update-env
 
-            echo "Backend deploy finished"
+            echo "== Backend deploy finished successfully =="
           EOF
