@@ -18,12 +18,22 @@ import {
 } from '@/lib/services/membership.service';
 
 /* ======================
+   HELPER
+====================== */
+const formatNik = (nik?: string | null) => {
+  if (!nik) return '-';
+  return `FWC${nik}`;
+};
+
+
+/* ======================
    TYPES (FE CONTRACT)
 ====================== */
 interface Membership {
   id: string;
   membership_date: string;
   name?: string | null;
+  nip?: string | null;
   nik?: string | null;
   nationality?: string | null;
   gender?: 'Laki - Laki' | 'Perempuan' | null;
@@ -153,7 +163,7 @@ export default function MembershipPage() {
   const [loading, setLoading] = useState(true);
 // TAMBAHAN
 const [cardCategory, setCardCategory] =
-  useState<'all' | 'KAI'>('all');
+  useState<'all' | 'NIPKAI'>('all'); 
   const [search, setSearch] = useState('');
   const [gender, setGender] =
     useState<'all' | 'Laki - Laki' | 'Perempuan'>('all');
@@ -189,6 +199,7 @@ const [cardCategory, setCardCategory] =
         id: item.id,
         membership_date: formatDate(item.createdAt), // ✅ from createdAt
         name: item.name,
+        nip: item.nippKai ?? null,     // ✅ TAMBAH
         nik: item.identityNumber,
         nationality: item.nationality,
         gender: item.gender,
@@ -290,7 +301,7 @@ const [cardCategory, setCardCategory] =
         <div className="flex items-center gap-3">
           <input
             type="text"
-            placeholder="Search by name, identity number, email, or phone"
+            placeholder="Search by name, Identity Number, email, or phone"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-9 w-96 rounded-md border px-3 text-sm"
@@ -332,18 +343,18 @@ const [cardCategory, setCardCategory] =
   All
 </button>
 
-{/* KAI */}
+{/* NIPKAI */}
 <button
-  onClick={() => setCardCategory('KAI')}
-  disabled={cardCategory === 'KAI'}
-  aria-pressed={cardCategory === 'KAI'}
+  onClick={() => setCardCategory('NIPKAI')}
+  disabled={cardCategory === 'NIPKAI'}
+  aria-pressed={cardCategory === 'NIPKAI'}
   className={`h-9 rounded-md border px-4 text-sm transition ${
-    cardCategory === 'KAI'
+    cardCategory === 'NIPKAI'
       ? 'cursor-default border-blue-200 bg-blue-50 text-blue-600'
       : 'border-gray-300 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600'
   }`}
 >
-  KAI
+  NIPKAI
 </button>
 
 
@@ -396,18 +407,27 @@ const [cardCategory, setCardCategory] =
      {/* TABLE */}
      
 <div className="overflow-x-auto rounded-lg border bg-white">
-  <table className="min-w-[1600px] w-full">
-    <thead className="bg-gray-50 text-xs text-gray-600">
+<table className="min-w-[1900px] w-full">
+<thead className="bg-gray-50 text-xs text-gray-600 sticky top-0 z-10">
       <tr>
-        <th className="px-4 py-3 text-center whitespace-nowrap">
+        <th className="px-5 py-3 text-center whitespace-nowrap">
           Membership Date
         </th>
-        <th className="px-4 py-3 text-left whitespace-nowrap">
-          Customer Name
-        </th>
-        <th className="px-4 py-3 text-center whitespace-nowrap">
-          Identity Number
-        </th>
+        <th className="px-5 py-3 text-left whitespace-nowrap min-w-[220px]">
+  Customer Name
+</th>
+
+         {/* ✅ NIP – HANYA JIKA NIPKAI */}
+   {cardCategory === 'NIPKAI' && (
+  <th className="px-5 py-3 text-center whitespace-nowrap min-w-[200px]">
+    NIP
+  </th>
+)}
+
+        <th className="px-5 py-3 text-center whitespace-nowrap min-w-[260px]">
+  Identity Number
+</th>
+
         <th className="px-4 py-3 text-left whitespace-nowrap min-w-[140px]">
           Nationality
         </th>
@@ -437,21 +457,45 @@ const [cardCategory, setCardCategory] =
 
     <tbody>
       {filteredData.map((item) => (
-        <tr
-          key={item.id}
-          className="border-t text-sm hover:bg-gray-50"
-        >
+     <tr
+  key={item.id}
+  className="border-t text-sm hover:bg-gray-50 transition-colors"
+>
+
           <td className="px-4 py-2 text-center whitespace-nowrap">
             {item.membership_date || '-'}
           </td>
 
-          <td className="px-4 py-2 text-left whitespace-nowrap">
-            {item.name || '-'}
-          </td>
+          <td
+  className="px-5 py-2 text-left max-w-[260px] truncate"
+  title={item.name || ''}
+>
+  {item.name || '-'}
+</td>
 
-          <td className="px-4 py-2 text-center font-mono whitespace-nowrap">
-            {item.nik || '-'}
-          </td>
+
+          {/* ✅ NIP – HANYA JIKA NIPKAI */}
+{cardCategory === 'NIPKAI' && (
+  <td className="px-5 py-2 text-center font-mono whitespace-nowrap min-w-[200px]">
+    {item.nip || '-'}
+  </td>
+)}
+
+
+
+         <td
+  className="px-5 py-2 text-center font-mono min-w-[260px] max-w-[320px] truncate cursor-pointer hover:underline"
+  title="Klik untuk copy"
+  onClick={() =>
+    item.nik &&
+    navigator.clipboard.writeText(formatNik(item.nik))
+  }
+>
+  {formatNik(item.nik)}
+</td>
+
+
+
 
           <td className="px-4 py-2 text-left whitespace-nowrap min-w-[140px]">
             {item.nationality || '-'}
@@ -461,9 +505,13 @@ const [cardCategory, setCardCategory] =
             {item.gender || '-'}
           </td>
 
-          <td className="px-4 py-2 text-left max-w-[240px] truncate">
-            {item.email || '-'}
-          </td>
+         <td
+  className="px-5 py-2 text-left max-w-[240px] truncate"
+  title={item.email || ''}
+>
+  {item.email || '-'}
+</td>
+
 
           <td className="px-4 py-2 text-center font-mono whitespace-nowrap">
             {item.phone || '-'}

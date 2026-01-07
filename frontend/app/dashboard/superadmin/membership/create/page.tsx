@@ -14,11 +14,13 @@ import {
   Calendar,
   CheckCircle,
   Search,
+  Loader2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '@/lib/apiConfig';
-import { createMember } from '@/lib/services/membership.service';
+import { createMember, extractKTPFields } from '@/lib/services/membership.service';
 import { createPurchase } from '@/lib/services/purchase.service';
+import { ImageCropUpload } from '@/components/ui/image-crop-upload';
 
 /* ======================
    BASE INPUT STYLE
@@ -155,6 +157,8 @@ export default function AddMemberPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [operatorName, setOperatorName] = useState('');
+  const [ktpImage, setKtpImage] = useState<File | null>(null);
+  const [isExtractingOCR, setIsExtractingOCR] = useState(false);
 
   // Card Products
   const [cardProducts, setCardProducts] = useState<CardProduct[]>([]);
@@ -166,6 +170,17 @@ export default function AddMemberPage() {
   const [selectedCardId, setSelectedCardId] = useState('');
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [isLoadingCards, setIsLoadingCards] = useState(false);
+
+
+  const [fieldError, setFieldError] = useState<{
+  nik?: string;
+  edcReferenceNumber?: string;
+}>({});
+
+const [checking, setChecking] = useState<{
+  nik?: boolean;
+  edcReferenceNumber?: boolean;
+}>({});
 
   // Form State
   const [form, setForm] = useState({
@@ -185,6 +200,7 @@ export default function AddMemberPage() {
     shiftDate: '',
     serialNumber: '',
     edcReferenceNumber: '',
+    notes: '',
   });
 
   // Load operator name and card categories/types
@@ -360,6 +376,79 @@ export default function AddMemberPage() {
     e.currentTarget.value = e.currentTarget.value.replace(/\D/g, '');
   };
 
+  const handleKTPImageChange = async (file: File | null) => {
+    setKtpImage(file);
+    if (file) {
+      setIsExtractingOCR(true);
+      try {
+        const ocrResult = await extractKTPFields(file);
+        if (ocrResult.success && ocrResult.data) {
+          const data = ocrResult.data;
+          
+          // Auto-fill form dengan data dari OCR (NIK, Nama, Jenis Kelamin, dan Alamat)
+          setForm((prev) => ({
+            ...prev,
+            nik: data.identityNumber || prev.nik,
+            name: data.name || prev.name,
+            gender: data.gender === 'Laki-laki' ? 'L' : data.gender === 'Perempuan' ? 'P' : prev.gender,
+            address: data.alamat || prev.address,
+          }));
+
+          toast.success('Data KTP berhasil diekstrak!');
+        } else {
+          toast.error('Gagal mengekstrak data KTP. Silakan isi manual.');
+        }
+      } catch (error: any) {
+        console.error('OCR Error:', error);
+        toast.error(error.message || 'Gagal mengekstrak data KTP. Silakan isi manual.');
+      } finally {
+        setIsExtractingOCR(false);
+      }
+    }
+  };
+
+  const checkUniqueField = async (
+  field: 'nik' | 'edcReferenceNumber',
+  value: string
+) => {
+  if (!value) return;
+
+  setChecking((p) => ({ ...p, [field]: true }));
+
+  try {
+    const token = localStorage.getItem('fwc_token');
+
+    const url =
+      field === 'nik'
+        ? `${API_BASE_URL}/members?identityNumber=${value}`
+        : `${API_BASE_URL}/purchases?edcReferenceNumber=${value}`;
+
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) return;
+
+    const data = await res.json();
+
+    if (data.data?.items?.length > 0) {
+      setFieldError((p) => ({
+        ...p,
+        [field]:
+          field === 'nik'
+            ? 'NIK sudah terdaftar'
+            : 'No. Reference EDC sudah digunakan',
+      }));
+    } else {
+      setFieldError((p) => ({ ...p, [field]: undefined }));
+    }
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setChecking((p) => ({ ...p, [field]: false }));
+  }
+};
+
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
@@ -425,6 +514,7 @@ const handleConfirmSubmit = async () => {
       phone: form.phone || undefined,
       gender: form.gender || undefined,
       alamat: form.address || undefined,
+      notes: form.notes || undefined,
     });
     if (!memberRes.success) {
       throw new Error(memberRes.error?.message || 'Gagal membuat member');
@@ -480,6 +570,23 @@ const handleConfirmSubmit = async () => {
         {/* FORM */}
         <form onSubmit={handleSubmit} className="rounded-lg border bg-white p-6">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {/* KTP Upload dengan Crop - Full Width */}
+            <div className="md:col-span-2">
+              <Field label="Upload & Crop Gambar KTP (Opsional - untuk auto-fill)">
+                <ImageCropUpload
+                  onImageChange={handleKTPImageChange}
+                  maxSize={400}
+                  className="w-full"
+                />
+                {isExtractingOCR && (
+                  <div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
+                    <Loader2 className="animate-spin" size={16} />
+                    <span>Mengekstrak data dari KTP...</span>
+                  </div>
+                )}
+              </Field>
+            </div>
+
             {/* Membership Name - Full Width */}
             <div className="md:col-span-2">
               <input
@@ -493,15 +600,47 @@ const handleConfirmSubmit = async () => {
             </div>
 
             {/* NIK & Nationality */}
-            <input
-              name="nik"
-              value={form.nik}
-              onChange={handleChange}
-              onInput={onlyNumber}
-              placeholder="NIK"
-              className={base}
-              required
-            />
+          <div className="relative">
+  <input
+  name="nik"
+  value={form.nik}
+  onChange={(e) => {
+    handleChange(e);
+
+    // 🔥 RESET ERROR SAAT USER NGEDIT / HAPUS
+    if (!e.target.value) {
+      setFieldError((p) => ({ ...p, nik: undefined }));
+    }
+  }}
+  onInput={onlyNumber}
+  onBlur={() => {
+    if (form.nik) {
+      checkUniqueField('nik', form.nik);
+    }
+  }}
+  placeholder="NIK"
+  className={`${base} pr-32 ${
+    fieldError.nik ? 'border-red-500' : ''
+  }`}
+  required
+/>
+
+
+  {/* ERROR DI DALAM FIELD */}
+  {fieldError.nik && (
+    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-red-600">
+      {fieldError.nik}
+    </span>
+  )}
+
+  {/* CHECKING */}
+  {!fieldError.nik && checking.nik && (
+    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+      Checking...
+    </span>
+  )}
+</div>
+
 
             <input
               name="nationality"
@@ -577,12 +716,22 @@ const handleConfirmSubmit = async () => {
 
             {/* Membership Period */}
            <SectionCard title="Membership Period">
-  <DateField
-    name="membershipDate"
-    label="Membership Date"
-    value={form.membershipDate}
-    onChange={handleChange}
-  />
+  <Field label="Membership Date">
+  <div className="relative">
+    <Calendar
+      size={16}
+      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+    />
+    <input
+      type="date"
+      name="membershipDate"
+      value={form.membershipDate}
+      readOnly
+      className={`${base} pr-10 bg-gray-50 cursor-not-allowed`}
+    />
+  </div>
+</Field>
+
 
   {/* Expired Date - READ ONLY (AUTO) */}
   <Field label="Expired Date">
@@ -603,32 +752,44 @@ const handleConfirmSubmit = async () => {
 </SectionCard>
 
 
-            {/* Purchase Information */}
-            <SectionCard title="Purchase Information">
-              <DateField
-                name="purchasedDate"
-                label="Purchased Date"
-                value={form.purchasedDate}
-                onChange={handleChange}
-              />
-              <Field label="FWC Price">
-                <div className="relative">
-                  <DollarSign
-                    size={16}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                  />
-                  <input
-                   name="price"
-                   value={form.price}
-                   readOnly
-                  placeholder="FWC Price"
-                  className={`${base} pr-10 bg-gray-50 cursor-not-allowed`}
-                  required
-/>
+        {/* Purchase Information */}
+<SectionCard title="Purchase Information">
+  {/* Purchased Date - READ ONLY */}
+  <Field label="Purchased Date">
+    <div className="relative">
+      <Calendar
+        size={16}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+      />
+      <input
+        type="date"
+        name="purchasedDate"
+        value={form.purchasedDate}
+        readOnly
+        className={`${base} pr-10 bg-gray-50 cursor-not-allowed`}
+      />
+    </div>
+  </Field>
 
-                </div>
-              </Field>
-            </SectionCard>
+  {/* FWC Price - READ ONLY */}
+  <Field label="FWC Price">
+    <div className="relative">
+      <DollarSign
+        size={16}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+      />
+      <input
+        name="price"
+        value={form.price}
+        readOnly
+        placeholder="FWC Price"
+        className={`${base} pr-10 bg-gray-50 cursor-not-allowed`}
+        required
+      />
+    </div>
+  </Field>
+</SectionCard>
+
 
             {/* Card Information */}
             <SectionCard title="Card Information">
@@ -731,18 +892,55 @@ const handleConfirmSubmit = async () => {
 </SectionCard>
 
 
-
             {/* No. Reference EDC - Full Width */}
-            <div className="md:col-span-2">
-              <input
-                name="edcReferenceNumber"
-                value={form.edcReferenceNumber}
-                onChange={handleChange}
-                placeholder="No. Reference EDC"
-                className={base}
-                required
-              />
-            </div>
+    {/* No. Reference EDC - Full Width */}
+<div className="relative md:col-span-2">
+  <input
+    name="edcReferenceNumber"
+    value={form.edcReferenceNumber}
+    onChange={(e) => {
+      handleChange(e);
+
+      if (!e.target.value) {
+        setFieldError((p) => ({
+          ...p,
+          edcReferenceNumber: undefined,
+        }));
+      }
+    }}
+    onBlur={() => {
+      if (form.edcReferenceNumber) {
+        checkUniqueField(
+          'edcReferenceNumber',
+          form.edcReferenceNumber
+        );
+      }
+    }}
+    placeholder="No. Reference EDC"
+    className={`${base} pr-40 ${
+      fieldError.edcReferenceNumber
+        ? 'border-red-500'
+        : ''
+    }`}
+    required
+  />
+
+  {/* ERROR DI DALAM FIELD */}
+  {fieldError.edcReferenceNumber && (
+    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-red-600">
+      {fieldError.edcReferenceNumber}
+    </span>
+  )}
+
+  {/* CHECKING */}
+  {!fieldError.edcReferenceNumber &&
+    checking.edcReferenceNumber && (
+      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+        Checking...
+      </span>
+    )}
+</div>
+
 
             {/* Operator Name - Full Width, Read-only */}
             <div className="md:col-span-2">
@@ -754,13 +952,28 @@ const handleConfirmSubmit = async () => {
               />
             </div>
 
-  
+            {/* Notes - Full Width */}
+            <div className="md:col-span-2">
+              <textarea
+                name="notes"
+                value={form.notes}
+                onChange={handleChange}
+                placeholder="Notes (optional)"
+                className="h-24 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
+              />
+            </div>
           </div>
 
           <div className="mt-8 flex justify-end">
-            <button
-              type="submit"
-              disabled={isSubmitting}
+           <button
+  type="submit"
+  disabled={
+    isSubmitting ||
+    checking.nik ||
+    checking.edcReferenceNumber ||
+    !!fieldError.nik ||
+    !!fieldError.edcReferenceNumber
+  }
               className="rounded-md bg-[#8B1538] px-8 py-2 text-sm font-medium text-white hover:bg-[#73122E] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Menyimpan...' : 'Save'}
