@@ -94,220 +94,220 @@ export class CardGenerateService {
   }) {
     const { cardProductId, startSerial, endSerial, userId } = params;
 
-    const transaction = await db.$transaction(async (tx) => {
-      // 2. Cek Product by ID (With Relations)
-      const product = await tx.cardProduct.findUnique({
-        where: { id: cardProductId },
-        include: {
-          category: true,
-          type: true,
+    // --- 1. PRE-TRANSACTION VALIDATION & SETUP ---
+
+    // Fetch Product Metadata
+    const product = await db.cardProduct.findUnique({
+      where: { id: cardProductId },
+      include: {
+        category: true,
+        type: true,
+      },
+    });
+
+    if (!product) {
+      throw new ValidationError("Produk tidak ditemukan");
+    }
+
+    // Smart Parsing Logic
+    const yearSuffix = new Date().getFullYear().toString().slice(-2);
+    const startNum = parseSmartSerial(
+      startSerial,
+      product.serialTemplate,
+      yearSuffix
+    );
+    const endNum = parseSmartSerial(
+      endSerial,
+      product.serialTemplate,
+      yearSuffix
+    );
+
+    if (endNum < startNum) {
+      throw new ValidationError("End Serial harus >= Start Serial");
+    }
+
+    // Limit check
+    const quantity = endNum - startNum + 1;
+    if (quantity > 1000) {
+      throw new ValidationError("Maksimal 1000 kartu per batch");
+    }
+
+    // Check Sequential (Read-Only)
+    // Note: There is a small race condition here if someone generates exactly at the same time,
+    // but the unique constraint on serialNumber will catch it safely.
+    const lastCard = await db.card.findFirst({
+      where: { cardProductId: product.id },
+      orderBy: { serialNumber: "desc" },
+    });
+
+    let expectedStartNum = 1;
+    const prefix = `${product.serialTemplate}${yearSuffix}`;
+
+    if (lastCard && lastCard.serialNumber.startsWith(prefix)) {
+      const lastSuffixStr = lastCard.serialNumber.slice(prefix.length);
+      if (/^\d+$/.test(lastSuffixStr)) {
+        expectedStartNum = Number(lastSuffixStr) + 1;
+      }
+    }
+
+    if (startNum !== expectedStartNum) {
+      throw new ValidationError(
+        `Nomor serial harus berurutan. Serial terakhir di database untuk batch '${prefix}' adalah '${
+          lastCard ? lastCard.serialNumber : "Belum ada"
+        }'. Harap mulai dari suffix '${String(expectedStartNum).padStart(
+          5,
+          "0"
+        )}'`
+      );
+    }
+
+    const width = 5;
+    const serialNumbers: string[] = [];
+
+    for (let i = 0; i < quantity; i++) {
+      const sfx = String(startNum + i).padStart(width, "0");
+      serialNumbers.push(`${product.serialTemplate}${yearSuffix}${sfx}`);
+    }
+
+    // Check Existing (Read-Only)
+    const existing = await db.card.findFirst({
+      where: { serialNumber: { in: serialNumbers } },
+      select: { serialNumber: true }, // Optimization: select only needed field
+    });
+
+    if (existing) {
+      throw new ValidationError(
+        `Serial ${existing.serialNumber} sudah ada. Generate gagal.`
+      );
+    }
+
+    // --- 2. IMAGE GENERATION (OUTSIDE TRANSACTION) ---
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+
+    const storageRoot = path.join(process.cwd(), "storage");
+    const barcodeDir = path.join(storageRoot, "barcode", String(year), month);
+
+    if (!fs.existsSync(barcodeDir)) {
+      fs.mkdirSync(barcodeDir, { recursive: true });
+    }
+
+    const fileObjectsData: any[] = [];
+    const generatedFiles: string[] = [];
+
+    // Helper for single image generation
+    const generateOneImage = async (sn: string) => {
+      const batchParams = {
+        categoryName: product.category.categoryName.replace(/\s+/g, "_"),
+        typeName: product.type.typeName.replace(/\s+/g, "_"),
+      };
+
+      const fileName = `${batchParams.typeName}-${batchParams.categoryName}-${sn}.png`;
+      const absolutePath = path.join(barcodeDir, fileName);
+      const relativePath = `storage/barcode/${year}/${month}/${fileName}`;
+      const textFormatted = sn.split("").join(" ");
+
+      // BWIP-JS
+      const pngBuffer = await bwipjs.toBuffer({
+        bcid: "code128",
+        text: textFormatted,
+        scale: 2,
+        scaleX: 2,
+        scaleY: 2,
+        includetext: false,
+        paddingwidth: 0,
+        paddingheight: 0,
+      });
+
+      const barcodeImg = await loadImage(pngBuffer);
+      const barcodeWidth = barcodeImg.width;
+      const barcodeHeight = barcodeImg.height;
+
+      const targetBarcodeWidth = 530;
+      const targetBarcodeHeight = Math.round(
+        barcodeHeight * (targetBarcodeWidth / barcodeWidth)
+      );
+      const barcodeX = Math.round((TARGET_W - targetBarcodeWidth) / 2);
+      const barcodeY = 20;
+
+      const canvas = createCanvas(TARGET_W, TARGET_H);
+      const ctx = canvas.getContext("2d");
+
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, TARGET_W, TARGET_H);
+
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(
+        barcodeImg,
+        barcodeX,
+        barcodeY,
+        targetBarcodeWidth,
+        targetBarcodeHeight
+      );
+
+      const textY = barcodeY + targetBarcodeHeight + 8;
+      ctx.fillStyle = "#000000";
+      ctx.font = `22px "${FONT_FAMILY}"`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillText(textFormatted, TARGET_W / 2, textY);
+
+      const finalBuffer = canvas.toBuffer("image/png");
+
+      await fs.promises.writeFile(absolutePath, finalBuffer);
+
+      return {
+        absolutePath,
+        fileMetadata: {
+          originalName: fileName,
+          storedName: fileName,
+          relativePath: relativePath,
+          mimeType: "image/png",
+          sizeBytes: Buffer.byteLength(finalBuffer),
+          purpose: "BARCODE_IMAGE" as const,
+          createdBy: userId,
         },
-      });
+      };
+    };
 
-      if (!product) {
-        throw new ValidationError("Produk tidak ditemukan");
-      }
+    try {
+      // Chunk concurrent generation to avoid memory spikes
+      const BATCH_SIZE = 20;
+      for (let i = 0; i < serialNumbers.length; i += BATCH_SIZE) {
+        const batch = serialNumbers.slice(i, i + BATCH_SIZE);
+        const results = await Promise.all(
+          batch.map((sn) => generateOneImage(sn))
+        );
 
-      // 3. Smart Parsing
-      const yearSuffix = new Date().getFullYear().toString().slice(-2);
-
-      const startNum = parseSmartSerial(
-        startSerial,
-        product.serialTemplate,
-        yearSuffix
-      );
-      const endNum = parseSmartSerial(
-        endSerial,
-        product.serialTemplate,
-        yearSuffix
-      );
-
-      if (endNum < startNum) {
-        throw new ValidationError("End Serial harus >= Start Serial");
-      }
-
-      // Safe limit check
-      const quantity = endNum - startNum + 1;
-      if (quantity > 500) {
-        throw new ValidationError("Maksimal 500 kartu per batch");
-      }
-
-      // X. Validate Sequential Serials
-      const lastCard = await tx.card.findFirst({
-        where: { cardProductId: product.id },
-        orderBy: { serialNumber: "desc" },
-      });
-
-      let expectedStartNum = 1;
-      const prefix = `${product.serialTemplate}${yearSuffix}`;
-
-      if (lastCard && lastCard.serialNumber.startsWith(prefix)) {
-        const lastSuffixStr = lastCard.serialNumber.slice(prefix.length);
-        if (/^\d+$/.test(lastSuffixStr)) {
-          expectedStartNum = Number(lastSuffixStr) + 1;
+        for (const res of results) {
+          generatedFiles.push(res.absolutePath);
+          fileObjectsData.push(res.fileMetadata);
         }
       }
 
-      if (startNum !== expectedStartNum) {
-        throw new ValidationError(
-          `Nomor serial harus berurutan. Serial terakhir di database untuk batch '${prefix}' adalah '${lastCard ? lastCard.serialNumber : "Belum ada"}'. Harap mulai dari suffix '${String(expectedStartNum).padStart(5, "0")}'`
-        );
-      }
+      // --- 3. DATABASE TRANSACTION (FAST) ---
 
-      const width = 5;
-      const serialNumbers: string[] = [];
+      const transactionResult = await db.$transaction(async (tx) => {
+        // Double check collision (optional but safe) within transaction?
+        // Not strictly necessary if we rely on unique constraint error handling.
 
-      for (let i = 0; i < quantity; i++) {
-        const sfx = String(startNum + i).padStart(width, "0");
-        serialNumbers.push(`${product.serialTemplate}${yearSuffix}${sfx}`);
-      }
-
-      // 4. Cek Existing
-      const existing = await tx.card.findFirst({
-        where: { serialNumber: { in: serialNumbers } },
-      });
-
-      if (existing) {
-        throw new ValidationError(
-          `Serial ${existing.serialNumber} sudah ada. Generate gagal.`
-        );
-      }
-
-      // 5. Generate Barcode Images & Prepare FileObjects
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-
-      const storageRoot = path.join(process.cwd(), "storage");
-      const barcodeDir = path.join(storageRoot, "barcode", String(year), month);
-
-      if (!fs.existsSync(barcodeDir)) {
-        fs.mkdirSync(barcodeDir, { recursive: true });
-      }
-
-      const fileObjectsData: any[] = [];
-      const generatedFiles: string[] = [];
-      const writePromises: Promise<void>[] = [];
-
-      try {
-        const batchParams = {
-          categoryName: product.category.categoryName.replace(/\s+/g, "_"),
-          typeName: product.type.typeName.replace(/\s+/g, "_"),
-        };
-
-        for (const sn of serialNumbers) {
-          // Generate Filename: {Type}-{Category}-{Serial}.png
-          const fileName = `${batchParams.typeName}-${batchParams.categoryName}-${sn}.png`;
-          const absolutePath = path.join(barcodeDir, fileName);
-          const relativePath = `storage/barcode/${year}/${month}/${fileName}`;
-
-          const textFormatted = sn.split("").join(" ");
-
-          // --- BWIP-JS GENERATION ---
-          const pngBuffer = await bwipjs.toBuffer({
-            bcid: "code128",
-            text: sn.split("").join(" "), // Encoded data with spaces
-            scale: 2, // module width in pixels
-            scaleX: 2, // width multiplier
-            scaleY: 2, // height multiplier
-            includetext: false, // NO TEXT (Manual Render)
-            paddingwidth: 0,
-            paddingheight: 0,
-            paddingleft: 0,
-            paddingright: 0,
-            paddingtop: 0,
-            paddingbottom: 0,
-            borderwidth: 0,
-          });
-
-          const barcodeImg = await loadImage(pngBuffer);
-
-          // Calculate dimensions
-          const barcodeWidth = barcodeImg.width;
-          const barcodeHeight = barcodeImg.height;
-
-          // Target barcode dimensions
-          const targetBarcodeWidth = 530; // lebar barcode di canvas
-          const targetBarcodeHeight = Math.round(
-            barcodeHeight * (targetBarcodeWidth / barcodeWidth)
-          );
-
-          // Center position
-          const barcodeX = Math.round((TARGET_W - targetBarcodeWidth) / 2);
-          const barcodeY = 20; // margin top
-
-          // Create Final Canvas
-          const canvas = createCanvas(TARGET_W, TARGET_H);
-          const ctx = canvas.getContext("2d");
-
-          // White background
-          ctx.fillStyle = "#fff";
-          ctx.fillRect(0, 0, TARGET_W, TARGET_H);
-
-          // Draw Barcode (NO SMOOTHING)
-          ctx.imageSmoothingEnabled = false;
-          ctx.drawImage(
-            barcodeImg,
-            barcodeX,
-            barcodeY,
-            targetBarcodeWidth,
-            targetBarcodeHeight
-          );
-
-          // Draw Text Manually
-          const textY = barcodeY + targetBarcodeHeight + 8;
-
-          ctx.fillStyle = "#000000";
-          ctx.font = `22px "${FONT_FAMILY}"`;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "top";
-          ctx.fillText(textFormatted, TARGET_W / 2, textY);
-
-          const finalBuffer = canvas.toBuffer("image/png");
-
-          // Push write operation
-          writePromises.push(fs.promises.writeFile(absolutePath, finalBuffer));
-          generatedFiles.push(absolutePath);
-
-          const fileSizeApprox = Buffer.byteLength(finalBuffer);
-
-          fileObjectsData.push({
-            originalName: fileName,
-            storedName: fileName,
-            relativePath: relativePath,
-            mimeType: "image/png",
-            sizeBytes: fileSizeApprox,
-            purpose: "BARCODE_IMAGE" as const,
-            createdBy: userId,
-          });
-        }
-
-        // Wait for all file writes to complete
-        await Promise.all(writePromises);
-
-        // 6. Insert FileObjects
+        // 1. Insert FileObjects
         const createdFiles = await tx.fileObject.createManyAndReturn({
           data: fileObjectsData,
           select: { id: true, originalName: true },
         });
 
+        // Map Serial -> FileID
         const fileMap = new Map<string, string>();
         for (const f of createdFiles) {
-          // Extract serial from filename: Type-Cat-Serial.png
-          // We can use the logic that we know the prefix
-          // Or just match simply since we generated it.
-          // Better: Map via index if order preserved, or specific parsing.
-          // Since createManyAndReturn preserves order in Postgres generally, but to be safe:
-
-          // Let's parse strictly: {Type}-{Cat}-{Serial}.png
-          // But safer is to relate by looking at the serial inside the name.
-          // Strategy: The serial is the last part before extension.
           const parts = f.originalName.replace(".png", "").split("-");
-          const serial = parts[parts.length - 1]; // Assume serial is last
+          const serial = parts[parts.length - 1];
           fileMap.set(serial, f.id);
         }
 
-        // 7. Create Cards
+        // 2. Create Cards
         await tx.card.createMany({
           data: serialNumbers.map((sn) => ({
             serialNumber: sn,
@@ -319,8 +319,8 @@ export class CardGenerateService {
           })),
         });
 
-        // 8. Log History (CardStockMovement - GENERATED)
-        await tx.cardStockMovement.create({
+        // 3. Log History
+        return await tx.cardStockMovement.create({
           data: {
             type: "GENERATED",
             status: "APPROVED",
@@ -329,39 +329,31 @@ export class CardGenerateService {
             quantity: quantity,
             note: `Generated Batch ${serialNumbers[0]} - ${serialNumbers[serialNumbers.length - 1]}`,
             sentSerialNumbers: serialNumbers,
-            receivedSerialNumbers: serialNumbers, // Auto-received since generated
+            receivedSerialNumbers: serialNumbers,
             createdBy: userId,
             movementAt: new Date(),
           },
         });
+      });
 
-        return {
-          message: `Berhasil generate ${quantity} kartu`,
-          firstSerial: serialNumbers[0],
-          lastSerial: serialNumbers[serialNumbers.length - 1],
-          generatedFilesCount: generatedFiles.length,
-        };
-      } catch (error) {
-        // Cleanup: Delete generated files if any error occurs
-        if (generatedFiles.length > 0) {
-          console.error(
-            "Error during generation. Cleaning up created files..."
-          );
-          await Promise.all(
-            generatedFiles.map(async (filePath) => {
-              try {
-                await fs.promises.unlink(filePath);
-              } catch (e) {
-                // Ignore
-              }
-            })
-          );
-        }
-        throw error;
+      return {
+        message: `Berhasil generate ${quantity} kartu`,
+        firstSerial: serialNumbers[0],
+        lastSerial: serialNumbers[serialNumbers.length - 1],
+        generatedFilesCount: generatedFiles.length,
+      };
+    } catch (error) {
+      // --- CLEANUP ON ERROR ---
+      // If DB fails, or generation fails midway, delete ALL generated files from this session
+      if (generatedFiles.length > 0) {
+        console.error("Error during generation. Cleaning up created files...");
+        // Use map/promise.all for speed, suppress errors
+        await Promise.allSettled(
+          generatedFiles.map((filePath) => fs.promises.unlink(filePath))
+        );
       }
-    });
-
-    return transaction;
+      throw error;
+    }
   }
 
   // Get History (GENERATED Batches)

@@ -1,13 +1,13 @@
-import axios from 'axios';
-import { recaptchaConfig, isRecaptchaEnabled } from '../config/recaptcha';
-import { AuthenticationError } from '../utils/errors';
+import axios from "axios";
+import { recaptchaConfig, isRecaptchaEnabled } from "../config/recaptcha";
+import { AuthenticationError } from "../utils/errors";
 
 interface RecaptchaVerifyResponse {
   success: boolean;
   score?: number;
   challenge_ts?: string;
   hostname?: string;
-  'error-codes'?: string[];
+  "error-codes"?: string[];
 }
 
 /**
@@ -17,12 +17,14 @@ interface RecaptchaVerifyResponse {
 export async function verifyRecaptchaToken(token: string): Promise<boolean> {
   // Skip verification if reCAPTCHA is not configured (for development)
   if (!isRecaptchaEnabled) {
-    console.warn('[reCAPTCHA] Secret key not configured, skipping verification');
+    console.warn(
+      "[reCAPTCHA] Secret key not configured, skipping verification"
+    );
     return true;
   }
 
-  if (!token || typeof token !== 'string') {
-    throw new AuthenticationError('reCAPTCHA token is required');
+  if (!token || typeof token !== "string") {
+    throw new AuthenticationError("reCAPTCHA token is required");
   }
 
   try {
@@ -37,19 +39,19 @@ export async function verifyRecaptchaToken(token: string): Promise<boolean> {
       }
     );
 
-    const { success, score, 'error-codes': errorCodes } = response.data;
+    const { success, score, "error-codes": errorCodes } = response.data;
 
     if (!success) {
       const errorMessage =
         errorCodes && errorCodes.length > 0
-          ? `reCAPTCHA verification failed: ${errorCodes.join(', ')}`
-          : 'reCAPTCHA verification failed';
+          ? `reCAPTCHA verification failed: ${errorCodes.join(", ")}`
+          : "reCAPTCHA verification failed";
       throw new AuthenticationError(errorMessage);
     }
 
     // Check score threshold
     if (score === undefined || score < recaptchaConfig.scoreThreshold) {
-      console.warn('[reCAPTCHA] ❌ Score too low', {
+      console.warn("[reCAPTCHA] ❌ Score too low", {
         score,
         threshold: recaptchaConfig.scoreThreshold,
         hostname: response.data.hostname,
@@ -59,7 +61,7 @@ export async function verifyRecaptchaToken(token: string): Promise<boolean> {
       );
     }
 
-    console.log('[reCAPTCHA] ✅ Token verified successfully', {
+    console.log("[reCAPTCHA] ✅ Token verified successfully", {
       score,
       threshold: recaptchaConfig.scoreThreshold,
       hostname: response.data.hostname,
@@ -72,12 +74,13 @@ export async function verifyRecaptchaToken(token: string): Promise<boolean> {
 
     // Handle axios errors
     if (axios.isAxiosError(error)) {
-      console.error('[reCAPTCHA] API error:', error.message);
-      throw new AuthenticationError('reCAPTCHA verification service unavailable');
+      console.error("[reCAPTCHA] API error:", error.message);
+      throw new AuthenticationError(
+        "reCAPTCHA verification service unavailable"
+      );
     }
 
-    console.error('[reCAPTCHA] Verification error:', error);
-    throw new AuthenticationError('reCAPTCHA verification failed');
+    console.error("[reCAPTCHA] Verification error:", error);
+    throw new AuthenticationError("reCAPTCHA verification failed");
   }
 }
-
