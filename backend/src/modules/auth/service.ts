@@ -16,18 +16,20 @@ export class AuthService {
   static async login(
     usernameOrEmail: string,
     password: string,
-    appCheckToken?: string,
-    recaptchaToken?: string
+    appCheckToken: string,
+    recaptchaToken: string
   ) {
-    // Verify Firebase App Check token (if provided)
-    if (appCheckToken) {
-      await verifyAppCheckToken(appCheckToken);
+    // Verify Firebase App Check token (required)
+    if (!appCheckToken || typeof appCheckToken !== 'string' || appCheckToken.trim().length === 0) {
+      throw new AuthenticationError('App Check token is required');
     }
+    await verifyAppCheckToken(appCheckToken);
 
-    // Verify Google reCAPTCHA v3 token (if provided)
-    if (recaptchaToken) {
-      await verifyRecaptchaToken(recaptchaToken);
+    // Verify Google reCAPTCHA v3 token (required)
+    if (!recaptchaToken || typeof recaptchaToken !== 'string' || recaptchaToken.trim().length === 0) {
+      throw new AuthenticationError('reCAPTCHA token is required');
     }
+    await verifyRecaptchaToken(recaptchaToken);
 
     // Find user by username or email
     const user = await db.user.findFirst({
