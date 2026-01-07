@@ -327,9 +327,15 @@ class KTPOCR:
                         break
         
         # 3. Jenis Kelamin
+        # Pattern lebih fleksibel untuk menangani variasi OCR seperti "LAK-LAKI", "LAKI-LAKI", "Laki-laki", dll
         jenis_kelamin_patterns = [
             r'Jenis\s+kelamin[:\s]*([A-Za-z/]+)',
-            r'(Laki\s*[-\s]?laki|Perempuan)',
+            # Pattern untuk menangkap "LAK-LAKI" (prioritas tinggi karena sering terjadi di OCR)
+            r'(LAK\s*[-]?\s*LAKI)',
+            # Pattern untuk "LAKI-LAKI" atau "Laki-laki"
+            r'(LAKI\s*[-]?\s*LAKI|Laki\s*[-\s]?laki)',
+            # Pattern untuk "Perempuan"
+            r'(Perempuan)',
         ]
         for pattern in jenis_kelamin_patterns:
             match = re.search(pattern, all_text, re.IGNORECASE)
@@ -340,13 +346,39 @@ class KTPOCR:
                 else:
                     jk_text = match.group(0)
                 
-                if 'laki' in jk_text.lower() or 'male' in jk_text.lower():
-                    fields['jenis_kelamin'] = 'Laki-laki'
-                elif 'perempuan' in jk_text.lower() or 'female' in jk_text.lower():
+                # Normalize text untuk matching (remove spaces and hyphens)
+                jk_lower = jk_text.lower().replace('-', '').replace(' ', '')
+                
+                # Check untuk laki-laki (menangani variasi: laklaki, lak-laki, laki-laki, dll)
+                if 'lak' in jk_lower:
+                    # Jika mengandung "lak" dan panjang <= 8 karakter (untuk "laklaki" = 7 chars)
+                    # atau mengandung "laki" (untuk "laki-laki")
+                    if 'laki' in jk_lower or len(jk_lower) <= 8:
+                        fields['jenis_kelamin'] = 'Laki-laki'
+                    else:
+                        fields['jenis_kelamin'] = 'Laki-laki'  # Default to Laki-laki if contains "lak"
+                elif 'perempuan' in jk_lower or 'female' in jk_lower:
                     fields['jenis_kelamin'] = 'Perempuan'
+                elif 'laki' in jk_text.lower() or 'male' in jk_text.lower():
+                    fields['jenis_kelamin'] = 'Laki-laki'
                 else:
+                    # Jika tidak match, coba extract dari text asli
                     fields['jenis_kelamin'] = jk_text.strip()
                 break
+        
+        # Fallback: cari langsung di text jika pattern tidak match
+        # Ini penting untuk kasus seperti "LAK-LAKI" yang mungkin tidak terdeteksi pattern di atas
+        if not fields['jenis_kelamin']:
+            # Cari kata "LAK" diikuti oleh "-" atau spasi lalu "LAKI" (untuk kasus "LAK-LAKI")
+            lak_match = re.search(r'LAK\s*[-]?\s*LAKI', all_text, re.IGNORECASE)
+            if lak_match:
+                fields['jenis_kelamin'] = 'Laki-laki'
+            # Cari "LAKI-LAKI" atau variasi lainnya
+            elif re.search(r'LAKI\s*[-]?\s*LAKI', all_text, re.IGNORECASE):
+                fields['jenis_kelamin'] = 'Laki-laki'
+            # Cari "PEREMPUAN"
+            elif re.search(r'PEREMPUAN', all_text, re.IGNORECASE):
+                fields['jenis_kelamin'] = 'Perempuan'
         
         # 4. Alamat - bisa setelah label "Alamat" atau setelah "Gol Darah" atau sebelum RT/RW
         # Pattern 1: Setelah label "Alamat"
