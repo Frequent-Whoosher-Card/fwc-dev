@@ -370,7 +370,28 @@
 
 'use client';
 
+import { useEffect, useRef } from 'react';
+import { getSupersetGuestToken } from '@/services/superset/superset.service';
+
 export default function DashboardContent() {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    // 1️⃣ Ambil guest token dari BACKEND
+    getSupersetGuestToken(
+      '1138237b-ff01-4ad9-be19-a576acdfb8ae' // dashboard ID Superset
+    ).then((token) => {
+      // 2️⃣ Kirim token ke iframe Superset
+      iframeRef.current?.contentWindow?.postMessage(
+        {
+          type: 'guest_token',
+          token,
+        },
+        'https://superset.fwc-kcic.me'
+      );
+    });
+  }, []);
+
   return (
     <div className="w-full h-[calc(100vh-64px)] rounded-xl border bg-white overflow-hidden">
       <div className="border-b px-6 py-4">
@@ -378,7 +399,14 @@ export default function DashboardContent() {
         <p className="text-sm text-gray-500">Superset Dashboard</p>
       </div>
 
-      <iframe src="https://superset.fwc-kcic.me/superset/dashboard/p/v2YGXxyGXNL/?standalone=1" className="w-full h-full" style={{ border: 'none' }} allow="fullscreen" />
+      {/* 3️⃣ IFRAME MODE EMBEDDED */}
+      <iframe
+        ref={iframeRef}
+        src="https://superset.fwc-kcic.me/embedded/dashboard/1138237b-ff01-4ad9-be19-a576acdfb8ae"
+        className="w-full h-full"
+        style={{ border: 'none' }}
+        allow="fullscreen"
+      />
     </div>
   );
 }
