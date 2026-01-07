@@ -111,3 +111,26 @@ const app = new Elysia()
 console.log(
   `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`
 );
+
+// Graceful shutdown untuk OCR daemon
+process.on("SIGTERM", async () => {
+  console.log("SIGTERM received, shutting down gracefully...");
+  try {
+    const { ocrService } = await import("./services/ocr_service");
+    await ocrService.shutdown();
+  } catch (e) {
+    // Ignore if OCR service not initialized
+  }
+  process.exit(0);
+});
+
+process.on("SIGINT", async () => {
+  console.log("SIGINT received, shutting down gracefully...");
+  try {
+    const { ocrService } = await import("./services/ocr_service");
+    await ocrService.shutdown();
+  } catch (e) {
+    // Ignore if OCR service not initialized
+  }
+  process.exit(0);
+});
