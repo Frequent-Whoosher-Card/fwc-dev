@@ -36,6 +36,10 @@ const baseRoutes = new Elysia()
           cardProductId: query.cardProductId as string | undefined,
           status: query.status as string | undefined,
           search: query.search as string | undefined,
+          categoryId: query.categoryId as string | undefined,
+          typeId: query.typeId as string | undefined,
+          categoryName: query.categoryName as string | undefined,
+          typeName: query.typeName as string | undefined,
           page,
           limit,
         });
@@ -67,6 +71,49 @@ const baseRoutes = new Elysia()
         summary: "Get all cards",
         description:
           "Get all cards with optional filters. Supports filtering by cardProductId, status (IN_STATION, IN_OFFICE, SOLD_ACTIVE, etc.), and searching by serial number. Includes pagination support.",
+      },
+    }
+  )
+  // Get First Available Card
+  .get(
+    "/first-available",
+    async (context) => {
+      const { query, set } = context as typeof context;
+      try {
+        const card = await CardService.getFirstAvailableCard(
+          query.cardProductId,
+          query.status
+        );
+
+        return {
+          success: true,
+          message: card
+            ? "First available card found"
+            : "No available card found with the specified criteria",
+          data: card,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      query: CardModel.getFirstAvailableCardQuery,
+      response: {
+        200: CardModel.getFirstAvailableCardResponse,
+        400: CardModel.errorResponse,
+        401: CardModel.errorResponse,
+        403: CardModel.errorResponse,
+        500: CardModel.errorResponse,
+      },
+      detail: {
+        tags: ["Card"],
+        summary: "Get First Available Card Serial",
+        description:
+          "Get the first matching card based on Category, Type and Status (sorted by Serial Number ASC). status defaults to IN_STATION.",
       },
     }
   )

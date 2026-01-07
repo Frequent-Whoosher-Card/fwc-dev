@@ -1,5 +1,6 @@
 'use client';
 
+import toast from 'react-hot-toast';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -262,19 +263,25 @@ const [cardCategory, setCardCategory] =
   /* ======================
      DELETE
   ====================== */
-  const confirmDelete = async () => {
-    if (!selectedId) return;
+const confirmDelete = async () => {
+  if (!selectedId) return;
 
-    try {
-      await deleteMember(selectedId);
-      setShowDeleteModal(false);
-      setSelectedId(null);
-      setShowSuccessModal(true);
-      fetchMembers(pagination.page);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  try {
+    await deleteMember(selectedId);
+
+    setShowDeleteModal(false);
+    setSelectedId(null);
+    setShowSuccessModal(true);
+
+    fetchMembers(pagination.page);
+  } catch (err: any) {
+    toast.error(
+      err?.message ||
+      'Tidak dapat menghapus member'
+    );
+  }
+};
+
 
   /* ======================
      PAGINATION

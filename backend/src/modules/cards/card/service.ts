@@ -7,6 +7,10 @@ export class CardService {
     cardProductId?: string;
     status?: string;
     search?: string;
+    categoryId?: string;
+    typeId?: string;
+    categoryName?: string;
+    typeName?: string;
     page?: number;
     limit?: number;
   }) {
@@ -38,6 +42,39 @@ export class CardService {
         contains: search,
         mode: "insensitive" as const,
       };
+    }
+
+    // Filter by Category/Type (Relations)
+    const cardProductWhere: any = {};
+
+    if (params?.categoryId) {
+      cardProductWhere.categoryId = params.categoryId;
+    }
+
+    if (params?.typeId) {
+      cardProductWhere.typeId = params.typeId;
+    }
+
+    if (params?.categoryName) {
+      cardProductWhere.category = {
+        categoryName: {
+          contains: params.categoryName,
+          mode: "insensitive",
+        },
+      };
+    }
+
+    if (params?.typeName) {
+      cardProductWhere.type = {
+        typeName: {
+          contains: params.typeName,
+          mode: "insensitive",
+        },
+      };
+    }
+
+    if (Object.keys(cardProductWhere).length > 0) {
+      where.cardProduct = cardProductWhere;
     }
 
     const skip = (page - 1) * limit;
@@ -220,5 +257,30 @@ export class CardService {
       expiredDate: card.expiredDate?.toISOString() || null,
       member: card.member || null, // Ensure member is always present (can be null)
     };
+  }
+
+  // Get First Available Card Serial Number
+  static async getFirstAvailableCard(
+    cardProductId: string,
+    status: string = "IN_STATION"
+  ) {
+    // Find first card with matching cardProductId and status sorted by serialNumber ASC
+    const card = await db.card.findFirst({
+      where: {
+        cardProductId,
+        status: status as any, // Cast to CardStatus enum if needed, or string
+        deletedAt: null,
+      },
+      orderBy: {
+        serialNumber: "asc",
+      },
+      select: {
+        id: true,
+        serialNumber: true,
+        status: true,
+      },
+    });
+
+    return card;
   }
 }

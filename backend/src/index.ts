@@ -1,3 +1,4 @@
+import path from "path";
 import { Elysia } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { docsConfig } from "./docs";
@@ -108,6 +109,13 @@ const app = new Elysia()
         statusCode: 500,
       },
     };
+  })
+  // Static File Serving
+  .get("/storage/*", async ({ params }) => {
+    // Basic Path Traversal Protection
+    const cleanPath = params["*"].replace(/\.\./g, "");
+    const filePath = path.join(process.cwd(), "storage", cleanPath);
+    return Bun.file(filePath);
   })
   .listen(3001);
 
