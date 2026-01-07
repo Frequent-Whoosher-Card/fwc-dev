@@ -89,7 +89,7 @@ const menuByRole: Record<Role, any[]> = {
 /* =========================
    DASHBOARD LAYOUT
 ========================= */
-export function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 

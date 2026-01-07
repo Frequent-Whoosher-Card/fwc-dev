@@ -87,35 +87,60 @@ export function StockStation({ filters }: StockStationProps) {
 
   return (
     <div className="rounded-xl border bg-white overflow-x-auto">
-      <table className="w-full text-sm min-w-[1000px]">
+      <table className="w-full text-sm min-w-[1050px]">
         <thead className="bg-gray-50 border-b">
+          {/* HEADER BARIS 1 */}
           <tr>
-            <th className="p-4 text-center">Station</th>
-            <th className="p-4 text-center">Category</th>
-            <th className="p-4 text-center">Type</th>
-            <th className="p-4 text-center">Beredar</th>
+            <th rowSpan={2} className="p-4 text-center">
+              Station
+            </th>
+            <th rowSpan={2} className="p-4 text-center">
+              Category
+            </th>
+            <th rowSpan={2} className="p-4 text-center">
+              Type
+            </th>
+            <th rowSpan={2} className="p-4 text-center">
+              Beredar
+            </th>
+
+            <th colSpan={3} className="p-4 text-center bg-blue-50">
+              Terjual
+            </th>
+
+            <th rowSpan={2} className="p-4 text-center">
+              Belum Terjual
+            </th>
+          </tr>
+
+          {/* HEADER BARIS 2 */}
+          <tr>
             <th className="p-4 text-center">Aktif</th>
             <th className="p-4 text-center">Non Aktif</th>
             <th className="p-4 text-center">Total</th>
-            <th className="p-4 text-center">Belum Terjual</th>
           </tr>
         </thead>
 
         <tbody>
-          {rows.map((row, i) => (
-            <tr key={i} className="border-b text-center">
-              <td className="p-4">{row.stationName}</td>
-              <td className="p-4">{row.cardCategory}</td>
-              <td className="p-4">{row.cardType}</td>
-              <td className="p-4">{fmt(row.cardBeredar)}</td>
-              <td className="p-4">{fmt(row.aktif)}</td>
-              <td className="p-4">{fmt(row.nonAktif)}</td>
-              <td className="p-4 font-semibold">{fmt(row.total)}</td>
-              <td className="p-4">{fmt(row.cardBelumTerjual)}</td>
-            </tr>
-          ))}
+          {rows.map((row, i) => {
+            const totalTerjual = row.aktif + row.nonAktif;
+
+            return (
+              <tr key={i} className="border-b text-center">
+                <td className="p-4">{row.stationName}</td>
+                <td className="p-4">{row.cardCategory}</td>
+                <td className="p-4">{row.cardType}</td>
+                <td className="p-4">{fmt(row.cardBeredar)}</td>
+                <td className="p-4">{fmt(row.aktif)}</td>
+                <td className="p-4">{fmt(row.nonAktif)}</td>
+                <td className="p-4 font-semibold">{fmt(totalTerjual)}</td>
+                <td className="p-4">{fmt(row.cardBelumTerjual)}</td>
+              </tr>
+            );
+          })}
         </tbody>
 
+        {/* FOOTER TOTAL */}
         <tfoot>
           <tr className="bg-green-800 text-white font-semibold text-center">
             <td colSpan={3} className="p-4">
@@ -124,7 +149,7 @@ export function StockStation({ filters }: StockStationProps) {
             <td className="p-4">{fmt(total.cardBeredar)}</td>
             <td className="p-4">{fmt(total.aktif)}</td>
             <td className="p-4">{fmt(total.nonAktif)}</td>
-            <td className="p-4">{fmt(total.total)}</td>
+            <td className="p-4">{fmt(total.aktif + total.nonAktif)}</td>
             <td className="p-4">{fmt(total.cardBelumTerjual)}</td>
           </tr>
         </tfoot>
