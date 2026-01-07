@@ -21,8 +21,12 @@ export namespace PurchaseModel {
       id: t.String({ format: "uuid" }),
       serialNumber: t.String(),
       status: t.String(),
+      expiredDate: t.Union([t.String({ format: "date-time" }), t.Null()]),
+      quotaTicket: t.Number(),
       cardProduct: t.Object({
         id: t.String({ format: "uuid" }),
+        totalQuota: t.Number(),
+        masaBerlaku: t.Number(),
         category: t.Object({
           id: t.String({ format: "uuid" }),
           categoryCode: t.String(),
