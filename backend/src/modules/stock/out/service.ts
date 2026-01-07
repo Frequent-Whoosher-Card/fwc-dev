@@ -1038,6 +1038,9 @@ export class StockOutService {
       // 1. Get Movement
       const movement = await tx.cardStockMovement.findUnique({
         where: { id },
+        include: {
+          station: true,
+        },
       });
 
       if (!movement) {
@@ -1245,7 +1248,7 @@ export class StockOutService {
 
         return {
           success: true,
-          message: `Distribusi dibatalkan. ${sentQty} kartu ditarik dari stasiun ${movement.stationId} ke Office.`,
+          message: `Distribusi dibatalkan. ${sentQty} kartu ditarik dari stasiun ${movement.station?.stationName} ke Office.`,
         };
       } else {
         throw new ValidationError(
