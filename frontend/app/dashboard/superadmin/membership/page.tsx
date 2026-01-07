@@ -152,6 +152,7 @@ function ConfirmDeleteModal({
   );
 }
 
+
 /* ======================
    SUCCESS MODAL
 ====================== */
@@ -331,6 +332,7 @@ const confirmDelete = async () => {
     );
   }
 };
+
 
 
   /* ======================
