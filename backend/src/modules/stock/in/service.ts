@@ -176,7 +176,6 @@ export class StockInService {
             typeId,
             stationId: null,
             cardOffice: quantity,
-            cardBeredar: quantity,
             createdAt: new Date(),
             createdBy: userId,
             updatedAt: new Date(),
@@ -188,7 +187,6 @@ export class StockInService {
           where: { id: officeInv.id },
           data: {
             cardOffice: { increment: quantity },
-            cardBeredar: { increment: quantity },
             updatedAt: new Date(),
             updatedBy: userId,
           },
@@ -217,6 +215,9 @@ export class StockInService {
     startDate?: Date;
     endDate?: Date;
     categoryId?: string;
+    typeId?: string;
+    categoryName?: string;
+    typeName?: string;
   }) {
     const { page = 1, limit = 10, startDate, endDate, categoryId } = params;
     const skip = (page - 1) * limit;
@@ -242,6 +243,28 @@ export class StockInService {
 
     if (categoryId) {
       where.categoryId = categoryId;
+    }
+
+    if (params.typeId) {
+      where.typeId = params.typeId;
+    }
+
+    if (params.categoryName) {
+      where.category = {
+        categoryName: {
+          contains: params.categoryName,
+          mode: "insensitive",
+        },
+      };
+    }
+
+    if (params.typeName) {
+      where.cardType = {
+        typeName: {
+          contains: params.typeName,
+          mode: "insensitive",
+        },
+      };
     }
 
     const [items, total] = await Promise.all([
@@ -353,7 +376,22 @@ export class StockInService {
           name: movement.cardType.typeName,
           code: movement.cardType.typeCode,
         },
-        sentSerialNumbers: movement.sentSerialNumbers,
+        sentSerialNumbers: movement.sentSerialNumbers as string[], // Keep original array for reference
+        items: await (async () => {
+          const serials = (movement as any).sentSerialNumbers as string[];
+          if (!serials?.length) return [];
+          const cards = await db.card.findMany({
+            where: { serialNumber: { in: serials } },
+            select: { serialNumber: true, status: true },
+          });
+          const statusMap = new Map(
+            cards.map((c) => [c.serialNumber, c.status])
+          );
+          return serials.map((sn) => ({
+            serialNumber: sn,
+            status: statusMap.get(sn) || "UNKNOWN",
+          }));
+        })(),
       },
     };
   }
@@ -568,7 +606,6 @@ export class StockInService {
             where: { id: officeInv.id },
             data: {
               cardOffice: { increment: delta },
-              cardBeredar: { increment: delta },
               updatedAt: new Date(),
               updatedBy: userId,
             },
@@ -680,7 +717,6 @@ export class StockInService {
           where: { id: officeInv.id },
           data: {
             cardOffice: { decrement: movement.quantity },
-            cardBeredar: { decrement: movement.quantity }, // Beredar juga berkurang karena production dibatalkan
             updatedAt: new Date(),
             updatedBy: userId,
           },
@@ -699,5 +735,151 @@ export class StockInService {
     });
 
     return transaction;
+  }
+
+  /**
+   * Update Batch Card Status (Quality Control)
+   * Allows admin to mark cards as DAMAGED or LOST (or revert to IN_OFFICE)
+   */
+  static async updateBatchCardStatus(
+    movementId: string,
+    updates: {
+      serialNumber: string;
+      status: "IN_OFFICE" | "DAMAGED" | "LOST";
+    }[],
+    userId: string
+  ) {
+    if (!updates.length)
+      return { success: true, message: "No updates provided" };
+
+    return await db.$transaction(async (tx) => {
+      // 1. Get Movement
+      const movement = await tx.cardStockMovement.findUnique({
+        where: { id: movementId },
+      });
+
+      if (!movement) throw new ValidationError("Stock In record not found");
+      if (movement.type !== "IN")
+        throw new ValidationError("Not a Stock In record");
+
+      const sentSerials = new Set(
+        (movement as any).sentSerialNumbers as string[]
+      );
+
+      // 2. Validate Serials belong to this batch
+      const invalidSerials = updates.filter(
+        (u) => !sentSerials.has(u.serialNumber)
+      );
+      if (invalidSerials.length > 0) {
+        throw new ValidationError(
+          `Serial numbers not found in this batch: ${invalidSerials.map((u) => u.serialNumber).join(", ")}`
+        );
+      }
+
+      // 3. Process Updates
+      let officeStockDelta = 0;
+      const damagedToAdd: string[] = [];
+      const damagedToRemove: string[] = [];
+      const lostToAdd: string[] = [];
+      const lostToRemove: string[] = [];
+
+      // Get current card statuses
+      const cards = await tx.card.findMany({
+        where: { serialNumber: { in: updates.map((u) => u.serialNumber) } },
+        select: { serialNumber: true, status: true },
+      });
+      const cardMap = new Map(cards.map((c) => [c.serialNumber, c.status]));
+
+      for (const update of updates) {
+        const currentStatus = cardMap.get(update.serialNumber);
+        const newStatus = update.status;
+
+        if (!currentStatus) continue; // Should have been caught by validation, but safe check
+        if (currentStatus === newStatus) continue; // No change
+
+        // Logic for Inventory Delta (Office Stock)
+        // IN_OFFICE -> DAMAGED/LOST : Decrease Stock
+        // DAMAGED/LOST -> IN_OFFICE : Increase Stock
+        // DAMAGED <-> LOST : No Stock Change
+
+        const isCurrentActive = currentStatus === "IN_OFFICE";
+        const isNewActive = newStatus === "IN_OFFICE";
+
+        if (isCurrentActive && !isNewActive) {
+          officeStockDelta--;
+        } else if (!isCurrentActive && isNewActive) {
+          officeStockDelta++;
+        }
+
+        // Lists Update
+        if (newStatus === "DAMAGED") damagedToAdd.push(update.serialNumber);
+        if (newStatus === "LOST") lostToAdd.push(update.serialNumber);
+
+        if (currentStatus === "DAMAGED")
+          damagedToRemove.push(update.serialNumber);
+        if (currentStatus === "LOST") lostToRemove.push(update.serialNumber);
+      }
+
+      // 4. Update Cards
+      for (const update of updates) {
+        await tx.card.update({
+          where: { serialNumber: update.serialNumber },
+          data: {
+            status: update.status as any,
+            updatedAt: new Date(),
+            updatedBy: userId,
+          },
+        });
+      }
+
+      // 5. Update Inventory (if needed)
+      if (officeStockDelta !== 0) {
+        const officeInv = await tx.cardInventory.findFirst({
+          where: {
+            categoryId: movement.categoryId,
+            typeId: movement.typeId,
+            stationId: null,
+          },
+        });
+
+        if (officeInv) {
+          await tx.cardInventory.update({
+            where: { id: officeInv.id },
+            data: {
+              cardOffice: { increment: officeStockDelta },
+              updatedAt: new Date(),
+              updatedBy: userId,
+            },
+          });
+        }
+      }
+
+      // 6. Update Movement Record Lists
+      const currentDamaged = new Set(
+        ((movement as any).damagedSerialNumbers as string[]) || []
+      );
+      const currentLost = new Set(
+        ((movement as any).lostSerialNumbers as string[]) || []
+      );
+
+      // Apply changes to sets
+      damagedToAdd.forEach((s) => currentDamaged.add(s));
+      damagedToRemove.forEach((s) => currentDamaged.delete(s));
+
+      lostToAdd.forEach((s) => currentLost.add(s));
+      lostToRemove.forEach((s) => currentLost.delete(s));
+
+      await tx.cardStockMovement.update({
+        where: { id: movementId },
+        data: {
+          damagedSerialNumbers: Array.from(currentDamaged),
+          lostSerialNumbers: Array.from(currentLost),
+          updatedAt: new Date(),
+          updatedBy: userId,
+        },
+      });
+
+      return { success: true, message: "Batch status updated successfully" };
+    });
   }
 }

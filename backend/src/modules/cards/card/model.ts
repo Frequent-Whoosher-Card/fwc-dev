@@ -54,6 +54,10 @@ export namespace CardModel {
           "Search by serial number (case-insensitive partial match). Useful for finding cards by serial number.",
       })
     ),
+    categoryId: t.Optional(t.String({ format: "uuid" })),
+    typeId: t.Optional(t.String({ format: "uuid" })),
+    categoryName: t.Optional(t.String()),
+    typeName: t.Optional(t.String()),
     page: t.Optional(
       t.String({
         description: "Page number for pagination (default: 1). Minimum: 1",
@@ -62,6 +66,17 @@ export namespace CardModel {
     limit: t.Optional(
       t.String({
         description: "Number of items per page (default: 50). Maximum: 100",
+      })
+    ),
+  });
+
+  // Get First Available Card Query
+  export const getFirstAvailableCardQuery = t.Object({
+    cardProductId: t.String({ format: "uuid" }),
+    status: t.Optional(
+      t.String({
+        description:
+          "Card status to search for (default: IN_STATION). Valid values: IN_OFFICE, IN_STATION, etc.",
       })
     ),
   });
@@ -124,6 +139,20 @@ export namespace CardModel {
         t.Null(),
       ]),
     }),
+  });
+
+  // Get First Available Card Response
+  export const getFirstAvailableCardResponse = t.Object({
+    success: t.Boolean(),
+    message: t.String(),
+    data: t.Union([
+      t.Object({
+        id: t.String({ format: "uuid" }),
+        serialNumber: t.String(),
+        status: t.String(),
+      }),
+      t.Null(),
+    ]),
   });
 
   // Error Response
