@@ -1,9 +1,11 @@
 'use client';
 
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { API_BASE_URL } from '../lib/apiConfig';
+import { setupAppCheck, getAppCheckToken, isAppCheckEnabled } from '../lib/firebase';
+import { executeRecaptcha, isRecaptchaEnabled } from '../lib/recaptcha';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
@@ -23,6 +25,13 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  // Initialize Firebase App Check on component mount
+  useEffect(() => {
+    if (isAppCheckEnabled()) {
+      setupAppCheck();
+    }
+  }, []);
 
   const handleLogin = async () => {
     let valid = true;
@@ -46,11 +55,52 @@ export default function LoginPage() {
 
     if (!valid) return;
 
+    setIsLoading(true);
+
     try {
+      // Get Firebase App Check token (if enabled)
+      let appCheckToken: string | null = null;
+      if (isAppCheckEnabled()) {
+        try {
+          appCheckToken = await getAppCheckToken();
+        } catch (error) {
+          console.warn('[App Check] Failed to get token:', error);
+        }
+      }
+
+      // Execute reCAPTCHA v3 (if enabled)
+      let recaptchaToken: string | null = null;
+      if (isRecaptchaEnabled()) {
+        try {
+          recaptchaToken = await executeRecaptcha('login');
+        } catch (error) {
+          console.warn('[reCAPTCHA] Failed to execute:', error);
+        }
+      }
+
+      // Prepare request body with tokens
+      const requestBody: {
+        username: string;
+        password: string;
+        appCheckToken?: string;
+        recaptchaToken?: string;
+      } = {
+        username,
+        password,
+      };
+
+      if (appCheckToken) {
+        requestBody.appCheckToken = appCheckToken;
+      }
+
+      if (recaptchaToken) {
+        requestBody.recaptchaToken = recaptchaToken;
+      }
+
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify(requestBody),
       });
 
       const json = await response.json();
@@ -63,10 +113,14 @@ export default function LoginPage() {
           message = 'Username atau password salah.';
         } else if (json?.error?.code === 'ACCOUNT_INACTIVE') {
           message = 'Akun belum aktif. Hubungi administrator.';
+        } else if (response.status === 403) {
+          // Handle App Check or reCAPTCHA verification failures
+          message = json?.error?.message || 'Verifikasi keamanan gagal. Silakan coba lagi.';
         }
 
         setAuthErrorMessage(message);
         setShowAuthError(true);
+        setIsLoading(false);
         return;
       }
 
@@ -101,8 +155,6 @@ export default function LoginPage() {
         })
       );
 
-      setIsLoading(true);
-
       toast.success('Login berhasil, selamat datang');
       await delay(1500);
       setIsLoading(false);
@@ -124,6 +176,8 @@ export default function LoginPage() {
           router.push('/dashboard');
       }
     } catch (error) {
+      setIsLoading(false);
+      
       if (process.env.NODE_ENV === 'development') {
         console.error('Login error:', error);
       }

@@ -6,12 +6,29 @@ import {
   ValidationError,
 } from "../../utils/errors";
 import { passwordResetConfig } from "../../config/jwt";
+import { verifyAppCheckToken } from "../../services/appCheckService";
+import { verifyRecaptchaToken } from "../../services/recaptchaService";
 
 export class AuthService {
   /**
    * Login user with username/email and password
    */
-  static async login(usernameOrEmail: string, password: string) {
+  static async login(
+    usernameOrEmail: string,
+    password: string,
+    appCheckToken?: string,
+    recaptchaToken?: string
+  ) {
+    // Verify Firebase App Check token (if provided)
+    if (appCheckToken) {
+      await verifyAppCheckToken(appCheckToken);
+    }
+
+    // Verify Google reCAPTCHA v3 token (if provided)
+    if (recaptchaToken) {
+      await verifyRecaptchaToken(recaptchaToken);
+    }
+
     // Find user by username or email
     const user = await db.user.findFirst({
       where: {
