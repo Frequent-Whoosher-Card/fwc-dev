@@ -1,7 +1,5 @@
 'use client';
 
-import { Eye } from 'lucide-react';
-
 interface Transaction {
   id: string;
   customerName?: string | null;
@@ -21,7 +19,6 @@ interface Props {
   data: Transaction[];
   loading: boolean;
   onDelete: (id: string) => void;
-  onView?: (id: string) => void;
   onEdit?: (id: string) => void;
 }
 
@@ -29,7 +26,6 @@ export default function TransactionTable({
   data,
   loading,
   onDelete,
-  onView,
   onEdit,
 }: Props) {
   if (loading) {
@@ -42,7 +38,7 @@ export default function TransactionTable({
 
   return (
     <div className="overflow-x-auto rounded-lg border bg-white">
-      <table className="min-w-[1800px] w-full">
+      <table className="min-w-[1700px] w-full">
         <thead className="bg-gray-50 text-xs text-gray-600">
           <tr>
             <th className="px-4 py-3 text-left whitespace-nowrap">
@@ -79,9 +75,6 @@ export default function TransactionTable({
               Station
             </th>
             <th className="px-4 py-3 text-center whitespace-nowrap">
-              View
-            </th>
-            <th className="px-4 py-3 text-center whitespace-nowrap">
               Aksi
             </th>
           </tr>
@@ -91,7 +84,7 @@ export default function TransactionTable({
           {data.length === 0 && (
             <tr>
               <td
-                colSpan={13}
+                colSpan={12}
                 className="px-4 py-6 text-center text-sm text-gray-400"
               >
                 No data
@@ -148,14 +141,6 @@ export default function TransactionTable({
 
               <td className="px-4 py-2 whitespace-nowrap">
                 {item.stationName || '-'}
-              </td>
-
-              <td className="px-4 py-2 text-center">
-                <Eye
-                  size={16}
-                  className="mx-auto cursor-pointer text-gray-500 hover:text-blue-600"
-                  onClick={() => onView?.(item.id)}
-                />
               </td>
 
               <td className="px-4 py-2 text-center">

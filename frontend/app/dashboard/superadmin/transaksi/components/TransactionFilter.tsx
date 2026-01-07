@@ -2,6 +2,19 @@
 
 import { RotateCcw } from 'lucide-react';
 
+/* ======================
+   STATION OPTIONS
+====================== */
+const STATIONS = [
+  { id: 'HALIM', name: 'Halim' },
+  { id: 'KARAWANG', name: 'Karawang' },
+  { id: 'PADALARANG', name: 'Padalarang' },
+  { id: 'TEGALLUAR', name: 'Tegalluar' },
+];
+
+/* ======================
+   TYPES
+====================== */
 interface Props {
   type: 'ALL' | 'KAI';
   stationId?: string;
@@ -15,6 +28,9 @@ interface Props {
   onReset: () => void;
 }
 
+/* ======================
+   COMPONENT
+====================== */
 export default function TransactionFilter({
   type,
   stationId,
@@ -56,11 +72,20 @@ export default function TransactionFilter({
 
       {/* STATION */}
       <select
-        value={stationId}
-        onChange={(e) => onStationChange(e.target.value)}
-        className="h-9 rounded-md border px-3 text-sm"
+        value={stationId ?? ''}
+        onChange={(e) =>
+          onStationChange(
+            e.target.value ? e.target.value : undefined
+          )
+        }
+        className="h-9 min-w-[160px] rounded-md border bg-white px-3 text-sm"
       >
         <option value="">Station</option>
+        {STATIONS.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.name}
+          </option>
+        ))}
       </select>
 
       {/* PURCHASED DATE */}
@@ -96,7 +121,7 @@ export default function TransactionFilter({
       {/* RESET */}
       <button
         onClick={onReset}
-        className="flex h-9 w-9 items-center justify-center rounded-md border"
+        className="flex h-9 w-9 items-center justify-center rounded-md border hover:bg-gray-50"
       >
         <RotateCcw size={16} />
       </button>
