@@ -106,33 +106,61 @@ export function StockTable({ filters }: StockTableProps) {
 
   return (
     <div className="rounded-xl border bg-white overflow-x-auto">
-      <table className="w-full text-sm min-w-[900px]">
+      <table className="w-full text-sm min-w-[950px]">
         <thead className="bg-gray-50 border-b">
+          {/* HEADER BARIS 1 */}
           <tr>
-            <th className="p-4 text-center">Category</th>
-            <th className="p-4 text-center">Type</th>
-            <th className="p-4 text-center">Office</th>
-            <th className="p-4 text-center">Beredar</th>
+            <th rowSpan={2} className="p-4 text-center">
+              Category
+            </th>
+            <th rowSpan={2} className="p-4 text-center">
+              Type
+            </th>
+            <th rowSpan={2} className="p-4 text-center">
+              Office
+            </th>
+            <th rowSpan={2} className="p-4 text-center">
+              Beredar
+            </th>
+
+            {/* GROUP TERJUAL */}
+            <th colSpan={3} className="p-4 text-center bg-blue-50">
+              Terjual
+            </th>
+
+            <th rowSpan={2} className="p-4 text-center">
+              Belum Terjual
+            </th>
+          </tr>
+
+          {/* HEADER BARIS 2 */}
+          <tr>
             <th className="p-4 text-center">Aktif</th>
             <th className="p-4 text-center">Non Aktif</th>
-            <th className="p-4 text-center">Belum Terjual</th>
+            <th className="p-4 text-center">Total</th>
           </tr>
         </thead>
 
         <tbody>
-          {rows.map((row) => (
-            <tr key={`${row.categoryId}-${row.typeId}`} className="border-b text-center">
-              <td className="p-4">{row.categoryName}</td>
-              <td className="p-4">{row.typeName}</td>
-              <td className="p-4">{fmt(row.totalOffice)}</td>
-              <td className="p-4">{fmt(row.totalBeredar)}</td>
-              <td className="p-4">{fmt(row.totalAktif)}</td>
-              <td className="p-4">{fmt(row.totalNonAktif)}</td>
-              <td className="p-4">{fmt(row.totalBelumTerjual)}</td>
-            </tr>
-          ))}
+          {rows.map((row) => {
+            const totalTerjual = row.totalAktif + row.totalNonAktif;
+
+            return (
+              <tr key={`${row.categoryId}-${row.typeId}`} className="border-b text-center">
+                <td className="p-4">{row.categoryName}</td>
+                <td className="p-4">{row.typeName}</td>
+                <td className="p-4">{fmt(row.totalOffice)}</td>
+                <td className="p-4">{fmt(row.totalBeredar)}</td>
+                <td className="p-4">{fmt(row.totalAktif)}</td>
+                <td className="p-4">{fmt(row.totalNonAktif)}</td>
+                <td className="p-4 font-medium">{fmt(totalTerjual)}</td>
+                <td className="p-4">{fmt(row.totalBelumTerjual)}</td>
+              </tr>
+            );
+          })}
         </tbody>
 
+        {/* TOTAL FOOTER */}
         <tfoot>
           <tr className="bg-green-800 text-white font-semibold text-center">
             <td colSpan={2} className="p-4">
@@ -142,6 +170,7 @@ export function StockTable({ filters }: StockTableProps) {
             <td className="p-4">{fmt(total.totalBeredar)}</td>
             <td className="p-4">{fmt(total.totalAktif)}</td>
             <td className="p-4">{fmt(total.totalNonAktif)}</td>
+            <td className="p-4">{fmt(total.totalAktif + total.totalNonAktif)}</td>
             <td className="p-4">{fmt(total.totalBelumTerjual)}</td>
           </tr>
         </tfoot>

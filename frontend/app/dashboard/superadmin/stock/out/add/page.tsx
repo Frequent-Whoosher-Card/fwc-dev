@@ -41,12 +41,13 @@ interface StationItem {
 ===================== */
 export default function AddStockOutPage() {
   const router = useRouter();
+  const today = new Date().toISOString().split('T')[0];
 
   /* =====================
      FORM STATE (PAKAI ID)
   ===================== */
   const [form, setForm] = useState({
-    tanggal: '',
+    tanggal: today,
     categoryId: '',
     typeId: '',
     station: '',
@@ -200,6 +201,8 @@ export default function AddStockOutPage() {
     }
   };
 
+  const isKAI = categories.find((c) => c.id === form.categoryId)?.categoryName === 'KAI';
+
   /* =====================
      UI (100% SAMA)
   ===================== */
@@ -227,13 +230,24 @@ export default function AddStockOutPage() {
               <select
                 className="w-full rounded-lg border px-4 py-3 text-sm"
                 value={form.categoryId}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const categoryId = e.target.value;
+
+                  const selectedCategory = categories.find((c) => c.id === categoryId);
+
+                  let autoTypeId = '';
+
+                  if (selectedCategory?.categoryName === 'KAI') {
+                    const jabanType = filteredTypes.find((t) => t.typeName === 'JaBan');
+                    if (jabanType) autoTypeId = jabanType.id;
+                  }
+
                   setForm({
                     ...form,
-                    categoryId: e.target.value,
-                    typeId: '',
-                  })
-                }
+                    categoryId,
+                    typeId: autoTypeId,
+                  });
+                }}
               >
                 <option value="">Select Category</option>
                 {categories.map((c) => (
@@ -247,7 +261,7 @@ export default function AddStockOutPage() {
             {/* TYPE */}
             <div>
               <label className="block text-sm font-medium mb-2">Card Type</label>
-              <select className="w-full rounded-lg border px-4 py-3 text-sm disabled:bg-gray-100" disabled={!form.categoryId} value={form.typeId} onChange={(e) => setForm({ ...form, typeId: e.target.value })}>
+              <select className="w-full rounded-lg border px-4 py-3 text-sm disabled:bg-gray-100" disabled={!form.categoryId || isKAI} value={form.typeId} onChange={(e) => setForm({ ...form, typeId: e.target.value })}>
                 <option value="">Select Card Type</option>
                 {filteredTypes.map((t) => (
                   <option key={t.id} value={t.id}>
