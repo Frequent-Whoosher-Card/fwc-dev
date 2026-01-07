@@ -279,13 +279,20 @@ export default function StockOutPage() {
                 data.map((row, index) => (
                   <tr key={row.id} className="border-b hover:bg-gray-50">
                     <td className="px-3 py-2 text-center">{(pagination.page - 1) * pagination.limit + index + 1}</td>
-                    <td className="px-3 py-2 text-center whitespace-nowrap">{new Date(row.movementAt).toLocaleDateString('id-ID')}</td>
+                    <td className="px-3 py-2 text-center whitespace-nowrap">
+                      {new Date(row.movementAt)
+                        .toLocaleDateString('id-ID', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                        })
+                        .replace(/\//g, '-')}
+                    </td>
                     <td className="px-3 py-2 text-center">{row.cardCategory.name}</td>
                     <td className="px-3 py-2 text-center">{row.cardType.name || '-'}</td>
                     <td className="px-3 py-2 text-center">{row.stationName || '-'}</td>
                     <td className="px-3 py-2 text-center font-medium">{row.quantity.toLocaleString()}</td>
                     <td className="px-3 py-2 text-center whitespace-nowrap">{row.sentSerialNumbers?.[0] || '-'}</td>
-
                     <td className="px-3 py-2 text-center">
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-medium
@@ -294,11 +301,21 @@ export default function StockOutPage() {
                         {row.status}
                       </span>
                     </td>
-
                     <td className="px-3 py-2 text-center max-w-[200px] truncate">{row.note || '-'}</td>
-
                     <td className="px-4 py-2 text-center">
-                      <Eye size={16} className="mx-auto cursor-pointer text-gray-500 hover:text-blue-600" onClick={() => router.push(`/dashboard/superadmin/stock/out/view/${row.id}`)} />{' '}
+                      <button
+                        onClick={() => router.push(`/dashboard/superadmin/stock/out/view/${row.id}`)}
+                        className="
+      mx-auto flex items-center justify-center
+      w-8 h-8
+      border border-gray-300 rounded-md
+      text-gray-500
+      hover:bg-[#8D1231] hover:text-white
+      transition-colors duration-200
+    "
+                      >
+                        <Eye size={16} />
+                      </button>
                     </td>
                     <td className="px-3 py-2 text-center">
                       <div className="flex justify-center gap-2">
