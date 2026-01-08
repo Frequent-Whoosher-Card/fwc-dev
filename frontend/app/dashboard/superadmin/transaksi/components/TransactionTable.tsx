@@ -110,9 +110,9 @@ export default function TransactionTable() {
   return (
     <div className="space-y-4">
       <div className="overflow-x-auto rounded-md border bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr>
+      <table className="w-full text-sm">
+        <thead className="bg-gray-50">
+          <tr>
               <th className="px-3 py-2 text-left whitespace-nowrap">Purchase Date</th>
               <th className="px-3 py-2 text-left whitespace-nowrap">Masa Berlaku</th>
               <th className="px-3 py-2 text-left whitespace-nowrap">Expired Date</th>
@@ -127,10 +127,10 @@ export default function TransactionTable() {
               <th className="px-3 py-2 text-left whitespace-nowrap">Shift Date</th>
               <th className="px-3 py-2 text-left whitespace-nowrap">Operator Name</th>
               <th className="px-3 py-2 text-left whitespace-nowrap">Stasiun</th>
-            </tr>
-          </thead>
+          </tr>
+        </thead>
 
-          <tbody>
+        <tbody>
             {loading ? (
               <tr>
                 <td colSpan={14} className="px-3 py-6 text-center text-gray-400">
@@ -138,11 +138,11 @@ export default function TransactionTable() {
                 </td>
               </tr>
             ) : data.length === 0 ? (
-              <tr>
+          <tr>
                 <td colSpan={14} className="px-3 py-6 text-center text-gray-400">
-                  No data
-                </td>
-              </tr>
+              No data
+            </td>
+          </tr>
             ) : (
               data.map((item) => (
                 <tr key={item.id} className="border-t hover:bg-gray-50">
@@ -201,8 +201,8 @@ export default function TransactionTable() {
                 </tr>
               ))
             )}
-          </tbody>
-        </table>
+        </tbody>
+      </table>
       </div>
 
       {/* PAGINATION */}

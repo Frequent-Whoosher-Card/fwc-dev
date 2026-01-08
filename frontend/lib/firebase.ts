@@ -59,17 +59,24 @@ export function setupAppCheck(): AppCheck | null {
     return null;
   }
 
+  // IMPORTANT: Firebase App Check REQUIRES reCAPTCHA v3 as provider
+  // This is separate from Cloudflare Turnstile used at application level
+  // You need a separate reCAPTCHA v3 site key specifically for Firebase App Check
   const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
 
   if (!recaptchaSiteKey) {
     console.warn(
-      '[App Check] RECAPTCHA_SITE_KEY not configured. App Check will be disabled.'
+      '[App Check] reCAPTCHA v3 site key not configured. App Check will be disabled.\n' +
+      'Note: Firebase App Check requires reCAPTCHA v3 (not Turnstile).\n' +
+      'Please set NEXT_PUBLIC_RECAPTCHA_SITE_KEY in your .env file.\n' +
+      'This is separate from Cloudflare Turnstile used for application-level verification.'
     );
     return null;
   }
 
   try {
-    // Initialize App Check with reCAPTCHA v3 provider
+    // Initialize App Check with reCAPTCHA v3 provider (Firebase internal requirement)
+    // This reCAPTCHA v3 site key is ONLY for Firebase App Check, not for the application
     const provider = new ReCaptchaV3Provider(recaptchaSiteKey);
     appCheck = initializeAppCheck(app, {
       provider,
@@ -115,11 +122,12 @@ export async function getAppCheckToken(): Promise<string | null> {
  * Check if Firebase App Check is enabled
  */
 export function isAppCheckEnabled(): boolean {
+  // Firebase App Check requires reCAPTCHA v3 site key (not Turnstile)
   return !!(
     process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
     process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID &&
     process.env.NEXT_PUBLIC_FIREBASE_APP_ID &&
-    process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY
+    process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY // Must be reCAPTCHA v3, not Turnstile
   );
 }
 
