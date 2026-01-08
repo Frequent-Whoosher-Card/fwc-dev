@@ -1,18 +1,12 @@
 import admin from 'firebase-admin';
 
-// Initialize Firebase Admin SDK if not already initialized
-// Safely check if apps exist (Bun compatibility)
-let isInitialized = false;
-try {
-  if (admin.apps) {
-    isInitialized = admin.apps.length > 0;
-  }
-} catch {
-  // If apps property is not accessible, assume not initialized
-  isInitialized = false;
-}
+let firebaseAppInitialized = false;
 
-if (!isInitialized) {
+export function initializeFirebaseAdmin() {
+  if (firebaseAppInitialized) {
+    return;
+  }
+
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
@@ -21,8 +15,12 @@ if (!isInitialized) {
     console.warn(
       'Firebase App Check: Missing configuration. App Check verification will be disabled.'
     );
-  } else {
-    try {
+    return;
+  }
+
+  try {
+    // Check if an app is already initialized to prevent re-initialization errors
+    if (!admin.apps.length) {
       admin.initializeApp({
         credential: admin.credential.cert({
           projectId,
@@ -30,11 +28,15 @@ if (!isInitialized) {
           clientEmail,
         }),
       });
-    } catch (error) {
-      console.error('Firebase Admin initialization error:', error);
+      firebaseAppInitialized = true;
     }
+  } catch (error) {
+    console.error('Firebase Admin initialization error:', error);
   }
 }
+
+// Call initialization immediately to ensure it's ready when needed
+initializeFirebaseAdmin();
 
 export const firebaseAdmin = admin;
 export const isFirebaseEnabled = !!(
@@ -42,4 +44,3 @@ export const isFirebaseEnabled = !!(
   process.env.FIREBASE_PRIVATE_KEY &&
   process.env.FIREBASE_CLIENT_EMAIL
 );
-

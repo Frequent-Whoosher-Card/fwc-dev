@@ -69,14 +69,14 @@ export const auth = new Elysia({ prefix: "/auth" })
     "/login",
     async ({ body, jwt, cookie: { session }, set }) => {
       try {
-        const { username, password, appCheckToken, recaptchaToken } = body;
+        const { username, password, appCheckToken, turnstileToken } = body;
 
         // Authenticate user (with token verification)
         const { user } = await AuthService.login(
           username,
           password,
           appCheckToken,
-          recaptchaToken
+          turnstileToken
         );
 
         // Generate JWT token
@@ -123,7 +123,7 @@ export const auth = new Elysia({ prefix: "/auth" })
       detail: {
         tags: ["Authentication"],
         summary: "Login with username/email and password",
-        description: "Authenticate user and create session. Requires Firebase App Check token and Google reCAPTCHA v3 token for double layer security protection.",
+        description: "Authenticate user and create session. Requires Firebase App Check token and Cloudflare Turnstile token for double layer security protection.",
         requestBody: {
           content: {
             "application/json": {
@@ -131,7 +131,7 @@ export const auth = new Elysia({ prefix: "/auth" })
                 username: "rama",
                 password: "ramaPassword",
                 appCheckToken: "eyJraWQiOiJ2ckU4dWciLCJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...",
-                recaptchaToken: "03AGdBq27...",
+                turnstileToken: "0.abc123...",
               },
             },
           },
