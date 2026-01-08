@@ -323,9 +323,13 @@ export default function MembershipDetailPage() {
 
                   <td className="px-4 py-2 text-left">{trx.cardType}</td>
 
-                  <td className="px-4 py-2 text-right">{trx.quota}</td>
+                  <td className="px-4 py-2 text-center font-semibold">
+                    {trx.quota}
+                  </td>
 
-                  <td className="px-4 py-2 text-right">{trx.remaining}</td>
+                  <td className="px-4 py-2 text-center font-semibold">
+                    {trx.remaining}
+                  </td>
 
                   <td className="px-4 py-2 text-left">{trx.serialNumber}</td>
 
