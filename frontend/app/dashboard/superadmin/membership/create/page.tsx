@@ -211,7 +211,6 @@ const [checking, setChecking] = useState<{
     shiftDate: '',
     serialNumber: '',
     edcReferenceNumber: '',
-    notes: '',
   });
 
   // Load operator name and card categories/types
@@ -523,10 +522,10 @@ if (isExactMatch) {
     return;
   }
 
-  if (form.nik.length !== 20) {
-    toast.error('NIK harus terdiri dari 20 digit');
-    return;
-  }
+  if (form.nik.length < 6 || form.nik.length > 20) {
+  toast.error('Identity Number harus 6–20 digit');
+  return;
+}
 
   if (!form.nationality.trim()) {
     toast.error('Nationality wajib diisi');
@@ -654,7 +653,6 @@ const handleConfirmSubmit = async () => {
       phone: form.phone || undefined,
       gender: form.gender || undefined,
       alamat: form.address || undefined,
-      notes: form.notes || undefined,
     });
     if (!memberRes.success) {
       throw new Error(memberRes.error?.message || 'Gagal membuat member');
@@ -753,14 +751,15 @@ const handleConfirmSubmit = async () => {
 
         setForm((prev) => ({ ...prev, nik: value }));
 
-        if (value.length > 0 && value.length < 20) {
-          setFieldError((p) => ({
-            ...p,
-            nik: 'NIK harus terdiri dari 20 digit',
-          }));
+        if (value.length > 0 && value.length > 20) {
+        setFieldError((p) => ({
+        ...p,
+        nik: 'Identity Number maksimal 20 digit',
+        }));
         } else {
-          setFieldError((p) => ({ ...p, nik: undefined }));
-        }
+        setFieldError((p) => ({ ...p, nik: undefined }));
+      }
+
       }}
       onInput={(e) => {
         e.currentTarget.value = e.currentTarget.value
@@ -768,11 +767,10 @@ const handleConfirmSubmit = async () => {
           .slice(0, 20);
       }}
       onBlur={() => {
-        if (form.nik.length === 20) {
-          checkUniqueField('nik', form.nik);
-        }
+        if (form.nik.length >= 6) {
+      checkUniqueField('nik', form.nik);}
       }}
-      placeholder="NIK (20 digit)"
+      placeholder="Identity Number (max 20 digit)"
       className={`${base} pr-32 ${
         fieldError.nik ? 'border-red-500' : ''
       }`}
@@ -1127,27 +1125,16 @@ const handleConfirmSubmit = async () => {
               />
             </div>
 
-            {/* Notes - Full Width */}
-            <div className="md:col-span-2">
-              <textarea
-                name="notes"
-                value={form.notes}
-                onChange={handleChange}
-                placeholder="Notes (optional)"
-                className="h-24 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
-              />
-            </div>
           </div>
-
           <div className="mt-8 flex justify-end">
            <button
-  type="submit"
-  disabled={
-    isSubmitting ||
-    checking.nik ||
-    checking.edcReferenceNumber ||
-    !!fieldError.nik ||
-    !!fieldError.edcReferenceNumber
+            type="submit"
+            disabled={
+            isSubmitting ||
+           checking.nik ||
+            checking.edcReferenceNumber ||
+           !!fieldError.nik ||
+           !!fieldError.edcReferenceNumber
   }
               className="rounded-md bg-[#8B1538] px-8 py-2 text-sm font-medium text-white hover:bg-[#73122E] disabled:opacity-50 disabled:cursor-not-allowed"
             >

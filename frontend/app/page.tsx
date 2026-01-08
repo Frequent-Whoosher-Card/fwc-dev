@@ -26,7 +26,7 @@ export default function LoginPage() {
 
   const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  // Initialize Firebase App Check and reCAPTCHA on component mount
+  // Initialize Firebase App Check and Cloudflare Turnstile on component mount
   useEffect(() => {
     const initializeSecurity = async () => {
       // Initialize Firebase App Check
