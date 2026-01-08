@@ -28,6 +28,23 @@ export namespace AuthModel {
     }),
   });
 
+  // Simple Login Request (for Swagger/testing - no security tokens)
+  export const simpleLoginBody = t.Object({
+    username: t.String({
+      minLength: 3,
+      maxLength: 100,
+      description: 'Username or email',
+      default: 'rama',
+      examples: ['rama'],
+    }),
+    password: t.String({
+      minLength: 6,
+      description: 'Password',
+      default: 'ramaPassword',
+      examples: ['ramaPassword'],
+    }),
+  });
+
   // Login Response
   export const loginResponse = t.Object({
     success: t.Boolean(),

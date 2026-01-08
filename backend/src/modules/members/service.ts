@@ -53,20 +53,25 @@ export class MemberService {
     startDate?: string;
     endDate?: string;
     gender?: string;
+    hasNippKai?: string;
   }) {
-    const { page, limit, search, startDate, endDate, gender } = params;
+    const { page, limit, search, startDate, endDate, gender, hasNippKai } = params;
     const skip = page && limit ? (page - 1) * limit : undefined;
 
     const where: any = {
       deletedAt: null, // Soft delete filter
     };
 
-    // Filter gender
-    if (gender) {
-      where.gender = { 
-        equals: gender, 
-        mode: "insensitive" 
+    // Filter by NIPKAI - only members that have NIPKAI
+    if (hasNippKai === 'true') {
+      where.nippKai = {
+        not: null,
       };
+    }
+
+    // Filter gender (enum: L or P)
+    if (gender) {
+      where.gender = gender as "L" | "P";
     }
 
     // Filter membership date (createdAt)
@@ -87,7 +92,7 @@ export class MemberService {
     }
 
     if (search) {
-      // First, find users whose fullName matches the search term
+      // First, find users whose fullName matches the search term (for Last Updated by)
       const matchingUsers = await db.user.findMany({
         where: {
           fullName: { contains: search, mode: "insensitive" },
@@ -97,17 +102,86 @@ export class MemberService {
       const matchingUserIds = matchingUsers.map((u) => u.id);
 
       where.OR = [
+        // Customer Name
         { name: { contains: search, mode: "insensitive" } },
+        // Identity Number
         { identityNumber: { contains: search, mode: "insensitive" } },
+        // Nationality
+        { nationality: { contains: search, mode: "insensitive" } },
+        // Email
         { email: { contains: search, mode: "insensitive" } },
+        // Phone
         { phone: { contains: search, mode: "insensitive" } },
+        // Address
+        { alamat: { contains: search, mode: "insensitive" } },
       ];
 
-      // Add search by updatedBy (user fullName)
+      // Search by Gender (L or P)
+      const searchUpper = search.toUpperCase().trim();
+      if (searchUpper === 'L' || searchUpper === 'LAKI' || searchUpper === 'LAKI-LAKI' || searchUpper === 'LAKI LAKI' || searchUpper === 'LAKI-LAKI') {
+        where.OR.push({ gender: 'L' });
+      } else if (searchUpper === 'P' || searchUpper === 'PEREMPUAN') {
+        where.OR.push({ gender: 'P' });
+      }
+
+      // Add search by updatedBy (user fullName) - Last Updated by
       if (matchingUserIds.length > 0) {
         where.OR.push({
           updatedBy: { in: matchingUserIds },
         });
+      }
+
+      // Search by date fields (Membership Date and Last Updated)
+      // Try to parse as date and search in date range
+      const dateMatch = search.match(/\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4}|\d{2}-\d{2}-\d{4}/);
+      if (dateMatch) {
+        try {
+          // Try different date formats
+          let searchDate: Date | null = null;
+          const dateStr = dateMatch[0];
+          
+          if (dateStr.includes('-')) {
+            // YYYY-MM-DD or DD-MM-YYYY
+            const parts = dateStr.split('-');
+            if (parts[0].length === 4) {
+              // YYYY-MM-DD
+              searchDate = new Date(parts[0], parseInt(parts[1]) - 1, parseInt(parts[2]));
+            } else {
+              // DD-MM-YYYY
+              searchDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+            }
+          } else if (dateStr.includes('/')) {
+            // DD/MM/YYYY
+            const parts = dateStr.split('/');
+            searchDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+          }
+
+          if (searchDate && !isNaN(searchDate.getTime())) {
+            const startOfDay = new Date(searchDate);
+            startOfDay.setHours(0, 0, 0, 0);
+            const endOfDay = new Date(searchDate);
+            endOfDay.setHours(23, 59, 59, 999);
+
+            where.OR.push(
+              // Membership Date (createdAt)
+              {
+                createdAt: {
+                  gte: startOfDay,
+                  lte: endOfDay,
+                },
+              },
+              // Last Updated (updatedAt)
+              {
+                updatedAt: {
+                  gte: startOfDay,
+                  lte: endOfDay,
+                },
+              }
+            );
+          }
+        } catch (error) {
+          // Ignore date parsing errors, continue with text search
+        }
       }
     }
 
