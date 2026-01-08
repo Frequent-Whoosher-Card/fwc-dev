@@ -233,7 +233,7 @@ export default function MembershipPage() {
         gender: gender !== "all" ? gender : undefined,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
-        cardCategory: cardCategory !== "all" ? cardCategory : undefined,
+        hasNippKai: cardCategory === "NIPKAI" ? true : undefined,
       });
 
       const mapped: Membership[] = res.data.items.map((item: any) => ({
@@ -295,14 +295,6 @@ export default function MembershipPage() {
     setStartDate("");
     setEndDate("");
   };
-
-  const filteredData = useMemo(() => {
-    if (cardCategory === "NIPKAI") {
-      return data.filter((item) => !!item.nip);
-    }
-
-    return data;
-  }, [data, cardCategory]);
 
   /* ======================
      DELETE
@@ -485,7 +477,7 @@ export default function MembershipPage() {
           </thead>
 
           <tbody>
-            {filteredData.map((item) => (
+            {data.map((item) => (
               <tr
                 key={item.id}
                 className="border-t text-sm hover:bg-gray-50 transition-colors"

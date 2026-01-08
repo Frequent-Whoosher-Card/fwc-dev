@@ -27,7 +27,7 @@ const baseRoutes = new Elysia()
     async (context) => {
       const { query, set } = context;
       try {
-        const { page, limit, search, startDate, endDate, gender } = query;
+        const { page, limit, search, startDate, endDate, gender, hasNippKai } = query;
         
         // Validate dates if provided
         if (startDate && isNaN(new Date(startDate).getTime())) {
@@ -56,6 +56,7 @@ const baseRoutes = new Elysia()
           startDate,
           endDate,
           gender,
+          hasNippKai,
         });
         return {
           success: true,
@@ -78,7 +79,7 @@ const baseRoutes = new Elysia()
       detail: {
         tags: ["Members"],
         summary: "Get all members",
-        description: "Retrieve all members with pagination, search, membership date filter, and gender filter. Search supports: name, identity number, email, phone, and updated by (user name). Optional startDate, endDate, and gender parameters can be used to filter members.",
+        description: "Retrieve all members with pagination, search, membership date filter, gender filter, and NIPKAI filter. Search supports: name, identity number, email, phone, and updated by (user name). Optional startDate, endDate, gender, and hasNippKai parameters can be used to filter members.",
       },
     }
   )
