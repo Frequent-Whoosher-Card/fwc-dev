@@ -21,10 +21,10 @@ export namespace AuthModel {
       minLength: 1,
       examples: ['eyJraWQiOiJ2ckU4dWciLCJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...'],
     }),
-    recaptchaToken: t.String({
-      description: 'Google reCAPTCHA v3 token (required) - Verifies human interaction (score-based)',
+    turnstileToken: t.String({
+      description: 'Cloudflare Turnstile token (required) - Verifies human interaction (Managed mode with auto-check)',
       minLength: 1,
-      examples: ['03AGdBq27...'],
+      examples: ['0.abc123...'],
     }),
   });
 

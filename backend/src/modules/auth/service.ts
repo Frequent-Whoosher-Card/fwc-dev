@@ -7,7 +7,7 @@ import {
 } from "../../utils/errors";
 import { passwordResetConfig } from "../../config/jwt";
 import { verifyAppCheckToken } from "../../services/appCheckService";
-import { verifyRecaptchaToken } from "../../services/recaptchaService";
+import { verifyTurnstileToken } from "../../services/turnstileService";
 
 export class AuthService {
   /**
@@ -17,7 +17,7 @@ export class AuthService {
     usernameOrEmail: string,
     password: string,
     appCheckToken: string,
-    recaptchaToken: string
+    turnstileToken: string
   ) {
     // Verify Firebase App Check token (required)
     if (!appCheckToken || typeof appCheckToken !== 'string' || appCheckToken.trim().length === 0) {
@@ -25,11 +25,11 @@ export class AuthService {
     }
     await verifyAppCheckToken(appCheckToken);
 
-    // Verify Google reCAPTCHA v3 token (required)
-    if (!recaptchaToken || typeof recaptchaToken !== 'string' || recaptchaToken.trim().length === 0) {
-      throw new AuthenticationError('reCAPTCHA token is required');
+    // Verify Cloudflare Turnstile token (required)
+    if (!turnstileToken || typeof turnstileToken !== 'string' || turnstileToken.trim().length === 0) {
+      throw new AuthenticationError('Turnstile token is required');
     }
-    await verifyRecaptchaToken(recaptchaToken);
+    await verifyTurnstileToken(turnstileToken);
 
     // Find user by username or email
     const user = await db.user.findFirst({
