@@ -33,7 +33,7 @@ export default function LoginPage() {
       if (isAppCheckEnabled()) {
         setupAppCheck();
         try {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise((resolve) => setTimeout(resolve, 1000));
           await getAppCheckToken();
         } catch (error) {
           console.warn('[App Check] Pre-warm failed, will retry on login');
@@ -44,7 +44,7 @@ export default function LoginPage() {
       if (isTurnstileEnabled()) {
         try {
           // Wait for DOM to be ready
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise((resolve) => setTimeout(resolve, 100));
           await initializeTurnstile('turnstile-container');
           console.log('[Turnstile] Widget initialized - checkbox should appear');
         } catch (error) {
@@ -52,7 +52,7 @@ export default function LoginPage() {
         }
       }
     };
-    
+
     initializeSecurity();
   }, []);
 
@@ -85,7 +85,7 @@ export default function LoginPage() {
       if (isAppCheckEnabled()) {
         setupAppCheck();
         // Wait a bit for App Check to initialize if needed
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise((resolve) => setTimeout(resolve, 300));
       }
 
       // Get Firebase App Check token (required)
@@ -102,7 +102,7 @@ export default function LoginPage() {
             console.warn(`[App Check] Failed to get token, retries left: ${retries - 1}`, error);
             retries--;
             if (retries > 0) {
-              await new Promise(resolve => setTimeout(resolve, 500));
+              await new Promise((resolve) => setTimeout(resolve, 500));
             }
           }
         }
@@ -135,7 +135,7 @@ export default function LoginPage() {
             console.warn(`[Turnstile] Failed to execute, retries left: ${retries - 1}`, error);
             retries--;
             if (retries > 0) {
-              await new Promise(resolve => setTimeout(resolve, 500));
+              await new Promise((resolve) => setTimeout(resolve, 500));
             }
           }
         }
@@ -247,7 +247,7 @@ export default function LoginPage() {
       }
     } catch (error) {
       setIsLoading(false);
-      
+
       if (process.env.NODE_ENV === 'development') {
         console.error('Login error:', error);
       }
