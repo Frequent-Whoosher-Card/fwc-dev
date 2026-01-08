@@ -50,6 +50,9 @@ export namespace StockInModel {
     startDate: t.Optional(t.String({ format: "date" })),
     endDate: t.Optional(t.String({ format: "date" })),
     categoryId: t.Optional(t.String({ format: "uuid" })),
+    typeId: t.Optional(t.String({ format: "uuid" })),
+    categoryName: t.Optional(t.String()),
+    typeName: t.Optional(t.String()),
   });
 
   // History Response
@@ -111,6 +114,12 @@ export namespace StockInModel {
           code: t.String(),
         }),
         sentSerialNumbers: t.Array(t.String()),
+        items: t.Array(
+          t.Object({
+            serialNumber: t.String(),
+            status: t.String(),
+          })
+        ),
       }),
     }),
   });
@@ -134,14 +143,30 @@ export namespace StockInModel {
     }),
   });
 
+  // Update Batch Status Body
+  export const updateBatchStatusBody = t.Object({
+    updates: t.Array(
+      t.Object({
+        serialNumber: t.String(),
+        status: t.Union([
+          t.Literal("IN_OFFICE"),
+          t.Literal("DAMAGED"),
+          t.Literal("LOST"),
+        ]),
+      })
+    ),
+  });
+
   // Update Response
   export const updateStockInResponse = t.Object({
     success: t.Boolean(),
     message: t.String(),
-    data: t.Object({
-      id: t.String(),
-      updatedAt: t.String(),
-    }),
+    data: t.Optional(
+      t.Object({
+        id: t.String(),
+        updatedAt: t.String(),
+      })
+    ),
   });
 
   // Error Response

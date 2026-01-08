@@ -8,6 +8,7 @@ import { fetchCategories, fetchTypes, createStockIn, Category, Type } from '@/se
 
 export default function AddStockInPage() {
   const router = useRouter();
+  const today = new Date().toISOString().split('T')[0];
 
   // ======================
   // STATE
@@ -17,7 +18,7 @@ export default function AddStockInPage() {
   const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
-    tanggal: '',
+    tanggal: today,
     categoryId: '',
     typeId: '', // kosong utk KAI
     initialSerial: '',

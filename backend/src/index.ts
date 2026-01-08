@@ -1,3 +1,4 @@
+import path from "path";
 import { Elysia } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { docsConfig } from "./docs";
@@ -18,6 +19,7 @@ import { purchases } from "./modules/purchases";
 import { AuthenticationError, AuthorizationError } from "./utils/errors";
 import { inbox } from "./modules/inbox";
 import { redeem } from "./modules/redeem";
+import { superset } from "./modules/superset";
 
 const app = new Elysia()
   .use(docsConfig)
@@ -43,6 +45,8 @@ const app = new Elysia()
   .use(metrics)
   .use(inbox)
   .use(redeem)
+  .use(superset)
+
   .onError(({ code, error, set }) => {
     // Global error handler
     if (code === "VALIDATION") {
@@ -105,6 +109,13 @@ const app = new Elysia()
         statusCode: 500,
       },
     };
+  })
+  // Static File Serving
+  .get("/storage/*", async ({ params }) => {
+    // Basic Path Traversal Protection
+    const cleanPath = params["*"].replace(/\.\./g, "");
+    const filePath = path.join(process.cwd(), "storage", cleanPath);
+    return Bun.file(filePath);
   })
   .listen(3001);
 

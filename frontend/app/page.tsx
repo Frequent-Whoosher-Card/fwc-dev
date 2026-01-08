@@ -1,9 +1,11 @@
 'use client';
 
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { API_BASE_URL } from '../lib/apiConfig';
+import { setupAppCheck, getAppCheckToken, isAppCheckEnabled } from '../lib/firebase';
+import { executeTurnstile, isTurnstileEnabled, initializeTurnstile } from '../lib/turnstile';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
@@ -23,6 +25,36 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  // Initialize Firebase App Check and reCAPTCHA on component mount
+  useEffect(() => {
+    const initializeSecurity = async () => {
+      // Initialize Firebase App Check
+      if (isAppCheckEnabled()) {
+        setupAppCheck();
+        try {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          await getAppCheckToken();
+        } catch (error) {
+          console.warn('[App Check] Pre-warm failed, will retry on login');
+        }
+      }
+
+      // Initialize Cloudflare Turnstile Managed (checkbox terlihat dengan branding Cloudflare)
+      if (isTurnstileEnabled()) {
+        try {
+          // Wait for DOM to be ready
+          await new Promise(resolve => setTimeout(resolve, 100));
+          await initializeTurnstile('turnstile-container');
+          console.log('[Turnstile] Widget initialized - checkbox should appear');
+        } catch (error) {
+          console.warn('[Turnstile] Initialization failed:', error);
+        }
+      }
+    };
+    
+    initializeSecurity();
+  }, []);
 
   const handleLogin = async () => {
     let valid = true;
@@ -46,11 +78,99 @@ export default function LoginPage() {
 
     if (!valid) return;
 
+    setIsLoading(true);
+
     try {
+      // Ensure App Check is initialized before getting token
+      if (isAppCheckEnabled()) {
+        setupAppCheck();
+        // Wait a bit for App Check to initialize if needed
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+
+      // Get Firebase App Check token (required)
+      let appCheckToken: string | null = null;
+      if (isAppCheckEnabled()) {
+        let retries = 3;
+        while (retries > 0) {
+          try {
+            appCheckToken = await getAppCheckToken();
+            if (appCheckToken) {
+              break;
+            }
+          } catch (error) {
+            console.warn(`[App Check] Failed to get token, retries left: ${retries - 1}`, error);
+            retries--;
+            if (retries > 0) {
+              await new Promise(resolve => setTimeout(resolve, 500));
+            }
+          }
+        }
+
+        if (!appCheckToken) {
+          console.error('[App Check] Failed to get token after retries');
+          setAuthErrorMessage('Gagal memverifikasi aplikasi. Silakan refresh halaman dan coba lagi.');
+          setShowAuthError(true);
+          setIsLoading(false);
+          return;
+        }
+      } else {
+        setAuthErrorMessage('Konfigurasi keamanan tidak lengkap. Silakan hubungi administrator.');
+        setShowAuthError(true);
+        setIsLoading(false);
+        return;
+      }
+
+      // Execute Cloudflare Turnstile (required)
+      let turnstileToken: string | null = null;
+      if (isTurnstileEnabled()) {
+        let retries = 3;
+        while (retries > 0) {
+          try {
+            turnstileToken = await executeTurnstile();
+            if (turnstileToken) {
+              break;
+            }
+          } catch (error) {
+            console.warn(`[Turnstile] Failed to execute, retries left: ${retries - 1}`, error);
+            retries--;
+            if (retries > 0) {
+              await new Promise(resolve => setTimeout(resolve, 500));
+            }
+          }
+        }
+
+        if (!turnstileToken) {
+          console.error('[Turnstile] Failed to get token after retries');
+          setAuthErrorMessage('Gagal memverifikasi keamanan. Silakan refresh halaman dan coba lagi.');
+          setShowAuthError(true);
+          setIsLoading(false);
+          return;
+        }
+      } else {
+        setAuthErrorMessage('Konfigurasi keamanan tidak lengkap. Silakan hubungi administrator.');
+        setShowAuthError(true);
+        setIsLoading(false);
+        return;
+      }
+
+      // Prepare request body with required tokens
+      const requestBody: {
+        username: string;
+        password: string;
+        appCheckToken: string;
+        turnstileToken: string;
+      } = {
+        username,
+        password,
+        appCheckToken,
+        turnstileToken,
+      };
+
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify(requestBody),
       });
 
       const json = await response.json();
@@ -63,10 +183,14 @@ export default function LoginPage() {
           message = 'Username atau password salah.';
         } else if (json?.error?.code === 'ACCOUNT_INACTIVE') {
           message = 'Akun belum aktif. Hubungi administrator.';
+        } else if (response.status === 403) {
+          // Handle App Check or Turnstile verification failures
+          message = json?.error?.message || 'Verifikasi keamanan gagal. Silakan coba lagi.';
         }
 
         setAuthErrorMessage(message);
         setShowAuthError(true);
+        setIsLoading(false);
         return;
       }
 
@@ -101,8 +225,6 @@ export default function LoginPage() {
         })
       );
 
-      setIsLoading(true);
-
       toast.success('Login berhasil, selamat datang');
       await delay(1500);
       setIsLoading(false);
@@ -124,6 +246,8 @@ export default function LoginPage() {
           router.push('/dashboard');
       }
     } catch (error) {
+      setIsLoading(false);
+      
       if (process.env.NODE_ENV === 'development') {
         console.error('Login error:', error);
       }
@@ -210,6 +334,13 @@ export default function LoginPage() {
 
                   {passwordError && <p className="mt-2 text-xs text-red-500">{passwordError}</p>}
                 </div>
+
+                {/* Cloudflare Turnstile Managed - Checkbox terlihat dengan branding Cloudflare */}
+                {isTurnstileEnabled() && (
+                  <div className="flex justify-center">
+                    <div id="turnstile-container"></div>
+                  </div>
+                )}
 
                 {/* BUTTON */}
                 <button
