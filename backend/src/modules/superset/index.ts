@@ -1,32 +1,31 @@
-// import { Elysia } from "elysia";
-// import { jwt } from "@elysiajs/jwt";
-// import { SupersetService } from "./service";
+import { Elysia } from 'elysia';
+import { SupersetService } from './service';
 
-// export const superset = new Elysia({ prefix: "/superset" })
-//   .use(
-//     jwt({
-//       name: "jwt",
-//       secret: process.env.GUEST_TOKEN_JWT_SECRET!,
-//     })
-//   )
-//   .get("/guest-token", async ({ query }) => {
-//     const dashboardId = query.dashboardId as string;
+export const superset = new Elysia({ prefix: '/superset' }).get('/guest-token', async ({ query, set }) => {
+  try {
+    const dashboardId = query.dashboardId as string;
 
-//     if (!dashboardId) {
-//       return {
-//         success: false,
-//         message: "dashboardId is required",
-//       };
-//     }
+    if (!dashboardId) {
+      set.status = 400;
+      return {
+        success: false,
+        message: 'dashboardId required',
+      };
+    }
 
-//     const token = await SupersetService.createGuestToken(
-//       null, // jwtSigner tidak dipakai karena Superset generate token
-//       dashboardId,
-//       process.env.SUPERSET_ADMIN_ACCESS_TOKEN!
-//     );
+    const token = await SupersetService.createGuestToken(dashboardId);
 
-//     return {
-//       success: true,
-//       token,
-//     };
-//   });
+    return {
+      success: true,
+      token,
+    };
+  } catch (err: any) {
+    console.error('[SUPERSET ERROR]', err);
+
+    set.status = 500;
+    return {
+      success: false,
+      message: err?.message ?? 'Superset guest token failed',
+    };
+  }
+});

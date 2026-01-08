@@ -1,47 +1,40 @@
-import { jwt } from "@elysiajs/jwt";
-
-const SUPERSET_URL = "https://superset.fwc-kcic.me";
+const SUPERSET_URL = process.env.SUPERSET_URL!;
+const ADMIN_TOKEN = process.env.SUPERSET_ADMIN_ACCESS_TOKEN!;
 
 export class SupersetService {
-  static async createGuestToken(
-    jwtSigner: any,
-    dashboardId: string,
-    supersetAdminAccessToken: string
-  ) {
-    // Payload sesuai Superset API (bukan asumsi)
+  static async createGuestToken(dashboardId: string) {
     const payload = {
       user: {
         username: "guest",
         first_name: "Guest",
         last_name: "Viewer",
       },
-      resources: [
-        {
-          type: "dashboard",
-          id: dashboardId,
-        },
-      ],
+      resources: [{ type: "dashboard", id: dashboardId }],
       rls: [],
     };
 
-    const response = await fetch(
+    const res = await fetch(
       `${SUPERSET_URL}/api/v1/security/guest_token/`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${supersetAdminAccessToken}`,
+          Authorization: `Bearer ${ADMIN_TOKEN}`,
         },
         body: JSON.stringify(payload),
       }
     );
 
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`Superset guest token failed: ${err}`);
+    if (!res.ok) {
+      const text = await res.text();
+      console.error("[superset] guest token failed:", text);
+      return Promise.reject(
+        new Error(`Superset guest token failed: ${text}`)
+      );
     }
 
-    const data = await response.json();
+
+    const data = await res.json();
     return data.token;
   }
 }

@@ -71,38 +71,78 @@ const formatDate = (iso?: string) => {
 ====================== */
 function ConfirmDeleteModal({
   open,
+  member,
   onCancel,
   onConfirm,
 }: {
   open: boolean;
+  member: {
+    name?: string | null;
+    nik?: string | null;
+  } | null;
   onCancel: () => void;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
 }) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-[380px] rounded-xl bg-white p-6 text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-          <AlertTriangle className="text-red-600" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="w-[420px] rounded-2xl bg-white p-6 shadow-xl">
+        {/* ICON */}
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
+          <AlertTriangle className="text-red-600" size={22} />
         </div>
 
-        <h2 className="text-lg font-semibold">Delete Data</h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Are you sure want to delete this Data ? <br />
+        {/* TITLE */}
+        <h2 className="text-center text-lg font-semibold text-gray-800">
+          Delete Data
+        </h2>
+
+        <p className="mt-1 text-center text-sm text-gray-600">
+          Are you sure you want to delete this member?
+        </p>
+
+        {/* INFO BOX */}
+        <div className="mt-4 rounded-lg bg-gray-50 px-4 py-3 text-sm">
+          <div className="flex justify-between gap-3">
+            <span className="text-gray-500">Name</span>
+            <span className="max-w-[240px] truncate font-medium text-gray-800">
+              {member?.name || '-'}
+            </span>
+          </div>
+
+          <div className="mt-1 flex justify-between gap-3">
+            <span className="text-gray-500">
+              Identity Number
+            </span>
+            <span className="max-w-[240px] truncate font-mono text-gray-800">
+              {member?.nik ? `FWC${member.nik}` : '-'}
+            </span>
+          </div>
+        </div>
+
+        {/* WARNING */}
+        <p className="mt-3 text-center text-xs font-medium text-red-500">
           This action cannot be undone.
         </p>
 
+        {/* ACTION */}
         <div className="mt-6 flex justify-center gap-3">
           <button
             onClick={onCancel}
-            className="rounded-md bg-gray-200 px-5 py-2 text-sm"
+            className="h-9 w-24 rounded-md bg-gray-100 text-sm text-gray-700 hover:bg-gray-200"
           >
             Cancel
           </button>
+
           <button
             onClick={onConfirm}
-            className="rounded-md bg-red-600 px-5 py-2 text-sm text-white hover:bg-red-700"
+            disabled={!member}
+            className={`h-9 w-24 rounded-md text-sm text-white ${
+              member
+                ? 'bg-red-600 hover:bg-red-700'
+                : 'cursor-not-allowed bg-red-300'
+            }`}
           >
             Delete
           </button>
@@ -111,6 +151,7 @@ function ConfirmDeleteModal({
     </div>
   );
 }
+
 
 /* ======================
    SUCCESS MODAL
@@ -167,15 +208,20 @@ const [cardCategory, setCardCategory] =
   useState<'all' | 'NIPKAI'>('all'); 
   const [search, setSearch] = useState('');
   const [gender, setGender] =
-    useState<'all' | 'Laki - Laki' | 'Perempuan'>('all');
+  useState<'all' | 'L' | 'P'>('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  const [selectedMember, setSelectedMember] = useState<{
+  id: string;
+  name?: string | null;
+  nik?: string | null;
+} | null>(null);
 
   /* ======================
      FETCH DATA
@@ -258,29 +304,35 @@ const [cardCategory, setCardCategory] =
 };
 
 
-  const filteredData = useMemo(() => data, [data]);
+const filteredData = useMemo(() => {
+  if (cardCategory === 'NIPKAI') {
+    return data.filter((item) => !!item.nip);
+  }
+
+  return data;
+}, [data, cardCategory]);
 
   /* ======================
      DELETE
   ====================== */
 const confirmDelete = async () => {
-  if (!selectedId) return;
+  if (!selectedMember?.id) return;
 
   try {
-    await deleteMember(selectedId);
+    await deleteMember(selectedMember.id);
 
     setShowDeleteModal(false);
-    setSelectedId(null);
+    setSelectedMember(null);
     setShowSuccessModal(true);
 
     fetchMembers(pagination.page);
   } catch (err: any) {
     toast.error(
-      err?.message ||
-      'Tidak dapat menghapus member'
+      err?.message || 'Tidak dapat menghapus member'
     );
   }
 };
+
 
 
   /* ======================
@@ -366,16 +418,16 @@ const confirmDelete = async () => {
 
 
 
-  {/* GENDER */}
-  <select
-    value={gender}
-    onChange={(e) => setGender(e.target.value as any)}
-    className="h-9 rounded-md border px-3 text-sm"
-  >
-    <option value="all">Gender</option>
-    <option value="Laki - Laki">Laki - Laki</option>
-    <option value="Perempuan">Perempuan</option>
-  </select>
+ {/* GENDER */}
+ <select
+  value={gender}
+  onChange={(e) => setGender(e.target.value as any)}
+  className="h-9 rounded-md border px-3 text-sm"
+>
+  <option value="all">Gender</option>
+  <option value="L">Laki - Laki</option>
+  <option value="P">Perempuan</option>
+</select>
 
 {/* START */}
 <div className="flex items-center gap-2">
@@ -557,15 +609,19 @@ const confirmDelete = async () => {
                 Edit
               </button>
 
-              <button
-                onClick={() => {
-                  setSelectedId(item.id);
-                  setShowDeleteModal(true);
-                }}
-                className="rounded bg-red-600 px-3 py-1 text-xs text-white"
-              >
-                Hapus
-              </button>
+            <button
+  onClick={() => {
+    setSelectedMember({
+      id: item.id,
+      name: item.name ?? '-',
+      nik: item.nik ?? null,
+    });
+    setShowDeleteModal(true);
+  }}
+  className="rounded bg-red-600 px-3 py-1 text-xs text-white"
+>
+  Hapus
+</button>
             </div>
           </td>
         </tr>
@@ -625,11 +681,15 @@ const confirmDelete = async () => {
         </button>
       </div>
 
-      <ConfirmDeleteModal
-        open={showDeleteModal}
-        onCancel={() => setShowDeleteModal(false)}
-        onConfirm={confirmDelete}
-      />
+    <ConfirmDeleteModal
+  open={showDeleteModal}
+  member={selectedMember}
+  onCancel={() => {
+    setShowDeleteModal(false);
+    setSelectedMember(null);
+  }}
+  onConfirm={confirmDelete}
+/>
 
       <SuccessModal
         open={showSuccessModal}

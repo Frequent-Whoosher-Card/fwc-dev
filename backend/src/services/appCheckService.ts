@@ -23,7 +23,6 @@ export async function verifyAppCheckToken(token: string): Promise<boolean> {
     if (appCheckClaims && appCheckClaims.appId) {
       console.log('[App Check] ✅ Token verified successfully', {
         appId: appCheckClaims.appId,
-        issuer: appCheckClaims.issuer,
       });
       return true;
     }
