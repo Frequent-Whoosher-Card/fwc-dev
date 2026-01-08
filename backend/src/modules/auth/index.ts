@@ -69,14 +69,15 @@ export const auth = new Elysia({ prefix: "/auth" })
     "/login",
     async ({ body, jwt, cookie: { session }, set }) => {
       try {
-        const { username, password, appCheckToken, turnstileToken } = body;
+        // const { username, password, appCheckToken, turnstileToken } = body;
+        const { username, password } = body;
 
         // Authenticate user (with token verification)
         const { user } = await AuthService.login(
           username,
           password,
-          appCheckToken,
-          turnstileToken
+          // appCheckToken,
+          // turnstileToken
         );
 
         // Generate JWT token
@@ -130,8 +131,8 @@ export const auth = new Elysia({ prefix: "/auth" })
               example: {
                 username: "rama",
                 password: "ramaPassword",
-                appCheckToken: "eyJraWQiOiJ2ckU4dWciLCJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...",
-                turnstileToken: "0.abc123...",
+                // appCheckToken: "eyJraWQiOiJ2ckU4dWciLCJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...",
+                // turnstileToken: "0.abc123...",
               },
             },
           },

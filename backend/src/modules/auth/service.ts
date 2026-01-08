@@ -16,20 +16,20 @@ export class AuthService {
   static async login(
     usernameOrEmail: string,
     password: string,
-    appCheckToken: string,
-    turnstileToken: string
+    // appCheckToken: string,
+    // turnstileToken: string
   ) {
-    // Verify Firebase App Check token (required)
-    if (!appCheckToken || typeof appCheckToken !== 'string' || appCheckToken.trim().length === 0) {
-      throw new AuthenticationError('App Check token is required');
-    }
-    await verifyAppCheckToken(appCheckToken);
+    // // Verify Firebase App Check token (required)
+    // if (!appCheckToken || typeof appCheckToken !== 'string' || appCheckToken.trim().length === 0) {
+    //   throw new AuthenticationError('App Check token is required');
+    // }
+    // await verifyAppCheckToken(appCheckToken);
 
-    // Verify Cloudflare Turnstile token (required)
-    if (!turnstileToken || typeof turnstileToken !== 'string' || turnstileToken.trim().length === 0) {
-      throw new AuthenticationError('Turnstile token is required');
-    }
-    await verifyTurnstileToken(turnstileToken);
+    // // Verify Cloudflare Turnstile token (required)
+    // if (!turnstileToken || typeof turnstileToken !== 'string' || turnstileToken.trim().length === 0) {
+    //   throw new AuthenticationError('Turnstile token is required');
+    // }
+    // await verifyTurnstileToken(turnstileToken);
 
     // Find user by username or email
     const user = await db.user.findFirst({
