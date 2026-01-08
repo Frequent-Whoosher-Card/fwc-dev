@@ -69,12 +69,13 @@ export const auth = new Elysia({ prefix: "/auth" })
     "/login",
     async ({ body, jwt, cookie: { session }, set }) => {
       try {
-        const { username, password, turnstileToken } = body;
+        const { username, password, appCheckToken, turnstileToken } = body;
 
-        // Authenticate user (with Turnstile token verification)
+        // Authenticate user (with token verification)
         const { user } = await AuthService.login(
           username,
           password,
+          appCheckToken,
           turnstileToken
         );
 
@@ -122,13 +123,14 @@ export const auth = new Elysia({ prefix: "/auth" })
       detail: {
         tags: ["Authentication"],
         summary: "Login with username/email and password",
-        description: "Authenticate user and create session. Requires Cloudflare Turnstile token for security verification.",
+        description: "Authenticate user and create session. Requires Firebase App Check token and Cloudflare Turnstile token for double layer security protection.",
         requestBody: {
           content: {
             "application/json": {
               example: {
                 username: "rama",
                 password: "ramaPassword",
+                appCheckToken: "eyJraWQiOiJ2ckU4dWciLCJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...",
                 turnstileToken: "0.abc123...",
               },
             },

@@ -16,6 +16,11 @@ export namespace AuthModel {
       default: 'ramaPassword',
       examples: ['ramaPassword'],
     }),
+    appCheckToken: t.String({
+      description: 'Firebase App Check token (required) - Verifies request comes from legitimate application',
+      minLength: 1,
+      examples: ['eyJraWQiOiJ2ckU4dWciLCJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...'],
+    }),
     turnstileToken: t.String({
       description: 'Cloudflare Turnstile token (required) - Verifies human interaction (Managed mode with auto-check)',
       minLength: 1,
