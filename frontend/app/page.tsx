@@ -4,7 +4,6 @@ import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { API_BASE_URL } from '../lib/apiConfig';
-import { setupAppCheck, getAppCheckToken, isAppCheckEnabled } from '../lib/firebase';
 import { executeTurnstile, isTurnstileEnabled, initializeTurnstile } from '../lib/turnstile';
 import toast from 'react-hot-toast';
 
@@ -26,20 +25,9 @@ export default function LoginPage() {
 
   const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  // Initialize Firebase App Check and reCAPTCHA on component mount
+  // Initialize Cloudflare Turnstile on component mount
   useEffect(() => {
     const initializeSecurity = async () => {
-      // Initialize Firebase App Check
-      if (isAppCheckEnabled()) {
-        setupAppCheck();
-        try {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          await getAppCheckToken();
-        } catch (error) {
-          console.warn('[App Check] Pre-warm failed, will retry on login');
-        }
-      }
-
       // Initialize Cloudflare Turnstile Managed (checkbox terlihat dengan branding Cloudflare)
       if (isTurnstileEnabled()) {
         try {
@@ -81,46 +69,6 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      // Ensure App Check is initialized before getting token
-      if (isAppCheckEnabled()) {
-        setupAppCheck();
-        // Wait a bit for App Check to initialize if needed
-        await new Promise(resolve => setTimeout(resolve, 300));
-      }
-
-      // Get Firebase App Check token (required)
-      let appCheckToken: string | null = null;
-      if (isAppCheckEnabled()) {
-        let retries = 3;
-        while (retries > 0) {
-          try {
-            appCheckToken = await getAppCheckToken();
-            if (appCheckToken) {
-              break;
-            }
-          } catch (error) {
-            console.warn(`[App Check] Failed to get token, retries left: ${retries - 1}`, error);
-            retries--;
-            if (retries > 0) {
-              await new Promise(resolve => setTimeout(resolve, 500));
-            }
-          }
-        }
-
-        if (!appCheckToken) {
-          console.error('[App Check] Failed to get token after retries');
-          setAuthErrorMessage('Gagal memverifikasi aplikasi. Silakan refresh halaman dan coba lagi.');
-          setShowAuthError(true);
-          setIsLoading(false);
-          return;
-        }
-      } else {
-        setAuthErrorMessage('Konfigurasi keamanan tidak lengkap. Silakan hubungi administrator.');
-        setShowAuthError(true);
-        setIsLoading(false);
-        return;
-      }
-
       // Execute Cloudflare Turnstile (required)
       let turnstileToken: string | null = null;
       if (isTurnstileEnabled()) {
@@ -154,16 +102,14 @@ export default function LoginPage() {
         return;
       }
 
-      // Prepare request body with required tokens
+      // Prepare request body with Turnstile token
       const requestBody: {
         username: string;
         password: string;
-        appCheckToken: string;
         turnstileToken: string;
       } = {
         username,
         password,
-        appCheckToken,
         turnstileToken,
       };
 
@@ -184,7 +130,7 @@ export default function LoginPage() {
         } else if (json?.error?.code === 'ACCOUNT_INACTIVE') {
           message = 'Akun belum aktif. Hubungi administrator.';
         } else if (response.status === 403) {
-          // Handle App Check or Turnstile verification failures
+          // Handle Turnstile verification failures
           message = json?.error?.message || 'Verifikasi keamanan gagal. Silakan coba lagi.';
         }
 
