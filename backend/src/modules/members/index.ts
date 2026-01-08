@@ -79,7 +79,7 @@ const baseRoutes = new Elysia()
       detail: {
         tags: ["Members"],
         summary: "Get all members",
-        description: "Retrieve all members with pagination, search, membership date filter, gender filter, and NIPKAI filter. Search supports all fields: Customer Name, Identity Number, Nationality, Gender (L/P), Email, Phone, Address, Membership Date, Last Updated, and Updated By (user name). Supports partial matching and date formats. Optional startDate, endDate, gender, and hasNippKai parameters can be used to filter members.",
+        description: "Retrieve all members with pagination, search, membership date filter, gender filter, and NIPKAI filter. Search supports: name, identity number, email, phone, and updated by (user name). Optional startDate, endDate, gender, and hasNippKai parameters can be used to filter members.",
       },
     }
   )

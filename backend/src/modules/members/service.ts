@@ -92,7 +92,7 @@ export class MemberService {
     }
 
     if (search) {
-      // First, find users whose fullName matches the search term
+      // First, find users whose fullName matches the search term (for Last Updated by)
       const matchingUsers = await db.user.findMany({
         where: {
           fullName: { contains: search, mode: "insensitive" },
@@ -101,30 +101,34 @@ export class MemberService {
       });
       const matchingUserIds = matchingUsers.map((u) => u.id);
 
-      // Search across all member fields
       where.OR = [
-        { name: { contains: search, mode: "insensitive" } }, // Customer Name
-        { identityNumber: { contains: search, mode: "insensitive" } }, // Identity Number
-        { nationality: { contains: search, mode: "insensitive" } }, // Nationality
-        { email: { contains: search, mode: "insensitive" } }, // Email
-        { phone: { contains: search, mode: "insensitive" } }, // Phone
-        { alamat: { contains: search, mode: "insensitive" } }, // Address
+        // Customer Name
+        { name: { contains: search, mode: "insensitive" } },
+        // Identity Number
+        { identityNumber: { contains: search, mode: "insensitive" } },
+        // Nationality
+        { nationality: { contains: search, mode: "insensitive" } },
+        // Email
+        { email: { contains: search, mode: "insensitive" } },
+        // Phone
+        { phone: { contains: search, mode: "insensitive" } },
+        // Address
+        { alamat: { contains: search, mode: "insensitive" } },
       ];
 
-      // Search by gender (L or P, case-insensitive)
+      // Search by Gender (L or P)
       const searchUpper = search.toUpperCase().trim();
-      if (searchUpper === 'L' || searchUpper === 'LAKI' || searchUpper === 'LAKI-LAKI' || searchUpper === 'LAKI LAKI') {
+      if (searchUpper === 'L' || searchUpper === 'LAKI' || searchUpper === 'LAKI-LAKI' || searchUpper === 'LAKI LAKI' || searchUpper === 'LAKI-LAKI') {
         where.OR.push({ gender: 'L' });
       } else if (searchUpper === 'P' || searchUpper === 'PEREMPUAN') {
         where.OR.push({ gender: 'P' });
       }
 
-      // Add search by updatedBy/createdBy (user fullName)
+      // Add search by updatedBy (user fullName) - Last Updated by
       if (matchingUserIds.length > 0) {
-        where.OR.push(
-          { updatedBy: { in: matchingUserIds } },
-          { createdBy: { in: matchingUserIds } }
-        );
+        where.OR.push({
+          updatedBy: { in: matchingUserIds },
+        });
       }
 
       // Search by date fields (Membership Date and Last Updated)
@@ -159,12 +163,14 @@ export class MemberService {
             endOfDay.setHours(23, 59, 59, 999);
 
             where.OR.push(
+              // Membership Date (createdAt)
               {
                 createdAt: {
                   gte: startOfDay,
                   lte: endOfDay,
                 },
               },
+              // Last Updated (updatedAt)
               {
                 updatedAt: {
                   gte: startOfDay,

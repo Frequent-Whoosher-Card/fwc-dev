@@ -145,7 +145,7 @@ export namespace MemberModel {
     limit: t.Optional(t.String()),
     search: t.Optional(
       t.String({ 
-        description: "Search across all member fields: Customer Name, Identity Number, Nationality, Gender (L/P), Email, Phone, Address, Membership Date, Last Updated, and Updated By (user name). Supports partial matching and date formats (YYYY-MM-DD, DD/MM/YYYY, DD-MM-YYYY)" 
+        description: "Search across all member fields: Customer Name, Identity Number, Nationality, Gender (L/P/Laki-laki/Perempuan), Email, Phone, Address, Membership Date (YYYY-MM-DD/DD/MM/YYYY/DD-MM-YYYY), Last Updated (YYYY-MM-DD/DD/MM/YYYY/DD-MM-YYYY), and Last Updated By (user name). Supports partial matching." 
       })
     ),
     startDate: t.Optional(
