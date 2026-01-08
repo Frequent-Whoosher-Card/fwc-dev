@@ -22,7 +22,6 @@
     "jsbarcode": "^3.12.1",
     "nodemailer": "^7.0.12",
     "prismabox": "^1.1.26",
-    "socket.io": "^4.8.3",
     "xlsx": "^0.18.5",
     "xmldom": "^0.6.0"
   },
