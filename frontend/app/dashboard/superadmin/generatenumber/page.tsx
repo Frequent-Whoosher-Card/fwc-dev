@@ -114,7 +114,9 @@ export default function GenerateNumberPage() {
       // 🔁 REFRESH LIST DARI BACKEND
       fetchHistory();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Nomor sudah digenerate');
+      const message = err?.response?.data?.message ?? err?.response?.data ?? 'Terjadi kesalahan';
+
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -194,9 +196,9 @@ export default function GenerateNumberPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b">
             <tr>
-              <th className="px-4 py-3">Tanggal</th>
-              <th className="px-4 py-3">Product</th>
-              <th className="px-4 py-3">Serial Range</th>
+              <th className="px-4 py-3 text-center ">Tanggal</th>
+              <th className="px-4 py-3 text-center">Product</th>
+              <th className="px-4 py-3 text-center">Serial Range</th>
               <th className="px-4 py-3 text-center">Qty</th>
               <th className="px-4 py-3 text-center">Action</th>
             </tr>
@@ -221,13 +223,13 @@ export default function GenerateNumberPage() {
 
                 return (
                   <tr key={item.id} className="border-b">
-                    <td className="px-4 py-2">{new Date(item.movementAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-2 text-center">{new Date(item.movementAt).toLocaleDateString()}</td>
 
-                    <td className="px-4 py-2">
+                    <td className="px-4 py-2 text-center">
                       {item.category?.name} - {item.type?.name}
                     </td>
 
-                    <td className="px-4 py-2 font-mono">
+                    <td className="px-4 py-2 font-mono text-center">
                       {startSerial} – {endSerial}
                     </td>
 

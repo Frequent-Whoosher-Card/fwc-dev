@@ -1,147 +1,202 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import axios from '@/lib/axios';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
-import { Eye, FileDown } from 'lucide-react';
+import { Eye, FileDown, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+
+/* =====================
+   TYPES
+===================== */
 
 interface StockInItem {
   id: string;
   tanggal: string;
-  rawTanggal: string;
   category: string;
   type: string;
   stock: number;
 }
 
+interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+/* =====================
+   COMPONENT
+===================== */
+
 export default function StockInPage() {
   const router = useRouter();
 
-  const [stockIn, setStockIn] = useState<StockInItem[]>([]);
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [openDelete, setOpenDelete] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  /* =====================
+     STATE
+  ===================== */
+  const [data, setData] = useState<StockInItem[]>([]);
+  const [pagination, setPagination] = useState<PaginationMeta>({
+    total: 0,
+    page: 1,
+    limit: 10,
+    totalPages: 0,
+  });
   const [loading, setLoading] = useState(false);
 
-  // =========================
-  // FETCH DATA (FILTER AKTIF & AMAN)
-  // =========================
-  useEffect(() => {
-    const fetchStockIn = async () => {
-      setLoading(true);
-      try {
-        const params: Record<string, string> = {};
+  // filters
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [category, setCategory] = useState('all');
+  const [type, setType] = useState('all');
 
-        // =========================
-        // FILTER TANGGAL (UTC SAFE)
-        // =========================
-        if (fromDate) {
-          const start = new Date(fromDate);
-          start.setHours(0, 0, 0, 0);
-          params.startDate = start.toISOString();
-        }
+  // delete
+  const [openDelete, setOpenDelete] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-        if (toDate) {
-          const end = new Date(toDate);
-          end.setHours(23, 59, 59, 999);
-          params.endDate = end.toISOString();
-        }
-        // UTC
+  const fromDateRef = useRef<HTMLInputElement>(null);
+  const toDateRef = useRef<HTMLInputElement>(null);
 
-        const res = await axios.get('/stock/in', { params });
+  /* =====================
+     FETCH DATA (SAMA SEPERTI STOCK OUT)
+  ===================== */
+  const fetchStockIn = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params: Record<string, any> = {
+        page: pagination.page,
+        limit: pagination.limit,
+      };
 
-        const data = res.data?.data?.items || [];
+      if (fromDate) {
+        const start = new Date(fromDate);
+        start.setHours(0, 0, 0, 0);
+        params.startDate = start.toISOString();
+      }
 
-        setStockIn(
-          data.map((item: any) => ({
+      if (toDate) {
+        const end = new Date(toDate);
+        end.setHours(23, 59, 59, 999);
+        params.endDate = end.toISOString();
+      }
+
+      const res = await axios.get('/stock/in', { params });
+
+      if (res.data?.success) {
+        const { items, pagination: paging } = res.data.data;
+
+        setData(
+          items.map((item: any) => ({
             id: item.id,
             tanggal: item.movementAt,
-            rawTanggal: item.movementAt,
             category: item.cardCategory?.name || '-',
             type: item.cardType?.name || '-',
             stock: item.quantity,
           }))
         );
-      } catch (err) {
-        toast.error('Gagal mengambil data stock-in');
-        console.error(err);
-      } finally {
-        setLoading(false);
+
+        setPagination(paging);
       }
-    };
-
-    fetchStockIn();
-  }, [fromDate, toDate]);
-
-  // =========================
-  // EXPORT PDF
-  // =========================
-  const handleExportPDF = () => {
-    if (stockIn.length === 0) {
-      toast.error('Tidak ada data untuk diexport');
-      return;
-    }
-
-    const doc = new jsPDF('p', 'mm', 'a4');
-
-    // =========================
-    // TITLE (TANPA UNICODE)
-    // =========================
-    const title = 'Laporan Stock In (Vendor ke Office)';
-    const pageWidth = doc.internal.pageSize.getWidth();
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.text(title, pageWidth / 2, 18, { align: 'center' });
-
-    // GARIS PEMISAH
-    doc.setLineWidth(0.3);
-    doc.line(14, 22, pageWidth - 14, 22);
-
-    // =========================
-    // TABLE
-    // =========================
-    autoTable(doc, {
-      startY: 26,
-      head: [['Tanggal', 'Category', 'Type', 'Stock Masuk']],
-      body: stockIn.map((item) => [item.tanggal, item.category, item.type || '-', item.stock.toLocaleString()]),
-      styles: {
-        font: 'helvetica',
-        fontSize: 10,
-        cellPadding: 3,
-        halign: 'center',
-      },
-      headStyles: {
-        fillColor: [141, 18, 49],
-        textColor: 255,
-        fontStyle: 'bold',
-      },
-    });
-
-    doc.save('laporan-stock-in.pdf');
-  };
-
-  // =========================
-  // DELETE
-  // =========================
-  const handleDelete = async (id: string) => {
-    try {
-      await axios.delete(`/stock/in/${id}`);
-      setStockIn((prev) => prev.filter((item) => item.id !== id));
-      toast.success('Stock berhasil dihapus');
-    } catch {
-      toast.error('Gagal menghapus stock');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal mengambil data stock-in');
     } finally {
+      setLoading(false);
+    }
+  }, [pagination.page, pagination.limit, fromDate, toDate]);
+
+  useEffect(() => {
+    fetchStockIn();
+  }, [fetchStockIn]);
+
+  /* =====================
+     FILTER (FRONTEND) – SAMA POLA STOCK OUT
+  ===================== */
+  const filteredData = useMemo(() => {
+    return data.filter((item) => {
+      const categoryMatch = category === 'all' || item.category === category;
+      const typeMatch = type === 'all' || item.type === type;
+      return categoryMatch && typeMatch;
+    });
+  }, [data, category, type]);
+
+  /* =====================
+     DELETE
+  ===================== */
+  const handleDelete = async () => {
+    if (!selectedId) return;
+
+    try {
+      await axios.delete(`/stock/in/${selectedId}`);
+      toast.success('Stock berhasil dihapus');
       setOpenDelete(false);
       setSelectedId(null);
+      fetchStockIn();
+    } catch {
+      toast.error('Gagal menghapus stock');
     }
   };
 
+  /* =====================
+     EXPORT PDF (CURRENT PAGE)
+  ===================== */
+  const handleExportPDF = async () => {
+    try {
+      const res = await axios.get('/stock/in', {
+        params: {
+          page: 1,
+          limit: 100000, // ambil semua data
+        },
+      });
+
+      const rawData = res.data?.data;
+      const allData = Array.isArray(rawData?.items) ? rawData.items : [];
+
+      if (allData.length === 0) {
+        toast.error('Tidak ada data untuk diexport');
+        return;
+      }
+
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const title = 'Laporan Stock In (Vendor ke Office)';
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text(title, pageWidth / 2, 18, { align: 'center' });
+      doc.line(14, 22, pageWidth - 14, 22);
+
+      autoTable(doc, {
+        startY: 26,
+        head: [['Tanggal', 'Category', 'Type', 'Stock Masuk']],
+        body: allData.map((item: any) => [new Date(item.movementAt).toLocaleDateString('id-ID').replace(/\//g, '-'), item.cardCategory?.name ?? '-', item.cardType?.name ?? '-', item.quantity.toLocaleString()]),
+        styles: {
+          font: 'helvetica',
+          fontSize: 10,
+          cellPadding: 3,
+          halign: 'center',
+        },
+        headStyles: {
+          fillColor: [141, 18, 49],
+          textColor: 255,
+          fontStyle: 'bold',
+        },
+      });
+
+      doc.save('laporan-stock-in.pdf');
+    } catch (err) {
+      toast.error('Gagal export PDF');
+      console.error(err);
+    }
+  };
+
+  const pageNumbers = Array.from({ length: pagination.totalPages }, (_, i) => i + 1);
+
+  /* =====================
+     RENDER
+  ===================== */
   return (
     <div className="space-y-6">
       {/* HEADER */}
@@ -149,22 +204,70 @@ export default function StockInPage() {
         <h2 className="text-lg font-semibold">Stock In (Vendor → Office)</h2>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">Dari</label>
-            <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="rounded-md border px-3 py-1.5 text-sm" />
+          {/* CATEGORY */}
+          <select
+            value={category}
+            onChange={(e) => {
+              setCategory(e.target.value);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            className="  rounded-md border border-gray-300
+    bg-white text-black
+    px-3 py-2 text-sm
+    focus:bg-[#8D1231] focus:text-white
+    focus:outline-none focus:ring-0
+    transition-colors"
+          >
+            <option value="all">All Category</option>
+            {[...new Set(data.map((d) => d.category))].map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+
+          {/* TYPE */}
+          <select
+            value={type}
+            onChange={(e) => {
+              setType(e.target.value);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            className="  rounded-md border border-gray-300
+    bg-white text-black
+    px-3 py-2 text-sm
+    focus:bg-[#8D1231] focus:text-white
+    focus:outline-none focus:ring-0
+    transition-colors"
+          >
+            <option value="all">All Type</option>
+            {[...new Set(data.map((d) => d.type))].map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+
+          {/* DATE */}
+          <div className="relative">
+            <input ref={fromDateRef} type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="rounded-md border px-3 py-1.5 pr-9 text-sm" />
+            <button onClick={() => fromDateRef.current?.showPicker?.()} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8D1231]">
+              <Calendar size={16} />
+            </button>
           </div>
 
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">Sampai</label>
-            <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="rounded-md border px-3 py-1.5 text-sm" />
+          <div className="relative">
+            <input ref={toDateRef} type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="rounded-md border px-3 py-1.5 pr-9 text-sm" />
+            <button onClick={() => toDateRef.current?.showPicker?.()} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8D1231]">
+              <Calendar size={16} />
+            </button>
           </div>
 
-          <button onClick={handleExportPDF} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-gray-100">
-            <FileDown size={16} />
-            PDF
+          <button onClick={handleExportPDF} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
+            <FileDown size={16} /> PDF
           </button>
 
-          <button onClick={() => router.push('/dashboard/superadmin/stock/in/add')} className="rounded-md bg-[#8D1231] px-4 py-2 text-sm font-medium text-white">
+          <button onClick={() => router.push('/dashboard/superadmin/stock/in/add')} className="rounded-md bg-[#8D1231] px-4 py-2 text-sm text-white">
             Tambah
           </button>
         </div>
@@ -172,39 +275,39 @@ export default function StockInPage() {
 
       {/* TABLE */}
       <div className="rounded-lg border bg-white overflow-x-auto">
-        {loading ? (
-          <div className="p-6 text-center text-gray-500">Loading...</div>
-        ) : (
-          <table className="w-full text-sm min-w-[800px]">
-            <thead className="border-b bg-gray-50">
+        <table className="w-full min-w-[800px] text-sm">
+          <thead className="border-b bg-gray-50">
+            <tr>
+              <th className="p-3">No</th>
+              <th className="p-3">Tanggal</th>
+              <th className="p-3">Category</th>
+              <th className="p-3">Type</th>
+              <th className="p-3">Stock</th>
+              <th className="p-3">View</th>
+              <th className="p-3">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
               <tr>
-                <th className="p-3 text-center">No</th>
-                <th className="p-3 text-center">Tanggal</th>
-                <th className="p-3 text-center">Category</th>
-                <th className="p-3 text-center">Type</th>
-                <th className="p-3 text-center">Stock Masuk</th>
-                <th className="p-3 text-center">View</th>
-                <th className="p-3 text-center">Aksi</th>
+                <td colSpan={7} className="p-6 text-center">
+                  Loading...
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {stockIn.map((row, i) => (
-                <tr key={row.id} className="border-b">
-                  <td className="p-3 text-center">{i + 1}</td>
-                  <td className="px-3 py-2 text-center whitespace-nowrap">
-                    {' '}
-                    {new Date(row.tanggal)
-                      .toLocaleDateString('id-ID', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                      })
-                      .replace(/\//g, '-')}
-                  </td>
-                  <td className="p-3 text-center">{row.category}</td>
-                  <td className="p-3 text-center">{row.type}</td>
-                  <td className="p-3 text-center font-medium">{row.stock.toLocaleString()}</td>
-                  <td className="p-3 text-center">
+            ) : filteredData.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="p-6 text-center">
+                  Tidak ada data
+                </td>
+              </tr>
+            ) : (
+              filteredData.map((row, index) => (
+                <tr key={row.id} className="border-b-2 hover:bg-gray-50">
+                  <td className="px-3 py-2 text-center">{(pagination.page - 1) * pagination.limit + index + 1}</td>
+                  <td className="px-3 py-2 text-center whitespace-nowrap">{new Date(row.tanggal).toLocaleDateString('id-ID').replace(/\//g, '-')}</td> <td className="px-3 py-2 text-center">{row.category}</td>
+                  <td className="px-3 py-2 text-center">{row.type}</td>
+                  <td className="px-3 py-2 text-center font-medium">{row.stock.toLocaleString()}</td>
+                  <td className="px-3 py-2 text-center">
                     <button
                       onClick={() => router.push(`/dashboard/superadmin/stock/in/view/${row.id}`)}
                       className="
@@ -219,45 +322,68 @@ export default function StockInPage() {
                       <Eye size={16} />
                     </button>
                   </td>
-
-                  <td className="p-3 text-center">
+                  <td className="px-3 py-2 text-center space-x-2">
                     {/* EDIT */}
-                    <button onClick={() => router.push(`/dashboard/superadmin/stock/in/${row.id}/edit`)} className="rounded-md border border-blue-500 px-3 py-1 text-sm text-blue-500 hover:bg-blue-500 hover:text-white">
+                    <button
+                      onClick={() => router.push(`/dashboard/superadmin/stock/in/${row.id}/edit`)}
+                      className="
+      rounded-md border border-blue-500
+      px-3 py-1 text-xs
+      text-blue-500
+      hover:bg-blue-500 hover:text-white
+    "
+                    >
                       Edit
                     </button>
+
+                    {/* HAPUS */}
                     <button
                       onClick={() => {
                         setSelectedId(row.id);
                         setOpenDelete(true);
                       }}
-                      className="rounded-md border border-red-500 px-3 py-1 text-sm text-red-500 hover:bg-red-500 hover:text-white"
+                      className="
+      rounded-md border border-red-500
+      px-3 py-1 text-xs
+      text-red-500
+      hover:bg-red-500 hover:text-white
+    "
                     >
                       Hapus
                     </button>
                   </td>
                 </tr>
-              ))}
-
-              {stockIn.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="p-6 text-center text-gray-500">
-                    Tidak ada data
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        )}
-
-        <DeleteConfirmModal
-          open={openDelete}
-          onClose={() => {
-            setOpenDelete(false);
-            setSelectedId(null);
-          }}
-          onConfirm={() => selectedId && handleDelete(selectedId)}
-        />
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
+
+      {/* PAGINATION (SAMA STOCK OUT) */}
+      <div className="mt-4 flex items-center justify-center gap-2 text-sm">
+        <button disabled={pagination.page === 1} onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))}>
+          <ChevronLeft size={18} />
+        </button>
+
+        {pageNumbers.map((p) => (
+          <button key={p} onClick={() => setPagination((pg) => ({ ...pg, page: p }))} className={p === pagination.page ? 'font-semibold underline' : ''}>
+            {p}
+          </button>
+        ))}
+
+        <button disabled={pagination.page === pagination.totalPages} onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}>
+          <ChevronRight size={18} />
+        </button>
+      </div>
+
+      <DeleteConfirmModal
+        open={openDelete}
+        onClose={() => {
+          setOpenDelete(false);
+          setSelectedId(null);
+        }}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

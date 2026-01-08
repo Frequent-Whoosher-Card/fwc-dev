@@ -8,6 +8,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Calendar } from 'lucide-react';
 import { useRef } from 'react';
+import axios from '@/lib/axios';
 
 import axiosInstance from '@/lib/axios';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
@@ -161,54 +162,69 @@ export default function StockOutPage() {
   /* ======================
       EXPORT PDF
     ====================== */
-  const handleExportPDF = () => {
-    if (data.length === 0) {
-      toast.error('Tidak ada data untuk diexport (halaman ini)');
-      return;
+  const handleExportPDF = async () => {
+    try {
+      const res = await axios.get('/stock/out', {
+        params: {
+          page: 1,
+          limit: 100000,
+        },
+      });
+
+      const rawData = res.data?.data;
+
+      const allData = Array.isArray(rawData) ? rawData : Array.isArray(rawData?.items) ? rawData.items : Array.isArray(rawData?.data) ? rawData.data : [];
+
+      if (allData.length === 0) {
+        toast.error('Tidak ada data untuk diexport');
+        return;
+      }
+
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const title = 'Laporan Stock Out (Admin ke Outlet)';
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text(title, pageWidth / 2, 18, { align: 'center' });
+
+      doc.setLineWidth(0.3);
+      doc.line(14, 22, pageWidth - 14, 22);
+
+      autoTable(doc, {
+        startY: 26,
+        head: [['Tanggal', 'Card Category', 'Card Type', 'Stasiun', 'Stock Out', 'Serial Awal', 'Status', 'Note']],
+        body: allData.map((item: any) => [
+          new Date(item.movementAt).toLocaleDateString('id-ID'),
+          item.cardCategory?.name ?? '-',
+          item.cardType?.name ?? '-',
+          item.stationName ?? '-',
+          item.quantity.toLocaleString(),
+          item.sentSerialNumbers?.[0] ?? '-',
+          item.status ?? '-',
+          item.note ?? '-',
+        ]),
+        styles: {
+          font: 'helvetica',
+          fontSize: 9,
+          cellPadding: 3,
+          halign: 'center',
+        },
+        headStyles: {
+          fillColor: [141, 18, 49],
+          textColor: 255,
+          fontStyle: 'bold',
+        },
+        columnStyles: {
+          7: { halign: 'left' },
+        },
+      });
+
+      doc.save('laporan-stock-out.pdf');
+    } catch (err) {
+      toast.error('Gagal export PDF');
+      console.error(err);
     }
-
-    const doc = new jsPDF('p', 'mm', 'a4');
-
-    const title = 'Laporan Stock Out (Admin ke Outlet)';
-    const pageWidth = doc.internal.pageSize.getWidth();
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.text(title, pageWidth / 2, 18, { align: 'center' });
-
-    doc.setLineWidth(0.3);
-    doc.line(14, 22, pageWidth - 14, 22);
-
-    autoTable(doc, {
-      startY: 26,
-      head: [['Tanggal', 'Card Category', 'Card Type', 'Stasiun', 'Stock Out', 'Serial Awal', 'Status', 'Note']],
-      body: data.map((item) => [
-        new Date(item.movementAt).toLocaleDateString('id-ID'),
-        item.cardCategory?.name ?? '-',
-        item.cardType?.name ?? '-',
-        item.stationName ?? '-',
-        item.quantity.toLocaleString(),
-        item.sentSerialNumbers?.[0] ?? '-',
-        item.status ?? '-',
-        item.note ?? '-',
-      ]),
-      styles: {
-        font: 'helvetica',
-        fontSize: 9,
-        cellPadding: 3,
-        halign: 'center',
-      },
-      headStyles: {
-        fillColor: [141, 18, 49],
-        textColor: 255,
-        fontStyle: 'bold',
-      },
-      columnStyles: {
-        7: { halign: 'left' },
-      },
-    });
-
-    doc.save('laporan-stock-out.pdf');
   };
 
   const pageNumbers = Array.from({ length: pagination.totalPages }, (_, i) => i + 1);

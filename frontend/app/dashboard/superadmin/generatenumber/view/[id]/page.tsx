@@ -28,6 +28,7 @@ export default function ViewGeneratedPage() {
 
   const [batch, setBatch] = useState<BatchData | null>(null);
   const [loading, setLoading] = useState(true);
+
   const BACKEND_URL = 'http://localhost:3001';
 
   // =========================
@@ -69,24 +70,26 @@ export default function ViewGeneratedPage() {
   }, [id]);
 
   // =========================
-  // EXPORT ZIP
+  // EXPORT ZIP (FIXED)
   // =========================
-
   const handleExportZip = async () => {
     if (!batch || !batch.serials.length) {
       toast.error('Tidak ada barcode untuk diexport');
       return;
     }
 
+    // aman: hanya dipakai saat batch sudah ada
+    const safeLabel = batch.productLabel.replace(/\s+/g, '');
+
     const zip = new JSZip();
-    const folder = zip.folder(`barcode-${batch.productLabel.replace(/\s/g, '_')}`);
+    const folder = zip.folder(`barcode-${safeLabel}`);
 
     for (const item of batch.serials) {
       if (!item.barcodeUrl) continue;
 
       try {
         const res = await fetch(`${BACKEND_URL}${item.barcodeUrl}`, {
-          credentials: 'include', // 🔑 WAJIB (cookie/session)
+          credentials: 'include',
         });
 
         if (!res.ok) {
@@ -96,20 +99,25 @@ export default function ViewGeneratedPage() {
 
         const blob = await res.blob();
 
-        // 🔍 VALIDASI: pastikan ini image
         if (!blob.type.startsWith('image/')) {
           console.error('Bukan image:', blob.type);
           continue;
         }
 
-        folder?.file(`${item.serial}.png`, blob);
+        const cleanSerial = item.serial.replace(/^_+/, '');
+
+        folder?.file(`${safeLabel}-${cleanSerial}.png`, blob);
       } catch (err) {
         console.error('Error fetch barcode:', err);
       }
     }
 
     const zipBlob = await zip.generateAsync({ type: 'blob' });
-    saveAs(zipBlob, `barcode-${batch.date}.zip`);
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+    saveAs(zipBlob, `barcode-${safeLabel}-${timestamp}.zip`);
+
     toast.success('Export ZIP berhasil');
   };
 
