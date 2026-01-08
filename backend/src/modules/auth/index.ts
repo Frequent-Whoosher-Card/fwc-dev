@@ -65,6 +65,77 @@ export const auth = new Elysia({ prefix: "/auth" })
   )
   .use(cookie())
   // Public routes
+  // Simple login for Swagger/testing (no security tokens required)
+  .post(
+    "/login-simple",
+    async ({ body, jwt, cookie: { session }, set }) => {
+      try {
+        const { username, password } = body;
+
+        // Authenticate user (without token verification)
+        const { user } = await AuthService.simpleLogin(
+          username,
+          password
+        );
+
+        // Generate JWT token
+        const token = await jwt.sign({
+          userId: user.id,
+          username: user.username,
+          role: user.role.roleCode,
+        });
+
+        // Set session cookie
+        session.set({
+          value: token,
+          ...jwtConfig.cookieOptions,
+        });
+
+        return {
+          success: true,
+          data: {
+            user,
+            token,
+          },
+          message: "Login successful",
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      body: AuthModel.simpleLoginBody,
+      response: {
+        200: AuthModel.loginResponse,
+        400: AuthModel.errorResponse,
+        401: AuthModel.errorResponse,
+        403: AuthModel.errorResponse,
+        404: AuthModel.errorResponse,
+        409: AuthModel.errorResponse,
+        422: AuthModel.errorResponse,
+        500: AuthModel.errorResponse,
+      },
+      detail: {
+        tags: ["Authentication"],
+        summary: "Simple login (for Swagger/testing)",
+        description: "Authenticate user with username/email and password only. No security tokens required. WARNING: Only use in development/testing environment.",
+        requestBody: {
+          content: {
+            "application/json": {
+              example: {
+                username: "rama",
+                password: "ramaPassword",
+              },
+            },
+          },
+        },
+      },
+    }
+  )
   .post(
     "/login",
     async ({ body, jwt, cookie: { session }, set }) => {
