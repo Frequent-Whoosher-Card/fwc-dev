@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { Calendar } from "lucide-react";
 import toast from "react-hot-toast";
 import { useEffect, useMemo, useState } from "react";
@@ -56,11 +57,11 @@ const formatDate = (iso?: string) => {
   if (!iso) return "-";
 
   const d = new Date(iso);
-  return d.toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+
+  return `${dd}-${mm}-${yyyy}`;
 };
 
 /* ======================
@@ -193,6 +194,10 @@ export default function MembershipPage() {
   const router = useRouter();
   const LIMIT = 10;
 
+  /* 🔹 ADD THESE TWO LINES HERE 🔹 */
+  const startDateRef = useRef<HTMLInputElement>(null);
+  const endDateRef = useRef<HTMLInputElement>(null);
+
   const [data, setData] = useState<Membership[]>([]);
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
@@ -200,6 +205,7 @@ export default function MembershipPage() {
     totalPages: 1,
     total: 0,
   });
+
   const [loading, setLoading] = useState(true);
   // TAMBAHAN
   const [cardCategory, setCardCategory] = useState<"all" | "NIPKAI">("all");
@@ -356,7 +362,7 @@ export default function MembershipPage() {
       {loading && <div className="text-xs text-gray-400">Loading data...</div>}
 
       {/* FILTER */}
-      <div className="flex items-center gap-3 rounded-lg border bg-white px-4 py-3">
+      <div className="flex items-center gap-2 rounded-lg border bg-white px-4 py-3">
         {/* ALL */}
         <button
           onClick={() => setCardCategory("all")}
@@ -399,29 +405,51 @@ export default function MembershipPage() {
         {/* START */}
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-500">Start</span>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="h-9 w-[160px] rounded-md border px-3 text-sm
-               appearance-auto
-               [&::-webkit-calendar-picker-indicator]:opacity-100
-               [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-          />
+
+          <div className="relative">
+            <input
+              ref={startDateRef}
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="
+        h-9 w-[160px] rounded-md border px-3 pr-9 text-sm
+        appearance-none
+        [&::-webkit-calendar-picker-indicator]:hidden
+      "
+            />
+
+            <Calendar
+              size={16}
+              className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-gray-500 hover:text-gray-700"
+              onClick={() => startDateRef.current?.showPicker()}
+            />
+          </div>
         </div>
 
         {/* END */}
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-500">End</span>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="h-9 w-[160px] rounded-md border px-3 text-sm
-               appearance-auto
-               [&::-webkit-calendar-picker-indicator]:opacity-100
-               [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-          />
+
+          <div className="relative">
+            <input
+              ref={endDateRef}
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="
+        h-9 w-[160px] rounded-md border px-3 pr-9 text-sm
+        appearance-none
+        [&::-webkit-calendar-picker-indicator]:hidden
+      "
+            />
+
+            <Calendar
+              size={16}
+              className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-gray-500 hover:text-gray-700"
+              onClick={() => endDateRef.current?.showPicker()}
+            />
+          </div>
         </div>
 
         {/* RESET */}

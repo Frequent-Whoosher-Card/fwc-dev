@@ -15,6 +15,7 @@ interface Membership {
   id: string;
   name: string;
   identityNumber: string;
+  nippKai?: string | null;
   nationality: string;
   email: string | null;
   phone: string | null;
@@ -234,7 +235,15 @@ export default function MembershipDetailPage() {
               <span className="text-gray-500">Identity Number</span>
               <span>: {member.identityNumber}</span>
 
-              <span className="text-gray-500">Gender</span>
+              {/* ✅ NIP / NIPP KAI — hanya tampil jika ada */}
+              {member.nippKai && (
+                <>
+                  <span className="text-gray-500">NIP / NIPP KAI</span>
+                  <span>: {member.nippKai}</span>
+                </>
+              )}
+
+              <span className="text-gray-500">Gender</span> 
               <span>: {genderLabel}</span>
 
               <span className="text-gray-500">Email</span>

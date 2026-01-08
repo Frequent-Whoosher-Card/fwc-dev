@@ -1,28 +1,19 @@
-'use client';
+"use client";
 
-import { useContext, useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import {
-  ArrowLeft,
-  Phone,
-  Mail,
-  MapPin,
-  ChevronDown,
-} from 'lucide-react';
+import { useContext, useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { ArrowLeft, Phone, Mail, MapPin, ChevronDown } from "lucide-react";
 
-import { UserContext } from '@/app/dashboard/superadmin/dashboard/dashboard-layout';
-import SuccessModal from '../../components/ui/SuccessModal';
+import { UserContext } from "@/app/dashboard/superadmin/dashboard/dashboard-layout";
+import SuccessModal from "../../components/ui/SuccessModal";
 
-import {
-  getMemberById,
-  updateMember,
-} from '@/lib/services/membership.service';
+import { getMemberById, updateMember } from "@/lib/services/membership.service";
 
 /* ======================
    BASE INPUT STYLE
 ====================== */
 const base =
-  'h-10 w-full rounded-md border border-gray-300 px-3 text-sm text-gray-700 focus:border-gray-400 focus:outline-none';
+  "h-10 w-full rounded-md border border-gray-300 px-3 text-sm text-gray-700 focus:border-gray-400 focus:outline-none";
 
 /* ======================
    FIELD WRAPPER
@@ -59,15 +50,16 @@ export default function EditMemberPage() {
   const [showSuccess, setShowSuccess] = useState(false);
 
   const [form, setForm] = useState({
-    name: '',
-    nik: '',
-    nationality: '',
-    gender: '',
-    phone: '',
-    email: '',
-    address: '',
-    update_by: '',
-    note: '',
+    name: "",
+    nik: "",
+    nippKai: "",
+    nationality: "",
+    gender: "",
+    phone: "",
+    email: "",
+    address: "",
+    update_by: "",
+    note: "",
   });
 
   /* ======================
@@ -83,27 +75,28 @@ export default function EditMemberPage() {
         const res = await getMemberById(id);
         const item = res.data;
 
-        if (!item) throw new Error('Data not found');
+        if (!item) throw new Error("Data not found");
 
         setForm({
-          name: item.name ?? '',
-          nik: item.identityNumber ?? '',
-          nationality: item.nationality ?? '',
-          gender: item.gender ?? '',
-          phone: item.phone ?? '',
-          email: item.email ?? '',
-          address: item.alamat ?? '',
+          name: item.name ?? "",
+          nik: item.identityNumber ?? "",
+          nippKai: item.nippKai ?? "",
+          nationality: item.nationality ?? "",
+          gender: item.gender ?? "",
+          phone: item.phone ?? "",
+          email: item.email ?? "",
+          address: item.alamat ?? "",
           update_by:
             item.operatorName ??
             item.operator_name ??
             item.updatedByName ??
             item.createdByName ??
-            '',
-          note: item.note ?? '',
+            "",
+          note: item.note ?? "",
         });
       } catch (err) {
         console.error(err);
-        router.push('/dashboard/superadmin/membership');
+        router.push("/dashboard/superadmin/membership");
       } finally {
         setLoading(false);
       }
@@ -125,7 +118,7 @@ export default function EditMemberPage() {
   };
 
   const onlyNumber = (e: React.FormEvent<HTMLInputElement>) => {
-    e.currentTarget.value = e.currentTarget.value.replace(/\D/g, '');
+    e.currentTarget.value = e.currentTarget.value.replace(/\D/g, "");
   };
 
   /* ======================
@@ -136,13 +129,15 @@ export default function EditMemberPage() {
 
     // ✅ VALIDASI WAJIB NOTE
     if (!form.note.trim()) {
-      alert('Note wajib diisi');
+      alert("Note wajib diisi");
       return;
     }
 
     try {
       await updateMember(id, {
         name: form.name,
+        identityNumber: form.nik, 
+        nippKai: form.nippKai || undefined, 
         phone: form.phone,
         email: form.email,
         address: form.address,
@@ -154,7 +149,7 @@ export default function EditMemberPage() {
       setShowSuccess(true);
     } catch (err) {
       console.error(err);
-      alert('Gagal menyimpan perubahan');
+      alert("Gagal menyimpan perubahan");
     }
   };
 
@@ -200,8 +195,22 @@ export default function EditMemberPage() {
               <input
                 name="nik"
                 value={form.nik}
-                readOnly
-                className={`${base} bg-gray-100`}
+                onChange={handleChange}
+                onInput={onlyNumber}
+                className={base}
+                required
+              />
+            </Field>
+
+            {/* NIP / NIPP KAI */}
+            <Field label="NIP / NIPP KAI">
+              <input
+                name="nippKai"
+                value={form.nippKai}
+                onChange={handleChange}
+                onInput={onlyNumber}
+                placeholder="Nomor Induk Pegawai (KAI)"
+                className={base}
               />
             </Field>
 
@@ -217,26 +226,25 @@ export default function EditMemberPage() {
             </Field>
 
             {/* GENDER */}
-          <Field label="Gender" required>
-  <div className="relative">
-    <select
-      name="gender"
-      value={form.gender}
-      onChange={handleChange}
-      className={`${base} appearance-none pr-10`}
-      required
-    >
-      <option value="">Pilih Gender</option>
-      <option value="L">Laki - Laki</option>
-      <option value="P">Perempuan</option>
-    </select>
-    <ChevronDown
-      size={16}
-      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-    />
-  </div>
-</Field>
-
+            <Field label="Gender" required>
+              <div className="relative">
+                <select
+                  name="gender"
+                  value={form.gender}
+                  onChange={handleChange}
+                  className={`${base} appearance-none pr-10`}
+                  required
+                >
+                  <option value="">Pilih Gender</option>
+                  <option value="L">Laki - Laki</option>
+                  <option value="P">Perempuan</option>
+                </select>
+                <ChevronDown
+                  size={16}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                />
+              </div>
+            </Field>
 
             {/* PHONE */}
             <Field label="Phone" required>
@@ -299,7 +307,7 @@ export default function EditMemberPage() {
             <div className="md:col-span-2">
               <Field label="Operator">
                 <input
-                  value={form.update_by || '-'}
+                  value={form.update_by || "-"}
                   readOnly
                   className={`${base} bg-gray-100`}
                 />
@@ -338,7 +346,7 @@ export default function EditMemberPage() {
         open={showSuccess}
         onClose={() => {
           setShowSuccess(false);
-          router.push('/dashboard/superadmin/membership');
+          router.push("/dashboard/superadmin/membership");
         }}
       />
     </>
