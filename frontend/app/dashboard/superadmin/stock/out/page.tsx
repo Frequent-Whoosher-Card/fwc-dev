@@ -1,19 +1,22 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { FileDown, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { Calendar } from 'lucide-react';
+import { useRef } from 'react';
 
 import axiosInstance from '@/lib/axios';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
+
 // import { StockSummary } from '@/app/dashboard/superadmin/stock/components/StockSummary';
 
 /* ======================
-   TYPES
-====================== */
+    TYPES
+  ====================== */
 type StockOutStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 
 interface StockOutItem {
@@ -50,8 +53,8 @@ export default function StockOutPage() {
   const router = useRouter();
 
   /* ======================
-     STATE
-  ====================== */
+      STATE
+    ====================== */
   const [data, setData] = useState<StockOutItem[]>([]);
   const [pagination, setPagination] = useState<PaginationMeta>({
     total: 0,
@@ -64,14 +67,19 @@ export default function StockOutPage() {
   // Filters
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [category, setCategory] = useState('all');
+  const [type, setType] = useState('all');
+  const fromDateRef = useRef<HTMLInputElement>(null);
+  const toDateRef = useRef<HTMLInputElement>(null);
 
   // Delete
   const [openDelete, setOpenDelete] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedSerial, setSelectedSerial] = useState<string | null>(null);
 
   /* ======================
-     FETCH DATA
-  ====================== */
+      FETCH DATA
+    ====================== */
   const fetchStockOut = useCallback(async () => {
     setLoading(true);
     try {
@@ -115,6 +123,16 @@ export default function StockOutPage() {
     fetchStockOut();
   }, [fetchStockOut]);
 
+  const filteredData = useMemo(() => {
+    return data.filter((item) => {
+      const categoryMatch = category === 'all' || item.cardCategory.name === category;
+
+      const typeMatch = type === 'all' || item.cardType.name === type;
+
+      return categoryMatch && typeMatch;
+    });
+  }, [data, category, type]);
+
   // Handle Page Change
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= pagination.totalPages) {
@@ -123,8 +141,8 @@ export default function StockOutPage() {
   };
 
   /* ======================
-     DELETE ACTION
-  ====================== */
+      DELETE ACTION
+    ====================== */
   const handleDelete = async () => {
     if (!selectedId) return;
 
@@ -141,8 +159,8 @@ export default function StockOutPage() {
   };
 
   /* ======================
-     EXPORT PDF
-  ====================== */
+      EXPORT PDF
+    ====================== */
   const handleExportPDF = () => {
     if (data.length === 0) {
       toast.error('Tidak ada data untuk diexport (halaman ini)');
@@ -205,30 +223,141 @@ export default function StockOutPage() {
         <h2 className="text-lg font-semibold">Stock Out (Admin → Stasiun)</h2>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {/* CATEGORY */}
+          <select
+            value={category}
+            onChange={(e) => {
+              setCategory(e.target.value);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            className="
+    rounded-md border border-gray-300
+    bg-white text-black
+    px-3 py-2 text-sm
+    focus:bg-[#8D1231] focus:text-white
+    focus:outline-none focus:ring-0
+    transition-colors
+  "
+          >
+            <option value="all">All Category</option>
+
+            {Array.from(new Set(data.map((d) => d.cardCategory.name)))
+              .filter(Boolean)
+              .map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+          </select>
+
+          {/* TYPE */}
+          <select
+            value={type}
+            onChange={(e) => {
+              setType(e.target.value);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            className="
+    rounded-md border border-gray-300
+    bg-white text-black
+    px-3 py-2 text-sm
+    focus:bg-[#8D1231] focus:text-white
+    focus:outline-none focus:ring-0
+    transition-colors
+  "
+          >
+            <option value="all">All Type</option>
+
+            {[...new Set(data.map((item) => item.cardType.name))].filter(Boolean).map((typeName) => (
+              <option key={typeName} value={typeName}>
+                {typeName}
+              </option>
+            ))}
+          </select>
+
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-600">Dari</label>
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => {
-                setFromDate(e.target.value);
-                setPagination((p) => ({ ...p, page: 1 })); // Reset page
-              }}
-              className="rounded-md border px-3 py-1.5 text-sm"
-            />
+
+            <div className="relative">
+              <input
+                ref={fromDateRef}
+                type="date"
+                value={fromDate}
+                onChange={(e) => {
+                  setFromDate(e.target.value);
+                  setPagination((p) => ({ ...p, page: 1 }));
+                }}
+                className="
+        rounded-md border border-gray-300
+        bg-white px-3 py-1.5 pr-9 text-sm
+        focus:border-[#8D1231]
+        focus:outline-none
+        appearance-none
+        [&::-webkit-calendar-picker-indicator]:opacity-0
+      "
+              />
+
+              {/* ICON KALENDER (KLIKABLE) */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (fromDateRef.current) {
+                    // Chrome / Edge / Safari
+                    if (fromDateRef.current.showPicker) {
+                      fromDateRef.current.showPicker();
+                    } else {
+                      // Fallback
+                      fromDateRef.current.focus();
+                      fromDateRef.current.click();
+                    }
+                  }
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8D1231]"
+              >
+                <Calendar size={16} />
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-600">Sampai</label>
-            <input
-              type="date"
-              value={toDate}
-              onChange={(e) => {
-                setToDate(e.target.value);
-                setPagination((p) => ({ ...p, page: 1 })); // Reset page
-              }}
-              className="rounded-md border px-3 py-1.5 text-sm"
-            />
+
+            <div className="relative">
+              <input
+                ref={toDateRef}
+                type="date"
+                value={toDate}
+                onChange={(e) => {
+                  setToDate(e.target.value);
+                  setPagination((p) => ({ ...p, page: 1 }));
+                }}
+                className="
+        rounded-md border border-gray-300
+        bg-white px-3 py-1.5 pr-9 text-sm
+        focus:border-[#8D1231]
+        focus:outline-none
+        appearance-none
+        [&::-webkit-calendar-picker-indicator]:opacity-0
+      "
+              />
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (toDateRef.current) {
+                    if (toDateRef.current.showPicker) {
+                      toDateRef.current.showPicker();
+                    } else {
+                      toDateRef.current.focus();
+                      toDateRef.current.click();
+                    }
+                  }
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8D1231]"
+              >
+                <Calendar size={16} />
+              </button>
+            </div>
           </div>
 
           <button onClick={handleExportPDF} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-gray-100">
@@ -269,47 +398,87 @@ export default function StockOutPage() {
                     Loading...
                   </td>
                 </tr>
-              ) : data.length === 0 ? (
+              ) : filteredData.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="px-6 py-8 text-center text-gray-500">
                     Tidak ada data stock keluar
                   </td>
                 </tr>
               ) : (
-                data.map((row, index) => (
+                filteredData.map((row, index) => (
                   <tr key={row.id} className="border-b hover:bg-gray-50">
                     <td className="px-3 py-2 text-center">{(pagination.page - 1) * pagination.limit + index + 1}</td>
-                    <td className="px-3 py-2 text-center whitespace-nowrap">{new Date(row.movementAt).toLocaleDateString('id-ID')}</td>
+                    <td className="px-3 py-2 text-center whitespace-nowrap">
+                      {new Date(row.movementAt)
+                        .toLocaleDateString('id-ID', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                        })
+                        .replace(/\//g, '-')}
+                    </td>
                     <td className="px-3 py-2 text-center">{row.cardCategory.name}</td>
                     <td className="px-3 py-2 text-center">{row.cardType.name || '-'}</td>
                     <td className="px-3 py-2 text-center">{row.stationName || '-'}</td>
                     <td className="px-3 py-2 text-center font-medium">{row.quantity.toLocaleString()}</td>
                     <td className="px-3 py-2 text-center whitespace-nowrap">{row.sentSerialNumbers?.[0] || '-'}</td>
-
                     <td className="px-3 py-2 text-center">
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-medium
-                          ${row.status === 'APPROVED' ? 'bg-green-100 text-green-700' : row.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : row.status === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}
+                            ${row.status === 'APPROVED' ? 'bg-green-100 text-green-700' : row.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : row.status === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}
                       >
                         {row.status}
                       </span>
                     </td>
-
                     <td className="px-3 py-2 text-center max-w-[200px] truncate">{row.note || '-'}</td>
-
                     <td className="px-4 py-2 text-center">
-                      <Eye size={16} className="mx-auto cursor-pointer text-gray-500 hover:text-blue-600" onClick={() => router.push(`/dashboard/superadmin/stock/out/view/${row.id}`)} />{' '}
+                      <button
+                        onClick={() => router.push(`/dashboard/superadmin/stock/out/view/${row.id}`)}
+                        className="
+        mx-auto flex items-center justify-center
+        w-8 h-8
+        border border-gray-300 rounded-md
+        text-gray-500
+        hover:bg-[#8D1231] hover:text-white
+        transition-colors duration-200
+      "
+                      >
+                        <Eye size={16} />
+                      </button>
                     </td>
                     <td className="px-3 py-2 text-center">
                       <div className="flex justify-center gap-2">
                         {/* Only show Edit if PENDING? (Ideally yes, but let's keep it open, backend will reject if not allowed, or user can view) */}
-                        <button onClick={() => router.push(`/dashboard/superadmin/stock/out/${row.id}/edit`)} className="rounded-md border px-3 py-1 text-xs hover:bg-gray-100">
+                        <button
+                          disabled={row.status === 'APPROVED'}
+                          onClick={() => {
+                            if (row.status !== 'APPROVED') {
+                              router.push(`/dashboard/superadmin/stock/out/${row.id}/edit`);
+                            }
+                          }}
+                          className={`
+      rounded-md border px-3 py-1 text-xs
+      ${row.status === 'APPROVED' ? 'border-gray-300 text-gray-400 bg-gray-100 cursor-not-allowed' : 'border-gray-400 hover:bg-gray-100'}
+    `}
+                          title={row.status === 'APPROVED' ? 'Data sudah APPROVED dan tidak bisa diedit' : 'Edit data'}
+                        >
                           Edit
                         </button>
 
                         <button
                           onClick={() => {
                             setSelectedId(row.id);
+
+                            let serialRange = '-';
+
+                            if (Array.isArray(row.sentSerialNumbers) && row.sentSerialNumbers.length > 0) {
+                              const first = row.sentSerialNumbers[0];
+                              const last = row.sentSerialNumbers[row.sentSerialNumbers.length - 1];
+
+                              serialRange = first === last ? first : `${first} - ${last}`;
+                            }
+
+                            setSelectedSerial(serialRange);
                             setOpenDelete(true);
                           }}
                           className="rounded-md border border-red-500 px-3 py-1 text-xs text-red-500 hover:bg-red-500 hover:text-white"
@@ -372,9 +541,11 @@ export default function StockOutPage() {
 
       <DeleteConfirmModal
         open={openDelete}
+        serialNumber={selectedSerial ?? undefined}
         onClose={() => {
           setOpenDelete(false);
           setSelectedId(null);
+          setSelectedSerial(null);
         }}
         onConfirm={handleDelete}
       />
