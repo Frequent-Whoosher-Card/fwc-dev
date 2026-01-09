@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 {
   "name": "backend-fwc",
   "version": "1.0.50",
@@ -29,3 +30,40 @@
   },
   "module": "src/index.js"
 }
+=======
+{
+  "name": "backend-fwc",
+  "version": "1.0.50",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "bun run --watch src/index.ts",
+    "db:update": "bunx prisma migrate deploy && bunx prisma generate"
+  },
+  "dependencies": {
+    "@elysiajs/cookie": "^0.8.0",
+    "@elysiajs/cors": "^1.0.1",
+    "@elysiajs/jwt": "^1.4.0",
+    "@elysiajs/openapi": "^1.4.12",
+    "@elysiajs/swagger": "^1.3.1",
+    "@prisma/adapter-pg": "^7.2.0",
+    "@prisma/client": "^7.2.0",
+    "axios": "^1.13.2",
+    "bwip-js": "^4.8.0",
+    "canvas": "^3.2.0",
+    "elysia": "latest",
+    "firebase-admin": "^13.6.0",
+    "jsbarcode": "^3.12.1",
+    "nodemailer": "^7.0.12",
+    "prismabox": "^1.1.26",
+    "xlsx": "^0.18.5",
+    "xmldom": "^0.6.0"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^7.0.4",
+    "@types/xmldom": "^0.1.34",
+    "bun-types": "latest",
+    "prisma": "^7.2.0"
+  },
+  "module": "src/index.js"
+}
+>>>>>>> da9ad286010c29f3d8e17c72ef368bf0864559eb
