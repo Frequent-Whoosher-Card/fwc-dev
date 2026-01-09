@@ -36,12 +36,23 @@ export class CardService {
       where.status = status.toUpperCase();
     }
 
-    // Search by serialNumber
+    // Search by serialNumber, Category Name, or Type Name
     if (search) {
-      where.serialNumber = {
-        contains: search,
-        mode: "insensitive" as const,
-      };
+      where.OR = [
+        { serialNumber: { contains: search, mode: "insensitive" } },
+        {
+          cardProduct: {
+            category: {
+              categoryName: { contains: search, mode: "insensitive" },
+            },
+          },
+        },
+        {
+          cardProduct: {
+            type: { typeName: { contains: search, mode: "insensitive" } },
+          },
+        },
+      ];
     }
 
     // Filter by Category/Type (Relations)

@@ -78,6 +78,41 @@ const baseRoutes = new Elysia()
 const adminRoutes = new Elysia()
   .use(authMiddleware)
   .use(rbacMiddleware(["superadmin", "admin"]))
+  .get(
+    "/available-serials",
+    async (context) => {
+      const { query, set } = context;
+      try {
+        const result = await StockOutService.getAvailableSerials(
+          query.cardProductId
+        );
+        return {
+          success: true,
+          data: result,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      query: StockOutModel.getAvailableSerialsQuery,
+      response: {
+        200: StockOutModel.getAvailableSerialsResponse,
+        400: StockOutModel.errorResponse,
+        500: StockOutModel.errorResponse,
+      },
+      detail: {
+        tags: ["Stock Out"],
+        summary: "Get Available Serials",
+        description:
+          "Mendapatkan daftar nomor serial yang statusnya IN_OFFICE (siap untuk dikirim).",
+      },
+    }
+  )
   .post(
     "/",
     async (context) => {

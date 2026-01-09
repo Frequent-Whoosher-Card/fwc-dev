@@ -16,6 +16,29 @@ export const stock = new Elysia({ prefix: "/stock" })
 
   // General Stock Analysis Routes
   .get(
+    "/alerts",
+    async (context) => {
+      const { user, set } = context;
+      try {
+        const result = await StockService.getLowStockAlerts(user.id);
+        return {
+          success: true,
+          data: result,
+        };
+      } catch (error) {
+        set.status = 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      detail: {
+        tags: ["Stock Analysis"],
+        summary: "Get Low Stock Alerts",
+        description: "Mendapatkan notifikasi stok menipis.",
+      },
+    }
+  )
+  .get(
     "/",
     async (context) => {
       const { query, set } = context;

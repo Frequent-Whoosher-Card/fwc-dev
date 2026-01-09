@@ -66,6 +66,43 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
     }
   )
   .get(
+    "/next-serial",
+    async (context) => {
+      const { query, set } = context;
+      try {
+        const result = await CardGenerateService.getNextSerial(
+          query.cardProductId
+        );
+        return {
+          success: true,
+          message: "Next serial retrieved successfully",
+          data: result,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      query: CardGenerateModel.getNextSerialQuery,
+      response: {
+        200: CardGenerateModel.getNextSerialResponse, // Use explicit schema
+        400: CardGenerateModel.errorResponse,
+        404: CardGenerateModel.errorResponse,
+        500: CardGenerateModel.errorResponse,
+      },
+      detail: {
+        tags: ["Cards Generate"],
+        summary: "Get Next Serial",
+        description:
+          "Get the next available serial number suffix for a product.",
+      },
+    }
+  )
+  .get(
     "/history",
     async (context) => {
       const { query, set } = context;

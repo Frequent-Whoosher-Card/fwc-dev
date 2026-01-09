@@ -212,7 +212,7 @@ export async function executeTurnstile(): Promise<string | null> {
       return null;
     }
 
-    // Check if token already available (checkbox sudah ter-check)
+    // Check if token is available (checkbox sudah ter-check)
     if (turnstileToken) {
       return turnstileToken;
     }
@@ -230,12 +230,9 @@ export async function executeTurnstile(): Promise<string | null> {
 
     // Jika belum ter-check, wait untuk auto-check atau manual check
     // Cloudflare Turnstile Managed akan auto-check jika mendeteksi user adalah human
-    console.warn('[Turnstile] Checkbox belum ter-check, waiting for auto-check or manual check...');
-    
-    // Wait up to 3 seconds for auto-check
     return new Promise<string | null>((resolve) => {
       let attempts = 0;
-      const maxAttempts = 30; // 3 seconds (100ms * 30)
+      const maxAttempts = 80; // 8 seconds (100ms * 80)
       
       const checkInterval = setInterval(() => {
         attempts++;
@@ -265,7 +262,6 @@ export async function executeTurnstile(): Promise<string | null> {
         // Timeout after max attempts
         if (attempts >= maxAttempts) {
           clearInterval(checkInterval);
-          console.warn('[Turnstile] Timeout waiting for checkbox to be checked');
           resolve(null);
         }
       }, 100);

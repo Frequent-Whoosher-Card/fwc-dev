@@ -114,4 +114,19 @@ export namespace CardGenerateModel {
       ),
     }),
   });
+
+  // Next Serial Query
+  export const getNextSerialQuery = t.Object({
+    cardProductId: t.String({ format: "uuid" }),
+  });
+
+  // Next Serial Response
+  export const getNextSerialResponse = t.Object({
+    success: t.Boolean(),
+    data: t.Object({
+      nextSerial: t.String(),
+      prefix: t.String(),
+      lastSerial: t.Union([t.String(), t.Null()]),
+    }),
+  });
 }
