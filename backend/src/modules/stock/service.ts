@@ -159,4 +159,24 @@ export class StockService {
       validatedAt: movement.validatedAt?.toISOString() || null,
     };
   }
+
+  // Get Low Stock Alerts (Inbox items with type="LOW_STOCK")
+  static async getLowStockAlerts(userId: string) {
+    const alerts = await db.inbox.findMany({
+      where: {
+        type: "LOW_STOCK",
+      },
+      orderBy: { sentAt: "desc" },
+      take: 20,
+    });
+
+    return alerts.map((a) => ({
+      id: a.id,
+      title: a.title,
+      message: a.message,
+      sentAt: a.sentAt.toISOString(),
+      isRead: a.isRead,
+      payload: a.payload,
+    }));
+  }
 }
