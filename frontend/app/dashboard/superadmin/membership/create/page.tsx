@@ -1,5 +1,9 @@
 "use client";
 
+import Select from "react-select";
+import { countries } from "countries-list";
+import { useMemo } from "react";
+
 import SuccessModal from "../components/ui/SuccessModal";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
@@ -163,11 +167,19 @@ export default function AddMemberPage() {
     nik?: string;
     edcReferenceNumber?: string;
   }>({});
+
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [operatorName, setOperatorName] = useState("");
   const [ktpImage, setKtpImage] = useState<File | null>(null);
   const [isExtractingOCR, setIsExtractingOCR] = useState(false);
+  const countryOptions = useMemo(() => {
+    return Object.entries(countries).map(([code, c]) => ({
+      value: code,
+      label: `${c.name} (+${Array.isArray(c.phone) ? c.phone[0] : c.phone})`,
+      phone: Array.isArray(c.phone) ? c.phone[0] : c.phone, // ✅ STRING ONLY
+    }));
+  }, []);
 
   // Card Products
   const [cardProducts, setCardProducts] = useState<CardProduct[]>([]);
@@ -200,8 +212,8 @@ export default function AddMemberPage() {
     nik: "",
     nippKai: "",
     nationality: "",
-    gender: "",
     phone: "",
+    gender: "",
     email: "",
     address: "",
     membershipDate: "",
@@ -214,6 +226,22 @@ export default function AddMemberPage() {
     serialNumber: "",
     edcReferenceNumber: "",
   });
+
+  // ======================
+  // PHONE HELPER (WAJIB DI SINI)
+  // ======================
+  const getFullPhoneNumber = () => {
+    if (!form.nationality || !form.phone) return "";
+
+    const country = countryOptions.find((c) => c.value === form.nationality);
+
+    if (!country?.phone) return "";
+
+    // buang 0 di depan (contoh: 0812 → 812)
+    const local = form.phone.replace(/^0+/, "");
+
+    return `+${country.phone}${local}`;
+  };
 
   // Load operator name and card categories/types
   useEffect(() => {
@@ -682,7 +710,7 @@ export default function AddMemberPage() {
         identityNumber: form.nik,
         nationality: form.nationality || undefined,
         email: form.email || undefined,
-        phone: form.phone || undefined,
+        phone: getFullPhoneNumber() || undefined, // ✅ FIX DI SINI
         gender: form.gender || undefined,
         alamat: form.address || undefined,
       };
@@ -847,13 +875,42 @@ export default function AddMemberPage() {
             </Field>
 
             <Field label="Nationality" required>
-              <input
-                name="nationality"
-                value={form.nationality}
-                onChange={handleChange}
-                placeholder="Masukkan kewarganegaraan"
-                className={base}
-                required
+              <Select
+                options={countryOptions}
+                placeholder="Pilih negara"
+                value={countryOptions.find((c) => c.value === form.nationality)}
+                onChange={(option) => {
+                  if (!option) return;
+
+                  setForm((prev) => ({
+                    ...prev,
+                    nationality: option.value,
+                    phone: "", // ✅ RESET NOMOR LOKAL
+                  }));
+                }}
+                styles={{
+                  control: (base) => ({
+                    ...base,
+                    minHeight: "40px",
+                    height: "40px",
+                    fontSize: "14px",
+                    borderColor: "#d1d5db",
+                    boxShadow: "none",
+                  }),
+                  valueContainer: (base) => ({
+                    ...base,
+                    padding: "0 12px",
+                  }),
+                  input: (base) => ({
+                    ...base,
+                    margin: 0,
+                    padding: 0,
+                  }),
+                  indicatorsContainer: (base) => ({
+                    ...base,
+                    height: "40px",
+                  }),
+                }}
               />
             </Field>
 
@@ -879,18 +936,32 @@ export default function AddMemberPage() {
             </Field>
 
             <Field label="Phone Number" required>
-              <div className="relative">
-                <Phone
-                  size={16}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                />
+              <div className="flex">
+                {/* PREFIX */}
+                <div className="flex items-center rounded-l-md border border-r-0 border-gray-300 bg-gray-100 px-3 text-sm text-gray-600 min-w-[60px] justify-center">
+                  {form.nationality
+                    ? `+${
+                        countryOptions.find((c) => c.value === form.nationality)
+                          ?.phone
+                      }`
+                    : "+"}
+                </div>
+
+                {/* DIVIDER */}
+                <div className="flex items-center border-y border-gray-300 bg-gray-100 px-2 text-gray-400">
+                  |
+                </div>
+
+                {/* LOCAL NUMBER */}
                 <input
-                  name="phone"
                   value={form.phone}
-                  onChange={handleChange}
-                  onInput={onlyNumber}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    setForm((prev) => ({ ...prev, phone: val }));
+                  }}
                   placeholder="Masukkan nomor telepon"
-                  className={`${base} pl-10`}
+                  className="h-10 w-full rounded-r-md border border-l-0 border-gray-300 px-3 text-sm focus:outline-none focus:border-gray-400"
+                  disabled={!form.nationality}
                   required
                 />
               </div>
@@ -1206,7 +1277,7 @@ export default function AddMemberPage() {
               : form.gender === "P"
               ? "Perempuan"
               : "-",
-          "Phone Number": form.phone,
+          "Phone Number": getFullPhoneNumber(),
           "Email Address": form.email,
           Address: form.address,
 

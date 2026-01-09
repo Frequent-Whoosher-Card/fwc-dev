@@ -162,8 +162,17 @@ export default function MembershipDetailPage() {
     0
   );
 
-  const formatDate = (d: string) =>
-    d ? new Date(d).toLocaleDateString("id-ID") : "-";
+  const formatDate = (d?: string) => {
+  if (!d) return "-";
+
+  const date = new Date(d);
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+
+  return `${day}-${month}-${year}`;
+};
+
 
   const capitalize = (value?: string) => {
     if (!value) return "-";

@@ -92,7 +92,7 @@ export default function EditMemberPage() {
             item.updatedByName ??
             item.createdByName ??
             "",
-          note: item.note ?? "",
+          note: item.note ?? item.notes ?? "",
         });
       } catch (err) {
         console.error(err);
@@ -127,17 +127,59 @@ export default function EditMemberPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // ✅ VALIDASI WAJIB NOTE
-    if (!form.note.trim()) {
-      alert("Note wajib diisi");
+    const isEmpty = (v?: string) => !v || !v.trim();
+
+    // ======================
+    // VALIDASI FIELD WAJIB
+    // ======================
+    if (
+      isEmpty(form.name) ||
+      isEmpty(form.nik) ||
+      isEmpty(form.nationality) ||
+      isEmpty(form.gender) ||
+      isEmpty(form.phone) ||
+      isEmpty(form.email) ||
+      isEmpty(form.address) ||
+      isEmpty(form.note)
+    ) {
+      alert("Semua field wajib diisi");
       return;
     }
 
+    // ======================
+    // VALIDASI NIK
+    // ======================
+    if (form.nik.length > 20) {
+      alert("NIK maksimal 20 karakter");
+      return;
+    }
+
+    // ======================
+// VALIDASI NIP / NIPP KAI (PANJANG)
+// ======================
+if (form.nippKai && form.nippKai.length > 20) {
+  alert("NIP / NIPP KAI maksimal 20 karakter");
+  return;
+}
+
+    // ======================
+    // VALIDASI KHUSUS KAI
+    // ======================
+    if (form.nationality === "KAI") {
+      if (isEmpty(form.nippKai)) {
+        alert("NIP / NIPP KAI wajib diisi untuk anggota KAI");
+        return;
+      }
+    }
+
+    // ======================
+    // SUBMIT DATA
+    // ======================
     try {
       await updateMember(id, {
         name: form.name,
-        identityNumber: form.nik, 
-        nippKai: form.nippKai || undefined, 
+        identityNumber: form.nik,
+        nippKai: form.nationality === "KAI" ? form.nippKai : undefined,
         phone: form.phone,
         email: form.email,
         address: form.address,
@@ -195,8 +237,14 @@ export default function EditMemberPage() {
               <input
                 name="nik"
                 value={form.nik}
-                onChange={handleChange}
-                onInput={onlyNumber}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9]/g, "");
+                  if (val.length <= 20) {
+                    setForm((prev) => ({ ...prev, nik: val }));
+                  }
+                }}
+                inputMode="numeric"
+                maxLength={20}
                 className={base}
                 required
               />
@@ -207,9 +255,14 @@ export default function EditMemberPage() {
               <input
                 name="nippKai"
                 value={form.nippKai}
-                onChange={handleChange}
-                onInput={onlyNumber}
-                placeholder="Nomor Induk Pegawai (KAI)"
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9]/g, "");
+                  if (val.length <= 20) {
+                    setForm((prev) => ({ ...prev, nippKai: val }));
+                  }
+                }}
+                inputMode="numeric"
+                maxLength={20}
                 className={base}
               />
             </Field>
