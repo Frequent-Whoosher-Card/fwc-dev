@@ -242,6 +242,9 @@ export default function LoginPage() {
         case 'petugas':
           router.push('/dashboard/petugas');
           break;
+        case 'spv':
+          router.push('/dashboard/spv');
+          break;
         default:
           router.push('/dashboard');
       }
