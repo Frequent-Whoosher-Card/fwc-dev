@@ -199,7 +199,7 @@ export const inbox = new Elysia({ prefix: "/inbox" })
       )
   )
   .group("", (app) =>
-    app.use(rbacMiddleware(["supervisor"])).get(
+    app.use(rbacMiddleware(["superadmin", "supervisor"])).get(
       "/sent-by-supervisor",
       async (context) => {
         const { query, set } = context;
