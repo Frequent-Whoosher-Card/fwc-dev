@@ -163,16 +163,15 @@ export default function MembershipDetailPage() {
   );
 
   const formatDate = (d?: string) => {
-  if (!d) return "-";
+    if (!d) return "-";
 
-  const date = new Date(d);
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
+    const date = new Date(d);
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
 
-  return `${day}-${month}-${year}`;
-};
-
+    return `${day}-${month}-${year}`;
+  };
 
   const capitalize = (value?: string) => {
     if (!value) return "-";
@@ -252,7 +251,7 @@ export default function MembershipDetailPage() {
                 </>
               )}
 
-              <span className="text-gray-500">Gender</span> 
+              <span className="text-gray-500">Gender</span>
               <span>: {genderLabel}</span>
 
               <span className="text-gray-500">Email</span>
@@ -288,20 +287,20 @@ export default function MembershipDetailPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="min-w-[2400px] w-full text-sm leading-relaxed">
+<table className="min-w-[2400px] w-full table-fixed text-sm leading-relaxed">
             <thead className="bg-gray-50 text-xs text-gray-600">
               <tr>
-                <th className="px-4 py-3 text-left">Purchase Date</th>
+                <th className="px-4 py-3 text-left w-[140px]">Purchase Date</th>
                 <th className="px-4 py-3 text-left">Masa Berlaku</th>
                 <th className="px-4 py-3 text-left">Expired Date</th>
-                <th className="px-4 py-3 text-center">Status Card</th>
+                <th className="px-4 py-3 text-center w-[110px]">Status Card</th>
                 <th className="px-4 py-3 text-left">Card Category</th>
                 <th className="px-4 py-3 text-left">Card Type</th>
                 <th className="px-4 py-3 text-right">Total Quota</th>
                 <th className="px-4 py-3 text-right">Remaining Quota</th>
                 <th className="px-4 py-3 text-left">Serial Number</th>
                 <th className="px-4 py-3 text-left">No. Reference EDC</th>
-                <th className="px-4 py-3 text-right">FWC Price</th>
+                <th className="px-4 py-3 text-right w-[120px]">FWC Price</th>
                 <th className="px-4 py-3 text-left">Shift Date</th>
                 <th className="px-4 py-3 text-left">Operator Name</th>
                 <th className="px-4 py-3 text-left">Stasiun</th>
@@ -311,18 +310,18 @@ export default function MembershipDetailPage() {
             <tbody>
               {transactions.map((trx, i) => (
                 <tr key={i} className="border-t hover:bg-gray-50">
-                  <td className="px-4 py-2 text-left">
+                  <td className="px-4 py-3 text-left">
                     {formatDate(trx.purchaseDate)}
                   </td>
 
-                  <td className="px-4 py-2 text-left">{trx.duration}</td>
+                  <td className="px-4 py-3 text-left">{trx.duration}</td>
 
-                  <td className="px-4 py-2 text-left">
+                  <td className="px-4 py-3 text-left">
                     {formatDate(trx.expiredDate)}
                   </td>
 
                   {/* STATUS */}
-                  <td className="px-4 py-2 text-center">
+                  <td className="px-4 py-3 text-center">
                     <span
                       className={`inline-flex min-w-[72px] justify-center rounded px-2 py-1 text-xs font-medium
             ${
@@ -337,31 +336,28 @@ export default function MembershipDetailPage() {
                     </span>
                   </td>
 
-                  <td className="px-4 py-2 text-left">{trx.cardCategory}</td>
+                  <td className="px-4 py-3 text-left">{trx.cardCategory}</td>
+                  <td className="px-4 py-3 text-left">{trx.cardType}</td>
 
-                  <td className="px-4 py-2 text-left">{trx.cardType}</td>
-
-                  <td className="px-4 py-2 text-center font-semibold">
+                  <td className="px-4 py-3 text-right font-semibold">
                     {trx.quota}
                   </td>
 
-                  <td className="px-4 py-2 text-center font-semibold">
+                  <td className="px-4 py-3 text-right font-semibold">
                     {trx.remaining}
                   </td>
 
-                  <td className="px-4 py-2 text-left">{trx.serialNumber}</td>
+                  <td className="px-4 py-3 text-left">{trx.serialNumber}</td>
+                  <td className="px-4 py-3 text-left">{trx.referenceEdc}</td>
 
-                  <td className="px-4 py-2 text-left">{trx.referenceEdc}</td>
+                  <td className="px-4 py-3 text-right">{trx.price}</td>
 
-                  <td className="px-4 py-2 text-right">{trx.price}</td>
-
-                  <td className="px-4 py-2 text-left">
+                  <td className="px-4 py-3 text-left">
                     {formatDate(trx.shiftDate)}
                   </td>
 
-                  <td className="px-4 py-2 text-left">{trx.operatorName}</td>
-
-                  <td className="px-4 py-2 text-left">{trx.station}</td>
+                  <td className="px-4 py-3 text-left">{trx.operatorName}</td>
+                  <td className="px-4 py-3 text-left">{trx.station}</td>
                 </tr>
               ))}
             </tbody>

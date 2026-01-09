@@ -137,12 +137,10 @@ function ConfirmDeleteModal({
 
           <button
             onClick={onConfirm}
-            disabled={!member}
-            className={`h-9 w-24 rounded-md text-sm text-white ${
-              member
-                ? "bg-red-600 hover:bg-red-700"
-                : "cursor-not-allowed bg-red-300"
-            }`}
+            className="
+    rounded-md bg-[#8D1231] px-5 py-2 text-sm text-white
+    transition hover:bg-[#73122E] active:scale-95
+  "
           >
             Delete
           </button>
@@ -351,7 +349,11 @@ export default function MembershipPage() {
             onClick={() =>
               router.push("/dashboard/superadmin/membership/create")
             }
-            className="flex items-center gap-2 rounded-md bg-red-700 px-4 py-2 text-sm text-white"
+            className="
+    flex items-center gap-2 rounded-md
+    bg-[#8D1231] px-4 py-2 text-sm text-white
+    hover:bg-[#73122E] transition
+  "
           >
             <Plus size={16} />
             Add New Members
@@ -366,13 +368,13 @@ export default function MembershipPage() {
         {/* ALL */}
         <button
           onClick={() => setCardCategory("all")}
-          disabled={cardCategory === "all"}
           aria-pressed={cardCategory === "all"}
-          className={`h-9 rounded-md border px-4 text-sm transition ${
-            cardCategory === "all"
-              ? "cursor-default border-blue-200 bg-blue-50 text-blue-600"
-              : "border-gray-300 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600"
-          }`}
+          className={`h-9 rounded-md border px-4 text-sm transition
+      ${
+        cardCategory === "all"
+          ? "cursor-default border-[#8D1231] bg-[#8D1231] text-white"
+          : "border-gray-300 bg-white text-gray-600 hover:bg-red-50 hover:text-[#8D1231]"
+      }`}
         >
           All
         </button>
@@ -380,13 +382,13 @@ export default function MembershipPage() {
         {/* NIPKAI */}
         <button
           onClick={() => setCardCategory("NIPKAI")}
-          disabled={cardCategory === "NIPKAI"}
           aria-pressed={cardCategory === "NIPKAI"}
-          className={`h-9 rounded-md border px-4 text-sm transition ${
-            cardCategory === "NIPKAI"
-              ? "cursor-default border-blue-200 bg-blue-50 text-blue-600"
-              : "border-gray-300 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600"
-          }`}
+          className={`h-9 rounded-md border px-4 text-sm transition
+      ${
+        cardCategory === "NIPKAI"
+          ? "cursor-default border-[#8D1231] bg-[#8D1231] text-white"
+          : "border-gray-300 bg-white text-gray-600 hover:bg-red-50 hover:text-[#8D1231]"
+      }`}
         >
           NIPKAI
         </button>
@@ -395,7 +397,11 @@ export default function MembershipPage() {
         <select
           value={gender}
           onChange={(e) => setGender(e.target.value as any)}
-          className="h-9 rounded-md border px-3 text-sm"
+          className="
+    h-9 rounded-md border px-3 text-sm
+    border-[#8D1231] bg-[#8D1231] text-white
+    focus:outline-none
+  "
         >
           <option value="all">Gender</option>
           <option value="L">Laki - Laki</option>
@@ -412,16 +418,19 @@ export default function MembershipPage() {
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="
-        h-9 w-[160px] rounded-md border px-3 pr-9 text-sm
-        appearance-none
-        [&::-webkit-calendar-picker-indicator]:hidden
-      "
+              className={`h-9 w-[160px] rounded-md border px-3 pr-9 text-sm
+          appearance-none
+          [&::-webkit-calendar-picker-indicator]:hidden
+          ${
+            startDate
+              ? "border-[#8D1231] bg-red-50 text-[#8D1231]"
+              : "border-gray-300"
+          }`}
             />
 
             <Calendar
               size={16}
-              className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-gray-500 hover:text-gray-700"
+              className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-[#8D1231]"
               onClick={() => startDateRef.current?.showPicker()}
             />
           </div>
@@ -437,16 +446,19 @@ export default function MembershipPage() {
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="
-        h-9 w-[160px] rounded-md border px-3 pr-9 text-sm
-        appearance-none
-        [&::-webkit-calendar-picker-indicator]:hidden
-      "
+              className={`h-9 w-[160px] rounded-md border px-3 pr-9 text-sm
+          appearance-none
+          [&::-webkit-calendar-picker-indicator]:hidden
+          ${
+            endDate
+              ? "border-[#8D1231] bg-red-50 text-[#8D1231]"
+              : "border-gray-300"
+          }`}
             />
 
             <Calendar
               size={16}
-              className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-gray-500 hover:text-gray-700"
+              className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-[#8D1231]"
               onClick={() => endDateRef.current?.showPicker()}
             />
           </div>
@@ -455,7 +467,12 @@ export default function MembershipPage() {
         {/* RESET */}
         <button
           onClick={resetFilter}
-          className="flex h-9 w-9 items-center justify-center rounded-md border"
+          className={`flex h-9 w-9 items-center justify-center rounded-md border transition
+      ${
+        gender !== "all" || cardCategory !== "all" || startDate || endDate
+          ? "border-[#8D1231] bg-[#8D1231] text-white hover:bg-[#73122E]"
+          : "border-gray-300 text-gray-500"
+      }`}
         >
           <RotateCcw size={16} />
         </button>
@@ -600,7 +617,10 @@ export default function MembershipPage() {
                         });
                         setShowDeleteModal(true);
                       }}
-                      className="rounded bg-red-600 px-3 py-1 text-xs text-white"
+                      className="
+    rounded px-3 py-1 text-xs text-white
+    bg-[#8D1231] hover:bg-[#73122E] transition
+  "
                     >
                       Hapus
                     </button>
