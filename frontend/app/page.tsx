@@ -26,7 +26,7 @@ export default function LoginPage() {
 
   const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  // Initialize Firebase App Check and reCAPTCHA on component mount
+  // Initialize Firebase App Check and Cloudflare Turnstile on component mount
   useEffect(() => {
     const initializeSecurity = async () => {
       // Initialize Firebase App Check
@@ -115,10 +115,8 @@ export default function LoginPage() {
           return;
         }
       } else {
-        setAuthErrorMessage('Konfigurasi keamanan tidak lengkap. Silakan hubungi administrator.');
-        setShowAuthError(true);
-        setIsLoading(false);
-        return;
+        // App Check disabled - use dummy token for backend compatibility
+        appCheckToken = 'disabled';
       }
 
       // Execute Cloudflare Turnstile (required)
@@ -142,7 +140,7 @@ export default function LoginPage() {
 
         if (!turnstileToken) {
           console.error('[Turnstile] Failed to get token after retries');
-          setAuthErrorMessage('Gagal memverifikasi keamanan. Silakan refresh halaman dan coba lagi.');
+          setAuthErrorMessage('Verifikasi keamanan tidak lengkap. Pastikan Turnstile checkbox sudah dicentang sebelum login.');
           setShowAuthError(true);
           setIsLoading(false);
           return;

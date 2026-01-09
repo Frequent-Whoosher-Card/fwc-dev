@@ -1,8 +1,9 @@
-'use client';
+"use client";
 
-import toast from 'react-hot-toast';
-import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Calendar } from "lucide-react";
+import toast from "react-hot-toast";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Eye,
   Plus,
@@ -11,21 +12,17 @@ import {
   CheckCircle,
   ChevronLeft,
   ChevronRight,
-} from 'lucide-react';
+} from "lucide-react";
 
-import {
-  getMembers,
-  deleteMember,
-} from '@/lib/services/membership.service';
+import { getMembers, deleteMember } from "@/lib/services/membership.service";
 
 /* ======================
    HELPER
 ====================== */
 const formatNik = (nik?: string | null) => {
-  if (!nik) return '-';
+  if (!nik) return "-";
   return `FWC${nik}`;
 };
-
 
 /* ======================
    TYPES (FE CONTRACT)
@@ -37,7 +34,7 @@ interface Membership {
   nip?: string | null;
   nik?: string | null;
   nationality?: string | null;
-  gender?: 'Laki - Laki' | 'Perempuan' | null;
+  gender?: "Laki - Laki" | "Perempuan" | null;
   email?: string | null;
   phone?: string | null;
   address?: string | null;
@@ -56,19 +53,28 @@ interface Pagination {
    DATE FORMATTER
 ====================== */
 const formatDate = (iso?: string) => {
-  if (!iso) return '-';
+  if (!iso) return "-";
 
   const d = new Date(iso);
-  return d.toLocaleDateString('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
+  return d.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
   });
 };
 
 /* ======================
+   TABLE UI SYSTEM
+====================== */
+const th =
+  "px-4 py-2 text-xs font-medium text-gray-500 uppercase whitespace-nowrap";
+
+const td = "px-4 py-2 text-sm text-gray-700 whitespace-nowrap";
+
+/* ======================
    DELETE MODAL
 ====================== */
+
 function ConfirmDeleteModal({
   open,
   member,
@@ -107,24 +113,17 @@ function ConfirmDeleteModal({
           <div className="flex justify-between gap-3">
             <span className="text-gray-500">Name</span>
             <span className="max-w-[240px] truncate font-medium text-gray-800">
-              {member?.name || '-'}
+              {member?.name || "-"}
             </span>
           </div>
 
           <div className="mt-1 flex justify-between gap-3">
-            <span className="text-gray-500">
-              Identity Number
-            </span>
+            <span className="text-gray-500">Identity Number</span>
             <span className="max-w-[240px] truncate font-mono text-gray-800">
-              {member?.nik ? `FWC${member.nik}` : '-'}
+              {member?.nik ? `FWC${member.nik}` : "-"}
             </span>
           </div>
         </div>
-
-        {/* WARNING */}
-        <p className="mt-3 text-center text-xs font-medium text-red-500">
-          This action cannot be undone.
-        </p>
 
         {/* ACTION */}
         <div className="mt-6 flex justify-center gap-3">
@@ -140,8 +139,8 @@ function ConfirmDeleteModal({
             disabled={!member}
             className={`h-9 w-24 rounded-md text-sm text-white ${
               member
-                ? 'bg-red-600 hover:bg-red-700'
-                : 'cursor-not-allowed bg-red-300'
+                ? "bg-red-600 hover:bg-red-700"
+                : "cursor-not-allowed bg-red-300"
             }`}
           >
             Delete
@@ -151,7 +150,6 @@ function ConfirmDeleteModal({
     </div>
   );
 }
-
 
 /* ======================
    SUCCESS MODAL
@@ -203,25 +201,23 @@ export default function MembershipPage() {
     total: 0,
   });
   const [loading, setLoading] = useState(true);
-// TAMBAHAN
-const [cardCategory, setCardCategory] =
-  useState<'all' | 'NIPKAI'>('all'); 
-  const [search, setSearch] = useState('');
-  const [gender, setGender] =
-  useState<'all' | 'L' | 'P'>('all');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  // TAMBAHAN
+  const [cardCategory, setCardCategory] = useState<"all" | "NIPKAI">("all");
+  const [search, setSearch] = useState("");
+  const [gender, setGender] = useState<"all" | "L" | "P">("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   const [selectedMember, setSelectedMember] = useState<{
-  id: string;
-  name?: string | null;
-  nik?: string | null;
-} | null>(null);
+    id: string;
+    name?: string | null;
+    nik?: string | null;
+  } | null>(null);
 
   /* ======================
      FETCH DATA
@@ -230,31 +226,28 @@ const [cardCategory, setCardCategory] =
     try {
       setLoading(true);
 
-     const res = await getMembers({
-  page,
-  limit: LIMIT,
-  search: debouncedSearch || undefined,
-  gender: gender !== 'all' ? gender : undefined,
-  startDate: startDate || undefined,
-  endDate: endDate || undefined,
-  cardCategory:
-    cardCategory !== 'all' ? cardCategory : undefined,
-});
-
+      const res = await getMembers({
+        page,
+        limit: LIMIT,
+        search: debouncedSearch || undefined,
+        gender: gender !== "all" ? gender : undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        hasNippKai: cardCategory === "NIPKAI" ? true : undefined,
+      });
 
       const mapped: Membership[] = res.data.items.map((item: any) => ({
         id: item.id,
         membership_date: formatDate(item.createdAt), // ✅ from createdAt
         name: item.name,
-        nip: item.nippKai ?? null,     // ✅ TAMBAH
+        nip: item.nippKai ?? null, // ✅ TAMBAH
         nik: item.identityNumber,
         nationality: item.nationality,
         gender: item.gender,
         email: item.email,
         phone: item.phone,
         address: item.alamat,
-        operator_name:
-          item.updatedByName ?? item.createdByName,
+        operator_name: item.updatedByName ?? item.createdByName,
         updated_at: formatDate(item.updatedAt), // ✅ formatted
       }));
 
@@ -276,11 +269,11 @@ const [cardCategory, setCardCategory] =
     } else {
       fetchMembers(1);
     }
-}, [debouncedSearch, gender, startDate, endDate, cardCategory]);
+  }, [debouncedSearch, gender, startDate, endDate, cardCategory]);
 
   useEffect(() => {
     if (!search) {
-      setDebouncedSearch('');
+      setDebouncedSearch("");
       return;
     }
 
@@ -296,44 +289,31 @@ const [cardCategory, setCardCategory] =
   }, [pagination.page]);
 
   const resetFilter = () => {
-  setSearch('');
-  setGender('all');
-  setCardCategory('all');
-  setStartDate('');
-  setEndDate('');
-};
-
-
-const filteredData = useMemo(() => {
-  if (cardCategory === 'NIPKAI') {
-    return data.filter((item) => !!item.nip);
-  }
-
-  return data;
-}, [data, cardCategory]);
+    setSearch("");
+    setGender("all");
+    setCardCategory("all");
+    setStartDate("");
+    setEndDate("");
+  };
 
   /* ======================
      DELETE
   ====================== */
-const confirmDelete = async () => {
-  if (!selectedMember?.id) return;
+  const confirmDelete = async () => {
+    if (!selectedMember?.id) return;
 
-  try {
-    await deleteMember(selectedMember.id);
+    try {
+      await deleteMember(selectedMember.id);
 
-    setShowDeleteModal(false);
-    setSelectedMember(null);
-    setShowSuccessModal(true);
+      setShowDeleteModal(false);
+      setSelectedMember(null);
+      setShowSuccessModal(true);
 
-    fetchMembers(pagination.page);
-  } catch (err: any) {
-    toast.error(
-      err?.message || 'Tidak dapat menghapus member'
-    );
-  }
-};
-
-
+      fetchMembers(pagination.page);
+    } catch (err: any) {
+      toast.error(err?.message || "Tidak dapat menghapus member");
+    }
+  };
 
   /* ======================
      PAGINATION
@@ -341,10 +321,7 @@ const confirmDelete = async () => {
   const pageNumbers = Array.from(
     { length: pagination.totalPages },
     (_, i) => i + 1
-  ).slice(
-    Math.max(0, pagination.page - 3),
-    pagination.page + 2
-  );
+  ).slice(Math.max(0, pagination.page - 3), pagination.page + 2);
 
   /* ======================
      RENDER
@@ -353,9 +330,7 @@ const confirmDelete = async () => {
     <div className="space-y-6">
       {/* HEADER */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">
-          Membership Management
-        </h1>
+        <h1 className="text-xl font-semibold">Membership Management</h1>
 
         <div className="flex items-center gap-3">
           <input
@@ -368,9 +343,7 @@ const confirmDelete = async () => {
 
           <button
             onClick={() =>
-              router.push(
-                '/dashboard/superadmin/membership/create'
-              )
+              router.push("/dashboard/superadmin/membership/create")
             }
             className="flex items-center gap-2 rounded-md bg-red-700 px-4 py-2 text-sm text-white"
           >
@@ -380,256 +353,236 @@ const confirmDelete = async () => {
         </div>
       </div>
 
-      {loading && (
-        <div className="text-xs text-gray-400">
-          Loading data...
-        </div>
-      )}
+      {loading && <div className="text-xs text-gray-400">Loading data...</div>}
 
       {/* FILTER */}
-     <div className="flex items-center gap-3 rounded-lg border bg-white px-4 py-3">
-{/* ALL */}
-<button
-  onClick={() => setCardCategory('all')}
-  disabled={cardCategory === 'all'}
-  aria-pressed={cardCategory === 'all'}
-  className={`h-9 rounded-md border px-4 text-sm transition ${
-    cardCategory === 'all'
-      ? 'cursor-default border-blue-200 bg-blue-50 text-blue-600'
-      : 'border-gray-300 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600'
-  }`}
->
-  All
-</button>
+      <div className="flex items-center gap-3 rounded-lg border bg-white px-4 py-3">
+        {/* ALL */}
+        <button
+          onClick={() => setCardCategory("all")}
+          disabled={cardCategory === "all"}
+          aria-pressed={cardCategory === "all"}
+          className={`h-9 rounded-md border px-4 text-sm transition ${
+            cardCategory === "all"
+              ? "cursor-default border-blue-200 bg-blue-50 text-blue-600"
+              : "border-gray-300 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600"
+          }`}
+        >
+          All
+        </button>
 
-{/* NIPKAI */}
-<button
-  onClick={() => setCardCategory('NIPKAI')}
-  disabled={cardCategory === 'NIPKAI'}
-  aria-pressed={cardCategory === 'NIPKAI'}
-  className={`h-9 rounded-md border px-4 text-sm transition ${
-    cardCategory === 'NIPKAI'
-      ? 'cursor-default border-blue-200 bg-blue-50 text-blue-600'
-      : 'border-gray-300 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600'
-  }`}
->
-  NIPKAI
-</button>
+        {/* NIPKAI */}
+        <button
+          onClick={() => setCardCategory("NIPKAI")}
+          disabled={cardCategory === "NIPKAI"}
+          aria-pressed={cardCategory === "NIPKAI"}
+          className={`h-9 rounded-md border px-4 text-sm transition ${
+            cardCategory === "NIPKAI"
+              ? "cursor-default border-blue-200 bg-blue-50 text-blue-600"
+              : "border-gray-300 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600"
+          }`}
+        >
+          NIPKAI
+        </button>
 
+        {/* GENDER */}
+        <select
+          value={gender}
+          onChange={(e) => setGender(e.target.value as any)}
+          className="h-9 rounded-md border px-3 text-sm"
+        >
+          <option value="all">Gender</option>
+          <option value="L">Laki - Laki</option>
+          <option value="P">Perempuan</option>
+        </select>
 
+        {/* START */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500">Start</span>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="h-9 w-[160px] rounded-md border px-3 text-sm
+               appearance-auto
+               [&::-webkit-calendar-picker-indicator]:opacity-100
+               [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+          />
+        </div>
 
- {/* GENDER */}
- <select
-  value={gender}
-  onChange={(e) => setGender(e.target.value as any)}
-  className="h-9 rounded-md border px-3 text-sm"
->
-  <option value="all">Gender</option>
-  <option value="L">Laki - Laki</option>
-  <option value="P">Perempuan</option>
-</select>
+        {/* END */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500">End</span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="h-9 w-[160px] rounded-md border px-3 text-sm
+               appearance-auto
+               [&::-webkit-calendar-picker-indicator]:opacity-100
+               [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+          />
+        </div>
 
-{/* START */}
-<div className="flex items-center gap-2">
-  <span className="text-sm text-gray-500">Start</span>
-  <input
-    type="date"
-    value={startDate}
-    onChange={(e) => setStartDate(e.target.value)}
-    className="h-9 w-[160px] rounded-md border px-3 text-sm"
-  />
-</div>
+        {/* RESET */}
+        <button
+          onClick={resetFilter}
+          className="flex h-9 w-9 items-center justify-center rounded-md border"
+        >
+          <RotateCcw size={16} />
+        </button>
+      </div>
 
-{/* END */}
-<div className="flex items-center gap-2">
-  <span className="text-sm text-gray-500">End</span>
-  <input
-    type="date"
-    value={endDate}
-    onChange={(e) => setEndDate(e.target.value)}
-    className="h-9 w-[160px] rounded-md border px-3 text-sm"
-  />
-</div>
+      {/* TABLE */}
 
+      <div className="overflow-x-auto rounded-lg border bg-white">
+        <table className="min-w-[1900px] w-full">
+          <thead className="bg-gray-50 text-xs text-gray-600 sticky top-0 z-10">
+            <tr>
+              <th className="px-5 py-3 text-center whitespace-nowrap">
+                Membership Date
+              </th>
+              <th className="px-5 py-3 text-left whitespace-nowrap min-w-[220px]">
+                Customer Name
+              </th>
 
+              {/* ✅ NIP – HANYA JIKA NIPKAI */}
+              {cardCategory === "NIPKAI" && (
+                <th className="px-5 py-3 text-center whitespace-nowrap min-w-[200px]">
+                  NIP
+                </th>
+              )}
 
-  {/* RESET */}
-  <button
-    onClick={resetFilter}
-    className="flex h-9 w-9 items-center justify-center rounded-md border"
-  >
-    <RotateCcw size={16} />
-  </button>
-</div>
+              <th className="px-5 py-3 text-center whitespace-nowrap min-w-[260px]">
+                Identity Number
+              </th>
 
+              <th className="px-4 py-3 text-left whitespace-nowrap min-w-[140px]">
+                Nationality
+              </th>
+              <th className="px-4 py-3 text-center whitespace-nowrap">
+                Gender
+              </th>
+              <th className="px-4 py-3 text-left whitespace-nowrap">Email</th>
+              <th className="px-4 py-3 text-center whitespace-nowrap">Phone</th>
+              <th className="px-4 py-3 text-left whitespace-nowrap min-w-[220px]">
+                Address
+              </th>
+              <th className="px-4 py-3 text-center whitespace-nowrap">
+                Last Updated
+              </th>
+              <th className="px-4 py-3 text-center">View</th>
+              <th className="px-4 py-3 text-center">Aksi</th>
+            </tr>
+          </thead>
 
-     {/* TABLE */}
-     
-<div className="overflow-x-auto rounded-lg border bg-white">
-<table className="min-w-[1900px] w-full">
-<thead className="bg-gray-50 text-xs text-gray-600 sticky top-0 z-10">
-      <tr>
-        <th className="px-5 py-3 text-center whitespace-nowrap">
-          Membership Date
-        </th>
-        <th className="px-5 py-3 text-left whitespace-nowrap min-w-[220px]">
-  Customer Name
-</th>
-
-         {/* ✅ NIP – HANYA JIKA NIPKAI */}
-   {cardCategory === 'NIPKAI' && (
-  <th className="px-5 py-3 text-center whitespace-nowrap min-w-[200px]">
-    NIP
-  </th>
-)}
-
-        <th className="px-5 py-3 text-center whitespace-nowrap min-w-[260px]">
-  Identity Number
-</th>
-
-        <th className="px-4 py-3 text-left whitespace-nowrap min-w-[140px]">
-          Nationality
-        </th>
-        <th className="px-4 py-3 text-center whitespace-nowrap">
-          Gender
-        </th>
-        <th className="px-4 py-3 text-left whitespace-nowrap">
-          Email
-        </th>
-        <th className="px-4 py-3 text-center whitespace-nowrap">
-          Phone
-        </th>
-        <th className="px-4 py-3 text-left whitespace-nowrap min-w-[220px]">
-          Address
-        </th>
-        <th className="px-4 py-3 text-center whitespace-nowrap">
-          Last Updated
-        </th>
-        <th className="px-4 py-3 text-center">
-          View
-        </th>
-        <th className="px-4 py-3 text-center">
-          Aksi
-        </th>
-      </tr>
-    </thead>
-
-    <tbody>
-      {filteredData.map((item) => (
-     <tr
-  key={item.id}
-  className="border-t text-sm hover:bg-gray-50 transition-colors"
->
-
-          <td className="px-4 py-2 text-center whitespace-nowrap">
-            {item.membership_date || '-'}
-          </td>
-
-          <td
-  className="px-5 py-2 text-left max-w-[260px] truncate"
-  title={item.name || ''}
->
-  {item.name || '-'}
-</td>
-
-
-          {/* ✅ NIP – HANYA JIKA NIPKAI */}
-{cardCategory === 'NIPKAI' && (
-  <td className="px-5 py-2 text-center font-mono whitespace-nowrap min-w-[200px]">
-    {item.nip || '-'}
-  </td>
-)}
-
-
-
-         <td
-  className="px-5 py-2 text-center font-mono min-w-[260px] max-w-[320px] truncate cursor-pointer hover:underline"
-  title="Klik untuk copy"
-  onClick={() =>
-    item.nik &&
-    navigator.clipboard.writeText(formatNik(item.nik))
-  }
->
-  {formatNik(item.nik)}
-</td>
-
-
-
-
-          <td className="px-4 py-2 text-left whitespace-nowrap min-w-[140px]">
-            {item.nationality || '-'}
-          </td>
-
-          <td className="px-4 py-2 text-center whitespace-nowrap">
-            {item.gender || '-'}
-          </td>
-
-         <td
-  className="px-5 py-2 text-left max-w-[240px] truncate"
-  title={item.email || ''}
->
-  {item.email || '-'}
-</td>
-
-
-          <td className="px-4 py-2 text-center font-mono whitespace-nowrap">
-            {item.phone || '-'}
-          </td>
-
-          <td className="px-4 py-2 text-left max-w-[260px] truncate">
-            {item.address || '-'}
-          </td>
-
-          <td className="px-4 py-2 text-center whitespace-nowrap">
-            {item.updated_at || '-'}
-          </td>
-
-          <td className="px-4 py-2 text-center">
-            <Eye
-              size={16}
-              className="mx-auto cursor-pointer text-gray-500 hover:text-blue-600"
-              onClick={() =>
-                router.push(
-                  `/dashboard/superadmin/membership/view/${item.id}`
-                )
-              }
-            />
-          </td>
-
-          <td className="px-4 py-2 text-center">
-            <div className="flex justify-center gap-2">
-              <button
-                onClick={() =>
-                  router.push(
-                    `/dashboard/superadmin/membership/edit/${item.id}`
-                  )
-                }
-                className="rounded bg-gray-200 px-3 py-1 text-xs"
+          <tbody>
+            {data.map((item) => (
+              <tr
+                key={item.id}
+                className="border-t text-sm hover:bg-gray-50 transition-colors"
               >
-                Edit
-              </button>
+                <td className="px-4 py-2 text-center whitespace-nowrap">
+                  {item.membership_date || "-"}
+                </td>
 
-            <button
-  onClick={() => {
-    setSelectedMember({
-      id: item.id,
-      name: item.name ?? '-',
-      nik: item.nik ?? null,
-    });
-    setShowDeleteModal(true);
-  }}
-  className="rounded bg-red-600 px-3 py-1 text-xs text-white"
->
-  Hapus
-</button>
-            </div>
-          </td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-</div>
+                <td
+                  className="px-5 py-2 text-left max-w-[260px] truncate"
+                  title={item.name || ""}
+                >
+                  {item.name || "-"}
+                </td>
 
+                {/* ✅ NIP – HANYA JIKA NIPKAI */}
+                {cardCategory === "NIPKAI" && (
+                  <td className="px-5 py-2 text-center font-mono whitespace-nowrap min-w-[200px]">
+                    {item.nip || "-"}
+                  </td>
+                )}
+
+                <td
+                  className="px-5 py-2 text-center font-mono min-w-[260px] max-w-[320px] truncate cursor-pointer hover:underline"
+                  title="Klik untuk copy"
+                  onClick={() =>
+                    item.nik &&
+                    navigator.clipboard.writeText(formatNik(item.nik))
+                  }
+                >
+                  {formatNik(item.nik)}
+                </td>
+
+                <td className="px-4 py-2 text-left whitespace-nowrap min-w-[140px]">
+                  {item.nationality || "-"}
+                </td>
+
+                <td className="px-4 py-2 text-center whitespace-nowrap">
+                  {item.gender || "-"}
+                </td>
+
+                <td
+                  className="px-5 py-2 text-left max-w-[240px] truncate"
+                  title={item.email || ""}
+                >
+                  {item.email || "-"}
+                </td>
+
+                <td className="px-4 py-2 text-center font-mono whitespace-nowrap">
+                  {item.phone || "-"}
+                </td>
+
+                <td className="px-4 py-2 text-left max-w-[260px] truncate">
+                  {item.address || "-"}
+                </td>
+
+                <td className="px-4 py-2 text-center whitespace-nowrap">
+                  {item.updated_at || "-"}
+                </td>
+
+                <td className="px-4 py-2 text-center">
+                  <Eye
+                    size={16}
+                    className="mx-auto cursor-pointer text-gray-500 hover:text-blue-600"
+                    onClick={() =>
+                      router.push(
+                        `/dashboard/superadmin/membership/view/${item.id}`
+                      )
+                    }
+                  />
+                </td>
+
+                <td className="px-4 py-2 text-center">
+                  <div className="flex justify-center gap-2">
+                    <button
+                      onClick={() =>
+                        router.push(
+                          `/dashboard/superadmin/membership/edit/${item.id}`
+                        )
+                      }
+                      className="rounded bg-gray-200 px-3 py-1 text-xs"
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setSelectedMember({
+                          id: item.id,
+                          name: item.name ?? "-",
+                          nik: item.nik ?? null,
+                        });
+                        setShowDeleteModal(true);
+                      }}
+                      className="rounded bg-red-600 px-3 py-1 text-xs text-white"
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {/* PAGINATION */}
       <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-600">
@@ -656,9 +609,7 @@ const confirmDelete = async () => {
               }))
             }
             className={`px-3 py-1 ${
-              p === pagination.page
-                ? 'font-semibold underline'
-                : ''
+              p === pagination.page ? "font-semibold underline" : ""
             }`}
           >
             {p}
@@ -666,9 +617,7 @@ const confirmDelete = async () => {
         ))}
 
         <button
-          disabled={
-            pagination.page === pagination.totalPages
-          }
+          disabled={pagination.page === pagination.totalPages}
           onClick={() =>
             setPagination((p) => ({
               ...p,
@@ -681,15 +630,15 @@ const confirmDelete = async () => {
         </button>
       </div>
 
-    <ConfirmDeleteModal
-  open={showDeleteModal}
-  member={selectedMember}
-  onCancel={() => {
-    setShowDeleteModal(false);
-    setSelectedMember(null);
-  }}
-  onConfirm={confirmDelete}
-/>
+      <ConfirmDeleteModal
+        open={showDeleteModal}
+        member={selectedMember}
+        onCancel={() => {
+          setShowDeleteModal(false);
+          setSelectedMember(null);
+        }}
+        onConfirm={confirmDelete}
+      />
 
       <SuccessModal
         open={showSuccessModal}

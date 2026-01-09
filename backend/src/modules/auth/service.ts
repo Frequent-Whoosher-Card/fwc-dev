@@ -23,7 +23,11 @@ export class AuthService {
     if (!appCheckToken || typeof appCheckToken !== 'string' || appCheckToken.trim().length === 0) {
       throw new AuthenticationError('App Check token is required');
     }
-    await verifyAppCheckToken(appCheckToken);
+    
+    // Skip verification if token is "disabled" (fallback when App Check is not configured)
+    if (appCheckToken !== 'disabled') {
+      await verifyAppCheckToken(appCheckToken);
+    }
 
     // Verify Cloudflare Turnstile token (required)
     if (!turnstileToken || typeof turnstileToken !== 'string' || turnstileToken.trim().length === 0) {
@@ -31,6 +35,64 @@ export class AuthService {
     }
     await verifyTurnstileToken(turnstileToken);
 
+    // Find user by username or email
+    const user = await db.user.findFirst({
+      where: {
+        OR: [
+          { username: usernameOrEmail },
+          { email: usernameOrEmail },
+        ],
+        deletedAt: null,
+      },
+      include: {
+        role: true,
+      },
+    });
+
+    if (!user) {
+      throw new AuthenticationError("Invalid username/email or password");
+    }
+
+    // Check if user is active
+    if (!user.isActive) {
+      throw new AuthenticationError("Account is inactive. Please contact administrator");
+    }
+
+    // Verify password
+    const isValidPassword = await verifyPassword(password, user.passwordHash);
+    if (!isValidPassword) {
+      throw new AuthenticationError("Invalid username/email or password");
+    }
+
+    // Update last login
+    await db.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() },
+    });
+
+    return {
+      user: {
+        id: user.id,
+        username: user.username,
+        fullName: user.fullName,
+        email: user.email,
+        role: {
+          id: user.role.id,
+          roleCode: user.role.roleCode,
+          roleName: user.role.roleName,
+        },
+      },
+    };
+  }
+
+  /**
+   * Simple login for Swagger/testing (without security tokens)
+   * WARNING: Only use in development/testing environment
+   */
+  static async simpleLogin(
+    usernameOrEmail: string,
+    password: string
+  ) {
     // Find user by username or email
     const user = await db.user.findFirst({
       where: {

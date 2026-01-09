@@ -10,7 +10,7 @@ export namespace MemberModel {
     email: t.Union([t.String(), t.Null()]),
     phone: t.Union([t.String(), t.Null()]),
     nippKai: t.Union([t.String(), t.Null()]),
-    gender: t.Union([t.String(), t.Null()]),
+    gender: t.Union([t.Literal("L"), t.Literal("P"), t.Null()]),
     alamat: t.Union([t.String(), t.Null()]),
     notes: t.Union([t.String(), t.Null()]),
     createdAt: t.String({ format: "date-time" }),
@@ -57,9 +57,11 @@ export namespace MemberModel {
       })
     ),
     gender: t.Optional(
-      t.String({
-        maxLength: 20,
-        description: "Gender",
+      t.Union([
+        t.Literal("L"),
+        t.Literal("P"),
+      ], {
+        description: "Gender: L (Laki-laki) or P (Perempuan)",
       })
     ),
     alamat: t.Optional(
@@ -117,9 +119,11 @@ export namespace MemberModel {
       })
     ),
     gender: t.Optional(
-      t.String({
-        maxLength: 20,
-        description: "Gender",
+      t.Union([
+        t.Literal("L"),
+        t.Literal("P"),
+      ], {
+        description: "Gender: L (Laki-laki) or P (Perempuan)",
       })
     ),
     alamat: t.Optional(
@@ -140,7 +144,9 @@ export namespace MemberModel {
     page: t.Optional(t.String()),
     limit: t.Optional(t.String()),
     search: t.Optional(
-      t.String({ description: "Search by name, identity number, email, phone, or updated by (user name)" })
+      t.String({ 
+        description: "Search across all member fields: Customer Name, Identity Number, Nationality, Gender (L/P/Laki-laki/Perempuan), Email, Phone, Address, Membership Date (YYYY-MM-DD/DD/MM/YYYY/DD-MM-YYYY), Last Updated (YYYY-MM-DD/DD/MM/YYYY/DD-MM-YYYY), and Last Updated By (user name). Supports partial matching." 
+      })
     ),
     startDate: t.Optional(
       t.String({ 
@@ -155,8 +161,16 @@ export namespace MemberModel {
       })
     ),
     gender: t.Optional(
+      t.Union([
+        t.Literal("L"),
+        t.Literal("P"),
+      ], {
+        description: "Filter by gender: L (Laki-laki) or P (Perempuan)" 
+      })
+    ),
+    hasNippKai: t.Optional(
       t.String({ 
-        description: "Filter by gender (e.g., 'L', 'P', 'Male', 'Female', etc.)" 
+        description: "Filter members that have NIPKAI. Set to 'true' to filter only members with NIPKAI" 
       })
     ),
   });
