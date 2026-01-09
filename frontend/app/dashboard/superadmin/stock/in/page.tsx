@@ -323,7 +323,7 @@ export default function StockInPage() {
                     </button>
                   </td>
                   <td className="px-3 py-2 text-center space-x-2">
-                    {/* EDIT */}
+                    {/* EDIT
                     <button
                       onClick={() => router.push(`/dashboard/superadmin/stock/in/${row.id}/edit`)}
                       className="
@@ -334,7 +334,7 @@ export default function StockInPage() {
     "
                     >
                       Edit
-                    </button>
+                    </button> */}
 
                     {/* HAPUS */}
                     <button

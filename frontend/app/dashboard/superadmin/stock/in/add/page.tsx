@@ -1,84 +1,136 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { ArrowLeft } from 'lucide-react';
-import { fetchCategories, fetchTypes, createStockIn, Category, Type } from '@/services/stock/stockIn.service';
+import axios from '@/lib/axios';
 
+/* ======================
+   TYPES
+====================== */
+interface CardProduct {
+  id: string;
+  category?: {
+    categoryName: string;
+  };
+  type?: {
+    typeName: string;
+  };
+  isActive?: boolean;
+}
+
+/* ======================
+   COMPONENT
+====================== */
 export default function AddStockInPage() {
   const router = useRouter();
   const today = new Date().toISOString().split('T')[0];
 
-  // ======================
-  // STATE
-  // ======================
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [types, setTypes] = useState<Type[]>([]);
+  /* ======================
+     STATE
+  ===================== */
+  const [products, setProducts] = useState<CardProduct[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingSerial, setLoadingSerial] = useState(false);
 
   const [form, setForm] = useState({
     tanggal: today,
-    categoryId: '',
-    typeId: '', // kosong utk KAI
+    productId: '',
     initialSerial: '',
     lastSerial: '',
   });
 
-  // ======================
-  // FETCH CATEGORY & TYPE
-  // ======================
+  /* ======================
+     FETCH CARD PRODUCT
+  ===================== */
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchProducts = async () => {
       try {
-        const [catData, typeData] = await Promise.all([fetchCategories(), fetchTypes()]);
-
-        setCategories(catData);
-        setTypes(typeData);
-      } catch (err: any) {
-        toast.error(err.message || 'Gagal mengambil category/type');
+        const res = await axios.get('/card/product');
+        setProducts(res.data?.data ?? []);
+      } catch (err) {
+        console.error(err);
+        toast.error('Gagal mengambil data card product');
       }
     };
 
-    fetchData();
+    fetchProducts();
   }, []);
 
-  // ======================
-  // SELECTED CATEGORY
-  // ======================
-  const selectedCategory = useMemo(() => {
-    return categories.find((c) => c.id === form.categoryId);
-  }, [categories, form.categoryId]);
+  /* ======================
+     FETCH AVAILABLE SERIAL (🔥 BARU)
+  ===================== */
+  const fetchAvailableSerial = async (productId: string) => {
+    try {
+      setLoadingSerial(true);
 
-  // ======================
-  // AUTO TYPE FOR KAI
-  // ======================
-  const jabanType = useMemo(() => {
-    return types.find((t) => t.typeName?.toUpperCase() === 'JABAN');
-  }, [types]);
+      const res = await axios.get('/stock/in/available-serials', {
+        params: { cardProductId: productId },
+      });
 
-  const typeIdToSend = selectedCategory?.categoryName?.toUpperCase() === 'KAI' ? jabanType?.id || '' : form.typeId;
+      const startSerial = res.data?.data?.startSerial;
 
-  // ======================
-  // HANDLE SUBMIT
-  // ======================
+      // 🔴 JIKA SERIAL TIDAK TERSEDIA
+      if (!startSerial) {
+        setForm((prev) => ({
+          ...prev,
+          initialSerial: '',
+          lastSerial: '',
+        }));
+
+        toast.error('Nomor Serial Belum Tersedia');
+        return;
+      }
+
+      // ✅ JIKA SERIAL ADA
+      if (typeof startSerial === 'string') {
+        const lastFiveDigits = startSerial.slice(-5);
+
+        setForm((prev) => ({
+          ...prev,
+          initialSerial: lastFiveDigits,
+          lastSerial: '',
+        }));
+      } else {
+        console.error('Invalid startSerial format:', res.data);
+        toast.error('Format serial number tidak valid');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal mengambil available serial');
+    } finally {
+      setLoadingSerial(false);
+    }
+  };
+
+  /* ======================
+     HANDLE SUBMIT
+  ===================== */
   const handleSubmit = async () => {
-    if (!form.tanggal || !form.categoryId || !form.initialSerial || !form.lastSerial) {
+    if (!form.tanggal || !form.productId || !form.initialSerial || !form.lastSerial) {
       toast.error('Semua field wajib diisi');
       return;
     }
 
-    if (!typeIdToSend) {
-      toast.error('Card Type wajib diisi');
+    const start = Number(form.initialSerial);
+    const end = Number(form.lastSerial);
+
+    if (isNaN(start) || isNaN(end)) {
+      toast.error('Serial harus berupa angka');
+      return;
+    }
+
+    if (end < start) {
+      toast.error('Range serial tidak valid');
       return;
     }
 
     setLoading(true);
     try {
-      await createStockIn({
+      await axios.post('/stock/in', {
         movementAt: new Date(form.tanggal).toISOString(),
-        categoryId: form.categoryId,
-        typeId: typeIdToSend,
+        productId: form.productId,
         startSerial: form.initialSerial.padStart(4, '0'),
         endSerial: form.lastSerial.padStart(4, '0'),
         note: '',
@@ -87,15 +139,16 @@ export default function AddStockInPage() {
       toast.success('Stock berhasil ditambahkan');
       router.push('/dashboard/superadmin/stock/in');
     } catch (err: any) {
-      toast.error(err.message || 'Gagal menyimpan stock');
+      console.error(err);
+      toast.error(err.response?.data?.error?.message || err.response?.data?.message || 'Gagal menyimpan stock');
     } finally {
       setLoading(false);
     }
   };
 
-  // ======================
-  // RENDER
-  // ======================
+  /* ======================
+     RENDER
+  ===================== */
   return (
     <div className="space-y-8">
       {/* HEADER */}
@@ -109,7 +162,7 @@ export default function AddStockInPage() {
       {/* FORM */}
       <div className="px-6">
         <div className="rounded-xl border bg-white p-6 space-y-6">
-          {/* Date */}
+          {/* DATE */}
           <div>
             <label className="text-sm font-medium">Date</label>
             <input
@@ -125,72 +178,43 @@ export default function AddStockInPage() {
             />
           </div>
 
-          {/* Category */}
+          {/* CARD PRODUCT */}
           <div>
-            <label className="text-sm font-medium">Card Category</label>
+            <label className="text-sm font-medium">Card Product</label>
             <select
               className="w-full rounded-lg border px-4 py-2"
-              value={form.categoryId}
-              onChange={(e) =>
+              value={form.productId}
+              onChange={(e) => {
+                const productId = e.target.value;
+
                 setForm((prev) => ({
                   ...prev,
-                  categoryId: e.target.value,
-                  typeId: '', // reset type jika ganti category
-                }))
-              }
+                  productId,
+                  initialSerial: '',
+                  lastSerial: '',
+                }));
+
+                if (productId) {
+                  fetchAvailableSerial(productId); // 🔥 AUTO FILL
+                }
+              }}
             >
-              <option value="">-- Pilih Category --</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.categoryName}
-                </option>
-              ))}
+              <option value="">-- Pilih Card Product --</option>
+              {products
+                .filter((p) => p.isActive !== false)
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.category?.categoryName} - {p.type?.typeName}
+                  </option>
+                ))}
             </select>
           </div>
 
-          {/* Type */}
-          <div>
-            <label className="text-sm font-medium">Card Type</label>
-
-            {selectedCategory?.categoryName?.toUpperCase() === 'KAI' ? (
-              <input disabled className="w-full rounded-lg border bg-gray-100 px-4 py-2" value="JABAN (Auto)" />
-            ) : (
-              <select
-                className="w-full rounded-lg border px-4 py-2"
-                value={form.typeId}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    typeId: e.target.value,
-                  }))
-                }
-              >
-                <option value="">-- Pilih Type --</option>
-                {types.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.typeName}
-                  </option>
-                ))}
-              </select>
-            )}
-
-            {selectedCategory?.categoryName?.toUpperCase() === 'KAI' && <p className="mt-1 text-xs text-gray-400">Card Type otomatis untuk category KAI</p>}
-          </div>
-
-          {/* Serial */}
+          {/* SERIAL */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium">Initial Serial</label>
-              <input
-                className="w-full rounded-lg border px-4 py-2"
-                value={form.initialSerial}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    initialSerial: e.target.value,
-                  }))
-                }
-              />
+              <input className="w-full rounded-lg border px-4 py-2" value={form.initialSerial} disabled placeholder={loadingSerial ? 'Loading...' : ''} />
             </div>
 
             <div>
@@ -204,11 +228,12 @@ export default function AddStockInPage() {
                     lastSerial: e.target.value,
                   }))
                 }
+                disabled={!form.productId}
               />
             </div>
           </div>
 
-          {/* Submit */}
+          {/* SUBMIT */}
           <div className="flex justify-end">
             <button onClick={handleSubmit} disabled={loading} className="rounded-lg bg-[#8D1231] px-8 py-2 text-white hover:opacity-90 disabled:opacity-50">
               {loading ? 'Loading...' : 'Add Stock'}

@@ -148,14 +148,19 @@ export default function StockOutPage() {
     if (!selectedId) return;
 
     try {
-      await axiosInstance.delete(`/stock/out/${selectedId}`);
-      toast.success('Stock berhasil dihapus');
+      const response = await axiosInstance.delete(`/stock/out/${selectedId}`);
+
+      toast.success(response.data?.message || 'Aksi berhasil dilakukan');
+
       setOpenDelete(false);
       setSelectedId(null);
-      fetchStockOut(); // Refresh data
+      fetchStockOut();
     } catch (error: any) {
       console.error('Error deleting stock out:', error);
-      toast.error(error.response?.data?.message || 'Gagal menghapus stock out');
+
+      const message = error.response?.data?.error?.message || error.response?.data?.message || error.message || 'Terjadi kesalahan';
+
+      toast.error(message);
     }
   };
 

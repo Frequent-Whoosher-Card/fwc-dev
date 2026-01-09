@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from '@/lib/axios';
 import toast from 'react-hot-toast';
 import { ArrowLeft } from 'lucide-react';
@@ -10,23 +10,16 @@ import { ArrowLeft } from 'lucide-react';
    TYPES
 ===================== */
 type StockOutStatus = 'SENT' | 'RECEIVED' | 'CANCELLED';
-type Station = string;
 
-interface Category {
+interface CardProduct {
   id: string;
-  categoryName: string;
-}
-
-interface CardTypeItem {
-  id: string;
-  typeName: string;
-  categoryId?: string;
-}
-
-interface OfficeStock {
-  category?: { categoryName: string };
-  type?: { typeName: string };
-  cardOffice: number;
+  category?: {
+    categoryName: string;
+  };
+  type?: {
+    typeName: string;
+  };
+  isActive?: boolean;
 }
 
 interface StationItem {
@@ -44,12 +37,11 @@ export default function AddStockOutPage() {
   const today = new Date().toISOString().split('T')[0];
 
   /* =====================
-     FORM STATE (PAKAI ID)
+     FORM STATE
   ===================== */
   const [form, setForm] = useState({
     tanggal: today,
-    categoryId: '',
-    typeId: '',
+    productId: '',
     station: '',
     initialSerial: '',
     lastSerial: '',
@@ -60,49 +52,38 @@ export default function AddStockOutPage() {
   /* =====================
      MASTER DATA
   ===================== */
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [types, setTypes] = useState<CardTypeItem[]>([]);
+  const [products, setProducts] = useState<CardProduct[]>([]);
+  const [stations, setStations] = useState<StationItem[]>([]);
 
   /* =====================
      STOCK STATE
   ===================== */
   const [availableStock, setAvailableStock] = useState<number | null>(null);
   const [loadingStock, setLoadingStock] = useState(false);
-
-  const [stations, setStations] = useState<StationItem[]>([]);
+  const [loadingSerial, setLoadingSerial] = useState(false);
 
   /* =====================
-     FETCH CATEGORY & TYPE
+     FETCH CARD PRODUCT
   ===================== */
   useEffect(() => {
-    const fetchMaster = async () => {
+    const fetchProducts = async () => {
       try {
-        const [catRes, typeRes] = await Promise.all([axios.get('card/category'), axios.get('card/types')]);
-
-        setCategories(catRes.data?.data ?? []);
-        setTypes(typeRes.data?.data ?? []);
+        const res = await axios.get('/card/product');
+        setProducts(res.data?.data ?? []);
       } catch (err) {
         console.error(err);
-        toast.error('Gagal mengambil data master');
+        toast.error('Gagal mengambil data card product');
       }
     };
 
-    fetchMaster();
+    fetchProducts();
   }, []);
-
-  /* =====================
-     FILTER TYPE BY CATEGORY
-  ===================== */
-  const filteredTypes = useMemo(() => {
-    if (!form.categoryId) return [];
-    return types.filter((t) => !t.categoryId || t.categoryId === form.categoryId);
-  }, [types, form.categoryId]);
 
   /* =====================
      FETCH OFFICE STOCK
   ===================== */
   useEffect(() => {
-    if (!form.categoryId || !form.typeId) {
+    if (!form.productId) {
       setAvailableStock(null);
       return;
     }
@@ -111,22 +92,29 @@ export default function AddStockOutPage() {
       try {
         setLoadingStock(true);
 
+        const selectedProduct = products.find((p) => p.id === form.productId);
+        if (!selectedProduct) {
+          setAvailableStock(0);
+          return;
+        }
+
+        const categoryName = selectedProduct.category?.categoryName;
+        const typeName = selectedProduct.type?.typeName;
+
         const res = await axios.get('/inventory/office', {
-          params: { page: '1', limit: '1000' },
+          params: {
+            page: 1,
+            limit: 1000,
+            categoryName,
+            typeName,
+          },
         });
 
-        const stocks: OfficeStock[] = res.data?.data?.stocks ?? [];
-
-        const categoryName = categories.find((c) => c.id === form.categoryId)?.categoryName;
-
-        const typeName = types.find((t) => t.id === form.typeId)?.typeName;
+        const stocks = res.data?.data?.stocks ?? [];
 
         let total = 0;
-
-        stocks.forEach((s) => {
-          if (s.category?.categoryName === categoryName && s.type?.typeName === typeName) {
-            total += Number(s.cardOffice || 0);
-          }
+        stocks.forEach((s: any) => {
+          total += Number(s.cardOffice || 0);
         });
 
         setAvailableStock(total);
@@ -139,25 +127,62 @@ export default function AddStockOutPage() {
     };
 
     fetchStock();
-  }, [form.categoryId, form.typeId, categories, types]);
+  }, [form.productId, products]);
 
-  //* =====================
-  //    FETCH STATION
-  //===================== */
+  /* =====================
+     FETCH AVAILABLE SERIAL (STOCK OUT)
+  ===================== */
+  const fetchAvailableOutSerial = async (productId: string) => {
+    try {
+      setLoadingSerial(true);
+
+      const res = await axios.get('/stock/out/available-serials', {
+        params: { cardProductId: productId },
+      });
+
+      const startSerial: string | null = res.data?.data?.startSerial ?? null;
+
+      // 🔴 SERIAL BELUM TERSEDIA
+      if (!startSerial) {
+        setForm((prev) => ({
+          ...prev,
+          initialSerial: '',
+          lastSerial: '',
+        }));
+
+        toast.error('Nomor Serial Belum Tersedia');
+        return;
+      }
+
+      // ✅ AMBIL 5 DIGIT TERAKHIR
+      const lastFiveDigits = startSerial.slice(-5);
+
+      setForm((prev) => ({
+        ...prev,
+        initialSerial: lastFiveDigits,
+        lastSerial: '',
+      }));
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal mengambil available serial');
+    } finally {
+      setLoadingSerial(false);
+    }
+  };
+
+  /* =====================
+     FETCH STATION
+  ===================== */
   useEffect(() => {
     const fetchStations = async () => {
       try {
         const res = await axios.get('/station', {
-          params: {
-            page: 1,
-            limit: 10,
-            search: '',
-          },
+          params: { page: 1, limit: 10, search: '' },
         });
 
         setStations(res.data?.data?.items ?? []);
       } catch (err) {
-        console.error('FETCH STATION ERROR:', err);
+        console.error(err);
         toast.error('Gagal mengambil data stasiun');
       }
     };
@@ -171,7 +196,7 @@ export default function AddStockOutPage() {
   const handleSubmit = async () => {
     if (!form.tanggal) return toast.error('Tanggal wajib diisi');
     if (!form.station) return toast.error('Stasiun wajib dipilih');
-    if (!form.categoryId || !form.typeId) return toast.error('Category & Type wajib dipilih');
+    if (!form.productId) return toast.error('Card Product wajib dipilih');
     if (!form.initialSerial || !form.lastSerial) return toast.error('Serial number wajib diisi');
 
     const start = Number(form.initialSerial);
@@ -185,8 +210,7 @@ export default function AddStockOutPage() {
     try {
       await axios.post('/stock/out', {
         movementAt: new Date(form.tanggal).toISOString(),
-        categoryId: form.categoryId,
-        typeId: form.typeId,
+        productId: form.productId,
         stationId: form.station,
         startSerial: form.initialSerial,
         endSerial: form.lastSerial,
@@ -197,14 +221,12 @@ export default function AddStockOutPage() {
       router.push('/dashboard/superadmin/stock/out');
     } catch (err: any) {
       console.error(err);
-      toast.error(err.response?.data?.message || 'Gagal mengirim stock');
+      toast.error(err.response?.data?.error?.message || err.response?.data?.message || 'Gagal mengirim stock');
     }
   };
 
-  const isKAI = categories.find((c) => c.id === form.categoryId)?.categoryName === 'KAI';
-
   /* =====================
-     UI (100% SAMA)
+     UI (TIDAK DIUBAH)
   ===================== */
   return (
     <div className="space-y-8">
@@ -224,50 +246,35 @@ export default function AddStockOutPage() {
               <input type="date" className="w-full rounded-lg border px-4 py-3 text-sm" value={form.tanggal} onChange={(e) => setForm({ ...form, tanggal: e.target.value })} />
             </div>
 
-            {/* CATEGORY */}
+            {/* CARD PRODUCT */}
             <div>
-              <label className="block text-sm font-medium mb-2">Card Category</label>
+              <label className="block text-sm font-medium mb-2">Card Product</label>
               <select
                 className="w-full rounded-lg border px-4 py-3 text-sm"
-                value={form.categoryId}
+                value={form.productId}
                 onChange={(e) => {
-                  const categoryId = e.target.value;
+                  const productId = e.target.value;
 
-                  const selectedCategory = categories.find((c) => c.id === categoryId);
+                  setForm((prev) => ({
+                    ...prev,
+                    productId,
+                    initialSerial: '',
+                    lastSerial: '',
+                  }));
 
-                  let autoTypeId = '';
-
-                  if (selectedCategory?.categoryName === 'KAI') {
-                    const jabanType = filteredTypes.find((t) => t.typeName === 'JaBan');
-                    if (jabanType) autoTypeId = jabanType.id;
+                  if (productId) {
+                    fetchAvailableOutSerial(productId);
                   }
-
-                  setForm({
-                    ...form,
-                    categoryId,
-                    typeId: autoTypeId,
-                  });
                 }}
               >
-                <option value="">Select Category</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.categoryName}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* TYPE */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Card Type</label>
-              <select className="w-full rounded-lg border px-4 py-3 text-sm disabled:bg-gray-100" disabled={!form.categoryId || isKAI} value={form.typeId} onChange={(e) => setForm({ ...form, typeId: e.target.value })}>
-                <option value="">Select Card Type</option>
-                {filteredTypes.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.typeName}
-                  </option>
-                ))}
+                <option value="">Select Card Product</option>
+                {products
+                  .filter((p) => p.isActive !== false)
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.category?.categoryName} - {p.type?.typeName}
+                    </option>
+                  ))}
               </select>
 
               <p className="mt-2 text-sm text-gray-600">
@@ -278,16 +285,7 @@ export default function AddStockOutPage() {
             {/* STATION */}
             <div>
               <label className="block text-sm font-medium mb-2">Stasiun</label>
-              <select
-                className="w-full rounded-lg border px-4 py-3 text-sm"
-                value={form.station}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    station: e.target.value,
-                  })
-                }
-              >
+              <select className="w-full rounded-lg border px-4 py-3 text-sm" value={form.station} onChange={(e) => setForm({ ...form, station: e.target.value })}>
                 <option value="">Pilih Stasiun</option>
                 {stations.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -301,38 +299,20 @@ export default function AddStockOutPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
                 <label className="block text-sm font-medium mb-2">Initial Serial Number</label>
-                <input
-                  className="w-full rounded-lg border px-4 py-3 text-sm"
-                  value={form.initialSerial}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      initialSerial: e.target.value,
-                    })
-                  }
-                />
+                <input className="w-full rounded-lg border px-4 py-3 text-sm" value={form.initialSerial} disabled placeholder={loadingSerial ? 'Loading...' : ''} />
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-2">Last Serial Number</label>
-                <input
-                  className="w-full rounded-lg border px-4 py-3 text-sm"
-                  value={form.lastSerial}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      lastSerial: e.target.value,
-                    })
-                  }
-                />
+                <input className="w-full rounded-lg border px-4 py-3 text-sm" value={form.lastSerial} onChange={(e) => setForm({ ...form, lastSerial: e.target.value })} disabled={!form.productId} />
               </div>
             </div>
 
             {/* NOTE */}
-            <div>
+            {/* <div>
               <label className="block text-sm font-medium mb-2">Note</label>
               <textarea rows={3} className="w-full rounded-lg border px-4 py-3 text-sm" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
-            </div>
+            </div> */}
 
             {/* ACTION */}
             <div className="flex justify-end pt-6">

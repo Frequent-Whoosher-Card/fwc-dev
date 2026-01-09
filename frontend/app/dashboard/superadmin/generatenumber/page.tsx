@@ -45,9 +45,9 @@ export default function GenerateNumberPage() {
 
   const year2 = String(new Date().getFullYear()).slice(-2);
 
-  // =========================
-  // FETCH CARD PRODUCT
-  // =========================
+  /* =========================
+     FETCH CARD PRODUCT
+  ========================= */
   useEffect(() => {
     axios
       .get('/card/product')
@@ -55,17 +55,18 @@ export default function GenerateNumberPage() {
       .catch(() => toast.error('Gagal mengambil card product'));
   }, []);
 
-  // =========================
-  // FETCH GENERATE HISTORY
-  // =========================
+  /* =========================
+     FETCH GENERATE HISTORY
+  ========================= */
   const fetchHistory = async () => {
     try {
+      setLoadingHistory(true);
       const res = await axios.get('/cards/generate/history');
-
-      // backend SUDAH menentukan page & limit
       setHistory(res.data?.data?.items || []);
-    } catch (err) {
+    } catch {
       toast.error('Gagal mengambil history generate');
+    } finally {
+      setLoadingHistory(false);
     }
   };
 
@@ -73,9 +74,44 @@ export default function GenerateNumberPage() {
     fetchHistory();
   }, []);
 
-  // =========================
-  // GENERATE (CALL BACKEND)
-  // =========================
+  /* =========================
+     FETCH NEXT SERIAL (🔥 BARU)
+  ========================= */
+  const fetchNextSerial = async (productId: string) => {
+    try {
+      const res = await axios.get('/cards/generate/next-serial', {
+        params: { cardProductId: productId },
+      });
+
+      // 🔥 AMBIL STRING-NYA, BUKAN OBJECT
+      const nextSerial = res.data?.data?.nextSerial || res.data?.data?.serial || res.data?.data || '';
+
+      if (typeof nextSerial === 'string') {
+        setStartNumber(nextSerial);
+        setEndNumber('');
+      } else {
+        console.error('Invalid next serial response:', res.data);
+        toast.error('Format next serial tidak valid');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal mengambil next serial number');
+    }
+  };
+
+  const formatDateDMY = (dateString: string) => {
+    const date = new Date(dateString);
+
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+
+    return `${day}-${month}-${year}`;
+  };
+
+  /* =========================
+     GENERATE
+  ========================= */
   const handleGenerate = async () => {
     if (!selectedProduct) {
       toast.error('Card product wajib dipilih');
@@ -111,8 +147,8 @@ export default function GenerateNumberPage() {
 
       toast.success('Generate serial berhasil');
 
-      // 🔁 REFRESH LIST DARI BACKEND
       fetchHistory();
+      fetchNextSerial(selectedProduct.id); // 🔁 refresh next serial
     } catch (err: any) {
       const message = err?.response?.data?.message ?? err?.response?.data ?? 'Terjadi kesalahan';
 
@@ -122,9 +158,9 @@ export default function GenerateNumberPage() {
     }
   };
 
-  // =========================
-  // RENDER
-  // =========================
+  /* =========================
+     RENDER
+  ========================= */
   return (
     <div className="space-y-8 px-6">
       {/* HEADER */}
@@ -142,7 +178,13 @@ export default function GenerateNumberPage() {
           onChange={(e) => {
             const id = e.target.value;
             setSelectedProductId(id);
-            setSelectedProduct(products.find((p) => p.id === id) || null);
+
+            const product = products.find((p) => p.id === id) || null;
+            setSelectedProduct(product);
+
+            if (product) {
+              fetchNextSerial(product.id); // 🔥 AUTO CALL
+            }
           }}
         >
           <option value="">-- Pilih Card Product --</option>
@@ -167,11 +209,11 @@ export default function GenerateNumberPage() {
 
         {/* START NUMBER */}
         <div className="flex">
-          <span className="flex items-center rounded-l-lg border border-r-0 bg-gray-100 px-3 font-mono text-sm text-gray-600">
+          {/* <span className="flex items-center rounded-l-lg border border-r-0 bg-gray-100 px-3 font-mono text-sm text-gray-600">
             {selectedProduct?.serialTemplate}
             {year2}
-          </span>
-          <input className="w-full rounded-r-lg border px-4 py-2 font-mono" placeholder="00001" value={startNumber} onChange={(e) => setStartNumber(e.target.value.replace(/\D/g, ''))} disabled={!selectedProduct} maxLength={5} />
+          </span> */}
+          <input className="w-full rounded-r-lg border px-4 py-2 font-mono" value={startNumber} disabled />
         </div>
 
         {/* END NUMBER */}
@@ -196,7 +238,7 @@ export default function GenerateNumberPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b">
             <tr>
-              <th className="px-4 py-3 text-center ">Tanggal</th>
+              <th className="px-4 py-3 text-center">Tanggal</th>
               <th className="px-4 py-3 text-center">Product</th>
               <th className="px-4 py-3 text-center">Serial Range</th>
               <th className="px-4 py-3 text-center">Qty</th>
@@ -223,7 +265,7 @@ export default function GenerateNumberPage() {
 
                 return (
                   <tr key={item.id} className="border-b">
-                    <td className="px-4 py-2 text-center">{new Date(item.movementAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-2 text-center">{formatDateDMY(item.movementAt)}</td>
 
                     <td className="px-4 py-2 text-center">
                       {item.category?.name} - {item.type?.name}
