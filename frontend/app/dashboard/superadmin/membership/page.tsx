@@ -339,7 +339,7 @@ export default function MembershipPage() {
         <div className="flex items-center gap-3">
           <input
             type="text"
-            placeholder="Search by name, Identity Number, email, or phone"
+            placeholder="Search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-9 w-96 rounded-md border px-3 text-sm"
