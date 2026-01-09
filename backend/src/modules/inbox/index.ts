@@ -112,8 +112,24 @@ export const inbox = new Elysia({ prefix: "/inbox" })
           detail: {
             tags: ["Inbox"],
             summary: "Get Admin Inbox",
-            description:
-              "Mendapatkan daftar pesan/notifikasi. Mendukung filter tanggal dan tipe.",
+            description: `Mendapatkan daftar pesan/notifikasi untuk admin properti (Admin & Superadmin).
+
+**Tipe Pesan yang Tersedia:**
+
+1. **STOCK_ISSUE_APPROVAL**
+   - **Deskripsi**: Laporan validasi stock out yang **bermasalah** (ada kartu Hilang atau Rusak).
+   - **Pemicu**: Supervisor memvalidasi stock out dan ada kartu hilang/rusak.
+   - **Payload**: Berisi \`lostSerialNumbers\` dan \`damagedSerialNumbers\`.
+   - **Action**: Perlu Approval via endpoint \`POST /inbox/:id/approve-issue\`.
+
+2. **STOCK_OUT_REPORT**
+   - **Deskripsi**: Laporan validasi stock out sukses (semua kartu diterima).
+   - **Pemicu**: Supervisor memvalidasi stock out semua barang diterima.
+   - **Action**: Hanya notifikasi (Read Only).
+
+3. **LOW_STOCK** (Hidden)
+   - **Deskripsi**: Peringatan stok menipis (< Threshold).
+   - **Catatan**: Secara default difilter keluar dari endpoint ini agar tidak spamming.`,
           },
         }
       )
@@ -192,8 +208,59 @@ export const inbox = new Elysia({ prefix: "/inbox" })
           detail: {
             tags: ["Inbox"],
             summary: "Approve/Reject Stock Issue",
+            description: `Memproses laporan kartu hilang/rusak (Tipe: STOCK_ISSUE_APPROVAL).
+
+**Prasyarat:**
+- User harus Admin/Superadmin.
+- Inbox ID harus valid dan bertipe \`STOCK_ISSUE_APPROVAL\`.
+- Belum pernah diproses sebelumnya.
+
+**Body Parameter:**
+- \`action\`:
+  - \`"APPROVE"\`: Menyetujui laporan. Kartu akan diupdate statusnya menjadi **LOST** atau **DAMAGED**.
+  - \`"REJECT"\`: Menolak laporan. Status kartu tidak berubah (akan tetap seperti status terakhir, misal \`IN_TRANSIT\` atau \`IN_STATION\`).
+
+**Hasil:**
+Setelah sukses, pesan inbox akan otomatis ditandai sebagai **Sudah Dibaca** dan tidak bisa diproses ulang.`,
+          },
+        }
+      )
+      .get(
+        "/:id",
+        async (context) => {
+          const { user, params, set } = context as typeof context & {
+            user: { id: string };
+            params: { id: string };
+          };
+          try {
+            const result = await InboxService.getInboxDetail(
+              params.id,
+              user.id
+            );
+            return {
+              success: true,
+              data: result,
+            };
+          } catch (error) {
+            set.status =
+              error instanceof Error && "statusCode" in error
+                ? (error as any).statusCode
+                : 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          response: {
+            200: InboxModel.getInboxDetailResponse,
+            400: InboxModel.errorResponse,
+            404: InboxModel.errorResponse,
+            500: InboxModel.errorResponse,
+          },
+          detail: {
+            tags: ["Inbox"],
+            summary: "Get Inbox Detail",
             description:
-              "Memproses laporan kartu hilang/rusak yang masuk ke inbox approval.",
+              "Mendapatkan detail pesan inbox secara lengkap termasuk informasi pengirim (role) dan payload.",
           },
         }
       )

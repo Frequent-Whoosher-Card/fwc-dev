@@ -22,7 +22,7 @@ type AuthContextUser = {
 export const stockIn = new Elysia({ prefix: "/in" })
   .group("", (app) =>
     app
-      .use(rbacMiddleware(["petugas", "supervisor", "admin", "superadmin"]))
+      .use(rbacMiddleware(["admin", "superadmin"]))
       .post(
         "/",
         async (context) => {
@@ -69,6 +69,41 @@ export const stockIn = new Elysia({ prefix: "/in" })
             summary: "Stock In Batch (Produksi Office)",
             description:
               "Menyimpan kartu produksi ke tabel cards dengan serialNumber = serialTemplate + suffix berurutan. Role: superadmin/admin.",
+          },
+        }
+      )
+      .get(
+        "/available-serials",
+        async (context) => {
+          const { query, set } = context;
+          try {
+            const result = await StockInService.getAvailableSerials(
+              query.cardProductId
+            );
+            return {
+              success: true,
+              data: result,
+            };
+          } catch (error) {
+            set.status =
+              error instanceof Error && "statusCode" in error
+                ? (error as any).statusCode
+                : 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          query: StockInModel.getAvailableSerialsQuery,
+          response: {
+            200: StockInModel.getAvailableSerialsResponse,
+            400: StockInModel.errorResponse,
+            500: StockInModel.errorResponse,
+          },
+          detail: {
+            tags: ["Stock In"],
+            summary: "Get Available Serials",
+            description:
+              "Mendapatkan daftar nomor serial yang statusnya ON_REQUEST (siap untuk di-stock in).",
           },
         }
       )
@@ -199,6 +234,7 @@ export const stockIn = new Elysia({ prefix: "/in" })
             summary: "Report Damaged Cards (QC)",
             description:
               "Melaporkan kartu IN_OFFICE sebagai DAMAGED. Mencatat movement OUT (Adjustment) dan mengurangi stok office.",
+            deprecated: true,
           },
         }
       )

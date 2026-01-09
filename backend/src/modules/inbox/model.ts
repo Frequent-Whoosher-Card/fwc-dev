@@ -118,4 +118,37 @@ export namespace InboxModel {
       }),
     }),
   });
+  export const getInboxDetailResponse = t.Object({
+    success: t.Boolean(),
+    data: t.Object({
+      id: t.String(),
+      title: t.String(),
+      message: t.String(),
+      isRead: t.Boolean(),
+      readAt: t.Union([t.String(), t.Null()]),
+      sentAt: t.String(),
+      type: t.Union([t.String(), t.Null()]),
+      payload: t.Any(),
+      sender: t.Object({
+        id: t.String(),
+        fullName: t.String(),
+        role: t.Object({
+          code: t.String(),
+          name: t.String(),
+        }),
+      }),
+      recipient: t.Object({
+        id: t.String(),
+        fullName: t.String(),
+      }),
+      station: t.Union([
+        t.Object({
+          id: t.String(),
+          code: t.String(),
+          name: t.String(),
+        }),
+        t.Null(),
+      ]),
+    }),
+  });
 }

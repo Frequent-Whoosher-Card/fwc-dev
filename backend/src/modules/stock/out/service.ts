@@ -1267,4 +1267,52 @@ export class StockOutService {
 
     return transaction;
   }
+
+  /**
+   * Get Available Serials for Stock Out
+   * Returns start/end serials with status IN_OFFICE for a given Product
+   */
+  static async getAvailableSerials(cardProductId: string) {
+    // 1. Get Count
+    const count = await db.card.count({
+      where: {
+        cardProductId: cardProductId,
+        status: "IN_OFFICE",
+      },
+    });
+
+    if (count === 0) {
+      return {
+        startSerial: null,
+        endSerial: null,
+        count: 0,
+      };
+    }
+
+    // 2. Get Min (Start)
+    const firstCard = await db.card.findFirst({
+      where: {
+        cardProductId: cardProductId,
+        status: "IN_OFFICE",
+      },
+      orderBy: { serialNumber: "asc" },
+      select: { serialNumber: true },
+    });
+
+    // 3. Get Max (End)
+    const lastCard = await db.card.findFirst({
+      where: {
+        cardProductId: cardProductId,
+        status: "IN_OFFICE",
+      },
+      orderBy: { serialNumber: "desc" },
+      select: { serialNumber: true },
+    });
+
+    return {
+      startSerial: firstCard?.serialNumber || null,
+      endSerial: lastCard?.serialNumber || null,
+      count,
+    };
+  }
 }

@@ -382,4 +382,80 @@ export class InboxService {
 
     return { success: true, action };
   }
+
+  /**
+   * Get Inbox Detail by ID
+   */
+  static async getInboxDetail(inboxId: string, userId: string) {
+    const inbox = await db.inbox.findFirst({
+      where: {
+        id: inboxId,
+        // Optional: Ensure user can only see their own inbox?
+        // Or if admin, can see items sent to them.
+        // sentTo: userId, // Enforcing ownership for security
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            fullName: true,
+            role: {
+              select: {
+                roleCode: true,
+                roleName: true,
+              },
+            },
+          },
+        },
+        recipient: {
+          select: {
+            id: true,
+            fullName: true,
+          },
+        },
+        station: {
+          select: {
+            id: true,
+            stationCode: true,
+            stationName: true,
+          },
+        },
+      },
+    });
+
+    if (!inbox) {
+      throw new ValidationError("Pesan tidak ditemukan");
+    }
+
+    // Convert Date objects
+    return {
+      id: inbox.id,
+      title: inbox.title,
+      message: inbox.message,
+      isRead: inbox.isRead,
+      readAt: inbox.readAt?.toISOString() || null,
+      sentAt: inbox.sentAt.toISOString(),
+      type: inbox.type,
+      payload: inbox.payload,
+      sender: {
+        id: inbox.sender?.id || "Unknown",
+        fullName: inbox.sender?.fullName || "Unknown Sender",
+        role: {
+          code: inbox.sender?.role?.roleCode || "unknown",
+          name: inbox.sender?.role?.roleName || "Unknown Role",
+        },
+      },
+      recipient: {
+        id: inbox.recipient?.id || "Unknown",
+        fullName: inbox.recipient?.fullName || "Unknown Recipient",
+      },
+      station: inbox.station
+        ? {
+            id: inbox.station.id,
+            code: inbox.station.stationCode,
+            name: inbox.station.stationName,
+          }
+        : null,
+    };
+  }
 }
