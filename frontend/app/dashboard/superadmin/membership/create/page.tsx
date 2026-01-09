@@ -160,6 +160,15 @@ interface Card {
   cardProductId: string;
 }
 
+const getTodayLocalDate = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+
 export default function AddMemberPage() {
   const router = useRouter();
   const nippKaiRef = useRef<HTMLInputElement>(null);
@@ -180,6 +189,18 @@ export default function AddMemberPage() {
       phone: Array.isArray(c.phone) ? c.phone[0] : c.phone, // ✅ STRING ONLY
     }));
   }, []);
+
+  // ======================
+  // LOCAL DATE HELPER (ANTI UTC BUG)
+  // ======================
+  const getTodayLocalDate = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`; // YYYY-MM-DD
+  };
 
   // Card Products
   const [cardProducts, setCardProducts] = useState<CardProduct[]>([]);
@@ -231,6 +252,8 @@ export default function AddMemberPage() {
   // PHONE HELPER (WAJIB DI SINI)
   // ======================
   const getFullPhoneNumber = () => {
+
+    
     if (!form.nationality || !form.phone) return "";
 
     const country = countryOptions.find((c) => c.value === form.nationality);
@@ -242,6 +265,7 @@ export default function AddMemberPage() {
 
     return `+${country.phone}${local}`;
   };
+  
 
   // Load operator name and card categories/types
   useEffect(() => {
@@ -255,12 +279,14 @@ export default function AddMemberPage() {
         }
 
         // Load card products
+        // Load card products
         const token = localStorage.getItem("fwc_token");
         const productsRes = await fetch(`${API_BASE_URL}/card/product`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
+
         if (productsRes.ok) {
           const productsData = await productsRes.json();
 
@@ -271,13 +297,15 @@ export default function AddMemberPage() {
               return nameA.localeCompare(nameB);
             }
           );
+
           setCardProducts(sortedProducts);
         }
 
-        // Set default dates
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayStr = today.toISOString().split("T")[0];
+        /* ======================
+   ✅ SET DEFAULT DATE (WAJIB)
+====================== */
+        const todayStr = getTodayLocalDate();
+
         setForm((prev) => ({
           ...prev,
           membershipDate: todayStr,
@@ -292,6 +320,8 @@ export default function AddMemberPage() {
     loadInitialData();
   }, []);
 
+
+  
   // Load available cards when card product is selected
   useEffect(() => {
     if (!selectedCardProductId) {

@@ -1,5 +1,9 @@
 "use client";
 
+import Select from "react-select";
+import { countries } from "countries-list";
+import { useMemo } from "react";
+
 import { useContext, useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Phone, Mail, MapPin, ChevronDown } from "lucide-react";
@@ -44,6 +48,15 @@ function Field({
 export default function EditMemberPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
+
+  const countryOptions = useMemo(() => {
+    return Object.entries(countries).map(([code, c]) => ({
+      value: code,
+      label: `${c.name} (+${Array.isArray(c.phone) ? c.phone[0] : c.phone})`,
+      phone: Array.isArray(c.phone) ? c.phone[0] : c.phone,
+    }));
+  }, []);
+
   const userCtx = useContext(UserContext);
 
   const [loading, setLoading] = useState(true);
@@ -63,6 +76,22 @@ export default function EditMemberPage() {
   });
 
   /* ======================
+   PHONE HELPER
+====================== */
+  const getFullPhoneNumber = () => {
+    if (!form.nationality || !form.phone) return "";
+
+    const country = countryOptions.find((c) => c.value === form.nationality);
+
+    if (!country?.phone) return "";
+
+    // buang 0 di depan
+    const local = form.phone.replace(/^0+/, "");
+
+    return `+${country.phone}${local}`;
+  };
+
+  /* ======================
      FETCH DETAIL
   ====================== */
   useEffect(() => {
@@ -77,13 +106,30 @@ export default function EditMemberPage() {
 
         if (!item) throw new Error("Data not found");
 
+        // ======================
+        // PARSE PHONE (EDIT MODE)
+        // ======================
+        let nationality = item.nationality ?? "";
+        let localPhone = "";
+
+        if (item.phone?.startsWith("+")) {
+          const matched = countryOptions.find((c) =>
+            item.phone.startsWith(`+${c.phone}`)
+          );
+
+          if (matched) {
+            nationality = matched.value;
+            localPhone = item.phone.replace(`+${matched.phone}`, "");
+          }
+        }
+
         setForm({
           name: item.name ?? "",
           nik: item.identityNumber ?? "",
           nippKai: item.nippKai ?? "",
-          nationality: item.nationality ?? "",
+          nationality,
           gender: item.gender ?? "",
-          phone: item.phone ?? "",
+          phone: localPhone,
           email: item.email ?? "",
           address: item.alamat ?? "",
           update_by:
@@ -103,7 +149,7 @@ export default function EditMemberPage() {
     };
 
     fetchDetail();
-  }, [id, router]);
+  }, [id, router, countryOptions]);
 
   /* ======================
      HANDLER
@@ -155,12 +201,12 @@ export default function EditMemberPage() {
     }
 
     // ======================
-// VALIDASI NIP / NIPP KAI (PANJANG)
-// ======================
-if (form.nippKai && form.nippKai.length > 20) {
-  alert("NIP / NIPP KAI maksimal 20 karakter");
-  return;
-}
+    // VALIDASI NIP / NIPP KAI (PANJANG)
+    // ======================
+    if (form.nippKai && form.nippKai.length > 20) {
+      alert("NIP / NIPP KAI maksimal 20 karakter");
+      return;
+    }
 
     // ======================
     // VALIDASI KHUSUS KAI
@@ -180,7 +226,7 @@ if (form.nippKai && form.nippKai.length > 20) {
         name: form.name,
         identityNumber: form.nik,
         nippKai: form.nationality === "KAI" ? form.nippKai : undefined,
-        phone: form.phone,
+        phone: getFullPhoneNumber(),
         email: form.email,
         address: form.address,
         gender: form.gender,
@@ -269,12 +315,19 @@ if (form.nippKai && form.nippKai.length > 20) {
 
             {/* NATIONALITY */}
             <Field label="Nationality" required>
-              <input
-                name="nationality"
-                value={form.nationality}
-                onChange={handleChange}
-                className={base}
-                required
+              <Select
+                options={countryOptions}
+                placeholder="Pilih negara"
+                value={countryOptions.find((c) => c.value === form.nationality)}
+                onChange={(option) => {
+                  if (!option) return;
+
+                  setForm((prev) => ({
+                    ...prev,
+                    nationality: option.value,
+                    phone: "", // reset phone saat negara berubah
+                  }));
+                }}
               />
             </Field>
 
@@ -300,18 +353,30 @@ if (form.nippKai && form.nippKai.length > 20) {
             </Field>
 
             {/* PHONE */}
-            <Field label="Phone" required>
-              <div className="relative">
-                <Phone
-                  size={16}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                />
+            <Field label="Phone Number" required>
+              <div className="flex">
+                {/* PREFIX */}
+                <div className="flex items-center rounded-l-md border border-r-0 border-gray-300 bg-gray-100 px-3 text-sm text-gray-600 min-w-[60px] justify-center">
+                  {form.nationality
+                    ? `+${
+                        countryOptions.find((c) => c.value === form.nationality)
+                          ?.phone
+                      }`
+                    : "+"}
+                </div>
+
+                <div className="flex items-center border-y border-gray-300 bg-gray-100 px-2 text-gray-400">
+                  |
+                </div>
+
                 <input
-                  name="phone"
                   value={form.phone}
-                  onInput={onlyNumber}
-                  onChange={handleChange}
-                  className={`${base} pl-10`}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    setForm((prev) => ({ ...prev, phone: val }));
+                  }}
+                  className="h-10 w-full rounded-r-md border border-l-0 border-gray-300 px-3 text-sm"
+                  disabled={!form.nationality}
                   required
                 />
               </div>
