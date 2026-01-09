@@ -51,16 +51,13 @@ export async function verifyTurnstileToken(token: string): Promise<boolean> {
         errorCodes && errorCodes.length > 0
           ? `Turnstile verification failed: ${errorCodes.join(", ")}`
           : "Turnstile verification failed";
-      console.error("[Turnstile] ❌ Verification failed:", {
+      console.error("[Turnstile] Verification failed:", {
         errorCodes,
         hostname,
       });
       throw new AuthenticationError(errorMessage);
     }
 
-    console.log("[Turnstile] ✅ Token verified successfully", {
-      hostname,
-    });
     return true;
   } catch (error) {
     if (error instanceof AuthenticationError) {
