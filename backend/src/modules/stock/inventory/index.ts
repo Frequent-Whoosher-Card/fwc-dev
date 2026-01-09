@@ -63,6 +63,31 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
           },
         }
       )
+      // Get Low Stock Alerts
+      .get(
+        "/alerts",
+        async (context) => {
+          const { set } = context;
+          try {
+            const result = await CardInventoryService.getLowStockAlerts();
+            return {
+              success: true,
+              data: result,
+            };
+          } catch (error) {
+            set.status = 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          detail: {
+            tags: ["Stock All & Inventory"],
+            summary: "Get Inventory Alerts",
+            description:
+              "Mendapatkan notifikasi stok menipis (Mirror of Stock Alerts).",
+          },
+        }
+      )
       // Get Inventory List
       .get(
         "/",

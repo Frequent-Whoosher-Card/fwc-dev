@@ -367,7 +367,7 @@ export class CardGenerateService {
   }) {
     const {
       page = 1,
-      limit = 10,
+      limit = 5,
       startDate,
       endDate,
       categoryId,

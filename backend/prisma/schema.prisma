@@ -285,6 +285,7 @@ model Inbox {
   station   Station? @relation(fields: [stationId], references: [id])
 
   @@index([sentTo, isRead, createdAt], map: "idx_inbox_sent_to_read_created")
+  @@index([sentTo, type, createdAt], map: "idx_inbox_sent_to_type_created")
   @@map("inbox")
 }
 

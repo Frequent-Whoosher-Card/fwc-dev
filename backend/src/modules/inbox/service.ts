@@ -7,17 +7,38 @@ export class InboxService {
    */
   static async getUserInbox(
     userId: string,
-    params: { page?: number; limit?: number; isRead?: boolean }
+    params: {
+      page?: number;
+      limit?: number;
+      isRead?: boolean;
+      startDate?: string;
+      endDate?: string;
+      type?: string;
+    }
   ) {
     const { page = 1, limit = 10, isRead } = params;
     const skip = (page - 1) * limit;
 
     const where: any = {
       sentTo: userId,
+      type: { not: "LOW_STOCK" }, // Filter out low stock alerts from main inbox
     };
 
     if (isRead !== undefined) {
       where.isRead = isRead;
+    }
+
+    if (params.startDate && params.endDate) {
+      where.sentAt = {
+        gte: new Date(params.startDate),
+        lte: new Date(params.endDate),
+      };
+    } else if (params.startDate) {
+      where.sentAt = { gte: new Date(params.startDate) };
+    }
+
+    if (params.type && params.type !== "all") {
+      where.type = params.type;
     }
 
     const [items, total, unreadCount] = await Promise.all([
@@ -27,11 +48,21 @@ export class InboxService {
         take: limit,
         orderBy: { sentAt: "desc" },
         include: {
-          sender: { select: { id: true, fullName: true } },
+          sender: {
+            select: {
+              id: true,
+              fullName: true,
+              role: { select: { roleName: true } },
+            },
+          },
+          recipient: { select: { id: true, fullName: true } },
+          station: { select: { id: true, stationName: true } },
         },
       }),
       db.inbox.count({ where }),
-      db.inbox.count({ where: { sentTo: userId, isRead: false } }),
+      db.inbox.count({
+        where: { sentTo: userId, isRead: false, type: { not: "LOW_STOCK" } },
+      }),
     ]);
 
     const mapped = items.map((i) => ({
@@ -44,7 +75,15 @@ export class InboxService {
       sender: {
         id: i.sender?.id || "Unknown",
         fullName: i.sender?.fullName || "Unknown Sender",
+        role: i.sender?.role?.roleName || "Unknown Role",
       },
+      recipient: {
+        id: i.recipient?.id || "Unknown",
+        fullName: i.recipient?.fullName || "Unknown Recipient",
+      },
+      station: i.station
+        ? { id: i.station.id, stationName: i.station.stationName }
+        : null,
       type: i.type,
       payload: i.payload,
     }));
@@ -77,49 +116,6 @@ export class InboxService {
     });
 
     return true;
-  }
-
-  /**
-   * Broadcast to Admins & Superadmins
-   */
-  static async broadcastToAdmins(
-    title: string,
-    message: string,
-    senderId: string, // System ID or Operator ID
-    stationId?: string,
-    type?: string,
-    payload?: any
-  ) {
-    // 1. Find all admins/superadmins
-    const roles = await db.role.findMany({
-      where: { roleCode: { in: ["admin", "superadmin"] } },
-      select: { id: true },
-    });
-    const roleIds = roles.map((r) => r.id);
-
-    const admins = await db.user.findMany({
-      where: { roleId: { in: roleIds }, isActive: true },
-      select: { id: true },
-    });
-
-    if (admins.length === 0) return 0;
-
-    // 2. Create Inbox entries
-    const data = admins.map((admin) => ({
-      title,
-      message,
-      sentTo: admin.id,
-      sentBy: senderId,
-      stationId: stationId ?? null,
-      type: type ?? "NOTIFICATION",
-      payload: payload ?? {},
-      isRead: false,
-      createdAt: new Date(),
-    }));
-
-    await db.inbox.createMany({ data });
-
-    return data.length;
   }
 
   /**
@@ -163,25 +159,227 @@ export class InboxService {
           title,
           isRead: false,
           sentAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }, // last 24h
+          type: "LOW_STOCK",
         },
       });
 
       if (!existing) {
-        await this.broadcastToAdmins(
-          title,
-          message,
-          systemUserId,
-          inv.stationId || undefined,
-          "LOW_STOCK",
-          {
-            inventoryId: inv.id,
-            currentStock: inv.cardBeredar,
-          }
-        );
+        // 3. Find Admins
+        const roles = await db.role.findMany({
+          where: { roleCode: { in: ["admin", "superadmin"] } },
+          select: { id: true },
+        });
+        const roleIds = roles.map((r) => r.id);
+        const admins = await db.user.findMany({
+          where: { roleId: { in: roleIds }, isActive: true },
+          select: { id: true },
+        });
+
+        // 4. Create Inbox Entries
+        if (admins.length > 0) {
+          const inboxData = admins.map((admin) => ({
+            title,
+            message,
+            sentTo: admin.id,
+            sentBy: systemUserId,
+            stationId: inv.stationId || null,
+            type: "LOW_STOCK",
+            payload: {
+              inventoryId: inv.id,
+              currentStock: inv.cardBeredar,
+            },
+            isRead: false,
+            createdAt: new Date(),
+          }));
+          await db.inbox.createMany({ data: inboxData });
+        }
+
         alertsSent++;
       }
     }
 
     return { alertsSent, stationsChecked: inventories.length };
+  }
+
+  /**
+   * Get Messages Sent By Supervisors
+   */
+  static async getMessagesSentBySupervisors(params: {
+    page?: number;
+    limit?: number;
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+  }) {
+    const { page = 1, limit = 10 } = params;
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      sender: {
+        role: {
+          roleCode: "supervisor",
+        },
+      },
+    };
+
+    if (params.startDate && params.endDate) {
+      where.sentAt = {
+        gte: new Date(params.startDate),
+        lte: new Date(params.endDate),
+      };
+    } else if (params.startDate) {
+      where.sentAt = { gte: new Date(params.startDate) };
+    }
+
+    if (params.status && params.status !== "all") {
+      // Assuming 'status' maps to 'title' or 'type' based on design (e.g. 'Accepted' might be the title or type)
+      // Since the design shows statuses like "Accepted", "Card Missing", "Card Damaged" which look like Titles or Types.
+      // Let's filter by type if it matches, or title.
+      // For flexibility let's match type for now as it's cleaner, or assume frontend sends specific type codes.
+      // If status acts as "Type" filter:
+      where.type = params.status;
+    }
+
+    const [items, total] = await Promise.all([
+      db.inbox.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { sentAt: "desc" },
+        include: {
+          sender: {
+            select: {
+              id: true,
+              fullName: true,
+              role: { select: { roleName: true } },
+            },
+          },
+          recipient: {
+            select: { id: true, fullName: true },
+          },
+          station: {
+            select: { id: true, stationName: true },
+          },
+        },
+      }),
+      db.inbox.count({ where }),
+    ]);
+
+    const mapped = items.map((i) => ({
+      id: i.id,
+      title: i.title,
+      message: i.message,
+      sentAt: i.sentAt.toISOString(),
+      isRead: i.isRead,
+      sender: {
+        id: i.sender?.id || "Unknown",
+        fullName: i.sender?.fullName || "Unknown Sender",
+        role: i.sender?.role?.roleName || "Supervisor",
+      },
+      recipient: {
+        id: i.recipient?.id || "Unknown",
+        fullName: i.recipient?.fullName || "Unknown Recipient",
+      },
+      station: i.station
+        ? { id: i.station.id, stationName: i.station.stationName }
+        : null,
+    }));
+
+    return {
+      items: mapped,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
+   * Process Stock Issue Approval
+   */
+  static async processStockIssueApproval(
+    inboxId: string,
+    action: "APPROVE" | "REJECT",
+    adminUserId: string
+  ) {
+    const inbox = await db.inbox.findUnique({
+      where: { id: inboxId },
+    });
+
+    if (!inbox) throw new ValidationError("Inbox item not found");
+    if (inbox.type !== "STOCK_ISSUE_APPROVAL") {
+      throw new ValidationError(
+        "Inbox item is not a stock issue approval request"
+      );
+    }
+
+    // Check if already processed (maybe check isRead or a new status field?)
+    // For now we assume if it exists and we act on it, we can mark it "READ" or update title.
+    if (inbox.title.includes("[RESOLVED]")) {
+      throw new ValidationError("This request has already been processed.");
+    }
+
+    const payload = inbox.payload as any;
+    if (
+      !payload ||
+      !payload.lostSerialNumbers ||
+      !payload.damagedSerialNumbers
+    ) {
+      throw new ValidationError("Invalid payload in inbox item");
+    }
+
+    const { lostSerialNumbers, damagedSerialNumbers } = payload;
+
+    await db.$transaction(async (tx) => {
+      if (action === "APPROVE") {
+        // Update LOST cards
+        if (Array.isArray(lostSerialNumbers) && lostSerialNumbers.length > 0) {
+          await tx.card.updateMany({
+            where: { serialNumber: { in: lostSerialNumbers } },
+            data: {
+              status: "LOST",
+              updatedAt: new Date(),
+              updatedBy: adminUserId,
+            },
+          });
+        }
+
+        // Update DAMAGED cards
+        if (
+          Array.isArray(damagedSerialNumbers) &&
+          damagedSerialNumbers.length > 0
+        ) {
+          await tx.card.updateMany({
+            where: { serialNumber: { in: damagedSerialNumbers } },
+            data: {
+              status: "DAMAGED",
+              updatedAt: new Date(),
+              updatedBy: adminUserId,
+            },
+          });
+        }
+      }
+      // If REJECT, we typically do nothing to the cards (they remain IN_TRANSIT or whatever they were).
+      // Or we could revert them to IN_OFFICE?
+      // Current agreement: "Approve" confirms the loss/damage. "Reject" implies they are NOT lost/damaged.
+      // If they are not lost, they should probably be "IN_TRANSIT" waiting to be received again?
+      // Leaving them as is seems safest for now.
+
+      // Mark Inbox as Processed
+      await tx.inbox.update({
+        where: { id: inboxId },
+        data: {
+          isRead: true,
+          readAt: new Date(),
+          title: `[RESOLVED: ${action}] ${inbox.title}`,
+          updatedBy: adminUserId,
+          updatedAt: new Date(),
+        },
+      });
+    });
+
+    return { success: true, action };
   }
 }

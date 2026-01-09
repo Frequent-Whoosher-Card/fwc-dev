@@ -415,7 +415,7 @@ export class StockOutService {
         );
       }
 
-      // 5) Update status kartu
+      // 5) Update status kartu (HANYA YANG DITERIMA/RECEIVED)
       if (finalReceived.length) {
         await tx.card.updateMany({
           where: { serialNumber: { in: finalReceived } },
@@ -427,27 +427,8 @@ export class StockOutService {
         });
       }
 
-      if (finalLost.length) {
-        await tx.card.updateMany({
-          where: { serialNumber: { in: finalLost } },
-          data: {
-            status: "LOST",
-            updatedAt: new Date(),
-            updatedBy: validatorUserId,
-          },
-        });
-      }
-
-      if (finalDamaged.length) {
-        await tx.card.updateMany({
-          where: { serialNumber: { in: finalDamaged } },
-          data: {
-            status: "DAMAGED",
-            updatedAt: new Date(),
-            updatedBy: validatorUserId,
-          },
-        });
-      }
+      // NOTE: LOST & DAMAGED cards are NOT updated here immediately.
+      // They remain in their previous status (e.g., IN_TRANSIT) until approved by Admin via Inbox.
 
       // 6) Update inventory stasiun (yang diterima saja)
       const receivedCount = finalReceived.length;
@@ -501,17 +482,19 @@ export class StockOutService {
         } as any,
       });
 
-      // 8) SEND NOTIFICATION (INBOX) - ALWAYS
-      // We do this asynchronously or inside transaction (safe inside tx)
-      // Need to fetch station name first
+      // 8) SEND NOTIFICATION (INBOX)
+      // Determine Message Type
+      const hasIssues = finalLost.length > 0 || finalDamaged.length > 0;
+
       const station = await tx.station.findUnique({
         where: { id: movement.stationId! },
         select: { stationName: true },
       });
       const stationName = station?.stationName || "Unknown Station";
 
-      const title = "Laporan Validasi Stock Out";
+      let title = "Laporan Validasi Stock Out";
       let message = `Laporan dari ${stationName}: Validasi Stock Out Berhasil.`;
+      const type = hasIssues ? "STOCK_ISSUE_APPROVAL" : "STOCK_OUT_REPORT";
 
       const msgParts = [];
       if (finalReceived.length)
@@ -521,24 +504,49 @@ export class StockOutService {
 
       if (msgParts.length) {
         message = `Laporan dari ${stationName}: ${msgParts.join(", ")} pada pengiriman tanggal ${movement.movementAt.toISOString().split("T")[0]}.`;
+        if (hasIssues) {
+          message += " Harap konfirmasi kartu Hilang/Rusak.";
+        }
       }
 
-      await InboxService.broadcastToAdmins(
-        title,
-        message,
-        validatorUserId,
-        movement.stationId!,
-        "STOCK_OUT_REPORT",
-        {
-          movementId,
-          receivedCount: finalReceived.length,
-          lostCount: finalLost.length,
-          damagedCount: finalDamaged.length,
-          receivedSerialNumbers: finalReceived, // Optional, might be too big if thousands
-          lostSerialNumbers: finalLost,
-          damagedSerialNumbers: finalDamaged,
-        }
-      );
+      // Payload for Approval
+      const payload = {
+        movementId,
+        receivedCount: finalReceived.length,
+        lostCount: finalLost.length,
+        damagedCount: finalDamaged.length,
+        // Only include full lists if needed for approval
+        lostSerialNumbers: finalLost,
+        damagedSerialNumbers: finalDamaged,
+      };
+
+      // Create Inbox for Admins
+      // Manual creation since broadcastToAdmins was removed/stripped
+      const roles = await tx.role.findMany({
+        where: { roleCode: { in: ["admin", "superadmin"] } },
+        select: { id: true },
+      });
+      const roleIds = roles.map((r) => r.id);
+
+      const admins = await tx.user.findMany({
+        where: { roleId: { in: roleIds }, isActive: true },
+        select: { id: true },
+      });
+
+      if (admins.length > 0) {
+        const inboxData = admins.map((admin) => ({
+          title,
+          message,
+          sentTo: admin.id,
+          sentBy: validatorUserId,
+          stationId: movement.stationId ?? null,
+          type, // STOCK_ISSUE_APPROVAL or STOCK_OUT_REPORT
+          payload,
+          isRead: false,
+          createdAt: new Date(),
+        }));
+        await tx.inbox.createMany({ data: inboxData });
+      }
 
       return {
         movementId,
