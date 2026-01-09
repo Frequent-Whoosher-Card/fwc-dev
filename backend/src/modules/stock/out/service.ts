@@ -492,7 +492,7 @@ export class StockOutService {
       });
       const stationName = station?.stationName || "Unknown Station";
 
-      let title = "Laporan Validasi Stock Out";
+      let title = `Laporan Validasi Stock Out - ${stationName}`;
       let message = `Laporan dari ${stationName}: Validasi Stock Out Berhasil.`;
       const type = hasIssues ? "STOCK_ISSUE_APPROVAL" : "STOCK_OUT_REPORT";
 
