@@ -59,8 +59,9 @@ export function setupAppCheck(): AppCheck | null {
     return null;
   }
 
-  // Note: Firebase App Check uses reCAPTCHA v3 as provider internally
+  // IMPORTANT: Firebase App Check REQUIRES reCAPTCHA v3 as provider
   // This is separate from Cloudflare Turnstile used at application level
+  // You need a separate reCAPTCHA v3 site key specifically for Firebase App Check
   const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
 
   if (!recaptchaSiteKey) {
@@ -73,6 +74,7 @@ export function setupAppCheck(): AppCheck | null {
   try {
     // Initialize App Check with reCAPTCHA v3 provider (Firebase internal requirement)
     // IMPORTANT: reCAPTCHA site key is DIFFERENT from Turnstile site key
+    // This reCAPTCHA v3 site key is ONLY for Firebase App Check, not for the application
     const provider = new ReCaptchaV3Provider(recaptchaSiteKey);
     appCheck = initializeAppCheck(app, {
       provider,

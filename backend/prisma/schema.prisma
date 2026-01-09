@@ -296,7 +296,7 @@ model Member {
   email          String?
   phone          String?
   nippKai        String?   @map("nipp_kai")
-  gender         String?
+  gender         Gender?
   alamat         String?
   notes          String?
   createdAt      DateTime  @default(now()) @map("created_at")
@@ -464,4 +464,9 @@ enum FilePurpose {
   GENERAL
   LAST_REDEEM
   BARCODE_IMAGE
+}
+
+enum Gender {
+  L
+  P
 }
