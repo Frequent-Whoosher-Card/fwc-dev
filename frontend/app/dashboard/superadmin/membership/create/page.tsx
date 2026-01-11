@@ -18,15 +18,12 @@ import {
   CheckCircle,
   Search,
   Loader2,
-} from "lucide-react";
-import toast from "react-hot-toast";
-import { API_BASE_URL } from "@/lib/apiConfig";
-import {
-  createMember,
-  extractKTPFields,
-} from "@/lib/services/membership.service";
-import { createPurchase } from "@/lib/services/purchase.service";
-import { ImageCropUpload } from "@/components/ui/image-crop-upload";
+} from 'lucide-react';
+import toast from 'react-hot-toast';
+import { API_BASE_URL } from '@/lib/apiConfig';
+import { createMember } from '@/lib/services/membership.service';
+import { createPurchase } from '@/lib/services/purchase.service';
+import { KTPUploadDetect } from '@/components/ui/ktp-upload-detect';
 
 /* ======================
    BASE INPUT STYLE
@@ -182,6 +179,7 @@ export default function AddMemberPage() {
   const [operatorName, setOperatorName] = useState("");
   const [ktpImage, setKtpImage] = useState<File | null>(null);
   const [isExtractingOCR, setIsExtractingOCR] = useState(false);
+  const [ktpSessionId, setKtpSessionId] = useState<string>('');
   const countryOptions = useMemo(() => {
     return Object.entries(countries).map(([code, c]) => ({
       value: code,
@@ -464,41 +462,62 @@ export default function AddMemberPage() {
     e.currentTarget.value = e.currentTarget.value.replace(/\D/g, "");
   };
 
-  const handleKTPImageChange = async (file: File | null) => {
+  const handleKTPImageChange = (file: File | null) => {
     setKtpImage(file);
-    if (file) {
-      setIsExtractingOCR(true);
-      try {
-        const ocrResult = await extractKTPFields(file);
-        if (ocrResult.success && ocrResult.data) {
-          const data = ocrResult.data;
+  };
 
-          // Auto-fill form dengan data dari OCR (NIK, Nama, Jenis Kelamin, dan Alamat)
-          setForm((prev) => ({
-            ...prev,
-            nik: data.identityNumber || prev.nik,
-            name: data.name || prev.name,
-            gender:
-              data.gender === "Laki-laki"
-                ? "L"
-                : data.gender === "Perempuan"
-                ? "P"
-                : prev.gender,
-            address: data.alamat || prev.address,
-          }));
+  const handleKTPDetectionComplete = (sessionId: string, croppedImageBase64: string) => {
+    setKtpSessionId(sessionId);
+    // Detection sudah selesai, user bisa klik "Ekstrak Data KTP" untuk OCR
+  };
 
-          toast.success("Data KTP berhasil diekstrak!");
-        } else {
-          toast.error("Gagal mengekstrak data KTP. Silakan isi manual.");
-        }
-      } catch (error: any) {
-        console.error("OCR Error:", error);
-        toast.error(
-          error.message || "Gagal mengekstrak data KTP. Silakan isi manual."
-        );
-      } finally {
-        setIsExtractingOCR(false);
+  const handleExtractOCR = async (sessionId: string) => {
+    setIsExtractingOCR(true);
+    try {
+      const token = localStorage.getItem('fwc_token');
+      if (!token) {
+        throw new Error('Session expired. Silakan login kembali.');
       }
+
+      const formData = new FormData();
+      formData.append('session_id', sessionId);
+
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
+      const response = await fetch(`${API_BASE_URL}/members/ocr-extract`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error?.message || result.error || 'Gagal mengekstrak data KTP');
+      }
+
+      if (result.data) {
+        const data = result.data;
+        
+        // Auto-fill form dengan data dari OCR (NIK, Nama, Jenis Kelamin, dan Alamat)
+        setForm((prev) => ({
+          ...prev,
+          nik: data.identityNumber || prev.nik,
+          name: data.name || prev.name,
+          gender: data.gender === 'Laki-laki' || data.gender === 'L' ? 'L' : data.gender === 'Perempuan' || data.gender === 'P' ? 'P' : prev.gender,
+          address: data.alamat || prev.address,
+        }));
+
+        toast.success('Data KTP berhasil diekstrak!');
+      } else {
+        toast.error('Gagal mengekstrak data KTP. Silakan isi manual.');
+      }
+    } catch (error: any) {
+      console.error('OCR Error:', error);
+      toast.error(error.message || 'Gagal mengekstrak data KTP. Silakan isi manual.');
+    } finally {
+      setIsExtractingOCR(false);
     }
   };
 
@@ -804,12 +823,13 @@ export default function AddMemberPage() {
           className="rounded-lg border bg-white p-6"
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {/* KTP Upload dengan Crop - Full Width */}
+            {/* KTP Upload dengan Auto Detection - Full Width */}
             <div className="md:col-span-2">
-              <Field label="Upload & Crop Gambar KTP (Opsional - untuk auto-fill)">
-                <ImageCropUpload
+              <Field label="Upload Gambar KTP (Opsional - untuk auto-fill)">
+                <KTPUploadDetect
                   onImageChange={handleKTPImageChange}
-                  maxSize={400}
+                  onDetectionComplete={handleKTPDetectionComplete}
+                  onExtractOCR={handleExtractOCR}
                   className="w-full"
                 />
                 {isExtractingOCR && (
