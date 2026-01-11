@@ -358,7 +358,10 @@ export default function CreatePurchasePage() {
       })
 
       if (response.ok) {
-        toast.success('Transaksi berhasil dibuat')
+        const data = await response.json()
+        toast.success('Purchase berhasil dibuat! Status: PENDING - Perlu aktivasi.')
+        
+        // Redirect to purchases list with activation prompt
         router.push('/dashboard/petugas/transaksi')
       } else {
         const error = await response.json()
@@ -375,7 +378,12 @@ export default function CreatePurchasePage() {
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">Purchased</h1>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold">Purchased (Step 1: Create Purchase)</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Buat transaksi purchase baru. Setelah dibuat, kartu perlu diaktivasi dengan scan serial number fisik.
+          </p>
+        </div>
         
         <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm p-6 space-y-6">
           {/* Member Section */}
@@ -742,14 +750,27 @@ export default function CreatePurchasePage() {
           </div>
 
           {/* Submit Button */}
-          <div className="flex justify-end pt-6 border-t">
-            <Button
-              type="submit"
-              disabled={isSubmitting || !selectedMemberId || !selectedCardId || !edcReferenceNumber.trim()}
-              className="bg-red-700 hover:bg-red-800 text-white px-8"
-            >
-              {isSubmitting ? 'Menyimpan...' : 'Save'}
-            </Button>
+          <div className="flex justify-between items-center pt-6 border-t">
+            <div className="text-sm text-muted-foreground">
+              <p className="font-medium">ℹ️ Two-Step Activation</p>
+              <p>Kartu akan berstatus PENDING dan perlu diaktivasi dengan scan serial number.</p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push('/dashboard/petugas/transaksi')}
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitting || !selectedMemberId || !selectedCardId || !edcReferenceNumber.trim()}
+                className="bg-red-700 hover:bg-red-800 text-white px-8"
+              >
+                {isSubmitting ? 'Menyimpan...' : 'Simpan Purchase'}
+              </Button>
+            </div>
           </div>
         </form>
       </div>
