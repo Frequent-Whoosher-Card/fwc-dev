@@ -145,7 +145,7 @@ export class MemberService {
             const parts = dateStr.split('-');
             if (parts[0].length === 4) {
               // YYYY-MM-DD
-              searchDate = new Date(parts[0], parseInt(parts[1]) - 1, parseInt(parts[2]));
+              searchDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
             } else {
               // DD-MM-YYYY
               searchDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
@@ -375,13 +375,134 @@ export class MemberService {
   /**
    * Extract KTP fields using OCR
    */
-  static async extractKTPFields(imageFile: File): Promise<typeof MemberModel.ocrExtractResponse.static> {
-    // Import OCR service (lazy import to avoid circular dependencies)
-    const { ocrService } = await import("../../services/ocr_service");
-    
+  /**
+   * Detect and crop KTP from image
+   */
+  static async detectKTP(
+    imageFile: File,
+    returnMultiple: boolean = false,
+    minConfidence: number = 0.5
+  ): Promise<typeof MemberModel.ktpDetectionResponse.static> {
+    // Import services (lazy import to avoid circular dependencies)
+    const { ktpDetectionService } = await import("../../services/ktp_detection_service");
+    const { tempStorage } = await import("../../utils/temp_storage");
+
     try {
+      // Use cached detection daemon service (model loaded once, reused for all requests)
+      const result = await ktpDetectionService.detectAndCrop(
+        imageFile,
+        returnMultiple,
+        minConfidence
+      );
+
+      if (!result.success) {
+        throw new Error(result.error || "KTP detection failed");
+      }
+
+      // Generate session ID for temporary storage
+      const sessionId = tempStorage.generateSessionId();
+
+      // Store cropped image(s) temporarily
+      if (returnMultiple && result.cropped_images) {
+        // Multiple detections
+        if (!result.original_size) {
+          throw new Error("Invalid detection response: missing original_size");
+        }
+
+        await tempStorage.storeImages(
+          sessionId,
+          result.cropped_images.map((img) => ({
+            croppedImage: img.cropped_image,
+            bbox: img.bbox,
+            originalSize: result.original_size!,
+            confidence: img.confidence,
+          }))
+        );
+
+        return {
+          success: true,
+          data: {
+            sessionId,
+            cropped_images: result.cropped_images,
+            original_size: result.original_size,
+          },
+          message: `Detected ${result.cropped_images.length} KTP(s) successfully`,
+        };
+      } else {
+        // Single detection
+        if (!result.cropped_image || !result.bbox || !result.original_size) {
+          throw new Error("Invalid detection response");
+        }
+
+        await tempStorage.storeImage(
+          sessionId,
+          result.cropped_image,
+          result.bbox,
+          result.original_size,
+          result.confidence
+        );
+
+        return {
+          success: true,
+          data: {
+            sessionId,
+            cropped_image: result.cropped_image,
+            bbox: result.bbox,
+            original_size: result.original_size,
+            confidence: result.confidence || undefined,
+          },
+          message: "KTP detected and cropped successfully",
+        };
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new ValidationError(`KTP detection failed: ${error.message}`);
+      }
+      throw new ValidationError("KTP detection failed: Unknown error");
+    }
+  }
+
+  /**
+   * Extract KTP fields using OCR
+   * Supports File upload, base64 cropped image, or sessionId
+   */
+  static async extractKTPFields(
+    imageFileOrBase64OrSessionId: File | string,
+    isSessionId: boolean = false
+  ): Promise<typeof MemberModel.ocrExtractResponse.static> {
+    // Import services (lazy import to avoid circular dependencies)
+    const { ocrService } = await import("../../services/ocr_service");
+    const { tempStorage } = await import("../../utils/temp_storage");
+
+    try {
+      let fileObj: File;
+
+      // Handle sessionId, base64 string, or File object
+      if (isSessionId && typeof imageFileOrBase64OrSessionId === "string") {
+        // SessionId - retrieve from temp storage
+        const stored = await tempStorage.getImage(imageFileOrBase64OrSessionId);
+        if (!stored) {
+          throw new Error("Session expired or not found. Please re-upload the image.");
+        }
+        // Convert stored base64 to File
+        const base64Data = stored.croppedImage.replace(/^data:image\/\w+;base64,/, "");
+        const buffer = Buffer.from(base64Data, "base64");
+        fileObj = new File([buffer], "cropped_ktp.jpg", { type: "image/jpeg" });
+        
+        // Cleanup after use (optional - can also let TTL handle it)
+        // await tempStorage.deleteImage(imageFileOrBase64OrSessionId);
+      } else if (typeof imageFileOrBase64OrSessionId === "string") {
+        // Base64 string - convert to File
+        const base64Data = imageFileOrBase64OrSessionId.replace(/^data:image\/\w+;base64,/, "");
+        const buffer = Buffer.from(base64Data, "base64");
+        fileObj = new File([buffer], "cropped_ktp.jpg", { type: "image/jpeg" });
+      } else {
+        // File object
+        fileObj = imageFileOrBase64OrSessionId;
+      }
+
       // Use cached OCR daemon service (model loaded once, reused for all requests)
-      const result = await ocrService.processImage(imageFile);
+      const result = await ocrService.processImage(fileObj);
 
       if (!result.success) {
         throw new Error(result.error || "OCR extraction failed");
