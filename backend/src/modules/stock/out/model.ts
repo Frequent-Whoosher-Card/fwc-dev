@@ -183,4 +183,19 @@ export namespace StockOutModel {
       statusCode: t.Number(),
     }),
   });
+
+  // Available Serials Query
+  export const getAvailableSerialsQuery = t.Object({
+    cardProductId: t.String({ format: "uuid" }),
+  });
+
+  // Available Serials Response
+  export const getAvailableSerialsResponse = t.Object({
+    success: t.Boolean(),
+    data: t.Object({
+      startSerial: t.Union([t.String(), t.Null()]),
+      endSerial: t.Union([t.String(), t.Null()]),
+      count: t.Number(),
+    }),
+  });
 }

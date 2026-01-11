@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { CheckCircle } from 'lucide-react';
+import { useEffect } from "react";
+import { CheckCircle } from "lucide-react";
 
 interface SuccessModalProps {
   open: boolean;
@@ -22,8 +22,8 @@ interface SuccessModalProps {
 
 export default function SuccessModal({
   open,
-  title = 'Data Saved',
-  message = 'The new member’s data has been saved to the database',
+  title = "Data Saved",
+  message = "The new member’s data has been saved to the database",
   data,
   onClose,
   onConfirm,
@@ -35,17 +35,17 @@ export default function SuccessModal({
     if (!open) return;
 
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         onClose?.();
       }
     };
 
-    document.addEventListener('keydown', handleEsc);
-    document.body.style.overflow = 'hidden';
+    document.addEventListener("keydown", handleEsc);
+    document.body.style.overflow = "hidden";
 
     return () => {
-      document.removeEventListener('keydown', handleEsc);
-      document.body.style.overflow = 'auto';
+      document.removeEventListener("keydown", handleEsc);
+      document.body.style.overflow = "auto";
     };
   }, [open, onClose]);
 
@@ -59,10 +59,10 @@ export default function SuccessModal({
       onClick={() => onClose?.()}
     >
       <div
-  className="
-    w-[480px] rounded-xl bg-white p-6 text-center shadow-xl
-    animate-in fade-in zoom-in-95
-  "
+        className="
+          w-full max-w-3xl rounded-xl bg-white p-8 shadow-xl
+          animate-in fade-in zoom-in-95
+        "
         onClick={(e) => e.stopPropagation()}
       >
         {/* ICON */}
@@ -71,29 +71,48 @@ export default function SuccessModal({
         </div>
 
         {/* TITLE */}
-        <h2 className="text-lg font-semibold text-gray-800">
+        <h2 className="text-xl font-semibold text-gray-800 text-center">
           {title}
         </h2>
 
-        {/* DESC */}
-        {message && (
-          <p className="mt-2 text-sm text-gray-600">
-            {message}
-          </p>
-        )}
+        {/* MESSAGE */}
+        <p className="mt-2 text-sm text-gray-600 text-center">
+          {message}
+        </p>
 
         {/* REVIEW DATA */}
         {isReviewMode && (
-          <div className="mt-4 max-h-[300px] overflow-y-auto text-sm text-left">
-            {Object.entries(data).map(([key, value]) => (
+          <div className="mt-6 max-h-[360px] overflow-y-auto rounded-lg border border-gray-300">
+            
+            {/* HEADER TABLE (KCIC RED) */}
+            <div className="grid grid-cols-2 bg-[#8D1231] text-white text-sm font-bold border-b">
+              <div className="px-4 py-3 border-r border-white/30">
+                Informasi
+              </div>
+              <div className="px-4 py-3">
+                Data Penumpang
+              </div>
+            </div>
+
+            {/* ROWS */}
+            {Object.entries(data).map(([key, value], index) => (
               <div
                 key={key}
-                className="flex justify-between gap-3 border-b py-1"
+                className={`
+                  grid grid-cols-2 text-sm
+                  ${index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                  border-b last:border-b-0
+                `}
               >
-                <span className="text-gray-500">{key}</span>
-                <span className="font-medium">
-                  {value || '-'}
-                </span>
+                {/* FIELD */}
+                <div className="px-4 py-2 font-semibold text-gray-700 border-r border-gray-300">
+                  {key}
+                </div>
+
+                {/* VALUE */}
+                <div className="px-4 py-2 text-gray-900 font-medium break-words">
+                  {value || "-"}
+                </div>
               </div>
             ))}
           </div>
@@ -106,7 +125,7 @@ export default function SuccessModal({
               onClick={onClose}
               className="flex-1 rounded-md border px-4 py-2 text-sm"
             >
-              {isReviewMode ? 'Back' : 'Close'}
+              {isReviewMode ? "Back" : "Close"}
             </button>
           )}
 

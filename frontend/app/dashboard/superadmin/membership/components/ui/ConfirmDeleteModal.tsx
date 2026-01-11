@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { useEffect } from "react";
+import { AlertTriangle } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -21,17 +21,17 @@ export default function ConfirmDeleteModal({
     if (!open) return;
 
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         onCancel();
       }
     };
 
-    document.addEventListener('keydown', handleEsc);
-    document.body.style.overflow = 'hidden';
+    document.addEventListener("keydown", handleEsc);
+    document.body.style.overflow = "hidden";
 
     return () => {
-      document.removeEventListener('keydown', handleEsc);
-      document.body.style.overflow = 'auto';
+      document.removeEventListener("keydown", handleEsc);
+      document.body.style.overflow = "auto";
     };
   }, [open, onCancel]);
 
@@ -47,14 +47,12 @@ export default function ConfirmDeleteModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* ICON */}
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-          <AlertTriangle className="text-red-600" />
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#8D1231]/10">
+          <AlertTriangle className="text-[#8D1231]" />
         </div>
 
         {/* TITLE */}
-        <h2 className="text-lg font-semibold text-gray-800">
-          Delete Data
-        </h2>
+        <h2 className="text-lg font-semibold text-gray-800">Delete Data</h2>
 
         {/* DESC */}
         <p className="mt-2 text-sm text-gray-600">

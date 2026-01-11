@@ -244,6 +244,161 @@ const deleteRoutes = new Elysia()
     }
   );
 
+// KTP Detection routes - petugas, supervisor, admin, superadmin
+const detectionRoutes = new Elysia()
+  .use(rbacMiddleware(["petugas", "supervisor", "admin", "superadmin"]))
+  .post(
+    "/ktp-detect",
+    async (context) => {
+      const { body, query, set } = context as typeof context & AuthContextUser;
+      try {
+        // Handle multipart/form-data
+        const formData = body as any;
+        const file = formData?.image || formData?.file || formData?.ktp;
+
+        // Get query parameters for detection options
+        const returnMultiple = query?.return_multiple === "true";
+        const minConfidence = query?.min_confidence 
+          ? parseFloat(query.min_confidence as string) 
+          : 0.5;
+
+        if (!file) {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("Image file is required. Please upload a KTP image.")
+          );
+        }
+
+        // Convert to File object if it's not already
+        let fileObj: File;
+        if (file instanceof File) {
+          fileObj = file;
+        } else if (file && typeof file === "object" && "data" in file) {
+          const fileData = file as any;
+          fileObj = new File([fileData.data], fileData.name || "ktp.jpg", {
+            type: fileData.type || "image/jpeg",
+          });
+        } else {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("Invalid file format. Please upload a valid image file.")
+          );
+        }
+
+        // Validate file type
+        const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+        if (!allowedTypes.includes(fileObj.type)) {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("Invalid file type. Please upload a JPEG, PNG, or WebP image.")
+          );
+        }
+
+        // Validate file size (max 10MB)
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (fileObj.size > maxSize) {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("File size too large. Maximum size is 10MB.")
+          );
+        }
+
+        // Validate min_confidence
+        if (minConfidence < 0 || minConfidence > 1) {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("min_confidence must be between 0 and 1.")
+          );
+        }
+
+        const result = await MemberService.detectKTP(fileObj, returnMultiple, minConfidence);
+        return result;
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      body: t.Object({
+        image: t.File({
+          type: ["image/jpeg", "image/jpg", "image/png", "image/webp"],
+        }),
+      }),
+      query: t.Optional(t.Object({
+        return_multiple: t.Optional(t.String({ description: "Set to 'true' to return all detections" })),
+        min_confidence: t.Optional(t.String({ description: "Minimum confidence threshold (0-1), default: 0.5" })),
+      })),
+      response: {
+        200: MemberModel.ktpDetectionResponse,
+        400: MemberModel.errorResponse,
+        401: MemberModel.errorResponse,
+        403: MemberModel.errorResponse,
+        500: MemberModel.errorResponse,
+      },
+        detail: {
+          tags: ["Members"],
+          summary: "Detect and crop KTP from image",
+          description: `Detect KTP in uploaded image and return cropped KTP image(s) using YOLO machine learning model.
+
+**File Requirements:**
+- **Format**: JPEG, JPG, PNG, or WebP
+- **Max Size**: 10MB
+- **Field Name**: \`image\` (also accepts \`file\` or \`ktp\`)
+
+**Query Parameters:**
+- \`return_multiple\` (optional): Set to \`"true"\` to return all detected KTPs. Default: \`false\` (returns only the best detection)
+- \`min_confidence\` (optional): Minimum confidence threshold (0-1). Default: \`0.5\`
+
+**Response:**
+- \`sessionId\`: Session ID for retrieving cropped image(s) later (valid for 30 minutes)
+- \`cropped_image\`: Base64 encoded cropped KTP image (single detection, if \`return_multiple=false\`)
+- \`cropped_images\`: Array of cropped images with bbox and confidence (if \`return_multiple=true\`)
+- \`bbox\`: Bounding box coordinates [x1, y1, x2, y2] (single detection)
+- \`original_size\`: Original image size [width, height]
+- \`confidence\`: Detection confidence score (single detection, optional)
+
+**Usage Flow:**
+1. Upload image to this endpoint (optionally with \`return_multiple=true\` for multiple detections)
+2. Receive cropped KTP image(s) (base64) and \`sessionId\`
+3. Display cropped image(s) to user for confirmation
+4. Send \`sessionId\` (or \`cropped_image\` base64) to \`/members/ocr-extract\` endpoint for OCR extraction
+
+**Example with Multiple Detections:**
+\`\`\`
+POST /members/ktp-detect?return_multiple=true&min_confidence=0.6
+\`\`\`
+
+**Access Control:**
+- Roles allowed: petugas, supervisor, admin, superadmin`,
+        requestBody: {
+          content: {
+            "multipart/form-data": {
+              schema: {
+                type: "object",
+                required: ["image"],
+                properties: {
+                  image: {
+                    type: "string",
+                    format: "binary",
+                    description: "KTP image file (JPEG, PNG, or WebP, max 10MB)",
+                  },
+                },
+              },
+              encoding: {
+                image: {
+                  contentType: "image/jpeg, image/png, image/webp",
+                },
+              },
+            },
+          },
+        },
+      },
+    }
+  );
+
 // OCR Extract routes - petugas, supervisor, admin, superadmin
 const ocrRoutes = new Elysia()
   .use(rbacMiddleware(["petugas", "supervisor", "admin", "superadmin"]))
@@ -256,11 +411,50 @@ const ocrRoutes = new Elysia()
         // Elysia automatically parses multipart/form-data
         const formData = body as any;
         const file = formData?.image || formData?.file || formData?.ktp;
+        const croppedImageBase64 = formData?.cropped_image;
+        const sessionId = formData?.session_id;
 
+        // Either file upload, cropped_image base64, or sessionId must be provided
+        if (!file && !croppedImageBase64 && !sessionId) {
+          set.status = 400;
+          return formatErrorResponse(
+            new Error("Either image file, cropped_image (base64), or session_id is required.")
+          );
+        }
+
+        // Priority: sessionId > cropped_image > file upload
+        if (sessionId) {
+          // Use sessionId to retrieve cropped image from temp storage
+          if (typeof sessionId !== "string" || sessionId.length === 0) {
+            set.status = 400;
+            return formatErrorResponse(
+              new Error("Invalid session_id format. Must be a valid session ID string.")
+            );
+          }
+
+          const result = await MemberService.extractKTPFields(sessionId, true);
+          return result;
+        }
+
+        // If cropped_image is provided, use it directly
+        if (croppedImageBase64) {
+          // Validate base64 format
+          if (typeof croppedImageBase64 !== "string" || croppedImageBase64.length === 0) {
+            set.status = 400;
+            return formatErrorResponse(
+              new Error("Invalid cropped_image format. Must be a base64 string.")
+            );
+          }
+
+          const result = await MemberService.extractKTPFields(croppedImageBase64);
+          return result;
+        }
+
+        // Otherwise, process uploaded file
         if (!file) {
           set.status = 400;
           return formatErrorResponse(
-            new Error("Image file is required. Please upload a KTP image.")
+            new Error("Image file is required when cropped_image or session_id is not provided.")
           );
         }
 
@@ -311,9 +505,21 @@ const ocrRoutes = new Elysia()
     },
     {
       body: t.Object({
-        image: t.File({
-          type: ["image/jpeg", "image/jpg", "image/png", "image/webp"],
-        }),
+        image: t.Optional(
+          t.File({
+            type: ["image/jpeg", "image/jpg", "image/png", "image/webp"],
+          })
+        ),
+        cropped_image: t.Optional(
+          t.String({
+            description: "Base64 encoded cropped KTP image (from /members/ktp-detect endpoint). If provided, this will be used instead of uploaded file.",
+          })
+        ),
+        session_id: t.Optional(
+          t.String({
+            description: "Session ID from /members/ktp-detect endpoint. If provided, cropped image will be retrieved from temporary storage.",
+          })
+        ),
       }),
       response: {
         200: MemberModel.ocrExtractResponse,
@@ -325,12 +531,26 @@ const ocrRoutes = new Elysia()
       detail: {
         tags: ["Members"],
         summary: "Extract KTP fields using OCR",
-        description: `Extract KTP fields (NIK, name, gender, address) from uploaded KTP image using OCR.
+          description: `Extract KTP fields (NIK, name, gender, address) from uploaded KTP image, cropped image, or session ID using OCR.
 
-**File Requirements:**
+**Input Options (Priority Order):**
+1. **Use session ID** (Recommended): Use \`session_id\` field (session ID from /members/ktp-detect)
+   - Most efficient: retrieves pre-cropped image from temporary storage
+   - Session expires after 30 minutes
+2. **Use cropped image**: Use \`cropped_image\` field (base64 string from /members/ktp-detect)
+   - Direct base64 image data
+3. **Upload file**: Use \`image\` field (multipart/form-data)
+   - Full image upload (will be processed directly)
+
+**File Requirements (if uploading):**
 - **Format**: JPEG, JPG, PNG, or WebP
 - **Max Size**: 10MB
 - **Field Name**: \`image\` (also accepts \`file\` or \`ktp\`)
+
+**Recommended Flow:**
+1. Upload image to \`/members/ktp-detect\` to get cropped KTP image and \`sessionId\`
+2. Display cropped image to user for confirmation
+3. Send \`sessionId\` to this endpoint using \`session_id\` field (or use \`cropped_image\` base64)
 
 **How to Test in Swagger UI:**
 1. Click "Try it out" button
@@ -397,4 +617,5 @@ export const members = new Elysia({ prefix: "/members" })
   .use(writeRoutes)
   .use(updateRoutes)
   .use(deleteRoutes)
+  .use(detectionRoutes)
   .use(ocrRoutes);
