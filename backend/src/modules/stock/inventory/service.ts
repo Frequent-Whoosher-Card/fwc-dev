@@ -476,4 +476,24 @@ export class CardInventoryService {
       };
     });
   }
+
+  // Get Low Stock Alerts (Mirroring StockService for convenience)
+  static async getLowStockAlerts() {
+    const alerts = await db.inbox.findMany({
+      where: {
+        type: "LOW_STOCK",
+      },
+      orderBy: { sentAt: "desc" },
+      take: 20,
+    });
+
+    return alerts.map((a) => ({
+      id: a.id,
+      title: a.title,
+      message: a.message,
+      sentAt: a.sentAt.toISOString(),
+      isRead: a.isRead,
+      payload: a.payload,
+    }));
+  }
 }
