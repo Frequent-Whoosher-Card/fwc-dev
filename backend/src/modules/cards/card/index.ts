@@ -194,6 +194,50 @@ const baseRoutes = new Elysia()
           "Get detailed card information by serial number. Useful for looking up cards when you only have the serial number. Returns card data including card product information (category and type).",
       },
     }
+  )
+  // Update Card
+  .patch(
+    "/:id",
+    async (context) => {
+      const { params, body, user, set } = context as typeof context &
+        AuthContextUser;
+      try {
+        const updatedCard = await CardService.updateCard(params.id, {
+          status: body.status,
+          notes: body.notes,
+          userId: user.id,
+        });
+
+        return {
+          success: true,
+          message: "Card updated successfully",
+          data: updatedCard,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: CardModel.updateCardBody,
+      response: {
+        200: CardModel.updateCardResponse,
+        400: CardModel.errorResponse,
+        401: CardModel.errorResponse,
+        403: CardModel.errorResponse,
+        500: CardModel.errorResponse,
+      },
+      detail: {
+        tags: ["Card"],
+        summary: "Update card status and notes",
+        description:
+          "Update card status and notes. Only allows status and notes modifications.",
+      },
+    }
   );
 
 export const cards = new Elysia({ prefix: "/cards" }).use(baseRoutes);
