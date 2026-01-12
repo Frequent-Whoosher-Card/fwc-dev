@@ -1,31 +1,46 @@
 import { Elysia } from 'elysia';
 import { SupersetService } from './service';
 
-export const superset = new Elysia({ prefix: '/superset' }).get('/guest-token', async ({ query, set }) => {
-  try {
-    const dashboardId = query.dashboardId as string;
-
-    if (!dashboardId) {
-      set.status = 400;
+export const superset = new Elysia({ prefix: '/superset' })
+  .get('/admin-token', async () => {
+    try {
+      const token = await SupersetService.getAdminToken();
+      return {
+        success: true,
+        token: token,
+      };
+    } catch (err: any) {
       return {
         success: false,
-        message: 'dashboardId required',
+        message: err.message || 'Failed to get admin token',
       };
     }
+  })
+  .get('/guest-token', async ({ query, set }) => {
+    try {
+      const dashboardId = query.dashboardId as string;
 
-    const token = await SupersetService.createGuestToken(dashboardId);
+      if (!dashboardId) {
+        set.status = 400;
+        return {
+          success: false,
+          message: 'dashboardId required',
+        };
+      }
 
-    return {
-      success: true,
-      token,
-    };
-  } catch (err: any) {
-    console.error('[SUPERSET ERROR]', err);
+      const token = await SupersetService.createGuestToken(dashboardId);
 
-    set.status = 500;
-    return {
-      success: false,
-      message: err?.message ?? 'Superset guest token failed',
-    };
-  }
-});
+      return {
+        success: true,
+        token,
+      };
+    } catch (err: any) {
+      console.error('[SUPERSET ERROR]', err);
+
+      set.status = 500;
+      return {
+        success: false,
+        message: err?.message ?? 'Superset guest token failed',
+      };
+    }
+  });
