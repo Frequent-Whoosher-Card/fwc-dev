@@ -28,16 +28,37 @@ const baseRoutes = new Elysia()
     async (context) => {
       const { query, set, user } = context as typeof context & AuthContextUser;
       try {
+        // Helper function to filter out "undefined" string values
+        const cleanParam = (value: any) => {
+          if (
+            value === "undefined" ||
+            value === undefined ||
+            value === null ||
+            value === ""
+          ) {
+            return undefined;
+          }
+          return value;
+        };
+
+        // Helper to safely parse integer
+        const safeParseInt = (value: any) => {
+          const cleaned = cleanParam(value);
+          if (cleaned === undefined) return undefined;
+          const parsed = parseInt(cleaned);
+          return isNaN(parsed) ? undefined : parsed;
+        };
+
         const result = await PurchaseService.getAll({
-          page: query.page ? parseInt(query.page) : undefined,
-          limit: query.limit ? parseInt(query.limit) : undefined,
-          startDate: query.startDate,
-          endDate: query.endDate,
-          stationId: query.stationId,
-          categoryId: query.categoryId,
-          typeId: query.typeId,
-          operatorId: query.operatorId,
-          search: query.search,
+          page: safeParseInt(query.page),
+          limit: safeParseInt(query.limit),
+          startDate: cleanParam(query.startDate),
+          endDate: cleanParam(query.endDate),
+          stationId: cleanParam(query.stationId),
+          categoryId: cleanParam(query.categoryId),
+          typeId: cleanParam(query.typeId),
+          operatorId: cleanParam(query.operatorId),
+          search: cleanParam(query.search),
           // Pass user context for role-based filtering
           userRole: user.role.roleCode,
           userId: user.id,
@@ -228,7 +249,8 @@ const activationRoutes = new Elysia()
   .post(
     "/:id/activate",
     async (context) => {
-      const { params, body, set, user } = context as typeof context & AuthContextUser;
+      const { params, body, set, user } = context as typeof context &
+        AuthContextUser;
       try {
         const result = await ActivationService.activateCard(
           params.id,
@@ -297,7 +319,8 @@ All authenticated users with roles: petugas, supervisor, admin, superadmin`,
   .post(
     "/:id/swap-card",
     async (context) => {
-      const { params, body, set, user } = context as typeof context & AuthContextUser;
+      const { params, body, set, user } = context as typeof context &
+        AuthContextUser;
       try {
         const result = await ActivationService.swapCard(
           params.id,
@@ -367,7 +390,8 @@ All authenticated users with roles: petugas, supervisor, admin, superadmin`,
   .post(
     "/:id/cancel",
     async (context) => {
-      const { params, body, set, user } = context as typeof context & AuthContextUser;
+      const { params, body, set, user } = context as typeof context &
+        AuthContextUser;
       try {
         const result = await ActivationService.cancelPurchase(
           params.id,
@@ -436,7 +460,9 @@ All authenticated users with roles: petugas, supervisor, admin, superadmin`,
     async (context) => {
       const { params, set } = context;
       try {
-        const result = await ActivationService.getPurchaseActivationStatus(params.id);
+        const result = await ActivationService.getPurchaseActivationStatus(
+          params.id
+        );
         return {
           success: true,
           data: result,
@@ -492,4 +518,3 @@ export const purchases = new Elysia({ prefix: "/purchases" })
   .use(baseRoutes)
   .use(writeRoutes)
   .use(activationRoutes);
-

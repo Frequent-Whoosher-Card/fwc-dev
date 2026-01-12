@@ -68,15 +68,17 @@ export class PurchaseService {
 
       // 4. Validate member (required)
       if (!data.memberId) {
-        throw new ValidationError("Member ID wajib diisi. Setiap transaksi harus memiliki member.");
+        throw new ValidationError(
+          "Member ID wajib diisi. Setiap transaksi harus memiliki member."
+        );
       }
 
-        const member = await tx.member.findUnique({
-          where: { id: data.memberId },
-        });
+      const member = await tx.member.findUnique({
+        where: { id: data.memberId },
+      });
 
-        if (!member || member.deletedAt) {
-          throw new NotFoundError("Member tidak ditemukan");
+      if (!member || member.deletedAt) {
+        throw new NotFoundError("Member tidak ditemukan");
       }
 
       // 5. Validate operator exists
@@ -99,7 +101,7 @@ export class PurchaseService {
 
       // 7. Validate EDC reference number (ensure uniqueness)
       const edcReferenceNumber = data.edcReferenceNumber.trim();
-      
+
       if (!edcReferenceNumber) {
         throw new ValidationError("No. Reference EDC tidak boleh kosong");
       }
@@ -124,9 +126,10 @@ export class PurchaseService {
       expiredDate.setDate(expiredDate.getDate() + masaBerlaku);
 
       // 8.5. Determine final price: use input price or default to cardProduct.price
-      const finalPrice = data.price !== undefined && data.price !== null
-        ? data.price
-        : Number(card.cardProduct.price);
+      const finalPrice =
+        data.price !== undefined && data.price !== null
+          ? data.price
+          : Number(card.cardProduct.price);
 
       // 9. Create purchase record
       const purchase = await tx.cardPurchase.create({
@@ -205,15 +208,15 @@ export class PurchaseService {
     userId?: string;
     userStationId?: string | null;
   }) {
-    const { 
-      page = 1, 
-      limit = 10, 
-      startDate, 
-      endDate, 
-      stationId, 
-      categoryId, 
-      typeId, 
-      operatorId, 
+    const {
+      page = 1,
+      limit = 10,
+      startDate,
+      endDate,
+      stationId,
+      categoryId,
+      typeId,
+      operatorId,
       search,
       userRole,
       userId,
@@ -232,7 +235,7 @@ export class PurchaseService {
       today.setHours(0, 0, 0, 0);
       const todayEnd = new Date();
       todayEnd.setHours(23, 59, 59, 999);
-      
+
       where.operatorId = userId; // Hanya transaksi yang dibuat oleh petugas ini
       where.purchaseDate = {
         gte: today,
@@ -411,7 +414,9 @@ export class PurchaseService {
         : null,
       card: {
         ...item.card,
-        expiredDate: item.card.expiredDate ? item.card.expiredDate.toISOString() : null,
+        expiredDate: item.card.expiredDate
+          ? item.card.expiredDate.toISOString()
+          : null,
         cardProduct: {
           ...item.card.cardProduct,
           totalQuota: item.card.cardProduct.totalQuota,
@@ -526,7 +531,9 @@ export class PurchaseService {
       price: Number(purchase.price),
       notes: purchase.notes,
       activationStatus: purchase.activationStatus,
-      activatedAt: purchase.activatedAt ? purchase.activatedAt.toISOString() : null,
+      activatedAt: purchase.activatedAt
+        ? purchase.activatedAt.toISOString()
+        : null,
       activatedBy: purchase.activatedBy,
       physicalCardSerialNumber: purchase.physicalCardSerialNumber,
       createdAt: purchase.createdAt.toISOString(),
@@ -535,7 +542,9 @@ export class PurchaseService {
       updatedByName: updater?.fullName || null,
       card: {
         ...purchase.card,
-        expiredDate: purchase.card.expiredDate ? purchase.card.expiredDate.toISOString() : null,
+        expiredDate: purchase.card.expiredDate
+          ? purchase.card.expiredDate.toISOString()
+          : null,
         cardProduct: {
           ...purchase.card.cardProduct,
           totalQuota: purchase.card.cardProduct.totalQuota,
@@ -548,4 +557,3 @@ export class PurchaseService {
     };
   }
 }
-
