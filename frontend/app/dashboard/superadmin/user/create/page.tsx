@@ -1,13 +1,12 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import {
-  ArrowLeft,
-  Phone,
-  Mail,
-  ChevronDown,
-} from 'lucide-react';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Phone, Mail, ChevronDown } from "lucide-react";
+
+import { createUser, getRoles, RoleItem } from "@/lib/services/user.service";
+
+import { getStations, StationItem } from "@/lib/services/station.service";
 
 /* ======================
    TYPES
@@ -18,12 +17,12 @@ interface UserForm {
   username: string;
   email: string;
   phone: string;
-  role: string;
-  stasiun: string;
+  roleId: string; // UUID
+  stationId: string; // UUID
 }
 
 /* ======================
-   SUCCESS MODAL (CREATE ONLY)
+   SUCCESS MODAL
 ====================== */
 function SuccessModal({
   open,
@@ -44,7 +43,7 @@ function SuccessModal({
         <h3 className="text-lg font-semibold">Data Saved</h3>
 
         <p className="mt-2 text-sm text-gray-500">
-          The new member’s data has been saved to the database
+          The new user has been saved to the database
         </p>
 
         <button
@@ -65,67 +64,110 @@ export default function CreateUserPage() {
   const router = useRouter();
 
   const [form, setForm] = useState<UserForm>({
-    name: '',
-    nip: '',
-    username: '',
-    email: '',
-    phone: '',
-    role: '',
-    stasiun: '',
+    name: "",
+    nip: "",
+    username: "",
+    email: "",
+    phone: "",
+    roleId: "",
+    stationId: "",
   });
 
+  const [roles, setRoles] = useState<RoleItem[]>([]);
+  const [stations, setStations] = useState<StationItem[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showSuccess, setShowSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   /* ======================
      HELPERS
   ====================== */
-  const onlyNumber = (value: string) =>
-    value.replace(/\D/g, '');
+  const onlyNumber = (value: string) => value.replace(/\D/g, "");
 
   const isValidEmail = (email: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   /* ======================
+   FETCH ROLES
+====================== */
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const res = await getRoles();
+        setRoles(res.data); // ⬅️ PENTING
+      } catch (err) {
+        console.error("Failed fetch roles", err);
+        setRoles([]);
+      }
+    };
+
+    fetchRoles();
+  }, []);
+
+
+/* ======================
+   FETCH STATIONS
+====================== */
+useEffect(() => {
+  const fetchStations = async () => {
+    try {
+      const res = await getStations({ limit: 50 });
+      setStations(res.data?.items ?? []);
+    } catch (err) {
+      console.error("Failed fetch stations", err);
+      setStations([]);
+    }
+  };
+
+  fetchStations();
+}, []);
+
+
+  /* ======================
      SUBMIT
   ====================== */
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const newErrors: Record<string, string> = {};
 
-    if (!form.name) newErrors.name = 'Name is required';
-    if (!form.nip) newErrors.nip = 'NIP is required';
-    if (!form.username) newErrors.username = 'Username is required';
-    if (!form.phone) newErrors.phone = 'Phone number is required';
+    if (!form.name) newErrors.name = "Name is required";
+    if (!form.nip) newErrors.nip = "NIP is required";
+    if (!form.username) newErrors.username = "Username is required";
+    if (!form.phone) newErrors.phone = "Phone number is required";
 
     if (!form.email) {
-      newErrors.email = 'Email is required';
+      newErrors.email = "Email is required";
     } else if (!isValidEmail(form.email)) {
-      newErrors.email = 'Invalid email format';
+      newErrors.email = "Invalid email format";
     }
 
-    if (!form.role) newErrors.role = 'Role is required';
-    if (!form.stasiun) newErrors.stasiun = 'Stasiun is required';
+    if (!form.roleId) newErrors.roleId = "Role is required";
+    if (!form.stationId) newErrors.stationId = "Stasiun is required";
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
 
-    const stored = JSON.parse(
-      localStorage.getItem('fwc_users') || '[]'
-    );
+    try {
+      setLoading(true);
 
-    const newUser = {
-      id: Date.now(),
-      ...form,
-    };
+      await createUser({
+        username: form.username,
+        fullName: form.name,
+        email: form.email || null,
+        phone: form.phone || null,
+        nip: form.nip,
+        roleId: form.roleId,
+        password: "Default@123", // ⚠️ sesuaikan policy BE
+      });
 
-    localStorage.setItem(
-      'fwc_users',
-      JSON.stringify([...stored, newUser])
-    );
-
-    setShowSuccess(true);
+      setShowSuccess(true);
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message || "Failed create user");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -140,9 +182,7 @@ export default function CreateUserPage() {
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
-            <h2 className="text-lg font-semibold">
-              Add Users
-            </h2>
+            <h2 className="text-lg font-semibold">Add Users</h2>
           </div>
 
           {/* FORM */}
@@ -152,9 +192,7 @@ export default function CreateUserPage() {
               <input
                 placeholder="Name"
                 value={form.name}
-                onChange={(e) =>
-                  setForm({ ...form, name: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
                 className="h-11 w-full rounded-md border px-4 text-sm focus:ring-1 focus:ring-[#7A0C2E]"
               />
               {errors.name && (
@@ -186,9 +224,7 @@ export default function CreateUserPage() {
               <input
                 placeholder="Username"
                 value={form.username}
-                onChange={(e) =>
-                  setForm({ ...form, username: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, username: e.target.value })}
                 className="h-11 w-full rounded-md border px-4 text-sm focus:ring-1 focus:ring-[#7A0C2E]"
               />
               {errors.username && (
@@ -199,20 +235,20 @@ export default function CreateUserPage() {
             {/* ROLE */}
             <div className="relative">
               <select
-                value={form.role}
-                onChange={(e) =>
-                  setForm({ ...form, role: e.target.value })
-                }
+                value={form.roleId}
+                onChange={(e) => setForm({ ...form, roleId: e.target.value })}
                 className="h-11 w-full appearance-none rounded-md border px-4 text-sm focus:ring-1 focus:ring-[#7A0C2E]"
               >
                 <option value="">Role</option>
-                <option>Super Admin</option>
-                <option>Admin</option>
-                <option>Petugas</option>
+                {roles.map((role) => (
+                  <option key={role.id} value={role.id}>
+                    {role.roleName}
+                  </option>
+                ))}
               </select>
               <ChevronDown className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              {errors.role && (
-                <p className="text-xs text-red-500">{errors.role}</p>
+              {errors.roleId && (
+                <p className="text-xs text-red-500">{errors.roleId}</p>
               )}
             </div>
 
@@ -242,9 +278,7 @@ export default function CreateUserPage() {
                 type="email"
                 placeholder="Email Address"
                 value={form.email}
-                onChange={(e) =>
-                  setForm({ ...form, email: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
                 className="h-11 w-full rounded-md border px-4 pr-10 text-sm focus:ring-1 focus:ring-[#7A0C2E]"
               />
               <Mail className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -256,21 +290,22 @@ export default function CreateUserPage() {
             {/* STASIUN */}
             <div className="relative md:col-span-2">
               <select
-                value={form.stasiun}
+                value={form.stationId}
                 onChange={(e) =>
-                  setForm({ ...form, stasiun: e.target.value })
+                  setForm({ ...form, stationId: e.target.value })
                 }
                 className="h-11 w-full appearance-none rounded-md border px-4 text-sm focus:ring-1 focus:ring-[#7A0C2E]"
               >
                 <option value="">Stasiun</option>
-                <option>Halim</option>
-                <option>Karawang</option>
-                <option>Padalarang</option>
-                <option>Tegalluar</option>
+                {stations.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.stationName}
+                  </option>
+                ))}
               </select>
               <ChevronDown className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              {errors.stasiun && (
-                <p className="text-xs text-red-500">{errors.stasiun}</p>
+              {errors.stationId && (
+                <p className="text-xs text-red-500">{errors.stationId}</p>
               )}
             </div>
           </div>
@@ -279,9 +314,10 @@ export default function CreateUserPage() {
           <div className="mt-10 flex justify-end">
             <button
               onClick={handleSubmit}
-              className="h-11 rounded-md bg-[#7A0C2E] px-10 text-sm font-medium text-white hover:opacity-90"
+              disabled={loading}
+              className="h-11 rounded-md bg-[#7A0C2E] px-10 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
             >
-              Submit
+              {loading ? "Saving..." : "Submit"}
             </button>
           </div>
         </div>
@@ -292,7 +328,7 @@ export default function CreateUserPage() {
         open={showSuccess}
         onClose={() => {
           setShowSuccess(false);
-          router.push('/dashboard/superadmin/user');
+          router.push("/dashboard/superadmin/user");
         }}
       />
     </>
