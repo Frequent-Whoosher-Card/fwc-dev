@@ -73,6 +73,79 @@ const baseRoutes = new Elysia()
         description: "Validasi stok keluar oleh petugas station.",
       },
     }
+  )
+  .get(
+    "/",
+    async (context) => {
+      const { query, set } = context;
+      try {
+        const result = await StockOutService.getHistory({
+          page: query.page ? parseInt(query.page) : undefined,
+          limit: query.limit ? parseInt(query.limit) : undefined,
+          startDate: query.startDate ? new Date(query.startDate) : undefined,
+          endDate: query.endDate ? new Date(query.endDate) : undefined,
+          stationId: query.stationId,
+          status: query.status as any,
+          search: query.search,
+          stationName: query.stationName,
+          categoryName: query.categoryName,
+          typeName: query.typeName,
+        });
+
+        return {
+          success: true,
+          data: result,
+        };
+      } catch (error) {
+        set.status = 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      query: StockOutModel.getHistoryQuery,
+      response: {
+        200: StockOutModel.getHistoryResponse,
+        500: StockOutModel.errorResponse,
+      },
+      detail: {
+        tags: ["Stock Out"],
+        summary: "Get Stock Out History",
+        description:
+          "Melihat riwayat distribusi stok keluar. Bisa filter by station, status, date.",
+      },
+    }
+  )
+  .get(
+    "/:id",
+    async (context) => {
+      const { params, set } = context;
+      try {
+        const result = await StockOutService.getDetail(params.id);
+        return {
+          success: true,
+          data: result,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      response: {
+        200: StockOutModel.getDetailResponse,
+        404: StockOutModel.errorResponse,
+        500: StockOutModel.errorResponse,
+      },
+      detail: {
+        tags: ["Stock Out"],
+        summary: "Get Stock Out Detail",
+        description:
+          "Melihat detail distribusi, termasuk log serial number yang dikirim, diterima, dan hilang.",
+      },
+    }
   );
 
 const adminRoutes = new Elysia()
@@ -158,79 +231,6 @@ const adminRoutes = new Elysia()
         summary: "Stock Out Distribution",
         description:
           "Menyimpan distribusi stok ke tabel stock_out dengan status PENDING. Role: superadmin/admin.",
-      },
-    }
-  )
-  .get(
-    "/",
-    async (context) => {
-      const { query, set } = context;
-      try {
-        const result = await StockOutService.getHistory({
-          page: query.page ? parseInt(query.page) : undefined,
-          limit: query.limit ? parseInt(query.limit) : undefined,
-          startDate: query.startDate ? new Date(query.startDate) : undefined,
-          endDate: query.endDate ? new Date(query.endDate) : undefined,
-          stationId: query.stationId,
-          status: query.status as any,
-          search: query.search,
-          stationName: query.stationName,
-          categoryName: query.categoryName,
-          typeName: query.typeName,
-        });
-
-        return {
-          success: true,
-          data: result,
-        };
-      } catch (error) {
-        set.status = 500;
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      query: StockOutModel.getHistoryQuery,
-      response: {
-        200: StockOutModel.getHistoryResponse,
-        500: StockOutModel.errorResponse,
-      },
-      detail: {
-        tags: ["Stock Out"],
-        summary: "Get Stock Out History",
-        description:
-          "Melihat riwayat distribusi stok keluar. Bisa filter by station, status, date.",
-      },
-    }
-  )
-  .get(
-    "/:id",
-    async (context) => {
-      const { params, set } = context;
-      try {
-        const result = await StockOutService.getDetail(params.id);
-        return {
-          success: true,
-          data: result,
-        };
-      } catch (error) {
-        set.status =
-          error instanceof Error && "statusCode" in error
-            ? (error as any).statusCode
-            : 500;
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      response: {
-        200: StockOutModel.getDetailResponse,
-        404: StockOutModel.errorResponse,
-        500: StockOutModel.errorResponse,
-      },
-      detail: {
-        tags: ["Stock Out"],
-        summary: "Get Stock Out Detail",
-        description:
-          "Melihat detail distribusi, termasuk log serial number yang dikirim, diterima, dan hilang.",
       },
     }
   )
