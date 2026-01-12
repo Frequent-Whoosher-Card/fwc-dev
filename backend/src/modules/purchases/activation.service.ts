@@ -34,9 +34,7 @@ export class ActivationService {
 
     // Check if already activated
     if (purchase.activationStatus === "ACTIVATED") {
-      throw new ValidationError(
-        "Purchase sudah diaktivasi sebelumnya"
-      );
+      throw new ValidationError("Purchase sudah diaktivasi sebelumnya");
     }
 
     // Check if cancelled
@@ -47,13 +45,14 @@ export class ActivationService {
     }
 
     // Validate physical card serial number matches assigned serial number
-    const assignedSerialNumber = purchase.card.assignedSerialNumber || purchase.card.serialNumber;
-    
+    const assignedSerialNumber =
+      purchase.card.assignedSerialNumber || purchase.card.serialNumber;
+
     if (assignedSerialNumber !== physicalCardSerialNumber) {
       throw new ValidationError(
         `Serial number kartu fisik tidak sesuai.\n` +
-        `Kartu yang seharusnya: ${assignedSerialNumber}\n` +
-        `Kartu yang diberikan: ${physicalCardSerialNumber}`
+          `Kartu yang seharusnya: ${assignedSerialNumber}\n` +
+          `Kartu yang diberikan: ${physicalCardSerialNumber}`
       );
     }
 
@@ -61,7 +60,7 @@ export class ActivationService {
     if (purchase.card.status !== "ASSIGNED") {
       throw new ValidationError(
         `Status kartu tidak valid untuk aktivasi (status: ${purchase.card.status}). ` +
-        `Kartu harus berstatus ASSIGNED.`
+          `Kartu harus berstatus ASSIGNED.`
       );
     }
 
@@ -212,16 +211,19 @@ export class ActivationService {
     if (correctCard.status !== "IN_STATION") {
       throw new ValidationError(
         `Kartu ${correctCardSerialNumber} tidak tersedia untuk purchase (status: ${correctCard.status}). ` +
-        `Kartu harus berstatus IN_STATION.`
+          `Kartu harus berstatus IN_STATION.`
       );
     }
 
     // Validate correct card matches same category as original purchase
-    if (correctCard.cardProduct.categoryId !== purchase.card.cardProduct.categoryId) {
+    if (
+      correctCard.cardProduct.categoryId !==
+      purchase.card.cardProduct.categoryId
+    ) {
       throw new ValidationError(
         `Kategori kartu tidak sesuai.\n` +
-        `Kategori seharusnya: ${purchase.card.cardProduct.category.categoryName}\n` +
-        `Kategori kartu yang dipilih: ${correctCard.cardProduct.category.categoryName}`
+          `Kategori seharusnya: ${purchase.card.cardProduct.category.categoryName}\n` +
+          `Kategori kartu yang dipilih: ${correctCard.cardProduct.category.categoryName}`
       );
     }
 
