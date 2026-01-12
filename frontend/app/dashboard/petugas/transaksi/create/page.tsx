@@ -1,248 +1,260 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { API_BASE_URL } from '@/lib/apiConfig'
-import { CalendarIcon, DollarSignIcon, SearchIcon } from 'lucide-react'
-import { toast } from 'sonner'
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { API_BASE_URL } from "@/lib/apiConfig";
+import { CalendarIcon, DollarSignIcon, SearchIcon } from "lucide-react";
+import { toast } from "sonner";
 
 // Types
 interface Member {
-  id: string
-  name: string
-  identityNumber: string
-  nippKai: string | null
-  email: string | null
-  phone: string | null
+  id: string;
+  name: string;
+  identityNumber: string;
+  nippKai: string | null;
+  email: string | null;
+  phone: string | null;
 }
 
 interface Card {
-  id: string
-  serialNumber: string
-  status: string
+  id: string;
+  serialNumber: string;
+  status: string;
   cardProduct: {
-    id: string
+    id: string;
     category: {
-      id: string
-      categoryCode: string
-      categoryName: string
-    }
+      id: string;
+      categoryCode: string;
+      categoryName: string;
+    };
     type: {
-      id: string
-      typeCode: string
-      typeName: string
-    }
-    price: string
-    masaBerlaku: number
-  }
+      id: string;
+      typeCode: string;
+      typeName: string;
+    };
+    price: string;
+    masaBerlaku: number;
+  };
 }
 
 interface CardCategory {
-  id: string
-  categoryCode: string
-  categoryName: string
+  id: string;
+  categoryCode: string;
+  categoryName: string;
 }
 
 interface CardType {
-  id: string
-  typeCode: string
-  typeName: string
+  id: string;
+  typeCode: string;
+  typeName: string;
 }
 
 export default function CreatePurchasePage() {
-  const router = useRouter()
-  
+  const router = useRouter();
+
   // Member state
-  const [memberMode, setMemberMode] = useState<'select' | 'create'>('select')
-  const [memberSearchQuery, setMemberSearchQuery] = useState('')
-  const [memberSearchResults, setMemberSearchResults] = useState<Member[]>([])
-  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
-  const [selectedMember, setSelectedMember] = useState<Member | null>(null)
-  const [isSearchingMember, setIsSearchingMember] = useState(false)
-  
+  const [memberMode, setMemberMode] = useState<"select" | "create">("select");
+  const [memberSearchQuery, setMemberSearchQuery] = useState("");
+  const [memberSearchResults, setMemberSearchResults] = useState<Member[]>([]);
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [isSearchingMember, setIsSearchingMember] = useState(false);
+
   // New member form
   const [newMember, setNewMember] = useState({
-    name: '',
-    identityNumber: '',
-    nippKai: '',
-    email: '',
-    phone: '',
-    gender: '',
-    alamat: '',
-    notes: ''
-  })
-  const [isCreatingMember, setIsCreatingMember] = useState(false)
-  
+    name: "",
+    identityNumber: "",
+    nippKai: "",
+    email: "",
+    phone: "",
+    gender: "",
+    alamat: "",
+    notes: "",
+  });
+  const [isCreatingMember, setIsCreatingMember] = useState(false);
+
   // Card state
-  const [cardSearchQuery, setCardSearchQuery] = useState('')
-  const [cardSearchResults, setCardSearchResults] = useState<Card[]>([])
-  const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
-  const [selectedCard, setSelectedCard] = useState<Card | null>(null)
-  const [isSearchingCard, setIsSearchingCard] = useState(false)
-  
+  const [cardSearchQuery, setCardSearchQuery] = useState("");
+  const [cardSearchResults, setCardSearchResults] = useState<Card[]>([]);
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+  const [isSearchingCard, setIsSearchingCard] = useState(false);
+
   // Card categories and types
-  const [cardCategories, setCardCategories] = useState<CardCategory[]>([])
-  const [cardTypes, setCardTypes] = useState<CardType[]>([])
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('')
-  const [selectedTypeId, setSelectedTypeId] = useState<string>('')
-  
+  const [cardCategories, setCardCategories] = useState<CardCategory[]>([]);
+  const [cardTypes, setCardTypes] = useState<CardType[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
+  const [selectedTypeId, setSelectedTypeId] = useState<string>("");
+
   // Transaction form
-  const [edcReferenceNumber, setEdcReferenceNumber] = useState('')
-  const [price, setPrice] = useState<string>('')
-  const [notes, setNotes] = useState('')
-  
+  const [edcReferenceNumber, setEdcReferenceNumber] = useState("");
+  const [price, setPrice] = useState<string>("");
+  const [notes, setNotes] = useState("");
+
   // Auto-calculated fields
-  const [expiredDate, setExpiredDate] = useState<string>('')
-  const [purchasedDate, setPurchasedDate] = useState<string>('')
-  const [station, setStation] = useState<string>('')
-  
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [expiredDate, setExpiredDate] = useState<string>("");
+  const [purchasedDate, setPurchasedDate] = useState<string>("");
+  const [station, setStation] = useState<string>("");
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Load card categories and types on mount
   useEffect(() => {
     const loadCardCategories = async () => {
       try {
         const response = await fetch(`${API_BASE_URL}/card-categories`, {
-          credentials: 'include'
-        })
+          credentials: "include",
+        });
         if (response.ok) {
-          const data = await response.json()
-          setCardCategories(data.data || [])
+          const data = await response.json();
+          setCardCategories(data.data || []);
         }
       } catch (error) {
-        console.error('Failed to load card categories:', error)
+        console.error("Failed to load card categories:", error);
       }
-    }
+    };
 
     const loadCardTypes = async () => {
       try {
         const response = await fetch(`${API_BASE_URL}/card-types`, {
-          credentials: 'include'
-        })
+          credentials: "include",
+        });
         if (response.ok) {
-          const data = await response.json()
-          setCardTypes(data.data || [])
+          const data = await response.json();
+          setCardTypes(data.data || []);
         }
       } catch (error) {
-        console.error('Failed to load card types:', error)
+        console.error("Failed to load card types:", error);
       }
-    }
+    };
 
-    loadCardCategories()
-    loadCardTypes()
-    
+    loadCardCategories();
+    loadCardTypes();
+
     // Set purchased date to today
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    setPurchasedDate(today.toISOString().split('T')[0])
-  }, [])
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    setPurchasedDate(today.toISOString().split("T")[0]);
+  }, []);
 
   // Search members with debounce
   useEffect(() => {
     if (memberSearchQuery.trim().length < 2) {
-      setMemberSearchResults([])
-      return
+      setMemberSearchResults([]);
+      return;
     }
 
     const timeoutId = setTimeout(async () => {
-      setIsSearchingMember(true)
+      setIsSearchingMember(true);
       try {
         const response = await fetch(
-          `${API_BASE_URL}/members?search=${encodeURIComponent(memberSearchQuery)}&limit=10`,
-          { credentials: 'include' }
-        )
+          `${API_BASE_URL}/members?search=${encodeURIComponent(
+            memberSearchQuery
+          )}&limit=10`,
+          { credentials: "include" }
+        );
         if (response.ok) {
-          const data = await response.json()
-          setMemberSearchResults(data.data?.items || [])
+          const data = await response.json();
+          setMemberSearchResults(data.data?.items || []);
         }
       } catch (error) {
-        console.error('Failed to search members:', error)
+        console.error("Failed to search members:", error);
       } finally {
-        setIsSearchingMember(false)
+        setIsSearchingMember(false);
       }
-    }, 500)
+    }, 500);
 
-    return () => clearTimeout(timeoutId)
-  }, [memberSearchQuery])
+    return () => clearTimeout(timeoutId);
+  }, [memberSearchQuery]);
 
   // Search cards with debounce
   useEffect(() => {
-    if (cardSearchQuery.trim().length < 2 && !selectedCategoryId && !selectedTypeId) {
-      setCardSearchResults([])
-      return
+    if (
+      cardSearchQuery.trim().length < 2 &&
+      !selectedCategoryId &&
+      !selectedTypeId
+    ) {
+      setCardSearchResults([]);
+      return;
     }
 
     const timeoutId = setTimeout(async () => {
-      setIsSearchingCard(true)
+      setIsSearchingCard(true);
       try {
-        const params = new URLSearchParams()
+        const params = new URLSearchParams();
         if (cardSearchQuery.trim()) {
-          params.append('search', cardSearchQuery.trim())
+          params.append("search", cardSearchQuery.trim());
         }
         if (selectedCategoryId) {
-          params.append('categoryId', selectedCategoryId)
+          params.append("categoryId", selectedCategoryId);
         }
         if (selectedTypeId) {
-          params.append('typeId', selectedTypeId)
+          params.append("typeId", selectedTypeId);
         }
-        params.append('status', 'IN_STATION')
-        params.append('limit', '10')
+        params.append("status", "IN_STATION");
+        params.append("limit", "10");
 
         const response = await fetch(
           `${API_BASE_URL}/cards?${params.toString()}`,
-          { credentials: 'include' }
-        )
+          { credentials: "include" }
+        );
         if (response.ok) {
-          const data = await response.json()
-          setCardSearchResults(data.data?.items || [])
+          const data = await response.json();
+          setCardSearchResults(data.data?.items || []);
         }
       } catch (error) {
-        console.error('Failed to search cards:', error)
+        console.error("Failed to search cards:", error);
       } finally {
-        setIsSearchingCard(false)
+        setIsSearchingCard(false);
       }
-    }, 500)
+    }, 500);
 
-    return () => clearTimeout(timeoutId)
-  }, [cardSearchQuery, selectedCategoryId, selectedTypeId])
+    return () => clearTimeout(timeoutId);
+  }, [cardSearchQuery, selectedCategoryId, selectedTypeId]);
 
   // Handle member selection
   const handleSelectMember = async (memberId: string) => {
     try {
       const response = await fetch(`${API_BASE_URL}/members/${memberId}`, {
-        credentials: 'include'
-      })
+        credentials: "include",
+      });
       if (response.ok) {
-        const data = await response.json()
-        const member = data.data
-        setSelectedMemberId(memberId)
-        setSelectedMember(member)
-        setMemberSearchQuery('')
-        setMemberSearchResults([])
+        const data = await response.json();
+        const member = data.data;
+        setSelectedMemberId(memberId);
+        setSelectedMember(member);
+        setMemberSearchQuery("");
+        setMemberSearchResults([]);
       }
     } catch (error) {
-      console.error('Failed to fetch member:', error)
-      toast.error('Gagal memuat data member')
+      console.error("Failed to fetch member:", error);
+      toast.error("Gagal memuat data member");
     }
-  }
+  };
 
   // Handle create new member
   const handleCreateMember = async () => {
     if (!newMember.name || !newMember.identityNumber) {
-      toast.error('Nama dan NIK wajib diisi')
-      return
+      toast.error("Nama dan NIK wajib diisi");
+      return;
     }
 
-    setIsCreatingMember(true)
+    setIsCreatingMember(true);
     try {
       const response = await fetch(`${API_BASE_URL}/members`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           name: newMember.name,
           identityNumber: newMember.identityNumber,
@@ -251,141 +263,152 @@ export default function CreatePurchasePage() {
           phone: newMember.phone || undefined,
           gender: newMember.gender || undefined,
           alamat: newMember.alamat || undefined,
-          notes: newMember.notes || undefined
-        })
-      })
+          notes: newMember.notes || undefined,
+        }),
+      });
 
       if (response.ok) {
-        const data = await response.json()
-        const newMemberData = data.data
-        setSelectedMemberId(newMemberData.id)
-        setSelectedMember(newMemberData)
-        setMemberMode('select')
-        toast.success('Member berhasil didaftarkan')
-        
+        const data = await response.json();
+        const newMemberData = data.data;
+        setSelectedMemberId(newMemberData.id);
+        setSelectedMember(newMemberData);
+        setMemberMode("select");
+        toast.success("Member berhasil didaftarkan");
+
         // Reset form
         setNewMember({
-          name: '',
-          identityNumber: '',
-          nippKai: '',
-          email: '',
-          phone: '',
-          gender: '',
-          alamat: '',
-          notes: ''
-        })
+          name: "",
+          identityNumber: "",
+          nippKai: "",
+          email: "",
+          phone: "",
+          gender: "",
+          alamat: "",
+          notes: "",
+        });
       } else {
-        const error = await response.json()
-        toast.error(error.error?.message || 'Gagal mendaftarkan member')
+        const error = await response.json();
+        toast.error(error.error?.message || "Gagal mendaftarkan member");
       }
     } catch (error) {
-      console.error('Failed to create member:', error)
-      toast.error('Gagal mendaftarkan member')
+      console.error("Failed to create member:", error);
+      toast.error("Gagal mendaftarkan member");
     } finally {
-      setIsCreatingMember(false)
+      setIsCreatingMember(false);
     }
-  }
+  };
 
   // Handle card selection
   const handleSelectCard = async (cardId: string) => {
     try {
       // TODO: Endpoint GET /cards/:id dengan include cardProduct perlu dibuat
       // Untuk sementara, menggunakan endpoint yang mungkin sudah ada
-      const response = await fetch(`${API_BASE_URL}/cards/${cardId}?include=cardProduct`, {
-        credentials: 'include'
-      })
+      const response = await fetch(
+        `${API_BASE_URL}/cards/${cardId}?include=cardProduct`,
+        {
+          credentials: "include",
+        }
+      );
       if (response.ok) {
-        const data = await response.json()
-        const card = data.data
-        setSelectedCardId(cardId)
-        setSelectedCard(card)
-        setCardSearchQuery('')
-        setCardSearchResults([])
-        
+        const data = await response.json();
+        const card = data.data;
+        setSelectedCardId(cardId);
+        setSelectedCard(card);
+        setCardSearchQuery("");
+        setCardSearchResults([]);
+
         // Set default price
         if (card.cardProduct?.price) {
-          setPrice(parseFloat(card.cardProduct.price).toString())
+          setPrice(parseFloat(card.cardProduct.price).toString());
         }
-        
+
         // Calculate expired date
         if (card.cardProduct?.masaBerlaku) {
-          const today = new Date()
-          today.setHours(0, 0, 0, 0)
-          const expired = new Date(today)
-          expired.setDate(expired.getDate() + card.cardProduct.masaBerlaku)
-          setExpiredDate(expired.toISOString().split('T')[0])
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const expired = new Date(today);
+          expired.setDate(expired.getDate() + card.cardProduct.masaBerlaku);
+          setExpiredDate(expired.toISOString().split("T")[0]);
         }
       }
     } catch (error) {
-      console.error('Failed to fetch card:', error)
-      toast.error('Gagal memuat data kartu')
+      console.error("Failed to fetch card:", error);
+      toast.error("Gagal memuat data kartu");
     }
-  }
+  };
 
   // Handle submit purchase
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     // Validation
     if (!selectedMemberId) {
-      toast.error('Member harus dipilih atau didaftarkan')
-      return
+      toast.error("Member harus dipilih atau didaftarkan");
+      return;
     }
 
     if (!selectedCardId) {
-      toast.error('Kartu harus dipilih')
-      return
+      toast.error("Kartu harus dipilih");
+      return;
     }
 
     if (!edcReferenceNumber.trim()) {
-      toast.error('No. Reference EDC wajib diisi')
-      return
+      toast.error("No. Reference EDC wajib diisi");
+      return;
     }
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
     try {
       const response = await fetch(`${API_BASE_URL}/purchases`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           cardId: selectedCardId,
           memberId: selectedMemberId,
           edcReferenceNumber: edcReferenceNumber.trim(),
           price: price ? parseFloat(price) : undefined,
-          notes: notes || undefined
-        })
-      })
+          notes: notes || undefined,
+        }),
+      });
 
       if (response.ok) {
-        const data = await response.json()
-        toast.success('Purchase berhasil dibuat! Status: PENDING - Perlu aktivasi.')
-        
+        const data = await response.json();
+        toast.success(
+          "Purchase berhasil dibuat! Status: PENDING - Perlu aktivasi."
+        );
+
         // Redirect to purchases list with activation prompt
-        router.push('/dashboard/petugas/transaksi')
+        router.push("/dashboard/petugas/transaksi");
       } else {
-        const error = await response.json()
-        toast.error(error.error?.message || 'Gagal membuat transaksi')
+        const error = await response.json();
+        toast.error(error.error?.message || "Gagal membuat transaksi");
       }
     } catch (error) {
-      console.error('Failed to create purchase:', error)
-      toast.error('Gagal membuat transaksi')
+      console.error("Failed to create purchase:", error);
+      toast.error("Gagal membuat transaksi");
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold">Purchased (Step 1: Create Purchase)</h1>
+          <h1 className="text-2xl font-bold">
+            Purchased (Step 1: Create Purchase)
+          </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Buat transaksi purchase baru. Setelah dibuat, kartu perlu diaktivasi dengan scan serial number fisik.
+            Buat transaksi purchase baru. Setelah dibuat, kartu perlu diaktivasi
+            dengan scan serial number fisik.
           </p>
         </div>
-        
-        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm p-6 space-y-6">
+
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white rounded-lg shadow-sm p-6 space-y-6"
+        >
           {/* Member Section */}
           <div className="space-y-4">
             <div className="flex gap-4 mb-4">
@@ -393,8 +416,8 @@ export default function CreatePurchasePage() {
                 <input
                   type="radio"
                   name="memberMode"
-                  checked={memberMode === 'select'}
-                  onChange={() => setMemberMode('select')}
+                  checked={memberMode === "select"}
+                  onChange={() => setMemberMode("select")}
                   className="w-4 h-4"
                 />
                 <span>Pilih Member yang Ada</span>
@@ -403,15 +426,15 @@ export default function CreatePurchasePage() {
                 <input
                   type="radio"
                   name="memberMode"
-                  checked={memberMode === 'create'}
-                  onChange={() => setMemberMode('create')}
+                  checked={memberMode === "create"}
+                  onChange={() => setMemberMode("create")}
                   className="w-4 h-4"
                 />
                 <span>Daftar Member Baru</span>
               </label>
             </div>
 
-            {memberMode === 'select' ? (
+            {memberMode === "select" ? (
               <div className="space-y-4">
                 <div className="relative">
                   <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -423,11 +446,11 @@ export default function CreatePurchasePage() {
                     className="pl-10"
                   />
                 </div>
-                
+
                 {isSearchingMember && (
                   <p className="text-sm text-gray-500">Mencari...</p>
                 )}
-                
+
                 {memberSearchResults.length > 0 && (
                   <div className="border rounded-md max-h-48 overflow-y-auto">
                     {memberSearchResults.map((member) => (
@@ -448,7 +471,9 @@ export default function CreatePurchasePage() {
 
                 {selectedMember && (
                   <div className="p-4 bg-green-50 border border-green-200 rounded-md">
-                    <p className="text-sm text-green-700 font-medium">Member terpilih: {selectedMember.name}</p>
+                    <p className="text-sm text-green-700 font-medium">
+                      Member terpilih: {selectedMember.name}
+                    </p>
                   </div>
                 )}
               </div>
@@ -458,7 +483,9 @@ export default function CreatePurchasePage() {
                   <Label>Customer Name *</Label>
                   <Input
                     value={newMember.name}
-                    onChange={(e) => setNewMember({ ...newMember, name: e.target.value })}
+                    onChange={(e) =>
+                      setNewMember({ ...newMember, name: e.target.value })
+                    }
                     placeholder="Customer Name"
                     required
                   />
@@ -467,7 +494,9 @@ export default function CreatePurchasePage() {
                   <Label>NIP</Label>
                   <Input
                     value={newMember.nippKai}
-                    onChange={(e) => setNewMember({ ...newMember, nippKai: e.target.value })}
+                    onChange={(e) =>
+                      setNewMember({ ...newMember, nippKai: e.target.value })
+                    }
                     placeholder="NIP"
                   />
                 </div>
@@ -475,7 +504,12 @@ export default function CreatePurchasePage() {
                   <Label>NIK *</Label>
                   <Input
                     value={newMember.identityNumber}
-                    onChange={(e) => setNewMember({ ...newMember, identityNumber: e.target.value })}
+                    onChange={(e) =>
+                      setNewMember({
+                        ...newMember,
+                        identityNumber: e.target.value,
+                      })
+                    }
                     placeholder="NIK"
                     required
                   />
@@ -486,7 +520,9 @@ export default function CreatePurchasePage() {
                     <Input
                       type="email"
                       value={newMember.email}
-                      onChange={(e) => setNewMember({ ...newMember, email: e.target.value })}
+                      onChange={(e) =>
+                        setNewMember({ ...newMember, email: e.target.value })
+                      }
                       placeholder="Email"
                     />
                   </div>
@@ -494,7 +530,9 @@ export default function CreatePurchasePage() {
                     <Label>Phone</Label>
                     <Input
                       value={newMember.phone}
-                      onChange={(e) => setNewMember({ ...newMember, phone: e.target.value })}
+                      onChange={(e) =>
+                        setNewMember({ ...newMember, phone: e.target.value })
+                      }
                       placeholder="Phone"
                     />
                   </div>
@@ -503,7 +541,9 @@ export default function CreatePurchasePage() {
                   <Label>Gender</Label>
                   <Select
                     value={newMember.gender}
-                    onValueChange={(value) => setNewMember({ ...newMember, gender: value })}
+                    onValueChange={(value) =>
+                      setNewMember({ ...newMember, gender: value })
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Pilih Gender" />
@@ -518,7 +558,9 @@ export default function CreatePurchasePage() {
                   <Label>Alamat</Label>
                   <Input
                     value={newMember.alamat}
-                    onChange={(e) => setNewMember({ ...newMember, alamat: e.target.value })}
+                    onChange={(e) =>
+                      setNewMember({ ...newMember, alamat: e.target.value })
+                    }
                     placeholder="Alamat"
                   />
                 </div>
@@ -528,7 +570,7 @@ export default function CreatePurchasePage() {
                   disabled={isCreatingMember}
                   className="w-full"
                 >
-                  {isCreatingMember ? 'Mendaftarkan...' : 'Daftar Member'}
+                  {isCreatingMember ? "Mendaftarkan..." : "Daftar Member"}
                 </Button>
               </div>
             )}
@@ -538,15 +580,27 @@ export default function CreatePurchasePage() {
               <div className="grid grid-cols-3 gap-4 pt-4 border-t">
                 <div>
                   <Label>Customer Name</Label>
-                  <Input value={selectedMember.name} readOnly className="bg-gray-50" />
+                  <Input
+                    value={selectedMember.name}
+                    readOnly
+                    className="bg-gray-50"
+                  />
                 </div>
                 <div>
                   <Label>NIP</Label>
-                  <Input value={selectedMember.nippKai || ''} readOnly className="bg-gray-50" />
+                  <Input
+                    value={selectedMember.nippKai || ""}
+                    readOnly
+                    className="bg-gray-50"
+                  />
                 </div>
                 <div>
                   <Label>NIK</Label>
-                  <Input value={selectedMember.identityNumber} readOnly className="bg-gray-50" />
+                  <Input
+                    value={selectedMember.identityNumber}
+                    readOnly
+                    className="bg-gray-50"
+                  />
                 </div>
               </div>
             )}
@@ -607,11 +661,11 @@ export default function CreatePurchasePage() {
                   className="pl-10"
                 />
               </div>
-              
+
               {isSearchingCard && (
                 <p className="text-sm text-gray-500 mt-2">Mencari...</p>
               )}
-              
+
               {cardSearchResults.length > 0 && (
                 <div className="border rounded-md max-h-48 overflow-y-auto mt-2">
                   {cardSearchResults.map((card) => (
@@ -622,7 +676,8 @@ export default function CreatePurchasePage() {
                     >
                       <div className="font-medium">{card.serialNumber}</div>
                       <div className="text-sm text-gray-500">
-                        {card.cardProduct?.category?.categoryName} - {card.cardProduct?.type?.typeName}
+                        {card.cardProduct?.category?.categoryName} -{" "}
+                        {card.cardProduct?.type?.typeName}
                       </div>
                     </div>
                   ))}
@@ -644,7 +699,9 @@ export default function CreatePurchasePage() {
                 <div>
                   <Label>Card Category</Label>
                   <Input
-                    value={selectedCard.cardProduct?.category?.categoryName || ''}
+                    value={
+                      selectedCard.cardProduct?.category?.categoryName || ""
+                    }
                     readOnly
                     className="bg-gray-50"
                   />
@@ -652,7 +709,7 @@ export default function CreatePurchasePage() {
                 <div>
                   <Label>Card Type</Label>
                   <Input
-                    value={selectedCard.cardProduct?.type?.typeName || ''}
+                    value={selectedCard.cardProduct?.type?.typeName || ""}
                     readOnly
                     className="bg-gray-50"
                   />
@@ -710,7 +767,10 @@ export default function CreatePurchasePage() {
                 </div>
                 {selectedCard && (
                   <p className="text-xs text-gray-500 mt-1">
-                    Default: Rp {parseFloat(selectedCard.cardProduct?.price || '0').toLocaleString('id-ID')}
+                    Default: Rp{" "}
+                    {parseFloat(
+                      selectedCard.cardProduct?.price || "0"
+                    ).toLocaleString("id-ID")}
                   </p>
                 )}
               </div>
@@ -732,7 +792,7 @@ export default function CreatePurchasePage() {
               <div>
                 <Label>Stasiun</Label>
                 <Input
-                  value={station || 'Otomatis dari akun Anda'}
+                  value={station || "Otomatis dari akun Anda"}
                   readOnly
                   className="bg-gray-50"
                 />
@@ -753,28 +813,35 @@ export default function CreatePurchasePage() {
           <div className="flex justify-between items-center pt-6 border-t">
             <div className="text-sm text-muted-foreground">
               <p className="font-medium">ℹ️ Two-Step Activation</p>
-              <p>Kartu akan berstatus PENDING dan perlu diaktivasi dengan scan serial number.</p>
+              <p>
+                Kartu akan berstatus PENDING dan perlu diaktivasi dengan scan
+                serial number.
+              </p>
             </div>
             <div className="flex gap-2">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => router.push('/dashboard/petugas/transaksi')}
+                onClick={() => router.push("/dashboard/petugas/transaksi")}
               >
                 Batal
               </Button>
               <Button
                 type="submit"
-                disabled={isSubmitting || !selectedMemberId || !selectedCardId || !edcReferenceNumber.trim()}
+                disabled={
+                  isSubmitting ||
+                  !selectedMemberId ||
+                  !selectedCardId ||
+                  !edcReferenceNumber.trim()
+                }
                 className="bg-red-700 hover:bg-red-800 text-white px-8"
               >
-                {isSubmitting ? 'Menyimpan...' : 'Simpan Purchase'}
+                {isSubmitting ? "Menyimpan..." : "Simpan Purchase"}
               </Button>
             </div>
           </div>
         </form>
       </div>
     </div>
-  )
+  );
 }
-
