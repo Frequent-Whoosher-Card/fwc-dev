@@ -303,7 +303,7 @@ export default function UserManagementPage() {
                     <div className="flex justify-center gap-2">
                       <button
                         onClick={() =>
-                          router.push(`/dashboard/superadmin/user/edit/${u.id}`)
+                          router.push(`/dashboard/superadmin/user/${u.id}/edit`)
                         }
                         className="rounded-lg bg-gray-200 px-3 py-1 text-xs"
                       >

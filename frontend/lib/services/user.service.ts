@@ -181,6 +181,8 @@ export const updateUser = (
     phone?: string | null;
     nip?: string;
     roleId?: string;
+    stationId?: string; // ✅ TAMBAHAN FIELD
+
     isActive?: boolean;
   }
 ) => {
