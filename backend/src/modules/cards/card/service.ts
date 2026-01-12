@@ -42,6 +42,7 @@ export class CardService {
     if (search) {
       where.OR = [
         { serialNumber: { contains: search, mode: "insensitive" } },
+        { notes: { contains: search, mode: "insensitive" } },
         {
           cardProduct: {
             category: {
@@ -55,7 +56,7 @@ export class CardService {
           },
         },
         {
-          station: { stationName: { contains: search, mode: "insensitive" } },
+          station: { stationCode: { contains: search, mode: "insensitive" } },
         },
       ];
     }
@@ -157,6 +158,7 @@ export class CardService {
               stationCode: true,
             },
           },
+          notes: true,
         },
       }),
       db.card.count({ where }),
@@ -175,6 +177,7 @@ export class CardService {
             stationCode: card.station.stationCode,
           }
         : null,
+      notes: card.notes || null, // Added notes to mapping
     }));
 
     return {
