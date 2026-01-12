@@ -2,7 +2,7 @@
 ALTER TYPE "CardStatus" ADD VALUE 'ON_REQUEST';
 
 -- AlterTable
-ALTER TABLE "card_redeem" RENAME CONSTRAINT "redeem_pkey" TO "card_redeem_pkey";
+-- ALTER TABLE "card_redeem" RENAME CONSTRAINT "redeem_pkey" TO "card_redeem_pkey";
 
 -- CreateIndex
 CREATE INDEX "cards_card_product_id_serial_number_idx" ON "cards"("card_product_id", "serial_number");

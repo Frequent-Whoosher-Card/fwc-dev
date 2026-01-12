@@ -126,6 +126,7 @@ model Station {
   cardStockMovements CardStockMovement[]
   users              User[]
   inboxes            Inbox[]
+  cards              Card[]
 
   @@map("stations")
 }
@@ -163,6 +164,7 @@ model Card {
   memberId      String?    @map("member_id") @db.Uuid
   userId        String?    @map("user_id") @db.Uuid
   cardProductId String     @map("card_product_id") @db.Uuid
+  stationId     String?    @map("station_id") @db.Uuid
   quotaTicket   Int        @default(0) @map("quota_ticket")
   purchaseDate  DateTime?  @map("purchase_date")
   expiredDate   DateTime?  @map("expired_date")
@@ -180,6 +182,7 @@ model Card {
   member        Member?        @relation(fields: [memberId], references: [id], onDelete: Restrict)
   user          User?          @relation(fields: [userId], references: [id], onDelete: Restrict)
   fileObject    FileObject?    @relation(fields: [fileObjectId], references: [id])
+  station       Station?       @relation(fields: [stationId], references: [id])
   redeems       Redeem[]
   purchases     CardPurchase[]
 

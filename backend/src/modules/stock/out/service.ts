@@ -423,6 +423,7 @@ export class StockOutService {
             status: "IN_STATION",
             updatedAt: new Date(),
             updatedBy: validatorUserId,
+            stationId: validatorStationId,
           },
         });
       }
