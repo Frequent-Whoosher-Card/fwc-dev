@@ -176,6 +176,7 @@ model Card {
   updatedBy            String?    @map("updated_by") @db.Uuid
   deletedAt            DateTime?  @map("deleted_at")
   deletedBy            String?    @map("deleted_by") @db.Uuid
+  notes                String?    @map("notes")
 
   // Relasi
   cardUsageLogs CardUsageLog[]
@@ -303,7 +304,7 @@ model Member {
   nippKai        String?   @map("nipp_kai")
   gender         Gender?
   alamat         String?
-  notes          String?
+  notes          String?   @map("notes")
   createdAt      DateTime  @default(now()) @map("created_at")
   createdBy      String?   @map("created_by") @db.Uuid
   updatedAt      DateTime  @default(now()) @map("updated_at")
@@ -436,7 +437,10 @@ model PasswordResetToken {
   updatedBy String?   @map("updated_by") @db.Uuid
   deletedAt DateTime? @map("deleted_at")
   deletedBy String?   @map("deleted_by") @db.Uuid
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes     String?   @map("notes")
+
+  // Relasi
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("password_reset_tokens")
 }
