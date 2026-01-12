@@ -158,23 +158,24 @@ model CardProduct {
 }
 
 model Card {
-  id            String     @id @default(uuid()) @map("card_id") @db.Uuid
-  serialNumber  String     @unique @map("serial_number")
-  fileObjectId  String?    @map("file_object_id") @db.Uuid
-  memberId      String?    @map("member_id") @db.Uuid
-  userId        String?    @map("user_id") @db.Uuid
-  cardProductId String     @map("card_product_id") @db.Uuid
-  stationId     String?    @map("station_id") @db.Uuid
-  quotaTicket   Int        @default(0) @map("quota_ticket")
-  purchaseDate  DateTime?  @map("purchase_date")
-  expiredDate   DateTime?  @map("expired_date")
-  status        CardStatus @default(IN_OFFICE) @map("status_card")
-  createdAt     DateTime   @default(now()) @map("created_at")
-  createdBy     String?    @map("created_by") @db.Uuid
-  updatedAt     DateTime   @default(now()) @map("updated_at")
-  updatedBy     String?    @map("updated_by") @db.Uuid
-  deletedAt     DateTime?  @map("deleted_at")
-  deletedBy     String?    @map("deleted_by") @db.Uuid
+  id                   String     @id @default(uuid()) @map("card_id") @db.Uuid
+  serialNumber         String     @unique @map("serial_number")
+  fileObjectId         String?    @map("file_object_id") @db.Uuid
+  memberId             String?    @map("member_id") @db.Uuid
+  userId               String?    @map("user_id") @db.Uuid
+  cardProductId        String     @map("card_product_id") @db.Uuid
+  stationId            String?    @map("station_id") @db.Uuid
+  assignedSerialNumber String?    @map("assigned_serial_number")
+  quotaTicket          Int        @default(0) @map("quota_ticket")
+  purchaseDate         DateTime?  @map("purchase_date")
+  expiredDate          DateTime?  @map("expired_date")
+  status               CardStatus @default(IN_OFFICE) @map("status_card")
+  createdAt            DateTime   @default(now()) @map("created_at")
+  createdBy            String?    @map("created_by") @db.Uuid
+  updatedAt            DateTime   @default(now()) @map("updated_at")
+  updatedBy            String?    @map("updated_by") @db.Uuid
+  deletedAt            DateTime?  @map("deleted_at")
+  deletedBy            String?    @map("deleted_by") @db.Uuid
 
   // Relasi
   cardUsageLogs CardUsageLog[]
