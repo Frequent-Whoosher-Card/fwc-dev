@@ -36,7 +36,7 @@ if (serverUrl) {
 } else {
   // Use relative URL (empty string means same origin)
   servers.push({
-    url: "/",
+    url: "/api",
     description: "Current server",
   });
   // Add localhost as fallback for development
@@ -141,6 +141,10 @@ export const docsConfig = swagger({
       {
         name: "Stock Analysis",
         description: "Stock analysis endpoints for card inventory",
+      },
+      {
+        name: "Redeem",
+        description: "Redeem management endpoints",
       },
     ],
     components: {
