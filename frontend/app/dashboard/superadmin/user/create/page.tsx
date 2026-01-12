@@ -4,11 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Phone, Mail, ChevronDown } from "lucide-react";
 
-import {
-  createUser,
-  getRoles,
-  RoleItem,
-} from "@/lib/services/user.service";
+import { createUser, getRoles, RoleItem } from "@/lib/services/user.service";
+
+import { getStations, StationItem } from "@/lib/services/station.service";
 
 /* ======================
    TYPES
@@ -19,8 +17,8 @@ interface UserForm {
   username: string;
   email: string;
   phone: string;
-  roleId: string;     // ✅ FIXED
-  stasiun: string;    // (belum dikirim ke create, siap utk next step)
+  roleId: string; // UUID
+  stationId: string; // UUID
 }
 
 /* ======================
@@ -72,10 +70,11 @@ export default function CreateUserPage() {
     email: "",
     phone: "",
     roleId: "",
-    stasiun: "",
+    stationId: "",
   });
 
   const [roles, setRoles] = useState<RoleItem[]>([]);
+  const [stations, setStations] = useState<StationItem[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showSuccess, setShowSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -92,17 +91,37 @@ export default function CreateUserPage() {
      FETCH ROLES
   ====================== */
   useEffect(() => {
-    const fetchRoles = async () => {
+    const fetchStations = async () => {
       try {
-        const res = await getRoles();
-        setRoles(res.data.filter((r) => r.isActive));
+        const res = await getStations({ limit: 50 });
+
+        // ✅ INI YANG BENAR
+        setStations(res.data.items);
       } catch (err) {
-        console.error("Failed fetch roles", err);
+        console.error("Failed fetch stations", err);
       }
     };
 
-    fetchRoles();
+    fetchStations();
   }, []);
+
+  /* ======================
+     FETCH STATIONS
+  ====================== */
+useEffect(() => {
+  const fetchStations = async () => {
+    try {
+      const res = await getStations({ limit: 50 });
+      setStations(res.data?.items ?? []);
+    } catch (err) {
+      console.error("Failed fetch stations", err);
+      setStations([]);
+    }
+  };
+
+  fetchStations();
+}, []);
+
 
   /* ======================
      SUBMIT
@@ -122,7 +141,7 @@ export default function CreateUserPage() {
     }
 
     if (!form.roleId) newErrors.roleId = "Role is required";
-    if (!form.stasiun) newErrors.stasiun = "Stasiun is required";
+    if (!form.stationId) newErrors.stationId = "Stasiun is required";
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -139,6 +158,7 @@ export default function CreateUserPage() {
         phone: form.phone || null,
         nip: form.nip,
         roleId: form.roleId,
+        stationId: form.stationId,
         password: "Default@123", // ⚠️ sesuaikan policy BE
       });
 
@@ -173,9 +193,7 @@ export default function CreateUserPage() {
               <input
                 placeholder="Name"
                 value={form.name}
-                onChange={(e) =>
-                  setForm({ ...form, name: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
                 className="h-11 w-full rounded-md border px-4 text-sm focus:ring-1 focus:ring-[#7A0C2E]"
               />
               {errors.name && (
@@ -207,9 +225,7 @@ export default function CreateUserPage() {
               <input
                 placeholder="Username"
                 value={form.username}
-                onChange={(e) =>
-                  setForm({ ...form, username: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, username: e.target.value })}
                 className="h-11 w-full rounded-md border px-4 text-sm focus:ring-1 focus:ring-[#7A0C2E]"
               />
               {errors.username && (
@@ -221,9 +237,7 @@ export default function CreateUserPage() {
             <div className="relative">
               <select
                 value={form.roleId}
-                onChange={(e) =>
-                  setForm({ ...form, roleId: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, roleId: e.target.value })}
                 className="h-11 w-full appearance-none rounded-md border px-4 text-sm focus:ring-1 focus:ring-[#7A0C2E]"
               >
                 <option value="">Role</option>
@@ -265,9 +279,7 @@ export default function CreateUserPage() {
                 type="email"
                 placeholder="Email Address"
                 value={form.email}
-                onChange={(e) =>
-                  setForm({ ...form, email: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
                 className="h-11 w-full rounded-md border px-4 pr-10 text-sm focus:ring-1 focus:ring-[#7A0C2E]"
               />
               <Mail className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -279,21 +291,22 @@ export default function CreateUserPage() {
             {/* STASIUN */}
             <div className="relative md:col-span-2">
               <select
-                value={form.stasiun}
+                value={form.stationId}
                 onChange={(e) =>
-                  setForm({ ...form, stasiun: e.target.value })
+                  setForm({ ...form, stationId: e.target.value })
                 }
                 className="h-11 w-full appearance-none rounded-md border px-4 text-sm focus:ring-1 focus:ring-[#7A0C2E]"
               >
                 <option value="">Stasiun</option>
-                <option>Halim</option>
-                <option>Karawang</option>
-                <option>Padalarang</option>
-                <option>Tegalluar</option>
+                {stations.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.stationName}
+                  </option>
+                ))}
               </select>
               <ChevronDown className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              {errors.stasiun && (
-                <p className="text-xs text-red-500">{errors.stasiun}</p>
+              {errors.stationId && (
+                <p className="text-xs text-red-500">{errors.stationId}</p>
               )}
             </div>
           </div>

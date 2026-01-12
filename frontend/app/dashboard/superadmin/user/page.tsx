@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
 import toast from "react-hot-toast";
+import { createUser, getRoles, RoleItem } from "@/lib/services/user.service";
 
 import { getUsers, deleteUser } from "../../../../lib/services/user.service";
 
@@ -17,9 +18,8 @@ interface User {
   username: string;
   email: string;
   phone: string;
-
-  role: string; // ADMIN | PETUGAS | SUPERVISOR
-  roleLabel: string; // Admin | Petugas | Supervisor
+  role: string;
+  roleLabel: string;
   station: string;
 }
 
@@ -50,6 +50,7 @@ export default function UserManagementPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
+  // ⬇️ value = UUID (sesuai API)
   const [role, setRole] = useState("all");
   const [station, setStation] = useState("all");
 
@@ -57,7 +58,7 @@ export default function UserManagementPage() {
   const [showDelete, setShowDelete] = useState(false);
 
   /* ======================
-     FETCH USERS (SERVER FILTER)
+     FETCH USERS
   ====================== */
   const fetchUsers = async (page: number) => {
     try {
@@ -67,21 +68,28 @@ export default function UserManagementPage() {
         page,
         limit: LIMIT,
         search: debouncedSearch || undefined,
-        roleCode: role !== "all" ? role : undefined,
+
+        // ✅ SESUAI SWAGGER
+        roleId: role !== "all" ? role : undefined,
         stationId: station !== "all" ? station : undefined,
       });
 
       const mapped: User[] = res.data.items.map((item: any) => ({
         id: item.id,
         fullname: item.fullName,
-        nip: item.nip,
+        nip: item.nip ?? "-",
         username: item.username,
         email: item.email ?? "-",
         phone: item.phone ?? "-",
-        role: item.roleCode,
-        roleLabel: item.roleName,
+
+        // ✅ AMBIL DARI SERVICE, BUKAN RAW API
+        role: item.roleCode ?? "-",
+        roleLabel: item.roleName ?? "-",
+
         station: item.stationName ?? "-",
       }));
+      console.log("USERS FROM SERVICE:", res.data.items);
+
 
       setData(mapped);
       setPagination(res.data.pagination);
@@ -151,21 +159,14 @@ export default function UserManagementPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="search operator"
-            className="
-              h-10 w-96 rounded-lg border border-gray-300
-              px-4 text-sm
-              focus:border-[#8D1231]
-              focus:ring-1 focus:ring-[#8D1231]
-            "
+            className="h-10 w-96 rounded-lg border border-gray-300 px-4 text-sm
+              focus:border-[#8D1231] focus:ring-1 focus:ring-[#8D1231]"
           />
 
           <button
             onClick={() => router.push("/dashboard/superadmin/user/create")}
-            className="
-              flex items-center gap-2 rounded-lg
-              bg-[#8D1231] px-5 py-2 text-sm text-white
-              hover:bg-[#73122E] transition
-            "
+            className="flex items-center gap-2 rounded-lg bg-[#8D1231]
+              px-5 py-2 text-sm text-white hover:bg-[#73122E]"
           >
             <Plus size={16} />
             add new User
@@ -177,29 +178,38 @@ export default function UserManagementPage() {
       <div className="flex items-center gap-4 rounded-xl border bg-white px-6 py-4 shadow-sm">
         <span className="text-sm font-semibold text-[#8D1231]">Filters:</span>
 
-        {/* STATION */}
+        {/* STATION (UUID) */}
         <select
           value={station}
           onChange={(e) => setStation(e.target.value)}
-          className="h-10 min-w-[140px] rounded-lg border px-4 text-sm"
+          className="h-10 min-w-[160px] rounded-lg border px-4 text-sm"
         >
           <option value="all">Stasiun</option>
-          <option value="Halim">Halim</option>
-          <option value="Karawang">Karawang</option>
-          <option value="Padalarang">Padalarang</option>
-          <option value="Tegalluar">Tegalluar</option>
+          <option value="60de76b2-8e6b-4d80-87a8-98789b7d9b13">Halim</option>
+          <option value="59cd9c0a-52c2-4aed-8826-fc450b33bf2b">Karawang</option>
+          <option value="0f7d5d88-342f-4185-98ef-b467a44e9f15">
+            Padalarang
+          </option>
+          <option value="9324c06d-764d-4046-a014-8cf8c5f4ce5d">
+            Tegalluar
+          </option>
         </select>
 
-        {/* ROLE */}
+        {/* ROLE (UUID) */}
         <select
           value={role}
           onChange={(e) => setRole(e.target.value)}
-          className="h-10 min-w-[140px] rounded-lg border px-4 text-sm"
+          className="h-10 min-w-[160px] rounded-lg border px-4 text-sm"
         >
           <option value="all">Role</option>
-          <option value="admin">Admin</option>
-          <option value="petugas">Petugas</option>
-          <option value="supervisor">Supervisor</option>
+          <option value="3b8845bd-5ff4-4ecb-9912-57dea897b42a">Admin</option>
+          <option value="39871847-d1c3-4433-9772-a779b0900da1">Petugas</option>
+          <option value="61a8fd34-14d8-4d40-a5fa-191af3ac8fb9">
+            Supervisor
+          </option>
+          <option value="74de7dd5-e09d-4e36-b1f8-996191a33438">
+            Super Admin
+          </option>
         </select>
 
         <button
@@ -223,7 +233,7 @@ export default function UserManagementPage() {
               <th className="px-5 py-4 text-left">NIP</th>
               <th className="px-5 py-4 text-left">Username</th>
               <th className="px-5 py-4 text-left">Email</th>
-              <th className="px-5 py-4 text-left">Phone Number</th>
+              <th className="px-5 py-4 text-left">Phone</th>
               <th className="px-5 py-4 text-left">Role</th>
               <th className="px-5 py-4 text-left">Stasiun</th>
               <th className="px-5 py-4 text-center">Aksi</th>

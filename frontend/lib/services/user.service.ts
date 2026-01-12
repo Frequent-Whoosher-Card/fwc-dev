@@ -15,6 +15,14 @@ export interface RoleItem {
   updatedAt?: string;
 }
 
+/* ---------- STATION ---------- */
+export interface StationItem {
+  id: string;
+  stationCode: string;
+  stationName: string;
+  location?: string | null;
+}
+
 /* ---------- USER ---------- */
 export interface UserListItem {
   id: string;
@@ -23,9 +31,14 @@ export interface UserListItem {
   email: string | null;
   phone: string | null;
   nip: string;
+
   roleId: string;
   roleCode: string;
   roleName: string;
+
+  stationId: string;
+  stationName: string;
+
   isActive: boolean;
   lastLogin?: string | null;
   createdAt?: string;
@@ -37,15 +50,8 @@ export interface UserDetail extends UserListItem {}
 /* =========================
    ROLE SERVICE
 ========================= */
-
-/**
- * GET ALL ROLES
- */
 export const getRoles = async () => {
-  const res = await apiFetch("/users/roles", {
-    method: "GET",
-  });
-
+  const res = await apiFetch("/users/roles", { method: "GET" });
   const data = res?.data ?? [];
 
   return {
@@ -67,17 +73,39 @@ export const getRoles = async () => {
 };
 
 /* =========================
+   STATION SERVICE
+========================= */
+export const getStations = async () => {
+  const res = await apiFetch("/station", { method: "GET" });
+  const data = res?.data?.items ?? [];
+
+  return {
+    ...res,
+    data: Array.isArray(data)
+      ? data.map(
+          (item: any): StationItem => ({
+            id: String(item.id),
+            stationCode: item.stationCode ?? "",
+            stationName: item.stationName ?? "",
+            location: item.location ?? null,
+          })
+        )
+      : [],
+  };
+};
+
+/* =========================
    USER SERVICE
 ========================= */
 
 /**
- * GET ALL USERS (pagination)
+ * GET ALL USERS (pagination + filter)
  */
 export const getUsers = async (params?: {
   page?: number;
   limit?: number;
   search?: string;
-  roleCode?: string;
+  roleId?: string;
   stationId?: string;
 }) => {
   const query = new URLSearchParams();
@@ -85,17 +113,12 @@ export const getUsers = async (params?: {
   query.append("page", String(params?.page ?? 1));
   query.append("limit", String(params?.limit ?? 10));
 
-  if (params?.search) {
-    query.append("search", params.search);
-  }
-
-  if (params?.roleCode) {
-    query.append("roleCode", params.roleCode);
-  }
+  if (params?.search) query.append("search", params.search);
+  if (params?.roleId) query.append("roleId", params.roleId);
+  if (params?.stationId) query.append("stationId", params.stationId);
 
   const res = await apiFetch(`/users?${query.toString()}`, { method: "GET" });
-
-  const data = res?.data ?? {};
+  const data = res?.data ?? [];
 
   return {
     ...res,
@@ -109,9 +132,14 @@ export const getUsers = async (params?: {
               email: item.email ?? null,
               phone: item.phone ?? null,
               nip: item.nip ?? "",
+
               roleId: item.role?.id ?? "",
               roleCode: item.role?.roleCode ?? "",
               roleName: item.role?.roleName ?? "",
+
+              stationId: item.station?.id ?? "",
+              stationName: item.station?.stationName ?? "",
+
               isActive: Boolean(item.isActive),
               lastLogin: item.lastLogin ?? null,
               createdAt: item.createdAt,
@@ -140,9 +168,14 @@ export const getUserById = async (id: string | number) => {
       email: item.email ?? null,
       phone: item.phone ?? null,
       nip: item.nip ?? "",
+
       roleId: item.role?.id ?? "",
       roleCode: item.role?.roleCode ?? "",
       roleName: item.role?.roleName ?? "",
+
+      stationId: item.station?.id ?? "",
+      stationName: item.station?.stationName ?? "",
+
       isActive: Boolean(item.isActive),
       lastLogin: item.lastLogin ?? null,
       createdAt: item.createdAt,
@@ -161,6 +194,7 @@ export const createUser = (payload: {
   phone?: string | null;
   nip: string;
   roleId: string;
+  stationId: string;
   password: string;
 }) => {
   return apiFetch("/users", {
@@ -181,8 +215,7 @@ export const updateUser = (
     phone?: string | null;
     nip?: string;
     roleId?: string;
-    stationId?: string; // ✅ TAMBAHAN FIELD
-
+    stationId?: string;
     isActive?: boolean;
   }
 ) => {
@@ -196,7 +229,5 @@ export const updateUser = (
  * DELETE USER
  */
 export const deleteUser = (id: string | number) => {
-  return apiFetch(`/users/${id}`, {
-    method: "DELETE",
-  });
+  return apiFetch(`/users/${id}`, { method: "DELETE" });
 };

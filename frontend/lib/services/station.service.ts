@@ -28,10 +28,9 @@ export const getStations = async (params?: {
   query.append("page", String(params?.page ?? 1));
   query.append("limit", String(params?.limit ?? 50));
 
-  const res = await apiFetch(
-    `/station?${query.toString()}`,
-    { method: "GET" }
-  );
+  const res = await apiFetch(`/station?${query.toString()}`, {
+    method: "GET",
+  });
 
   const data = res?.data ?? {};
 
@@ -39,14 +38,16 @@ export const getStations = async (params?: {
     ...res,
     data: {
       items: Array.isArray(data.items)
-        ? data.items.map((item: any): StationItem => ({
-            id: item.id,
-            stationCode: item.stationCode,
-            stationName: item.stationName,
-            location: item.location,
-            createdAt: item.createdAt,
-            updatedAt: item.updatedAt,
-          }))
+        ? data.items.map(
+            (item: any): StationItem => ({
+              id: String(item.id),
+              stationCode: item.stationCode ?? "",
+              stationName: item.stationName ?? "",
+              location: item.location ?? "",
+              createdAt: item.createdAt,
+              updatedAt: item.updatedAt,
+            })
+          )
         : [],
       pagination: data.pagination,
     },
@@ -63,10 +64,10 @@ export const getStationById = async (id: string) => {
   return {
     ...res,
     data: {
-      id: s.id,
-      stationCode: s.stationCode,
-      stationName: s.stationName,
-      location: s.location,
+      id: String(s.id),
+      stationCode: s.stationCode ?? "",
+      stationName: s.stationName ?? "",
+      location: s.location ?? "",
       createdAt: s.createdAt,
       updatedAt: s.updatedAt,
     } as StationItem,
