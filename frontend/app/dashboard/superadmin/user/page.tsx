@@ -90,7 +90,6 @@ export default function UserManagementPage() {
       }));
       console.log("USERS FROM SERVICE:", res.data.items);
 
-
       setData(mapped);
       setPagination(res.data.pagination);
     } catch (err) {
@@ -226,52 +225,59 @@ export default function UserManagementPage() {
 
       {/* TABLE */}
       <div className="overflow-x-auto rounded-xl border bg-white shadow-sm">
-        <table className="min-w-[1200px] w-full">
+        <table className="w-full table-fixed">
           <thead className="bg-gray-50 text-xs font-semibold text-gray-600 border-b">
             <tr>
-              <th className="px-5 py-4 text-left">Name</th>
-              <th className="px-5 py-4 text-left">NIP</th>
-              <th className="px-5 py-4 text-left">Username</th>
-              <th className="px-5 py-4 text-left">Email</th>
-              <th className="px-5 py-4 text-left">Phone</th>
-              <th className="px-5 py-4 text-left">Role</th>
-              <th className="px-5 py-4 text-left">Stasiun</th>
-              <th className="px-5 py-4 text-center">Aksi</th>
+              <th className="w-[220px] px-5 py-4 text-left">Name</th>
+              <th className="w-[140px] px-5 py-4 text-left">NIP</th>
+              <th className="w-[160px] px-5 py-4 text-left">Username</th>
+              <th className="w-[220px] px-5 py-4 text-left">Email</th>
+              <th className="w-[160px] px-5 py-4 text-left">Phone</th>
+              <th className="w-[120px] px-5 py-4 text-left">Role</th>
+              <th className="w-[140px] px-5 py-4 text-left">Stasiun</th>
+              <th className="w-[120px] px-5 py-4 text-center">Aksi</th>
             </tr>
           </thead>
 
           <tbody>
-            {!loading &&
-              data.map((u) => (
-                <tr key={u.id} className="border-t text-sm hover:bg-gray-50">
-                  <td className="px-5 py-3">{u.fullname}</td>
-                  <td className="px-5 py-3">{u.nip}</td>
-                  <td className="px-5 py-3">{u.username}</td>
-                  <td className="px-5 py-3">{u.email}</td>
-                  <td className="px-5 py-3">{u.phone}</td>
-                  <td className="px-5 py-3">{u.roleLabel}</td>
-                  <td className="px-5 py-3">{u.station}</td>
-                  <td className="px-5 py-3 text-center">
-                    <button
-                      onClick={() =>
-                        router.push(`/dashboard/superadmin/user/${u.id}/edit`)
-                      }
-                      className="mr-2 rounded bg-gray-200 px-3 py-1 text-xs"
-                    >
+            {data.map((u) => (
+              <tr key={u.id} className="border-t text-sm hover:bg-gray-50">
+                {/* NAME */}
+                <td className="px-5 py-3">
+                  <div className="line-clamp-2 break-words">{u.fullname}</div>
+                </td>
+
+                {/* NIP */}
+                <td className="px-5 py-3 whitespace-nowrap">{u.nip}</td>
+
+                {/* USERNAME */}
+                <td className="px-5 py-3 truncate">{u.username}</td>
+
+                {/* EMAIL */}
+                <td className="px-5 py-3 truncate">{u.email}</td>
+
+                {/* PHONE */}
+                <td className="px-5 py-3 whitespace-nowrap">{u.phone}</td>
+
+                {/* ROLE */}
+                <td className="px-5 py-3 font-medium">{u.roleLabel}</td>
+
+                {/* STATION */}
+                <td className="px-5 py-3">{u.station}</td>
+
+                {/* ACTION */}
+                <td className="px-5 py-3">
+                  <div className="flex justify-center gap-2">
+                    <button className="rounded bg-gray-200 px-3 py-1 text-xs">
                       Edit
                     </button>
-                    <button
-                      onClick={() => {
-                        setSelectedUser(u);
-                        setShowDelete(true);
-                      }}
-                      className="rounded bg-[#8D1231] px-3 py-1 text-xs text-white"
-                    >
+                    <button className="rounded bg-[#8D1231] px-3 py-1 text-xs text-white">
                       Delete
                     </button>
-                  </td>
-                </tr>
-              ))}
+                  </div>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
 
