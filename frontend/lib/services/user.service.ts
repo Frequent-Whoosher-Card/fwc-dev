@@ -190,18 +190,27 @@ export const getUserById = async (id: string | number) => {
 export const createUser = (payload: {
   username: string;
   fullName: string;
+  nip: string;
   email?: string | null;
   phone?: string | null;
-  nip: string;
   roleId: string;
-  stationId: string;
   password: string;
 }) => {
   return apiFetch("/users", {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      username: payload.username,
+      password: payload.password,
+      fullName: payload.fullName,
+      email: payload.email ?? null,
+      phone: payload.phone ?? null,
+      nip: payload.nip,
+      roleId: payload.roleId,
+      isActive: true,
+    }),
   });
 };
+
 
 /**
  * UPDATE USER

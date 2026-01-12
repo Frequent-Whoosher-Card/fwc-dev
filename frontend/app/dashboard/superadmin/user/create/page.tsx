@@ -88,26 +88,26 @@ export default function CreateUserPage() {
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   /* ======================
-     FETCH ROLES
-  ====================== */
+   FETCH ROLES
+====================== */
   useEffect(() => {
-    const fetchStations = async () => {
+    const fetchRoles = async () => {
       try {
-        const res = await getStations({ limit: 50 });
-
-        // ✅ INI YANG BENAR
-        setStations(res.data.items);
+        const res = await getRoles();
+        setRoles(res.data); // ⬅️ PENTING
       } catch (err) {
-        console.error("Failed fetch stations", err);
+        console.error("Failed fetch roles", err);
+        setRoles([]);
       }
     };
 
-    fetchStations();
+    fetchRoles();
   }, []);
 
-  /* ======================
-     FETCH STATIONS
-  ====================== */
+
+/* ======================
+   FETCH STATIONS
+====================== */
 useEffect(() => {
   const fetchStations = async () => {
     try {
@@ -158,7 +158,6 @@ useEffect(() => {
         phone: form.phone || null,
         nip: form.nip,
         roleId: form.roleId,
-        stationId: form.stationId,
         password: "Default@123", // ⚠️ sesuaikan policy BE
       });
 
