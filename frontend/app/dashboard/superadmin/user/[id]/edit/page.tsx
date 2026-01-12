@@ -16,8 +16,8 @@ interface UserForm {
   username: string;
   email: string;
   phone: string;
-  role: string; // ROLE CODE
-  stasiun: string; // stationId / stationCode
+  roleId: string; // ROLE CODE
+  stationId: string; // stationId / stationCode
 }
 
 /* ======================
@@ -37,8 +37,8 @@ export default function EditUserPage() {
     username: "",
     email: "",
     phone: "",
-    role: "",
-    stasiun: "",
+    roleId: "",
+    stationId: "",
   });
 
   /* ======================
@@ -65,8 +65,8 @@ export default function EditUserPage() {
           username: res.data.username ?? "",
           email: res.data.email ?? "",
           phone: res.data.phone ?? "",
-          role: res.data.roleCode ?? "",
-          stasiun: res.data.stationId ?? "",
+  roleId: res.data.role?.id ?? "", // ✅ UUID
+          stationId: res.data.stationId ?? "",
         });
       } catch (err) {
         toast.error("Failed to load user data");
@@ -95,8 +95,8 @@ export default function EditUserPage() {
       newErrors.email = "Invalid email format";
     }
 
-    if (!form.role) newErrors.role = "Role is required";
-    if (!form.stasiun) newErrors.stasiun = "Stasiun is required";
+    if (!form.roleId) newErrors.roleId = "Role is required";
+    if (!form.stationId) newErrors.stationId = "Station is required";
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -110,8 +110,8 @@ export default function EditUserPage() {
         username: form.username,
         email: form.email,
         phone: form.phone,
-        roleId: form.role,
-        stationId: form.stasiun,
+        roleId: form.roleId,
+        stationId: form.stationId,
       });
 
       toast.success("User updated successfully");
@@ -192,8 +192,8 @@ export default function EditUserPage() {
         {/* ROLE */}
         <div className="relative">
           <select
-            value={form.role}
-            onChange={(e) => setForm({ ...form, role: e.target.value })}
+            value={form.roleId}
+            onChange={(e) => setForm({ ...form, roleId: e.target.value })}
             className="h-11 w-full appearance-none rounded-md border px-4 text-sm"
           >
             <option value="">Role</option>
@@ -244,8 +244,8 @@ export default function EditUserPage() {
         {/* STASIUN */}
         <div className="relative md:col-span-2">
           <select
-            value={form.stasiun}
-            onChange={(e) => setForm({ ...form, stasiun: e.target.value })}
+            value={form.stationId}
+            onChange={(e) => setForm({ ...form, stationId: e.target.value })}
             className="h-11 w-full appearance-none rounded-md border px-4 text-sm"
           >
             <option value="">Stasiun</option>

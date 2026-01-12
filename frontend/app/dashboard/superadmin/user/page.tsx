@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import { Plus, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
 import toast from "react-hot-toast";
 
-import { getStations } from "../../../../lib/services/station.service";
-
 import { getUsers, deleteUser } from "../../../../lib/services/user.service";
 
 /* ======================
@@ -20,9 +18,8 @@ interface User {
   email: string;
   phone: string;
 
-  role: string; // ADMIN | PETUGAS | SPV
-  roleLabel: string; // Admin | Petugas | Supervisor
-
+  role: string;       // ADMIN | PETUGAS | SUPERVISOR
+  roleLabel: string;  // Admin | Petugas | Supervisor
   station: string;
 }
 
@@ -42,7 +39,6 @@ export default function UserManagementPage() {
 
   const [data, setData] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [rawData, setRawData] = useState<User[]>([]);
 
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
@@ -53,6 +49,7 @@ export default function UserManagementPage() {
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+
   const [role, setRole] = useState("all");
   const [station, setStation] = useState("all");
 
@@ -60,7 +57,7 @@ export default function UserManagementPage() {
   const [showDelete, setShowDelete] = useState(false);
 
   /* ======================
-     FETCH USERS
+     FETCH USERS (SERVER FILTER)
   ====================== */
   const fetchUsers = async (page: number) => {
     try {
@@ -70,70 +67,50 @@ export default function UserManagementPage() {
         page,
         limit: LIMIT,
         search: debouncedSearch || undefined,
+        roleCode: role !== "all" ? role : undefined,
+        stationId: station !== "all" ? station : undefined,
       });
 
-      const mapped = res.data.items.map((item: any) => ({
+      const mapped: User[] = res.data.items.map((item: any) => ({
         id: item.id,
         fullname: item.fullName,
         nip: item.nip,
         username: item.username,
         email: item.email ?? "-",
         phone: item.phone ?? "-",
-
-        role: item.roleCode, // ⬅️ UNTUK FILTER
-        roleLabel: item.roleName, // ⬅️ UNTUK TAMPILAN
-
+        role: item.roleCode,
+        roleLabel: item.roleName,
         station: item.stationName ?? "-",
       }));
 
-      setRawData(mapped); // ⬅️ data asli
-      setData(mapped); // ⬅️ data tampil
-
+      setData(mapped);
       setPagination(res.data.pagination);
     } catch (err) {
       console.error(err);
+      toast.error("Failed load users");
     } finally {
       setLoading(false);
     }
   };
+
   /* ======================
-   EFFECTS
-====================== */
+     EFFECTS
+  ====================== */
   useEffect(() => {
     const t = setTimeout(() => {
       setDebouncedSearch(search);
-    }, 200);
-
+    }, 300);
     return () => clearTimeout(t);
   }, [search]);
 
   useEffect(() => {
-    if (pagination.page !== 1) {
-      setPagination((p) => ({ ...p, page: 1 }));
-    } else {
-      fetchUsers(1);
-    }
-  }, [debouncedSearch]); // ⬅️ HANYA SEARCH
+    setPagination((p) => ({ ...p, page: 1 }));
+    fetchUsers(1);
+  }, [debouncedSearch, role, station]);
 
   useEffect(() => {
     fetchUsers(pagination.page);
   }, [pagination.page]);
-
-  useEffect(() => {
-    let filtered = [...rawData];
-
-    if (station !== "all") {
-      filtered = filtered.filter(
-        (u) => u.station?.toLowerCase() === station.toLowerCase()
-      );
-    }
-
-    if (role !== "all") {
-      filtered = filtered.filter((u) => u.role === role);
-    }
-
-    setData(filtered);
-  }, [station, role, rawData]);
 
   /* ======================
      DELETE
@@ -143,10 +120,10 @@ export default function UserManagementPage() {
 
     try {
       await deleteUser(selectedUser.id);
+      toast.success("User deleted");
       setShowDelete(false);
       setSelectedUser(null);
       fetchUsers(pagination.page);
-      toast.success("User deleted");
     } catch (err: any) {
       toast.error(err?.message || "Failed delete user");
     }
@@ -175,8 +152,7 @@ export default function UserManagementPage() {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="search operator"
             className="
-              h-10 w-96 rounded-lg
-              border border-gray-300
+              h-10 w-96 rounded-lg border border-gray-300
               px-4 text-sm
               focus:border-[#8D1231]
               focus:ring-1 focus:ring-[#8D1231]
@@ -198,29 +174,14 @@ export default function UserManagementPage() {
       </div>
 
       {/* FILTER */}
-      <div
-        className="
-          flex items-center gap-4
-          rounded-xl border border-gray-200
-          bg-white px-6 py-4
-          shadow-sm
-        "
-      >
+      <div className="flex items-center gap-4 rounded-xl border bg-white px-6 py-4 shadow-sm">
         <span className="text-sm font-semibold text-[#8D1231]">Filters:</span>
 
+        {/* STATION */}
         <select
           value={station}
           onChange={(e) => setStation(e.target.value)}
-          className={`
-            h-10 min-w-[140px]
-            rounded-lg border px-4 text-sm
-            focus:border-[#8D1231] focus:ring-1 focus:ring-[#8D1231]
-            ${
-              station !== "all"
-                ? "border-[#8D1231] bg-red-50 text-[#8D1231]"
-                : "border-gray-300"
-            }
-          `}
+          className="h-10 min-w-[140px] rounded-lg border px-4 text-sm"
         >
           <option value="all">Stasiun</option>
           <option value="Halim">Halim</option>
@@ -229,25 +190,16 @@ export default function UserManagementPage() {
           <option value="Tegalluar">Tegalluar</option>
         </select>
 
+        {/* ROLE */}
         <select
           value={role}
           onChange={(e) => setRole(e.target.value)}
-          className={`
-            h-10 min-w-[140px]
-            rounded-lg border px-4 text-sm
-            focus:border-[#8D1231] focus:ring-1 focus:ring-[#8D1231]
-            ${
-              role !== "all"
-                ? "border-[#8D1231] bg-red-50 text-[#8D1231]"
-                : "border-gray-300"
-            }
-          `}
+          className="h-10 min-w-[140px] rounded-lg border px-4 text-sm"
         >
           <option value="all">Role</option>
-          <option value="SUPER_ADMIN">Super Admin</option>
           <option value="ADMIN">Admin</option>
-          <option value="SPV">SPV</option>
           <option value="PETUGAS">Petugas</option>
+          <option value="SUPERVISOR">Supervisor</option>
         </select>
 
         <button
@@ -256,21 +208,14 @@ export default function UserManagementPage() {
             setRole("all");
             setStation("all");
           }}
-          className="
-            flex h-10 w-10 items-center justify-center
-            rounded-lg border border-gray-300
-            text-gray-500
-            hover:border-[#8D1231]
-            hover:bg-red-50 hover:text-[#8D1231]
-            transition
-          "
+          className="flex h-10 w-10 items-center justify-center rounded-lg border"
         >
           <RotateCcw size={16} />
         </button>
       </div>
 
       {/* TABLE */}
-      <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-xl border bg-white shadow-sm">
         <table className="min-w-[1200px] w-full">
           <thead className="bg-gray-50 text-xs font-semibold text-gray-600 border-b">
             <tr>
@@ -288,42 +233,32 @@ export default function UserManagementPage() {
           <tbody>
             {!loading &&
               data.map((u) => (
-                <tr
-                  key={u.id}
-                  className="border-t text-sm hover:bg-gray-50 transition-colors"
-                >
+                <tr key={u.id} className="border-t text-sm hover:bg-gray-50">
                   <td className="px-5 py-3">{u.fullname}</td>
                   <td className="px-5 py-3">{u.nip}</td>
                   <td className="px-5 py-3">{u.username}</td>
                   <td className="px-5 py-3">{u.email}</td>
                   <td className="px-5 py-3">{u.phone}</td>
-                  <td className="px-5 py-3">{u.role}</td>
+                  <td className="px-5 py-3">{u.roleLabel}</td>
                   <td className="px-5 py-3">{u.station}</td>
-                  <td className="px-5 py-3">
-                    <div className="flex justify-center gap-2">
-                      <button
-                        onClick={() =>
-                          router.push(`/dashboard/superadmin/user/${u.id}/edit`)
-                        }
-                        className="rounded-lg bg-gray-200 px-3 py-1 text-xs"
-                      >
-                        Edit
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setSelectedUser(u);
-                          setShowDelete(true);
-                        }}
-                        className="
-                          rounded-lg bg-[#8D1231]
-                          px-3 py-1 text-xs text-white
-                          hover:bg-[#73122E]
-                        "
-                      >
-                        Delete
-                      </button>
-                    </div>
+                  <td className="px-5 py-3 text-center">
+                    <button
+                      onClick={() =>
+                        router.push(`/dashboard/superadmin/user/${u.id}/edit`)
+                      }
+                      className="mr-2 rounded bg-gray-200 px-3 py-1 text-xs"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedUser(u);
+                        setShowDelete(true);
+                      }}
+                      className="rounded bg-[#8D1231] px-3 py-1 text-xs text-white"
+                    >
+                      Delete
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -339,8 +274,9 @@ export default function UserManagementPage() {
       <div className="flex items-center justify-center gap-2 text-sm">
         <button
           disabled={pagination.page === 1}
-          onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))}
-          className="px-2 disabled:opacity-40"
+          onClick={() =>
+            setPagination((p) => ({ ...p, page: p.page - 1 }))
+          }
         >
           <ChevronLeft size={18} />
         </button>
@@ -349,9 +285,7 @@ export default function UserManagementPage() {
           <button
             key={p}
             onClick={() => setPagination((pg) => ({ ...pg, page: p }))}
-            className={`px-3 py-1 ${
-              p === pagination.page ? "font-semibold underline" : ""
-            }`}
+            className={p === pagination.page ? "font-semibold underline" : ""}
           >
             {p}
           </button>
@@ -359,8 +293,9 @@ export default function UserManagementPage() {
 
         <button
           disabled={pagination.page === pagination.totalPages}
-          onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}
-          className="px-2 disabled:opacity-40"
+          onClick={() =>
+            setPagination((p) => ({ ...p, page: p.page + 1 }))
+          }
         >
           <ChevronRight size={18} />
         </button>
@@ -371,7 +306,7 @@ export default function UserManagementPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-[400px] rounded-2xl bg-white p-6 text-center">
             <h2 className="text-lg font-semibold">Delete User</h2>
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-2 text-sm">
               Are you sure want to delete <b>{selectedUser?.fullname}</b>?
             </p>
 
@@ -385,7 +320,7 @@ export default function UserManagementPage() {
 
               <button
                 onClick={confirmDelete}
-                className="h-9 w-24 rounded-md bg-[#8D1231] text-sm text-white hover:bg-[#73122E]"
+                className="h-9 w-24 rounded-md bg-[#8D1231] text-sm text-white"
               >
                 Delete
               </button>
