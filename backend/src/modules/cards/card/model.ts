@@ -31,6 +31,14 @@ export namespace CardModel {
       }),
       t.Null(),
     ]),
+    station: t.Union([
+      t.Object({
+        id: t.String({ format: "uuid" }),
+        stationName: t.String(),
+        stationCode: t.String(),
+      }),
+      t.Null(),
+    ]),
   });
 
   // Get Cards Query

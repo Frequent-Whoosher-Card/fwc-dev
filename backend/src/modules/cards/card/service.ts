@@ -132,6 +132,13 @@ export class CardService {
               mimeType: true,
             },
           },
+          station: {
+            select: {
+              id: true,
+              stationName: true,
+              stationCode: true,
+            },
+          },
         },
       }),
       db.card.count({ where }),
@@ -143,6 +150,13 @@ export class CardService {
       createdAt: card.createdAt.toISOString(),
       purchaseDate: card.purchaseDate?.toISOString() || null,
       expiredDate: card.expiredDate?.toISOString() || null,
+      station: card.station
+        ? {
+            id: card.station.id,
+            stationName: card.station.stationName,
+            stationCode: card.station.stationCode,
+          }
+        : null,
     }));
 
     return {
