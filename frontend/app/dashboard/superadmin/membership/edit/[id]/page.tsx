@@ -1,28 +1,23 @@
-'use client';
+"use client";
 
-import { useContext, useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import {
-  ArrowLeft,
-  Phone,
-  Mail,
-  MapPin,
-  ChevronDown,
-} from 'lucide-react';
+import Select from "react-select";
+import { countries } from "countries-list";
+import { useMemo } from "react";
 
-import { UserContext } from '@/app/dashboard/superadmin/dashboard/dashboard-layout';
-import SuccessModal from '../../components/ui/SuccessModal';
+import { useContext, useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { ArrowLeft, Phone, Mail, MapPin, ChevronDown } from "lucide-react";
 
-import {
-  getMemberById,
-  updateMember,
-} from '@/lib/services/membership.service';
+import { UserContext } from "@/app/dashboard/superadmin/dashboard/dashboard-layout";
+import SuccessModal from "../../components/ui/SuccessModal";
+
+import { getMemberById, updateMember } from "@/lib/services/membership.service";
 
 /* ======================
    BASE INPUT STYLE
 ====================== */
 const base =
-  'h-10 w-full rounded-md border border-gray-300 px-3 text-sm text-gray-700 focus:border-gray-400 focus:outline-none';
+  "h-10 w-full rounded-md border border-gray-300 px-3 text-sm text-gray-700 focus:border-gray-400 focus:outline-none";
 
 /* ======================
    FIELD WRAPPER
@@ -53,22 +48,48 @@ function Field({
 export default function EditMemberPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
+
+  const countryOptions = useMemo(() => {
+    return Object.entries(countries).map(([code, c]) => ({
+      value: code,
+      label: `${c.name} (+${Array.isArray(c.phone) ? c.phone[0] : c.phone})`,
+      phone: Array.isArray(c.phone) ? c.phone[0] : c.phone,
+    }));
+  }, []);
+
   const userCtx = useContext(UserContext);
 
   const [loading, setLoading] = useState(true);
   const [showSuccess, setShowSuccess] = useState(false);
 
   const [form, setForm] = useState({
-    name: '',
-    nik: '',
-    nationality: '',
-    gender: '',
-    phone: '',
-    email: '',
-    address: '',
-    update_by: '',
-    note: '',
+    name: "",
+    nik: "",
+    nippKai: "",
+    nationality: "",
+    gender: "",
+    phone: "",
+    email: "",
+    address: "",
+    update_by: "",
+    note: "",
   });
+
+  /* ======================
+   PHONE HELPER
+====================== */
+  const getFullPhoneNumber = () => {
+    if (!form.nationality || !form.phone) return "";
+
+    const country = countryOptions.find((c) => c.value === form.nationality);
+
+    if (!country?.phone) return "";
+
+    // buang 0 di depan
+    const local = form.phone.replace(/^0+/, "");
+
+    return `+${country.phone}${local}`;
+  };
 
   /* ======================
      FETCH DETAIL
@@ -83,34 +104,52 @@ export default function EditMemberPage() {
         const res = await getMemberById(id);
         const item = res.data;
 
-        if (!item) throw new Error('Data not found');
+        if (!item) throw new Error("Data not found");
+
+        // ======================
+        // PARSE PHONE (EDIT MODE)
+        // ======================
+        let nationality = item.nationality ?? "";
+        let localPhone = "";
+
+        if (item.phone?.startsWith("+")) {
+          const matched = countryOptions.find((c) =>
+            item.phone.startsWith(`+${c.phone}`)
+          );
+
+          if (matched) {
+            nationality = matched.value;
+            localPhone = item.phone.replace(`+${matched.phone}`, "");
+          }
+        }
 
         setForm({
-          name: item.name ?? '',
-          nik: item.identityNumber ?? '',
-          nationality: item.nationality ?? '',
-          gender: item.gender ?? '',
-          phone: item.phone ?? '',
-          email: item.email ?? '',
-          address: item.alamat ?? '',
+          name: item.name ?? "",
+          nik: item.identityNumber ?? "",
+          nippKai: item.nippKai ?? "",
+          nationality,
+          gender: item.gender ?? "",
+          phone: localPhone,
+          email: item.email ?? "",
+          address: item.alamat ?? "",
           update_by:
             item.operatorName ??
             item.operator_name ??
             item.updatedByName ??
             item.createdByName ??
-            '',
-          note: item.note ?? '',
+            "",
+          note: item.note ?? item.notes ?? "",
         });
       } catch (err) {
         console.error(err);
-        router.push('/dashboard/superadmin/membership');
+        router.push("/dashboard/superadmin/membership");
       } finally {
         setLoading(false);
       }
     };
 
     fetchDetail();
-  }, [id, router]);
+  }, [id, router, countryOptions]);
 
   /* ======================
      HANDLER
@@ -125,7 +164,7 @@ export default function EditMemberPage() {
   };
 
   const onlyNumber = (e: React.FormEvent<HTMLInputElement>) => {
-    e.currentTarget.value = e.currentTarget.value.replace(/\D/g, '');
+    e.currentTarget.value = e.currentTarget.value.replace(/\D/g, "");
   };
 
   /* ======================
@@ -134,16 +173,60 @@ export default function EditMemberPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // ✅ VALIDASI WAJIB NOTE
-    if (!form.note.trim()) {
-      alert('Note wajib diisi');
+    const isEmpty = (v?: string) => !v || !v.trim();
+
+    // ======================
+    // VALIDASI FIELD WAJIB
+    // ======================
+    if (
+      isEmpty(form.name) ||
+      isEmpty(form.nik) ||
+      isEmpty(form.nationality) ||
+      isEmpty(form.gender) ||
+      isEmpty(form.phone) ||
+      isEmpty(form.email) ||
+      isEmpty(form.address) ||
+      isEmpty(form.note)
+    ) {
+      alert("Semua field wajib diisi");
       return;
     }
 
+    // ======================
+    // VALIDASI NIK
+    // ======================
+    if (form.nik.length > 20) {
+      alert("NIK maksimal 20 karakter");
+      return;
+    }
+
+    // ======================
+    // VALIDASI NIP / NIPP KAI (PANJANG)
+    // ======================
+    if (form.nippKai && form.nippKai.length > 20) {
+      alert("NIP / NIPP KAI maksimal 20 karakter");
+      return;
+    }
+
+    // ======================
+    // VALIDASI KHUSUS KAI
+    // ======================
+    if (form.nationality === "KAI") {
+      if (isEmpty(form.nippKai)) {
+        alert("NIP / NIPP KAI wajib diisi untuk anggota KAI");
+        return;
+      }
+    }
+
+    // ======================
+    // SUBMIT DATA
+    // ======================
     try {
       await updateMember(id, {
         name: form.name,
-        phone: form.phone,
+        identityNumber: form.nik,
+        nippKai: form.nationality === "KAI" ? form.nippKai : undefined,
+        phone: getFullPhoneNumber(),
         email: form.email,
         address: form.address,
         gender: form.gender,
@@ -154,7 +237,7 @@ export default function EditMemberPage() {
       setShowSuccess(true);
     } catch (err) {
       console.error(err);
-      alert('Gagal menyimpan perubahan');
+      alert("Gagal menyimpan perubahan");
     }
   };
 
@@ -200,57 +283,100 @@ export default function EditMemberPage() {
               <input
                 name="nik"
                 value={form.nik}
-                readOnly
-                className={`${base} bg-gray-100`}
-              />
-            </Field>
-
-            {/* NATIONALITY */}
-            <Field label="Nationality" required>
-              <input
-                name="nationality"
-                value={form.nationality}
-                onChange={handleChange}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9]/g, "");
+                  if (val.length <= 20) {
+                    setForm((prev) => ({ ...prev, nik: val }));
+                  }
+                }}
+                inputMode="numeric"
+                maxLength={20}
                 className={base}
                 required
               />
             </Field>
 
-            {/* GENDER */}
-          <Field label="Gender" required>
-  <div className="relative">
-    <select
-      name="gender"
-      value={form.gender}
-      onChange={handleChange}
-      className={`${base} appearance-none pr-10`}
-      required
-    >
-      <option value="">Pilih Gender</option>
-      <option value="L">Laki - Laki</option>
-      <option value="P">Perempuan</option>
-    </select>
-    <ChevronDown
-      size={16}
-      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-    />
-  </div>
-</Field>
+            {/* NIP / NIPP KAI */}
+            <Field label="NIP / NIPP KAI">
+              <input
+                name="nippKai"
+                value={form.nippKai}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9]/g, "");
+                  if (val.length <= 20) {
+                    setForm((prev) => ({ ...prev, nippKai: val }));
+                  }
+                }}
+                inputMode="numeric"
+                maxLength={20}
+                className={base}
+              />
+            </Field>
 
+            {/* NATIONALITY */}
+            <Field label="Nationality" required>
+              <Select
+                options={countryOptions}
+                placeholder="Pilih negara"
+                value={countryOptions.find((c) => c.value === form.nationality)}
+                onChange={(option) => {
+                  if (!option) return;
+
+                  setForm((prev) => ({
+                    ...prev,
+                    nationality: option.value,
+                    phone: "", // reset phone saat negara berubah
+                  }));
+                }}
+              />
+            </Field>
+
+            {/* GENDER */}
+            <Field label="Gender" required>
+              <div className="relative">
+                <select
+                  name="gender"
+                  value={form.gender}
+                  onChange={handleChange}
+                  className={`${base} appearance-none pr-10`}
+                  required
+                >
+                  <option value="">Pilih Gender</option>
+                  <option value="L">Laki - Laki</option>
+                  <option value="P">Perempuan</option>
+                </select>
+                <ChevronDown
+                  size={16}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                />
+              </div>
+            </Field>
 
             {/* PHONE */}
-            <Field label="Phone" required>
-              <div className="relative">
-                <Phone
-                  size={16}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                />
+            <Field label="Phone Number" required>
+              <div className="flex">
+                {/* PREFIX */}
+                <div className="flex items-center rounded-l-md border border-r-0 border-gray-300 bg-gray-100 px-3 text-sm text-gray-600 min-w-[60px] justify-center">
+                  {form.nationality
+                    ? `+${
+                        countryOptions.find((c) => c.value === form.nationality)
+                          ?.phone
+                      }`
+                    : "+"}
+                </div>
+
+                <div className="flex items-center border-y border-gray-300 bg-gray-100 px-2 text-gray-400">
+                  |
+                </div>
+
                 <input
-                  name="phone"
                   value={form.phone}
-                  onInput={onlyNumber}
-                  onChange={handleChange}
-                  className={`${base} pl-10`}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    setForm((prev) => ({ ...prev, phone: val }));
+                  }}
+                  className="h-10 w-full rounded-r-md border border-l-0 border-gray-300 px-3 text-sm"
+                  disabled={!form.nationality}
                   required
                 />
               </div>
@@ -299,7 +425,7 @@ export default function EditMemberPage() {
             <div className="md:col-span-2">
               <Field label="Operator">
                 <input
-                  value={form.update_by || '-'}
+                  value={form.update_by || "-"}
                   readOnly
                   className={`${base} bg-gray-100`}
                 />
@@ -338,7 +464,7 @@ export default function EditMemberPage() {
         open={showSuccess}
         onClose={() => {
           setShowSuccess(false);
-          router.push('/dashboard/superadmin/membership');
+          router.push("/dashboard/superadmin/membership");
         }}
       />
     </>

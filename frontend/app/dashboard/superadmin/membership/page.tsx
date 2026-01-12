@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { Calendar } from "lucide-react";
 import toast from "react-hot-toast";
 import { useEffect, useMemo, useState } from "react";
@@ -56,11 +57,11 @@ const formatDate = (iso?: string) => {
   if (!iso) return "-";
 
   const d = new Date(iso);
-  return d.toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+
+  return `${dd}-${mm}-${yyyy}`;
 };
 
 /* ======================
@@ -136,12 +137,10 @@ function ConfirmDeleteModal({
 
           <button
             onClick={onConfirm}
-            disabled={!member}
-            className={`h-9 w-24 rounded-md text-sm text-white ${
-              member
-                ? "bg-red-600 hover:bg-red-700"
-                : "cursor-not-allowed bg-red-300"
-            }`}
+            className="
+    rounded-md bg-[#8D1231] px-5 py-2 text-sm text-white
+    transition hover:bg-[#73122E] active:scale-95
+  "
           >
             Delete
           </button>
@@ -193,6 +192,10 @@ export default function MembershipPage() {
   const router = useRouter();
   const LIMIT = 10;
 
+  /* 🔹 ADD THESE TWO LINES HERE 🔹 */
+  const startDateRef = useRef<HTMLInputElement>(null);
+  const endDateRef = useRef<HTMLInputElement>(null);
+
   const [data, setData] = useState<Membership[]>([]);
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
@@ -200,6 +203,7 @@ export default function MembershipPage() {
     totalPages: 1,
     total: 0,
   });
+
   const [loading, setLoading] = useState(true);
   // TAMBAHAN
   const [cardCategory, setCardCategory] = useState<"all" | "NIPKAI">("all");
@@ -335,7 +339,7 @@ export default function MembershipPage() {
         <div className="flex items-center gap-3">
           <input
             type="text"
-            placeholder="Search by name, Identity Number, email, or phone"
+            placeholder="Search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-9 w-96 rounded-md border px-3 text-sm"
@@ -345,7 +349,11 @@ export default function MembershipPage() {
             onClick={() =>
               router.push("/dashboard/superadmin/membership/create")
             }
-            className="flex items-center gap-2 rounded-md bg-red-700 px-4 py-2 text-sm text-white"
+            className="
+    flex items-center gap-2 rounded-md
+    bg-[#8D1231] px-4 py-2 text-sm text-white
+    hover:bg-[#73122E] transition
+  "
           >
             <Plus size={16} />
             Add New Members
@@ -356,17 +364,17 @@ export default function MembershipPage() {
       {loading && <div className="text-xs text-gray-400">Loading data...</div>}
 
       {/* FILTER */}
-      <div className="flex items-center gap-3 rounded-lg border bg-white px-4 py-3">
+      <div className="flex items-center gap-2 rounded-lg border bg-white px-4 py-3">
         {/* ALL */}
         <button
           onClick={() => setCardCategory("all")}
-          disabled={cardCategory === "all"}
           aria-pressed={cardCategory === "all"}
-          className={`h-9 rounded-md border px-4 text-sm transition ${
-            cardCategory === "all"
-              ? "cursor-default border-blue-200 bg-blue-50 text-blue-600"
-              : "border-gray-300 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600"
-          }`}
+          className={`h-9 rounded-md border px-4 text-sm transition
+      ${
+        cardCategory === "all"
+          ? "cursor-default border-[#8D1231] bg-[#8D1231] text-white"
+          : "border-gray-300 bg-white text-gray-600 hover:bg-red-50 hover:text-[#8D1231]"
+      }`}
         >
           All
         </button>
@@ -374,13 +382,13 @@ export default function MembershipPage() {
         {/* NIPKAI */}
         <button
           onClick={() => setCardCategory("NIPKAI")}
-          disabled={cardCategory === "NIPKAI"}
           aria-pressed={cardCategory === "NIPKAI"}
-          className={`h-9 rounded-md border px-4 text-sm transition ${
-            cardCategory === "NIPKAI"
-              ? "cursor-default border-blue-200 bg-blue-50 text-blue-600"
-              : "border-gray-300 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600"
-          }`}
+          className={`h-9 rounded-md border px-4 text-sm transition
+      ${
+        cardCategory === "NIPKAI"
+          ? "cursor-default border-[#8D1231] bg-[#8D1231] text-white"
+          : "border-gray-300 bg-white text-gray-600 hover:bg-red-50 hover:text-[#8D1231]"
+      }`}
         >
           NIPKAI
         </button>
@@ -389,7 +397,11 @@ export default function MembershipPage() {
         <select
           value={gender}
           onChange={(e) => setGender(e.target.value as any)}
-          className="h-9 rounded-md border px-3 text-sm"
+          className="
+    h-9 rounded-md border px-3 text-sm
+    border-[#8D1231] bg-[#8D1231] text-white
+    focus:outline-none
+  "
         >
           <option value="all">Gender</option>
           <option value="L">Laki - Laki</option>
@@ -399,35 +411,68 @@ export default function MembershipPage() {
         {/* START */}
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-500">Start</span>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="h-9 w-[160px] rounded-md border px-3 text-sm
-               appearance-auto
-               [&::-webkit-calendar-picker-indicator]:opacity-100
-               [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-          />
+
+          <div className="relative">
+            <input
+              ref={startDateRef}
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className={`h-9 w-[160px] rounded-md border px-3 pr-9 text-sm
+          appearance-none
+          [&::-webkit-calendar-picker-indicator]:hidden
+          ${
+            startDate
+              ? "border-[#8D1231] bg-red-50 text-[#8D1231]"
+              : "border-gray-300"
+          }`}
+            />
+
+            <Calendar
+              size={16}
+              className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-[#8D1231]"
+              onClick={() => startDateRef.current?.showPicker()}
+            />
+          </div>
         </div>
 
         {/* END */}
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-500">End</span>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="h-9 w-[160px] rounded-md border px-3 text-sm
-               appearance-auto
-               [&::-webkit-calendar-picker-indicator]:opacity-100
-               [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-          />
+
+          <div className="relative">
+            <input
+              ref={endDateRef}
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className={`h-9 w-[160px] rounded-md border px-3 pr-9 text-sm
+          appearance-none
+          [&::-webkit-calendar-picker-indicator]:hidden
+          ${
+            endDate
+              ? "border-[#8D1231] bg-red-50 text-[#8D1231]"
+              : "border-gray-300"
+          }`}
+            />
+
+            <Calendar
+              size={16}
+              className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-[#8D1231]"
+              onClick={() => endDateRef.current?.showPicker()}
+            />
+          </div>
         </div>
 
         {/* RESET */}
         <button
           onClick={resetFilter}
-          className="flex h-9 w-9 items-center justify-center rounded-md border"
+          className={`flex h-9 w-9 items-center justify-center rounded-md border transition
+      ${
+        gender !== "all" || cardCategory !== "all" || startDate || endDate
+          ? "border-[#8D1231] bg-[#8D1231] text-white hover:bg-[#73122E]"
+          : "border-gray-300 text-gray-500"
+      }`}
         >
           <RotateCcw size={16} />
         </button>
@@ -572,7 +617,10 @@ export default function MembershipPage() {
                         });
                         setShowDeleteModal(true);
                       }}
-                      className="rounded bg-red-600 px-3 py-1 text-xs text-white"
+                      className="
+    rounded px-3 py-1 text-xs text-white
+    bg-[#8D1231] hover:bg-[#73122E] transition
+  "
                     >
                       Hapus
                     </button>

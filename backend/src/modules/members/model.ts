@@ -233,5 +233,23 @@ export namespace MemberModel {
     ),
     message: t.Optional(t.String()),
   });
+
+  // --- KTP Detection Response ---
+  export const ktpDetectionResponse = t.Object({
+    success: t.Boolean(),
+    data: t.Object({
+      sessionId: t.String({ description: "Session ID for retrieving cropped image(s) later" }),
+      cropped_image: t.Optional(t.String({ description: "Base64 encoded cropped KTP image (single detection)" })),
+      cropped_images: t.Optional(t.Array(t.Object({
+        cropped_image: t.String({ description: "Base64 encoded cropped KTP image" }),
+        bbox: t.Array(t.Number(), { minItems: 4, maxItems: 4, description: "Bounding box [x1, y1, x2, y2]" }),
+        confidence: t.Number({ description: "Detection confidence score" }),
+      }), { description: "Multiple detections (if return_multiple=true)" })),
+      bbox: t.Optional(t.Array(t.Number(), { minItems: 4, maxItems: 4, description: "Bounding box [x1, y1, x2, y2] (single detection)" })),
+      original_size: t.Array(t.Number(), { minItems: 2, maxItems: 2, description: "Original image size [width, height]" }),
+      confidence: t.Optional(t.Number({ description: "Detection confidence score (single detection)" })),
+    }),
+    message: t.Optional(t.String()),
+  });
 }
 
