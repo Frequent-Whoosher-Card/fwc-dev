@@ -7,7 +7,7 @@ import {
 } from "../../utils/errors";
 import { passwordResetConfig } from "../../config/jwt";
 import { verifyAppCheckToken } from "../../services/appCheckService";
-import { verifyRecaptchaToken } from "../../services/recaptchaService";
+import { verifyTurnstileToken } from "../../services/turnstileService";
 
 export class AuthService {
   /**
@@ -16,19 +16,83 @@ export class AuthService {
   static async login(
     usernameOrEmail: string,
     password: string,
-    appCheckToken?: string,
-    recaptchaToken?: string
+    appCheckToken: string,
+    turnstileToken: string
   ) {
-    // Verify Firebase App Check token (if provided)
-    if (appCheckToken) {
+    // Verify Firebase App Check token (required)
+    if (!appCheckToken || typeof appCheckToken !== 'string' || appCheckToken.trim().length === 0) {
+      throw new AuthenticationError('App Check token is required');
+    }
+    
+    // Skip verification if token is "disabled" (fallback when App Check is not configured)
+    if (appCheckToken !== 'disabled') {
       await verifyAppCheckToken(appCheckToken);
     }
 
-    // Verify Google reCAPTCHA v3 token (if provided)
-    if (recaptchaToken) {
-      await verifyRecaptchaToken(recaptchaToken);
+    // Verify Cloudflare Turnstile token (required)
+    if (!turnstileToken || typeof turnstileToken !== 'string' || turnstileToken.trim().length === 0) {
+      throw new AuthenticationError('Turnstile token is required');
+    }
+    await verifyTurnstileToken(turnstileToken);
+
+    // Find user by username or email
+    const user = await db.user.findFirst({
+      where: {
+        OR: [
+          { username: usernameOrEmail },
+          { email: usernameOrEmail },
+        ],
+        deletedAt: null,
+      },
+      include: {
+        role: true,
+      },
+    });
+
+    if (!user) {
+      throw new AuthenticationError("Invalid username/email or password");
     }
 
+    // Check if user is active
+    if (!user.isActive) {
+      throw new AuthenticationError("Account is inactive. Please contact administrator");
+    }
+
+    // Verify password
+    const isValidPassword = await verifyPassword(password, user.passwordHash);
+    if (!isValidPassword) {
+      throw new AuthenticationError("Invalid username/email or password");
+    }
+
+    // Update last login
+    await db.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() },
+    });
+
+    return {
+      user: {
+        id: user.id,
+        username: user.username,
+        fullName: user.fullName,
+        email: user.email,
+        role: {
+          id: user.role.id,
+          roleCode: user.role.roleCode,
+          roleName: user.role.roleName,
+        },
+      },
+    };
+  }
+
+  /**
+   * Simple login for Swagger/testing (without security tokens)
+   * WARNING: Only use in development/testing environment
+   */
+  static async simpleLogin(
+    usernameOrEmail: string,
+    password: string
+  ) {
     // Find user by username or email
     const user = await db.user.findFirst({
       where: {

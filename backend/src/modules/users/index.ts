@@ -90,18 +90,56 @@ const baseRoutes = new Elysia()
     "",
     async ({ query, set }) => {
       try {
-        const page = query?.page ? parseInt(query.page, 10) : 1;
-        const limit = 10; // Fixed at 10 per page as requested
+        // Debug: Log raw query
+        console.log('Raw query received:', query);
 
-        // Validate page number
-        if (isNaN(page) || page < 1) {
+        // Helper to clean undefined/null parameters
+        const cleanParam = (value: any) => {
+          if (value === "undefined" || value === undefined || value === null || value === "") {
+            return undefined;
+          }
+          return value;
+        };
+
+        // Helper to parse boolean
+        const parseBoolean = (value: any) => {
+          const cleaned = cleanParam(value);
+          if (cleaned === undefined) return undefined;
+          return cleaned === "true" || cleaned === true;
+        };
+
+        // Helper to parse integer
+        const safeParseInt = (value: any) => {
+          const cleaned = cleanParam(value);
+          if (cleaned === undefined) return undefined;
+          const parsed = parseInt(cleaned);
+          return isNaN(parsed) ? undefined : parsed;
+        };
+
+        const page = safeParseInt(query?.page) || 1;
+        const limit = safeParseInt(query?.limit) || 10;
+
+        // Validate page and limit
+        if (page < 1 || limit < 1) {
           set.status = 400;
           return formatErrorResponse(
-            new Error("Page must be a positive integer")
+            new Error("Page and limit must be positive integers")
           );
         }
 
-        const result = await UserService.getUsers(page, limit);
+        const filterParams = {
+          page,
+          limit,
+          search: cleanParam(query?.search),
+          roleId: cleanParam(query?.roleId),
+          stationId: cleanParam(query?.stationId),
+          isActive: parseBoolean(query?.isActive),
+        };
+
+        // Debug log (remove after testing)
+        console.log('GET /users - Filter params:', filterParams);
+
+        const result = await UserService.getUsers(filterParams);
 
         return {
           success: true,
@@ -118,13 +156,7 @@ const baseRoutes = new Elysia()
       }
     },
     {
-      query: t.Optional(
-        t.Object({
-          page: t.Optional(
-            t.String({ description: "Page number (default: 1)" })
-          ),
-        })
-      ),
+      query: UserModel.getUsersQuery,
       response: {
         200: UserModel.userListResponse,
         400: UserModel.errorResponse,
@@ -134,7 +166,23 @@ const baseRoutes = new Elysia()
       detail: {
         tags: ["Users & Roles"],
         summary: "Get all users",
-        description: "Retrieve all active users with pagination (10 per page)",
+        description: `Retrieve all active users with pagination, filters, and search.
+
+**Filters:**
+- **search**: Search across username, full name, email, NIP, or phone (case-insensitive partial match)
+- **roleId**: Filter by role ID (UUID)
+- **stationId**: Filter by station ID (UUID)
+- **isActive**: Filter by active status (true/false)
+
+**Pagination:**
+- **page**: Page number (default: 1)
+- **limit**: Items per page (default: 10)
+
+**Examples:**
+- Search: \`?search=john\`
+- Filter by role: \`?roleId=uuid\`
+- Filter active users: \`?isActive=true\`
+- Combined: \`?search=admin&roleId=uuid&isActive=true&page=1&limit=20\``,
       },
     }
   )

@@ -1,8 +1,10 @@
-'use client';
+"use client";
 
-import toast from 'react-hot-toast';
-import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRef } from "react";
+import { Calendar } from "lucide-react";
+import toast from "react-hot-toast";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Eye,
   Plus,
@@ -11,21 +13,17 @@ import {
   CheckCircle,
   ChevronLeft,
   ChevronRight,
-} from 'lucide-react';
+} from "lucide-react";
 
-import {
-  getMembers,
-  deleteMember,
-} from '@/lib/services/membership.service';
+import { getMembers, deleteMember } from "@/lib/services/membership.service";
 
 /* ======================
    HELPER
 ====================== */
 const formatNik = (nik?: string | null) => {
-  if (!nik) return '-';
+  if (!nik) return "-";
   return `FWC${nik}`;
 };
-
 
 /* ======================
    TYPES (FE CONTRACT)
@@ -37,7 +35,7 @@ interface Membership {
   nip?: string | null;
   nik?: string | null;
   nationality?: string | null;
-  gender?: 'Laki - Laki' | 'Perempuan' | null;
+  gender?: "Laki - Laki" | "Perempuan" | null;
   email?: string | null;
   phone?: string | null;
   address?: string | null;
@@ -56,53 +54,93 @@ interface Pagination {
    DATE FORMATTER
 ====================== */
 const formatDate = (iso?: string) => {
-  if (!iso) return '-';
+  if (!iso) return "-";
 
   const d = new Date(iso);
-  return d.toLocaleDateString('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+
+  return `${dd}-${mm}-${yyyy}`;
 };
+
+/* ======================
+   TABLE UI SYSTEM
+====================== */
+const th =
+  "px-4 py-2 text-xs font-medium text-gray-500 uppercase whitespace-nowrap";
+
+const td = "px-4 py-2 text-sm text-gray-700 whitespace-nowrap";
 
 /* ======================
    DELETE MODAL
 ====================== */
+
 function ConfirmDeleteModal({
   open,
+  member,
   onCancel,
   onConfirm,
 }: {
   open: boolean;
+  member: {
+    name?: string | null;
+    nik?: string | null;
+  } | null;
   onCancel: () => void;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
 }) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-[380px] rounded-xl bg-white p-6 text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-          <AlertTriangle className="text-red-600" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="w-[420px] rounded-2xl bg-white p-6 shadow-xl">
+        {/* ICON */}
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
+          <AlertTriangle className="text-red-600" size={22} />
         </div>
 
-        <h2 className="text-lg font-semibold">Delete Data</h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Are you sure want to delete this Data ? <br />
-          This action cannot be undone.
+        {/* TITLE */}
+        <h2 className="text-center text-lg font-semibold text-gray-800">
+          Delete Data
+        </h2>
+
+        <p className="mt-1 text-center text-sm text-gray-600">
+          Are you sure you want to delete this member?
         </p>
 
+        {/* INFO BOX */}
+        <div className="mt-4 rounded-lg bg-gray-50 px-4 py-3 text-sm">
+          <div className="flex justify-between gap-3">
+            <span className="text-gray-500">Name</span>
+            <span className="max-w-[240px] truncate font-medium text-gray-800">
+              {member?.name || "-"}
+            </span>
+          </div>
+
+          <div className="mt-1 flex justify-between gap-3">
+            <span className="text-gray-500">Identity Number</span>
+            <span className="max-w-[240px] truncate font-mono text-gray-800">
+              {member?.nik ? `FWC${member.nik}` : "-"}
+            </span>
+          </div>
+        </div>
+
+        {/* ACTION */}
         <div className="mt-6 flex justify-center gap-3">
           <button
             onClick={onCancel}
-            className="rounded-md bg-gray-200 px-5 py-2 text-sm"
+            className="h-9 w-24 rounded-md bg-gray-100 text-sm text-gray-700 hover:bg-gray-200"
           >
             Cancel
           </button>
+
           <button
             onClick={onConfirm}
-            className="rounded-md bg-red-600 px-5 py-2 text-sm text-white hover:bg-red-700"
+            className="
+    rounded-md bg-[#8D1231] px-5 py-2 text-sm text-white
+    transition hover:bg-[#73122E] active:scale-95
+  "
           >
             Delete
           </button>
@@ -154,6 +192,10 @@ export default function MembershipPage() {
   const router = useRouter();
   const LIMIT = 10;
 
+  /* 🔹 ADD THESE TWO LINES HERE 🔹 */
+  const startDateRef = useRef<HTMLInputElement>(null);
+  const endDateRef = useRef<HTMLInputElement>(null);
+
   const [data, setData] = useState<Membership[]>([]);
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
@@ -161,21 +203,25 @@ export default function MembershipPage() {
     totalPages: 1,
     total: 0,
   });
+
   const [loading, setLoading] = useState(true);
-// TAMBAHAN
-const [cardCategory, setCardCategory] =
-  useState<'all' | 'NIPKAI'>('all'); 
-  const [search, setSearch] = useState('');
-  const [gender, setGender] =
-    useState<'all' | 'Laki - Laki' | 'Perempuan'>('all');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  // TAMBAHAN
+  const [cardCategory, setCardCategory] = useState<"all" | "NIPKAI">("all");
+  const [search, setSearch] = useState("");
+  const [gender, setGender] = useState<"all" | "L" | "P">("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  const [selectedMember, setSelectedMember] = useState<{
+    id: string;
+    name?: string | null;
+    nik?: string | null;
+  } | null>(null);
 
   /* ======================
      FETCH DATA
@@ -184,31 +230,28 @@ const [cardCategory, setCardCategory] =
     try {
       setLoading(true);
 
-     const res = await getMembers({
-  page,
-  limit: LIMIT,
-  search: debouncedSearch || undefined,
-  gender: gender !== 'all' ? gender : undefined,
-  startDate: startDate || undefined,
-  endDate: endDate || undefined,
-  cardCategory:
-    cardCategory !== 'all' ? cardCategory : undefined,
-});
-
+      const res = await getMembers({
+        page,
+        limit: LIMIT,
+        search: debouncedSearch || undefined,
+        gender: gender !== "all" ? gender : undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        hasNippKai: cardCategory === "NIPKAI" ? true : undefined,
+      });
 
       const mapped: Membership[] = res.data.items.map((item: any) => ({
         id: item.id,
         membership_date: formatDate(item.createdAt), // ✅ from createdAt
         name: item.name,
-        nip: item.nippKai ?? null,     // ✅ TAMBAH
+        nip: item.nippKai ?? null, // ✅ TAMBAH
         nik: item.identityNumber,
         nationality: item.nationality,
         gender: item.gender,
         email: item.email,
         phone: item.phone,
         address: item.alamat,
-        operator_name:
-          item.updatedByName ?? item.createdByName,
+        operator_name: item.updatedByName ?? item.createdByName,
         updated_at: formatDate(item.updatedAt), // ✅ formatted
       }));
 
@@ -230,11 +273,11 @@ const [cardCategory, setCardCategory] =
     } else {
       fetchMembers(1);
     }
-}, [debouncedSearch, gender, startDate, endDate, cardCategory]);
+  }, [debouncedSearch, gender, startDate, endDate, cardCategory]);
 
   useEffect(() => {
     if (!search) {
-      setDebouncedSearch('');
+      setDebouncedSearch("");
       return;
     }
 
@@ -250,38 +293,31 @@ const [cardCategory, setCardCategory] =
   }, [pagination.page]);
 
   const resetFilter = () => {
-  setSearch('');
-  setGender('all');
-  setCardCategory('all');
-  setStartDate('');
-  setEndDate('');
-};
-
-
-  const filteredData = useMemo(() => data, [data]);
+    setSearch("");
+    setGender("all");
+    setCardCategory("all");
+    setStartDate("");
+    setEndDate("");
+  };
 
   /* ======================
      DELETE
   ====================== */
-const confirmDelete = async () => {
-  if (!selectedId) return;
+  const confirmDelete = async () => {
+    if (!selectedMember?.id) return;
 
-  try {
-    await deleteMember(selectedId);
+    try {
+      await deleteMember(selectedMember.id);
 
-    setShowDeleteModal(false);
-    setSelectedId(null);
-    setShowSuccessModal(true);
+      setShowDeleteModal(false);
+      setSelectedMember(null);
+      setShowSuccessModal(true);
 
-    fetchMembers(pagination.page);
-  } catch (err: any) {
-    toast.error(
-      err?.message ||
-      'Tidak dapat menghapus member'
-    );
-  }
-};
-
+      fetchMembers(pagination.page);
+    } catch (err: any) {
+      toast.error(err?.message || "Tidak dapat menghapus member");
+    }
+  };
 
   /* ======================
      PAGINATION
@@ -289,10 +325,7 @@ const confirmDelete = async () => {
   const pageNumbers = Array.from(
     { length: pagination.totalPages },
     (_, i) => i + 1
-  ).slice(
-    Math.max(0, pagination.page - 3),
-    pagination.page + 2
-  );
+  ).slice(Math.max(0, pagination.page - 3), pagination.page + 2);
 
   /* ======================
      RENDER
@@ -301,14 +334,12 @@ const confirmDelete = async () => {
     <div className="space-y-6">
       {/* HEADER */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">
-          Membership Management
-        </h1>
+        <h1 className="text-xl font-semibold">Membership Management</h1>
 
         <div className="flex items-center gap-3">
           <input
             type="text"
-            placeholder="Search by name, Identity Number, email, or phone"
+            placeholder="Search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-9 w-96 rounded-md border px-3 text-sm"
@@ -316,11 +347,13 @@ const confirmDelete = async () => {
 
           <button
             onClick={() =>
-              router.push(
-                '/dashboard/superadmin/membership/create'
-              )
+              router.push("/dashboard/superadmin/membership/create")
             }
-            className="flex items-center gap-2 rounded-md bg-red-700 px-4 py-2 text-sm text-white"
+            className="
+    flex items-center gap-2 rounded-md
+    bg-[#8D1231] px-4 py-2 text-sm text-white
+    hover:bg-[#73122E] transition
+  "
           >
             <Plus size={16} />
             Add New Members
@@ -328,252 +361,276 @@ const confirmDelete = async () => {
         </div>
       </div>
 
-      {loading && (
-        <div className="text-xs text-gray-400">
-          Loading data...
-        </div>
-      )}
+      {loading && <div className="text-xs text-gray-400">Loading data...</div>}
 
       {/* FILTER */}
-     <div className="flex items-center gap-3 rounded-lg border bg-white px-4 py-3">
-{/* ALL */}
-<button
-  onClick={() => setCardCategory('all')}
-  disabled={cardCategory === 'all'}
-  aria-pressed={cardCategory === 'all'}
-  className={`h-9 rounded-md border px-4 text-sm transition ${
-    cardCategory === 'all'
-      ? 'cursor-default border-blue-200 bg-blue-50 text-blue-600'
-      : 'border-gray-300 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600'
-  }`}
->
-  All
-</button>
+      <div className="flex items-center gap-2 rounded-lg border bg-white px-4 py-3">
+        {/* ALL */}
+        <button
+          onClick={() => setCardCategory("all")}
+          aria-pressed={cardCategory === "all"}
+          className={`h-9 rounded-md border px-4 text-sm transition
+      ${
+        cardCategory === "all"
+          ? "cursor-default border-[#8D1231] bg-[#8D1231] text-white"
+          : "border-gray-300 bg-white text-gray-600 hover:bg-red-50 hover:text-[#8D1231]"
+      }`}
+        >
+          All
+        </button>
 
-{/* NIPKAI */}
-<button
-  onClick={() => setCardCategory('NIPKAI')}
-  disabled={cardCategory === 'NIPKAI'}
-  aria-pressed={cardCategory === 'NIPKAI'}
-  className={`h-9 rounded-md border px-4 text-sm transition ${
-    cardCategory === 'NIPKAI'
-      ? 'cursor-default border-blue-200 bg-blue-50 text-blue-600'
-      : 'border-gray-300 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600'
-  }`}
->
-  NIPKAI
-</button>
+        {/* NIPKAI */}
+        <button
+          onClick={() => setCardCategory("NIPKAI")}
+          aria-pressed={cardCategory === "NIPKAI"}
+          className={`h-9 rounded-md border px-4 text-sm transition
+      ${
+        cardCategory === "NIPKAI"
+          ? "cursor-default border-[#8D1231] bg-[#8D1231] text-white"
+          : "border-gray-300 bg-white text-gray-600 hover:bg-red-50 hover:text-[#8D1231]"
+      }`}
+        >
+          NIPKAI
+        </button>
 
+        {/* GENDER */}
+        <select
+          value={gender}
+          onChange={(e) => setGender(e.target.value as any)}
+          className="
+    h-9 rounded-md border px-3 text-sm
+    border-[#8D1231] bg-[#8D1231] text-white
+    focus:outline-none
+  "
+        >
+          <option value="all">Gender</option>
+          <option value="L">Laki - Laki</option>
+          <option value="P">Perempuan</option>
+        </select>
 
+        {/* START */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500">Start</span>
 
-  {/* GENDER */}
-  <select
-    value={gender}
-    onChange={(e) => setGender(e.target.value as any)}
-    className="h-9 rounded-md border px-3 text-sm"
-  >
-    <option value="all">Gender</option>
-    <option value="Laki - Laki">Laki - Laki</option>
-    <option value="Perempuan">Perempuan</option>
-  </select>
-
-{/* START */}
-<div className="flex items-center gap-2">
-  <span className="text-sm text-gray-500">Start</span>
-  <input
-    type="date"
-    value={startDate}
-    onChange={(e) => setStartDate(e.target.value)}
-    className="h-9 w-[160px] rounded-md border px-3 text-sm"
-  />
-</div>
-
-{/* END */}
-<div className="flex items-center gap-2">
-  <span className="text-sm text-gray-500">End</span>
-  <input
-    type="date"
-    value={endDate}
-    onChange={(e) => setEndDate(e.target.value)}
-    className="h-9 w-[160px] rounded-md border px-3 text-sm"
-  />
-</div>
-
-
-
-  {/* RESET */}
-  <button
-    onClick={resetFilter}
-    className="flex h-9 w-9 items-center justify-center rounded-md border"
-  >
-    <RotateCcw size={16} />
-  </button>
-</div>
-
-
-     {/* TABLE */}
-     
-<div className="overflow-x-auto rounded-lg border bg-white">
-<table className="min-w-[1900px] w-full">
-<thead className="bg-gray-50 text-xs text-gray-600 sticky top-0 z-10">
-      <tr>
-        <th className="px-5 py-3 text-center whitespace-nowrap">
-          Membership Date
-        </th>
-        <th className="px-5 py-3 text-left whitespace-nowrap min-w-[220px]">
-  Customer Name
-</th>
-
-         {/* ✅ NIP – HANYA JIKA NIPKAI */}
-   {cardCategory === 'NIPKAI' && (
-  <th className="px-5 py-3 text-center whitespace-nowrap min-w-[200px]">
-    NIP
-  </th>
-)}
-
-        <th className="px-5 py-3 text-center whitespace-nowrap min-w-[260px]">
-  Identity Number
-</th>
-
-        <th className="px-4 py-3 text-left whitespace-nowrap min-w-[140px]">
-          Nationality
-        </th>
-        <th className="px-4 py-3 text-center whitespace-nowrap">
-          Gender
-        </th>
-        <th className="px-4 py-3 text-left whitespace-nowrap">
-          Email
-        </th>
-        <th className="px-4 py-3 text-center whitespace-nowrap">
-          Phone
-        </th>
-        <th className="px-4 py-3 text-left whitespace-nowrap min-w-[220px]">
-          Address
-        </th>
-        <th className="px-4 py-3 text-center whitespace-nowrap">
-          Last Updated
-        </th>
-        <th className="px-4 py-3 text-center">
-          View
-        </th>
-        <th className="px-4 py-3 text-center">
-          Aksi
-        </th>
-      </tr>
-    </thead>
-
-    <tbody>
-      {filteredData.map((item) => (
-     <tr
-  key={item.id}
-  className="border-t text-sm hover:bg-gray-50 transition-colors"
->
-
-          <td className="px-4 py-2 text-center whitespace-nowrap">
-            {item.membership_date || '-'}
-          </td>
-
-          <td
-  className="px-5 py-2 text-left max-w-[260px] truncate"
-  title={item.name || ''}
->
-  {item.name || '-'}
-</td>
-
-
-          {/* ✅ NIP – HANYA JIKA NIPKAI */}
-{cardCategory === 'NIPKAI' && (
-  <td className="px-5 py-2 text-center font-mono whitespace-nowrap min-w-[200px]">
-    {item.nip || '-'}
-  </td>
-)}
-
-
-
-         <td
-  className="px-5 py-2 text-center font-mono min-w-[260px] max-w-[320px] truncate cursor-pointer hover:underline"
-  title="Klik untuk copy"
-  onClick={() =>
-    item.nik &&
-    navigator.clipboard.writeText(formatNik(item.nik))
-  }
->
-  {formatNik(item.nik)}
-</td>
-
-
-
-
-          <td className="px-4 py-2 text-left whitespace-nowrap min-w-[140px]">
-            {item.nationality || '-'}
-          </td>
-
-          <td className="px-4 py-2 text-center whitespace-nowrap">
-            {item.gender || '-'}
-          </td>
-
-         <td
-  className="px-5 py-2 text-left max-w-[240px] truncate"
-  title={item.email || ''}
->
-  {item.email || '-'}
-</td>
-
-
-          <td className="px-4 py-2 text-center font-mono whitespace-nowrap">
-            {item.phone || '-'}
-          </td>
-
-          <td className="px-4 py-2 text-left max-w-[260px] truncate">
-            {item.address || '-'}
-          </td>
-
-          <td className="px-4 py-2 text-center whitespace-nowrap">
-            {item.updated_at || '-'}
-          </td>
-
-          <td className="px-4 py-2 text-center">
-            <Eye
-              size={16}
-              className="mx-auto cursor-pointer text-gray-500 hover:text-blue-600"
-              onClick={() =>
-                router.push(
-                  `/dashboard/superadmin/membership/view/${item.id}`
-                )
-              }
+          <div className="relative">
+            <input
+              ref={startDateRef}
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className={`h-9 w-[160px] rounded-md border px-3 pr-9 text-sm
+          appearance-none
+          [&::-webkit-calendar-picker-indicator]:hidden
+          ${
+            startDate
+              ? "border-[#8D1231] bg-red-50 text-[#8D1231]"
+              : "border-gray-300"
+          }`}
             />
-          </td>
 
-          <td className="px-4 py-2 text-center">
-            <div className="flex justify-center gap-2">
-              <button
-                onClick={() =>
-                  router.push(
-                    `/dashboard/superadmin/membership/edit/${item.id}`
-                  )
-                }
-                className="rounded bg-gray-200 px-3 py-1 text-xs"
+            <Calendar
+              size={16}
+              className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-[#8D1231]"
+              onClick={() => startDateRef.current?.showPicker()}
+            />
+          </div>
+        </div>
+
+        {/* END */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500">End</span>
+
+          <div className="relative">
+            <input
+              ref={endDateRef}
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className={`h-9 w-[160px] rounded-md border px-3 pr-9 text-sm
+          appearance-none
+          [&::-webkit-calendar-picker-indicator]:hidden
+          ${
+            endDate
+              ? "border-[#8D1231] bg-red-50 text-[#8D1231]"
+              : "border-gray-300"
+          }`}
+            />
+
+            <Calendar
+              size={16}
+              className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-[#8D1231]"
+              onClick={() => endDateRef.current?.showPicker()}
+            />
+          </div>
+        </div>
+
+        {/* RESET */}
+        <button
+          onClick={resetFilter}
+          className={`flex h-9 w-9 items-center justify-center rounded-md border transition
+      ${
+        gender !== "all" || cardCategory !== "all" || startDate || endDate
+          ? "border-[#8D1231] bg-[#8D1231] text-white hover:bg-[#73122E]"
+          : "border-gray-300 text-gray-500"
+      }`}
+        >
+          <RotateCcw size={16} />
+        </button>
+      </div>
+
+      {/* TABLE */}
+
+      <div className="overflow-x-auto rounded-lg border bg-white">
+        <table className="min-w-[1900px] w-full">
+          <thead className="bg-gray-50 text-xs text-gray-600 sticky top-0 z-10">
+            <tr>
+              <th className="px-5 py-3 text-center whitespace-nowrap">
+                Membership Date
+              </th>
+              <th className="px-5 py-3 text-left whitespace-nowrap min-w-[220px]">
+                Customer Name
+              </th>
+
+              {/* ✅ NIP – HANYA JIKA NIPKAI */}
+              {cardCategory === "NIPKAI" && (
+                <th className="px-5 py-3 text-center whitespace-nowrap min-w-[200px]">
+                  NIP
+                </th>
+              )}
+
+              <th className="px-5 py-3 text-center whitespace-nowrap min-w-[260px]">
+                Identity Number
+              </th>
+
+              <th className="px-4 py-3 text-left whitespace-nowrap min-w-[140px]">
+                Nationality
+              </th>
+              <th className="px-4 py-3 text-center whitespace-nowrap">
+                Gender
+              </th>
+              <th className="px-4 py-3 text-left whitespace-nowrap">Email</th>
+              <th className="px-4 py-3 text-center whitespace-nowrap">Phone</th>
+              <th className="px-4 py-3 text-left whitespace-nowrap min-w-[220px]">
+                Address
+              </th>
+              <th className="px-4 py-3 text-center whitespace-nowrap">
+                Last Updated
+              </th>
+              <th className="px-4 py-3 text-center">View</th>
+              <th className="px-4 py-3 text-center">Aksi</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {data.map((item) => (
+              <tr
+                key={item.id}
+                className="border-t text-sm hover:bg-gray-50 transition-colors"
               >
-                Edit
-              </button>
+                <td className="px-4 py-2 text-center whitespace-nowrap">
+                  {item.membership_date || "-"}
+                </td>
 
-              <button
-                onClick={() => {
-                  setSelectedId(item.id);
-                  setShowDeleteModal(true);
-                }}
-                className="rounded bg-red-600 px-3 py-1 text-xs text-white"
-              >
-                Hapus
-              </button>
-            </div>
-          </td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-</div>
+                <td
+                  className="px-5 py-2 text-left max-w-[260px] truncate"
+                  title={item.name || ""}
+                >
+                  {item.name || "-"}
+                </td>
 
+                {/* ✅ NIP – HANYA JIKA NIPKAI */}
+                {cardCategory === "NIPKAI" && (
+                  <td className="px-5 py-2 text-center font-mono whitespace-nowrap min-w-[200px]">
+                    {item.nip || "-"}
+                  </td>
+                )}
+
+                <td
+                  className="px-5 py-2 text-center font-mono min-w-[260px] max-w-[320px] truncate cursor-pointer hover:underline"
+                  title="Klik untuk copy"
+                  onClick={() =>
+                    item.nik &&
+                    navigator.clipboard.writeText(formatNik(item.nik))
+                  }
+                >
+                  {formatNik(item.nik)}
+                </td>
+
+                <td className="px-4 py-2 text-left whitespace-nowrap min-w-[140px]">
+                  {item.nationality || "-"}
+                </td>
+
+                <td className="px-4 py-2 text-center whitespace-nowrap">
+                  {item.gender || "-"}
+                </td>
+
+                <td
+                  className="px-5 py-2 text-left max-w-[240px] truncate"
+                  title={item.email || ""}
+                >
+                  {item.email || "-"}
+                </td>
+
+                <td className="px-4 py-2 text-center font-mono whitespace-nowrap">
+                  {item.phone || "-"}
+                </td>
+
+                <td className="px-4 py-2 text-left max-w-[260px] truncate">
+                  {item.address || "-"}
+                </td>
+
+                <td className="px-4 py-2 text-center whitespace-nowrap">
+                  {item.updated_at || "-"}
+                </td>
+
+                <td className="px-4 py-2 text-center">
+                  <Eye
+                    size={16}
+                    className="mx-auto cursor-pointer text-gray-500 hover:text-blue-600"
+                    onClick={() =>
+                      router.push(
+                        `/dashboard/superadmin/membership/view/${item.id}`
+                      )
+                    }
+                  />
+                </td>
+
+                <td className="px-4 py-2 text-center">
+                  <div className="flex justify-center gap-2">
+                    <button
+                      onClick={() =>
+                        router.push(
+                          `/dashboard/superadmin/membership/edit/${item.id}`
+                        )
+                      }
+                      className="rounded bg-gray-200 px-3 py-1 text-xs"
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setSelectedMember({
+                          id: item.id,
+                          name: item.name ?? "-",
+                          nik: item.nik ?? null,
+                        });
+                        setShowDeleteModal(true);
+                      }}
+                      className="
+    rounded px-3 py-1 text-xs text-white
+    bg-[#8D1231] hover:bg-[#73122E] transition
+  "
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {/* PAGINATION */}
       <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-600">
@@ -600,9 +657,7 @@ const confirmDelete = async () => {
               }))
             }
             className={`px-3 py-1 ${
-              p === pagination.page
-                ? 'font-semibold underline'
-                : ''
+              p === pagination.page ? "font-semibold underline" : ""
             }`}
           >
             {p}
@@ -610,9 +665,7 @@ const confirmDelete = async () => {
         ))}
 
         <button
-          disabled={
-            pagination.page === pagination.totalPages
-          }
+          disabled={pagination.page === pagination.totalPages}
           onClick={() =>
             setPagination((p) => ({
               ...p,
@@ -627,7 +680,11 @@ const confirmDelete = async () => {
 
       <ConfirmDeleteModal
         open={showDeleteModal}
-        onCancel={() => setShowDeleteModal(false)}
+        member={selectedMember}
+        onCancel={() => {
+          setShowDeleteModal(false);
+          setSelectedMember(null);
+        }}
         onConfirm={confirmDelete}
       />
 

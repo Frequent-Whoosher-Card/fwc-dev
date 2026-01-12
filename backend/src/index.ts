@@ -19,6 +19,7 @@ import { purchases } from "./modules/purchases";
 import { AuthenticationError, AuthorizationError } from "./utils/errors";
 import { inbox } from "./modules/inbox";
 import { redeem } from "./modules/redeem";
+import { superset } from "./modules/superset";
 
 const app = new Elysia()
   .use(docsConfig)
@@ -44,6 +45,8 @@ const app = new Elysia()
   .use(metrics)
   .use(inbox)
   .use(redeem)
+  .use(superset)
+
   .onError(({ code, error, set }) => {
     // Global error handler
     if (code === "VALIDATION") {
@@ -120,7 +123,33 @@ console.log(
   `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`
 );
 
-// Graceful shutdown untuk OCR daemon
+// Cleanup job for temporary storage (runs every 30 minutes)
+setInterval(async () => {
+  try {
+    const { tempStorage } = await import("./utils/temp_storage");
+    const cleanedCount = await tempStorage.cleanupExpired();
+    if (cleanedCount > 0) {
+      console.log(`[Cleanup] Removed ${cleanedCount} expired temporary file(s)`);
+    }
+  } catch (error) {
+    console.error("[Cleanup] Error cleaning up temporary files:", error);
+  }
+}, 30 * 60 * 1000); // 30 minutes
+
+// Run cleanup immediately on startup
+(async () => {
+  try {
+    const { tempStorage } = await import("./utils/temp_storage");
+    const cleanedCount = await tempStorage.cleanupExpired();
+    if (cleanedCount > 0) {
+      console.log(`[Cleanup] Removed ${cleanedCount} expired temporary file(s) on startup`);
+    }
+  } catch (error) {
+    console.error("[Cleanup] Error cleaning up temporary files on startup:", error);
+  }
+})();
+
+// Graceful shutdown untuk OCR daemon dan KTP detection daemon
 process.on("SIGTERM", async () => {
   console.log("SIGTERM received, shutting down gracefully...");
   try {
@@ -128,6 +157,12 @@ process.on("SIGTERM", async () => {
     await ocrService.shutdown();
   } catch (e) {
     // Ignore if OCR service not initialized
+  }
+  try {
+    const { ktpDetectionService } = await import("./services/ktp_detection_service");
+    await ktpDetectionService.shutdown();
+  } catch (e) {
+    // Ignore if detection service not initialized
   }
   process.exit(0);
 });
@@ -139,6 +174,12 @@ process.on("SIGINT", async () => {
     await ocrService.shutdown();
   } catch (e) {
     // Ignore if OCR service not initialized
+  }
+  try {
+    const { ktpDetectionService } = await import("./services/ktp_detection_service");
+    await ktpDetectionService.shutdown();
+  } catch (e) {
+    // Ignore if detection service not initialized
   }
   process.exit(0);
 });

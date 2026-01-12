@@ -157,7 +157,6 @@ export class CardService {
               stationCode: true,
             },
           },
-          notes: true,
         },
       }),
       db.card.count({ where }),
@@ -176,7 +175,6 @@ export class CardService {
             stationCode: card.station.stationCode,
           }
         : null,
-      notes: card.notes || null,
     }));
 
     return {

@@ -60,7 +60,7 @@ export default function StockInPage() {
         setStockIn(
           data.map((item: any) => ({
             id: item.id,
-            tanggal: new Date(item.movementAt).toLocaleDateString('id-ID'),
+            tanggal: item.movementAt,
             rawTanggal: item.movementAt,
             category: item.cardCategory?.name || '-',
             type: item.cardType?.name || '-',
@@ -191,14 +191,40 @@ export default function StockInPage() {
               {stockIn.map((row, i) => (
                 <tr key={row.id} className="border-b">
                   <td className="p-3 text-center">{i + 1}</td>
-                  <td className="p-3 text-center">{row.tanggal}</td>
+                  <td className="px-3 py-2 text-center whitespace-nowrap">
+                    {' '}
+                    {new Date(row.tanggal)
+                      .toLocaleDateString('id-ID', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                      })
+                      .replace(/\//g, '-')}
+                  </td>
                   <td className="p-3 text-center">{row.category}</td>
                   <td className="p-3 text-center">{row.type}</td>
                   <td className="p-3 text-center font-medium">{row.stock.toLocaleString()}</td>
                   <td className="p-3 text-center">
-                    <Eye size={16} className="mx-auto cursor-pointer text-gray-500 hover:text-blue-600" onClick={() => router.push(`/dashboard/superadmin/stock/in/view/${row.id}`)} />
+                    <button
+                      onClick={() => router.push(`/dashboard/superadmin/stock/in/view/${row.id}`)}
+                      className="
+      mx-auto flex items-center justify-center
+      w-8 h-8
+      border border-gray-300 rounded-md
+      text-gray-500
+      hover:bg-[#8D1231] hover:text-white
+      transition-colors duration-200
+    "
+                    >
+                      <Eye size={16} />
+                    </button>
                   </td>
+
                   <td className="p-3 text-center">
+                    {/* EDIT */}
+                    <button onClick={() => router.push(`/dashboard/superadmin/stock/in/${row.id}/edit`)} className="rounded-md border border-blue-500 px-3 py-1 text-sm text-blue-500 hover:bg-blue-500 hover:text-white">
+                      Edit
+                    </button>
                     <button
                       onClick={() => {
                         setSelectedId(row.id);

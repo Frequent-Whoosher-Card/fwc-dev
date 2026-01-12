@@ -1,6 +1,7 @@
 import { Elysia, t } from "elysia";
 import { PurchaseModel } from "./model";
 import { PurchaseService } from "./service";
+import { ActivationService } from "./activation.service";
 import { rbacMiddleware } from "../../middleware/rbac";
 import { formatErrorResponse } from "../../utils/errors";
 
@@ -27,16 +28,37 @@ const baseRoutes = new Elysia()
     async (context) => {
       const { query, set, user } = context as typeof context & AuthContextUser;
       try {
+        // Helper function to filter out "undefined" string values
+        const cleanParam = (value: any) => {
+          if (
+            value === "undefined" ||
+            value === undefined ||
+            value === null ||
+            value === ""
+          ) {
+            return undefined;
+          }
+          return value;
+        };
+
+        // Helper to safely parse integer
+        const safeParseInt = (value: any) => {
+          const cleaned = cleanParam(value);
+          if (cleaned === undefined) return undefined;
+          const parsed = parseInt(cleaned);
+          return isNaN(parsed) ? undefined : parsed;
+        };
+
         const result = await PurchaseService.getAll({
-          page: query.page ? parseInt(query.page) : undefined,
-          limit: query.limit ? parseInt(query.limit) : undefined,
-          startDate: query.startDate,
-          endDate: query.endDate,
-          stationId: query.stationId,
-          categoryId: query.categoryId,
-          typeId: query.typeId,
-          operatorId: query.operatorId,
-          search: query.search,
+          page: safeParseInt(query.page),
+          limit: safeParseInt(query.limit),
+          startDate: cleanParam(query.startDate),
+          endDate: cleanParam(query.endDate),
+          stationId: cleanParam(query.stationId),
+          categoryId: cleanParam(query.categoryId),
+          typeId: cleanParam(query.typeId),
+          operatorId: cleanParam(query.operatorId),
+          search: cleanParam(query.search),
           // Pass user context for role-based filtering
           userRole: user.role.roleCode,
           userId: user.id,
@@ -221,8 +243,278 @@ Automatically calculated based on purchaseDate + cardProduct.masaBerlaku (in day
     }
   );
 
+// Activation routes - petugas, supervisor, admin, superadmin
+const activationRoutes = new Elysia()
+  .use(rbacMiddleware(["petugas", "supervisor", "admin", "superadmin"]))
+  .post(
+    "/:id/activate",
+    async (context) => {
+      const { params, body, set, user } = context as typeof context &
+        AuthContextUser;
+      try {
+        const result = await ActivationService.activateCard(
+          params.id,
+          body.physicalCardSerialNumber,
+          user.id
+        );
+        return {
+          success: true,
+          message: "Card activated successfully",
+          data: result,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      params: t.Object({
+        id: t.String({ format: "uuid", description: "Purchase ID" }),
+      }),
+      body: PurchaseModel.activateCardBody,
+      response: {
+        200: t.Object({
+          success: t.Boolean(),
+          message: t.String(),
+          data: t.Any(),
+        }),
+        400: PurchaseModel.errorResponse,
+        401: PurchaseModel.errorResponse,
+        403: PurchaseModel.errorResponse,
+        404: PurchaseModel.errorResponse,
+        500: PurchaseModel.errorResponse,
+      },
+      detail: {
+        tags: ["Purchases - Activation"],
+        summary: "Activate card purchase (Step 2 of Two-Step Activation)",
+        description: `**Two-Step Activation - Step 2: Activate Card**
+
+This endpoint validates the physical card serial number against the assigned card and activates the purchase.
+
+**Requirements:**
+- Purchase must exist and have status PENDING
+- Physical card serial number must match the assigned serial number from purchase
+- Card status must be ASSIGNED
+
+**Process:**
+1. Validate physical card serial number matches assigned serial number
+2. Update card status from ASSIGNED to SOLD_ACTIVE
+3. Update purchase activation status from PENDING to ACTIVATED
+4. Record activation timestamp and user
+
+**Error Cases:**
+- 404: Purchase not found
+- 400: Purchase already activated or cancelled
+- 400: Serial number mismatch (provides details of expected vs provided)
+- 400: Card status invalid for activation
+
+**Access Control:**
+All authenticated users with roles: petugas, supervisor, admin, superadmin`,
+      },
+    }
+  )
+  .post(
+    "/:id/swap-card",
+    async (context) => {
+      const { params, body, set, user } = context as typeof context &
+        AuthContextUser;
+      try {
+        const result = await ActivationService.swapCard(
+          params.id,
+          body.correctCardSerialNumber,
+          user.id,
+          body.reason
+        );
+        return {
+          success: true,
+          message: "Card swapped successfully",
+          data: result,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      params: t.Object({
+        id: t.String({ format: "uuid", description: "Purchase ID" }),
+      }),
+      body: PurchaseModel.swapCardBody,
+      response: {
+        200: t.Object({
+          success: t.Boolean(),
+          message: t.String(),
+          data: t.Any(),
+        }),
+        400: PurchaseModel.errorResponse,
+        401: PurchaseModel.errorResponse,
+        403: PurchaseModel.errorResponse,
+        404: PurchaseModel.errorResponse,
+        500: PurchaseModel.errorResponse,
+      },
+      detail: {
+        tags: ["Purchases - Activation"],
+        summary: "Swap card for a purchase (before activation)",
+        description: `**Card Swap - Replace Wrong Card**
+
+This endpoint allows swapping the assigned card with a different card before activation, in case the wrong card was selected during purchase creation.
+
+**Requirements:**
+- Purchase must exist and have status PENDING (not yet activated)
+- New card must exist and have status IN_STATION
+- New card must be same category as original purchase
+- Original card will be restored to IN_STATION status
+
+**Process:**
+1. Restore original card status to IN_STATION
+2. Validate new card is available (IN_STATION) and same category
+3. Assign new card to purchase with ASSIGNED status
+4. Log swap reason in purchase notes
+
+**Use Cases:**
+- Wrong card was selected during purchase creation
+- Physical card given doesn't match the assigned card
+- Need to replace damaged card before activation
+
+**Access Control:**
+All authenticated users with roles: petugas, supervisor, admin, superadmin`,
+      },
+    }
+  )
+  .post(
+    "/:id/cancel",
+    async (context) => {
+      const { params, body, set, user } = context as typeof context &
+        AuthContextUser;
+      try {
+        const result = await ActivationService.cancelPurchase(
+          params.id,
+          user.id,
+          body.reason
+        );
+        return {
+          success: true,
+          message: "Purchase cancelled successfully",
+          data: result,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      params: t.Object({
+        id: t.String({ format: "uuid", description: "Purchase ID" }),
+      }),
+      body: PurchaseModel.cancelPurchaseBody,
+      response: {
+        200: t.Object({
+          success: t.Boolean(),
+          message: t.String(),
+          data: t.Any(),
+        }),
+        400: PurchaseModel.errorResponse,
+        401: PurchaseModel.errorResponse,
+        403: PurchaseModel.errorResponse,
+        404: PurchaseModel.errorResponse,
+        500: PurchaseModel.errorResponse,
+      },
+      detail: {
+        tags: ["Purchases - Activation"],
+        summary: "Cancel purchase (before activation)",
+        description: `**Cancel Purchase - Revert Purchase Transaction**
+
+This endpoint cancels a pending purchase and restores the card to available status.
+
+**Requirements:**
+- Purchase must exist and have status PENDING (not yet activated)
+- Cannot cancel already activated purchases
+
+**Process:**
+1. Update purchase activation status to CANCELLED
+2. Restore card status from ASSIGNED back to IN_STATION
+3. Clear assigned serial number from card
+4. Log cancellation reason in purchase notes
+
+**Use Cases:**
+- Customer cancels transaction before receiving card
+- Wrong purchase was created and needs to be voided
+- Transaction error requires cancellation
+
+**Access Control:**
+All authenticated users with roles: petugas, supervisor, admin, superadmin`,
+      },
+    }
+  )
+  .get(
+    "/:id/activation-status",
+    async (context) => {
+      const { params, set } = context;
+      try {
+        const result = await ActivationService.getPurchaseActivationStatus(
+          params.id
+        );
+        return {
+          success: true,
+          data: result,
+          message: "Activation status retrieved successfully",
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      params: t.Object({
+        id: t.String({ format: "uuid", description: "Purchase ID" }),
+      }),
+      response: {
+        200: PurchaseModel.activationStatusResponse,
+        401: PurchaseModel.errorResponse,
+        403: PurchaseModel.errorResponse,
+        404: PurchaseModel.errorResponse,
+        500: PurchaseModel.errorResponse,
+      },
+      detail: {
+        tags: ["Purchases - Activation"],
+        summary: "Get purchase activation status",
+        description: `**Check Activation Status**
+
+Get the current activation status and details for a purchase.
+
+**Response includes:**
+- Activation status (PENDING, ACTIVATED, CANCELLED)
+- Activation timestamp (if activated)
+- User who activated (if activated)
+- Physical card serial number used (if activated)
+- Assigned card information
+- Card product category
+
+**Use Cases:**
+- Check if purchase needs activation
+- Verify which physical card was used
+- Audit activation history
+
+**Access Control:**
+All authenticated users with roles: petugas, supervisor, admin, superadmin`,
+      },
+    }
+  );
+
 // Combine all routes
 export const purchases = new Elysia({ prefix: "/purchases" })
   .use(baseRoutes)
-  .use(writeRoutes);
-
+  .use(writeRoutes)
+  .use(activationRoutes);

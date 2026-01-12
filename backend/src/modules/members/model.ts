@@ -10,7 +10,7 @@ export namespace MemberModel {
     email: t.Union([t.String(), t.Null()]),
     phone: t.Union([t.String(), t.Null()]),
     nippKai: t.Union([t.String(), t.Null()]),
-    gender: t.Union([t.String(), t.Null()]),
+    gender: t.Union([t.Literal("L"), t.Literal("P"), t.Null()]),
     alamat: t.Union([t.String(), t.Null()]),
     notes: t.Union([t.String(), t.Null()]),
     createdAt: t.String({ format: "date-time" }),
@@ -57,9 +57,11 @@ export namespace MemberModel {
       })
     ),
     gender: t.Optional(
-      t.String({
-        maxLength: 20,
-        description: "Gender",
+      t.Union([
+        t.Literal("L"),
+        t.Literal("P"),
+      ], {
+        description: "Gender: L (Laki-laki) or P (Perempuan)",
       })
     ),
     alamat: t.Optional(
@@ -117,9 +119,11 @@ export namespace MemberModel {
       })
     ),
     gender: t.Optional(
-      t.String({
-        maxLength: 20,
-        description: "Gender",
+      t.Union([
+        t.Literal("L"),
+        t.Literal("P"),
+      ], {
+        description: "Gender: L (Laki-laki) or P (Perempuan)",
       })
     ),
     alamat: t.Optional(
@@ -140,7 +144,9 @@ export namespace MemberModel {
     page: t.Optional(t.String()),
     limit: t.Optional(t.String()),
     search: t.Optional(
-      t.String({ description: "Search by name, identity number, email, phone, or updated by (user name)" })
+      t.String({ 
+        description: "Search across all member fields: Customer Name, Identity Number, Nationality, Gender (L/P/Laki-laki/Perempuan), Email, Phone, Address, Membership Date (YYYY-MM-DD/DD/MM/YYYY/DD-MM-YYYY), Last Updated (YYYY-MM-DD/DD/MM/YYYY/DD-MM-YYYY), and Last Updated By (user name). Supports partial matching." 
+      })
     ),
     startDate: t.Optional(
       t.String({ 
@@ -155,8 +161,16 @@ export namespace MemberModel {
       })
     ),
     gender: t.Optional(
+      t.Union([
+        t.Literal("L"),
+        t.Literal("P"),
+      ], {
+        description: "Filter by gender: L (Laki-laki) or P (Perempuan)" 
+      })
+    ),
+    hasNippKai: t.Optional(
       t.String({ 
-        description: "Filter by gender (e.g., 'L', 'P', 'Male', 'Female', etc.)" 
+        description: "Filter members that have NIPKAI. Set to 'true' to filter only members with NIPKAI" 
       })
     ),
   });
@@ -217,6 +231,24 @@ export namespace MemberModel {
         combined_text: t.String(),
       })
     ),
+    message: t.Optional(t.String()),
+  });
+
+  // --- KTP Detection Response ---
+  export const ktpDetectionResponse = t.Object({
+    success: t.Boolean(),
+    data: t.Object({
+      sessionId: t.String({ description: "Session ID for retrieving cropped image(s) later" }),
+      cropped_image: t.Optional(t.String({ description: "Base64 encoded cropped KTP image (single detection)" })),
+      cropped_images: t.Optional(t.Array(t.Object({
+        cropped_image: t.String({ description: "Base64 encoded cropped KTP image" }),
+        bbox: t.Array(t.Number(), { minItems: 4, maxItems: 4, description: "Bounding box [x1, y1, x2, y2]" }),
+        confidence: t.Number({ description: "Detection confidence score" }),
+      }), { description: "Multiple detections (if return_multiple=true)" })),
+      bbox: t.Optional(t.Array(t.Number(), { minItems: 4, maxItems: 4, description: "Bounding box [x1, y1, x2, y2] (single detection)" })),
+      original_size: t.Array(t.Number(), { minItems: 2, maxItems: 2, description: "Original image size [width, height]" }),
+      confidence: t.Optional(t.Number({ description: "Detection confidence score (single detection)" })),
+    }),
     message: t.Optional(t.String()),
   });
 }

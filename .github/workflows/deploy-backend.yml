@@ -1,0 +1,66 @@
+name: Deploy Backend to VM Azure
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy-backend-azure:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VM_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy Backend (Safe Update + Ensure main + Lock + Bun PATH)
+        run: |
+          ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
+            set -e
+
+            echo "== Acquire deploy lock (backend) =="
+            LOCK="/tmp/fwc-deploy.lock"
+            exec 9>$LOCK
+            flock 9
+            echo "Lock acquired"
+
+            echo "== Load NVM & Node 24.12.0 =="
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+            nvm use 24.12.0
+
+            echo "== Load Bun (non-interactive SSH fix) =="
+            export BUN_INSTALL="$HOME/.bun"
+            export PATH="$BUN_INSTALL/bin:$PATH"
+
+            echo "== Verify runtime =="
+            node -v
+            npm -v
+            command -v bun
+            bun --version
+
+            PM2="$HOME/.nvm/versions/node/v24.12.0/bin/pm2"
+
+            echo "== Ensure branch is main & sync code safely =="
+            cd /home/fwc/fwc-dev
+            git fetch origin
+            git checkout main
+            git reset --hard origin/main
+
+            echo "== Install backend dependencies =="
+            cd backend
+            bun install
+
+            echo "== Generate Prisma client =="
+            bunx prisma generate
+
+            echo "== Restart backend via PM2 =="
+            $PM2 restart fwc-backend --update-env
+
+            echo "== Backend deploy finished successfully =="
+          EOF

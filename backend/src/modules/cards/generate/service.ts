@@ -365,7 +365,7 @@ export class CardGenerateService {
   }) {
     const {
       page = 1,
-      limit = 10,
+      limit = 5,
       startDate,
       endDate,
       categoryId,
@@ -547,6 +547,49 @@ export class CardGenerateService {
         barcodeUrl: c.fileObject ? `/${c.fileObject.relativePath}` : null,
         fileObject: undefined, // Exclude raw fileObject from final response
       })),
+    };
+  }
+
+  // Get Next Serial Suggestion
+  static async getNextSerial(cardProductId: string) {
+    const product = await db.cardProduct.findUnique({
+      where: { id: cardProductId },
+      include: {
+        category: true,
+        type: true,
+      },
+    });
+
+    if (!product) {
+      throw new ValidationError("Produk tidak ditemukan");
+    }
+
+    const yearSuffix = new Date().getFullYear().toString().slice(-2);
+    const prefix = `${product.serialTemplate}${yearSuffix}`;
+
+    const lastCard = await db.card.findFirst({
+      where: { cardProductId: product.id },
+      orderBy: { serialNumber: "desc" },
+    });
+
+    let nextSuffix = 1;
+    let lastSerial = null;
+
+    if (lastCard && lastCard.serialNumber.startsWith(prefix)) {
+      lastSerial = lastCard.serialNumber;
+      const lastSuffixStr = lastCard.serialNumber.slice(prefix.length);
+      if (/^\d+$/.test(lastSuffixStr)) {
+        nextSuffix = Number(lastSuffixStr) + 1;
+      }
+    }
+
+    const width = 5;
+    const nextSerial = `${prefix}${String(nextSuffix).padStart(width, "0")}`;
+
+    return {
+      nextSerial,
+      prefix,
+      lastSerial,
     };
   }
 }

@@ -53,20 +53,25 @@ export class MemberService {
     startDate?: string;
     endDate?: string;
     gender?: string;
+    hasNippKai?: string;
   }) {
-    const { page, limit, search, startDate, endDate, gender } = params;
+    const { page, limit, search, startDate, endDate, gender, hasNippKai } = params;
     const skip = page && limit ? (page - 1) * limit : undefined;
 
     const where: any = {
       deletedAt: null, // Soft delete filter
     };
 
-    // Filter gender
-    if (gender) {
-      where.gender = { 
-        equals: gender, 
-        mode: "insensitive" 
+    // Filter by NIPKAI - only members that have NIPKAI
+    if (hasNippKai === 'true') {
+      where.nippKai = {
+        not: null,
       };
+    }
+
+    // Filter gender (enum: L or P)
+    if (gender) {
+      where.gender = gender as "L" | "P";
     }
 
     // Filter membership date (createdAt)
@@ -87,7 +92,7 @@ export class MemberService {
     }
 
     if (search) {
-      // First, find users whose fullName matches the search term
+      // First, find users whose fullName matches the search term (for Last Updated by)
       const matchingUsers = await db.user.findMany({
         where: {
           fullName: { contains: search, mode: "insensitive" },
@@ -97,17 +102,86 @@ export class MemberService {
       const matchingUserIds = matchingUsers.map((u) => u.id);
 
       where.OR = [
+        // Customer Name
         { name: { contains: search, mode: "insensitive" } },
+        // Identity Number
         { identityNumber: { contains: search, mode: "insensitive" } },
+        // Nationality
+        { nationality: { contains: search, mode: "insensitive" } },
+        // Email
         { email: { contains: search, mode: "insensitive" } },
+        // Phone
         { phone: { contains: search, mode: "insensitive" } },
+        // Address
+        { alamat: { contains: search, mode: "insensitive" } },
       ];
 
-      // Add search by updatedBy (user fullName)
+      // Search by Gender (L or P)
+      const searchUpper = search.toUpperCase().trim();
+      if (searchUpper === 'L' || searchUpper === 'LAKI' || searchUpper === 'LAKI-LAKI' || searchUpper === 'LAKI LAKI' || searchUpper === 'LAKI-LAKI') {
+        where.OR.push({ gender: 'L' });
+      } else if (searchUpper === 'P' || searchUpper === 'PEREMPUAN') {
+        where.OR.push({ gender: 'P' });
+      }
+
+      // Add search by updatedBy (user fullName) - Last Updated by
       if (matchingUserIds.length > 0) {
         where.OR.push({
           updatedBy: { in: matchingUserIds },
         });
+      }
+
+      // Search by date fields (Membership Date and Last Updated)
+      // Try to parse as date and search in date range
+      const dateMatch = search.match(/\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4}|\d{2}-\d{2}-\d{4}/);
+      if (dateMatch) {
+        try {
+          // Try different date formats
+          let searchDate: Date | null = null;
+          const dateStr = dateMatch[0];
+          
+          if (dateStr.includes('-')) {
+            // YYYY-MM-DD or DD-MM-YYYY
+            const parts = dateStr.split('-');
+            if (parts[0].length === 4) {
+              // YYYY-MM-DD
+              searchDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+            } else {
+              // DD-MM-YYYY
+              searchDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+            }
+          } else if (dateStr.includes('/')) {
+            // DD/MM/YYYY
+            const parts = dateStr.split('/');
+            searchDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+          }
+
+          if (searchDate && !isNaN(searchDate.getTime())) {
+            const startOfDay = new Date(searchDate);
+            startOfDay.setHours(0, 0, 0, 0);
+            const endOfDay = new Date(searchDate);
+            endOfDay.setHours(23, 59, 59, 999);
+
+            where.OR.push(
+              // Membership Date (createdAt)
+              {
+                createdAt: {
+                  gte: startOfDay,
+                  lte: endOfDay,
+                },
+              },
+              // Last Updated (updatedAt)
+              {
+                updatedAt: {
+                  gte: startOfDay,
+                  lte: endOfDay,
+                },
+              }
+            );
+          }
+        } catch (error) {
+          // Ignore date parsing errors, continue with text search
+        }
       }
     }
 
@@ -301,13 +375,134 @@ export class MemberService {
   /**
    * Extract KTP fields using OCR
    */
-  static async extractKTPFields(imageFile: File): Promise<typeof MemberModel.ocrExtractResponse.static> {
-    // Import OCR service (lazy import to avoid circular dependencies)
-    const { ocrService } = await import("../../services/ocr_service");
-    
+  /**
+   * Detect and crop KTP from image
+   */
+  static async detectKTP(
+    imageFile: File,
+    returnMultiple: boolean = false,
+    minConfidence: number = 0.5
+  ): Promise<typeof MemberModel.ktpDetectionResponse.static> {
+    // Import services (lazy import to avoid circular dependencies)
+    const { ktpDetectionService } = await import("../../services/ktp_detection_service");
+    const { tempStorage } = await import("../../utils/temp_storage");
+
     try {
+      // Use cached detection daemon service (model loaded once, reused for all requests)
+      const result = await ktpDetectionService.detectAndCrop(
+        imageFile,
+        returnMultiple,
+        minConfidence
+      );
+
+      if (!result.success) {
+        throw new Error(result.error || "KTP detection failed");
+      }
+
+      // Generate session ID for temporary storage
+      const sessionId = tempStorage.generateSessionId();
+
+      // Store cropped image(s) temporarily
+      if (returnMultiple && result.cropped_images) {
+        // Multiple detections
+        if (!result.original_size) {
+          throw new Error("Invalid detection response: missing original_size");
+        }
+
+        await tempStorage.storeImages(
+          sessionId,
+          result.cropped_images.map((img) => ({
+            croppedImage: img.cropped_image,
+            bbox: img.bbox,
+            originalSize: result.original_size!,
+            confidence: img.confidence,
+          }))
+        );
+
+        return {
+          success: true,
+          data: {
+            sessionId,
+            cropped_images: result.cropped_images,
+            original_size: result.original_size,
+          },
+          message: `Detected ${result.cropped_images.length} KTP(s) successfully`,
+        };
+      } else {
+        // Single detection
+        if (!result.cropped_image || !result.bbox || !result.original_size) {
+          throw new Error("Invalid detection response");
+        }
+
+        await tempStorage.storeImage(
+          sessionId,
+          result.cropped_image,
+          result.bbox,
+          result.original_size,
+          result.confidence
+        );
+
+        return {
+          success: true,
+          data: {
+            sessionId,
+            cropped_image: result.cropped_image,
+            bbox: result.bbox,
+            original_size: result.original_size,
+            confidence: result.confidence || undefined,
+          },
+          message: "KTP detected and cropped successfully",
+        };
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new ValidationError(`KTP detection failed: ${error.message}`);
+      }
+      throw new ValidationError("KTP detection failed: Unknown error");
+    }
+  }
+
+  /**
+   * Extract KTP fields using OCR
+   * Supports File upload, base64 cropped image, or sessionId
+   */
+  static async extractKTPFields(
+    imageFileOrBase64OrSessionId: File | string,
+    isSessionId: boolean = false
+  ): Promise<typeof MemberModel.ocrExtractResponse.static> {
+    // Import services (lazy import to avoid circular dependencies)
+    const { ocrService } = await import("../../services/ocr_service");
+    const { tempStorage } = await import("../../utils/temp_storage");
+
+    try {
+      let fileObj: File;
+
+      // Handle sessionId, base64 string, or File object
+      if (isSessionId && typeof imageFileOrBase64OrSessionId === "string") {
+        // SessionId - retrieve from temp storage
+        const stored = await tempStorage.getImage(imageFileOrBase64OrSessionId);
+        if (!stored) {
+          throw new Error("Session expired or not found. Please re-upload the image.");
+        }
+        // Convert stored base64 to File
+        const base64Data = stored.croppedImage.replace(/^data:image\/\w+;base64,/, "");
+        const buffer = Buffer.from(base64Data, "base64");
+        fileObj = new File([buffer], "cropped_ktp.jpg", { type: "image/jpeg" });
+        
+        // Cleanup after use (optional - can also let TTL handle it)
+        // await tempStorage.deleteImage(imageFileOrBase64OrSessionId);
+      } else if (typeof imageFileOrBase64OrSessionId === "string") {
+        // Base64 string - convert to File
+        const base64Data = imageFileOrBase64OrSessionId.replace(/^data:image\/\w+;base64,/, "");
+        const buffer = Buffer.from(base64Data, "base64");
+        fileObj = new File([buffer], "cropped_ktp.jpg", { type: "image/jpeg" });
+      } else {
+        // File object
+        fileObj = imageFileOrBase64OrSessionId;
+      }
+
       // Use cached OCR daemon service (model loaded once, reused for all requests)
-      const result = await ocrService.processImage(imageFile);
+      const result = await ocrService.processImage(fileObj);
 
       if (!result.success) {
         throw new Error(result.error || "OCR extraction failed");

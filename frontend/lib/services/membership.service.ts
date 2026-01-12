@@ -11,6 +11,7 @@ export interface MemberListItem {
   nationality: string;
   email: string | null;
   phone: string | null;
+  nippKai?: string | null;
   gender?: string | null;
   alamat?: string | null;
   operatorName?: string | null;
@@ -48,7 +49,8 @@ export const getMembers = async (params?: {
   gender?: string;
   startDate?: string;
   endDate?: string;
-  cardCategory?: string; 
+  cardCategory?: string;
+  hasNippKai?: boolean;
 }) => {
   const query = new URLSearchParams();
 
@@ -71,6 +73,10 @@ export const getMembers = async (params?: {
     query.append('endDate', params.endDate);
   }
 
+  if (params?.hasNippKai === true) {
+    query.append('hasNippKai', 'true');
+  }
+
   const res = await apiFetch(
     `/members?${query.toString()}`,
     { method: 'GET' }
@@ -90,6 +96,7 @@ export const getMembers = async (params?: {
             nationality: item.nationality ?? '',
             email: item.email ?? null,
             phone: item.phone ?? null,
+            nippKai: item.nippKai ?? null,
             gender: item.gender ?? null,
             alamat: item.alamat ?? null,
             operatorName: item.createdByName ?? null,
