@@ -274,25 +274,73 @@ export class UserService {
   }
 
   /**
-   * Get all users with pagination
+   * Get all users with pagination, filters, and search
    */
-  static async getUsers(page: number = 1, limit: number = 10) {
+  static async getUsers(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    roleId?: string;
+    stationId?: string;
+    isActive?: boolean;
+  }) {
+    const { 
+      page = 1, 
+      limit = 10, 
+      search, 
+      roleId, 
+      stationId, 
+      isActive 
+    } = params || {};
+    
     const skip = (page - 1) * limit;
 
+    // Build where clause
+    const where: any = {
+      deletedAt: null,
+    };
+
+    // Role filter
+    if (roleId) {
+      where.roleId = roleId;
+    }
+
+    // Station filter
+    if (stationId) {
+      where.stationId = stationId;
+    }
+
+    // Active status filter
+    if (isActive !== undefined) {
+      where.isActive = isActive;
+    }
+
+    // Search filter
+    if (search) {
+      where.OR = [
+        { username: { contains: search, mode: "insensitive" } },
+        { fullName: { contains: search, mode: "insensitive" } },
+        { email: { contains: search, mode: "insensitive" } },
+        { nip: { contains: search, mode: "insensitive" } },
+        { phone: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
     // Get total count
-    const total = await db.user.count({
-      where: {
-        deletedAt: null,
-      },
-    });
+    const total = await db.user.count({ where });
 
     // Get paginated users
     const users = await db.user.findMany({
-      where: {
-        deletedAt: null,
-      },
+      where,
       include: {
         role: true,
+        station: {
+          select: {
+            id: true,
+            stationCode: true,
+            stationName: true,
+          },
+        },
       },
       orderBy: {
         createdAt: "desc",
@@ -311,11 +359,17 @@ export class UserService {
         email: user.email,
         phone: user.phone,
         nip: user.nip,
+        stationId: user.stationId,
         role: {
           id: user.role.id,
           roleCode: user.role.roleCode,
           roleName: user.role.roleName,
         },
+        station: user.station ? {
+          id: user.station.id,
+          stationCode: user.station.stationCode,
+          stationName: user.station.stationName,
+        } : null,
         isActive: user.isActive,
         lastLogin: user.lastLogin?.toISOString() || null,
         createdAt: user.createdAt.toISOString(),
@@ -341,6 +395,13 @@ export class UserService {
       },
       include: {
         role: true,
+        station: {
+          select: {
+            id: true,
+            stationCode: true,
+            stationName: true,
+          },
+        },
       },
     });
 
@@ -355,11 +416,17 @@ export class UserService {
       email: user.email,
       phone: user.phone,
       nip: user.nip,
+      stationId: user.stationId,
       role: {
         id: user.role.id,
         roleCode: user.role.roleCode,
         roleName: user.role.roleName,
       },
+      station: user.station ? {
+        id: user.station.id,
+        stationCode: user.station.stationCode,
+        stationName: user.station.stationName,
+      } : null,
       isActive: user.isActive,
       lastLogin: user.lastLogin?.toISOString() || null,
       createdAt: user.createdAt.toISOString(),

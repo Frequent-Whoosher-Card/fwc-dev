@@ -176,6 +176,46 @@ export namespace UserModel {
     }),
   });
 
+  // Get Users Query Parameters
+  export const getUsersQuery = t.Object({
+    page: t.Optional(
+      t.String({
+        description: "Page number (default: 1)",
+        examples: ["1", "2"],
+      })
+    ),
+    limit: t.Optional(
+      t.String({
+        description: "Items per page (default: 10)",
+        examples: ["10", "20", "50"],
+      })
+    ),
+    search: t.Optional(
+      t.String({
+        description: "Search across username, full name, email, NIP, or phone (case-insensitive)",
+        examples: ["john", "admin"],
+      })
+    ),
+    roleId: t.Optional(
+      t.String({
+        description: "Filter by role ID (UUID)",
+        examples: ["123e4567-e89b-12d3-a456-426614174000"],
+      })
+    ),
+    stationId: t.Optional(
+      t.String({
+        description: "Filter by station ID (UUID)",
+        examples: ["123e4567-e89b-12d3-a456-426614174000"],
+      })
+    ),
+    isActive: t.Optional(
+      t.String({
+        description: "Filter by active status (true/false)",
+        examples: ["true", "false"],
+      })
+    ),
+  });
+
   // User Response
   export const userResponse = t.Object({
     id: t.String(),
@@ -184,11 +224,17 @@ export namespace UserModel {
     email: t.Nullable(t.String()),
     phone: t.Nullable(t.String()),
     nip: t.Nullable(t.String()),
+    stationId: t.Nullable(t.String()),
     role: t.Object({
       id: t.String(),
       roleCode: t.String(),
       roleName: t.String(),
     }),
+    station: t.Nullable(t.Object({
+      id: t.String(),
+      stationCode: t.String(),
+      stationName: t.String(),
+    })),
     isActive: t.Boolean(),
     lastLogin: t.Nullable(t.String()),
     createdAt: t.String(),
