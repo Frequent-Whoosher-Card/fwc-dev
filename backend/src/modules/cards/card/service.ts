@@ -11,6 +11,8 @@ export class CardService {
     typeId?: string;
     categoryName?: string;
     typeName?: string;
+    stationId?: string;
+    stationName?: string;
     page?: number;
     limit?: number;
   }) {
@@ -36,12 +38,26 @@ export class CardService {
       where.status = status.toUpperCase();
     }
 
-    // Search by serialNumber
+    // Search by serialNumber, Category Name, or Type Name
     if (search) {
-      where.serialNumber = {
-        contains: search,
-        mode: "insensitive" as const,
-      };
+      where.OR = [
+        { serialNumber: { contains: search, mode: "insensitive" } },
+        {
+          cardProduct: {
+            category: {
+              categoryName: { contains: search, mode: "insensitive" },
+            },
+          },
+        },
+        {
+          cardProduct: {
+            type: { typeName: { contains: search, mode: "insensitive" } },
+          },
+        },
+        {
+          station: { stationName: { contains: search, mode: "insensitive" } },
+        },
+      ];
     }
 
     // Filter by Category/Type (Relations)
@@ -68,6 +84,19 @@ export class CardService {
       cardProductWhere.type = {
         typeName: {
           contains: params.typeName,
+          mode: "insensitive",
+        },
+      };
+    }
+
+    if (params?.stationId) {
+      where.stationId = params.stationId;
+    }
+
+    if (params?.stationName) {
+      where.station = {
+        stationName: {
+          contains: params.stationName,
           mode: "insensitive",
         },
       };
@@ -121,6 +150,14 @@ export class CardService {
               mimeType: true,
             },
           },
+          station: {
+            select: {
+              id: true,
+              stationName: true,
+              stationCode: true,
+            },
+          },
+          notes: true,
         },
       }),
       db.card.count({ where }),
@@ -132,6 +169,14 @@ export class CardService {
       createdAt: card.createdAt.toISOString(),
       purchaseDate: card.purchaseDate?.toISOString() || null,
       expiredDate: card.expiredDate?.toISOString() || null,
+      station: card.station
+        ? {
+            id: card.station.id,
+            stationName: card.station.stationName,
+            stationCode: card.station.stationCode,
+          }
+        : null,
+      notes: card.notes || null,
     }));
 
     return {
@@ -182,6 +227,13 @@ export class CardService {
             originalName: true,
             relativePath: true,
             mimeType: true,
+          },
+        },
+        station: {
+          select: {
+            id: true,
+            stationName: true,
+            stationCode: true,
           },
         },
       },
@@ -282,5 +334,69 @@ export class CardService {
     });
 
     return card;
+  }
+
+  // Update Card
+  static async updateCard(
+    id: string,
+    data: { status?: string; notes?: string; userId: string }
+  ) {
+    const card = await db.card.findUnique({
+      where: { id },
+    });
+
+    if (!card) {
+      throw new ValidationError("Card not found");
+    }
+
+    const { status, notes, userId } = data;
+    const updateData: any = {
+      updatedBy: userId,
+      updatedAt: new Date(),
+    };
+
+    if (status) updateData.status = status;
+    if (notes !== undefined) updateData.notes = notes;
+
+    const updatedCard = await db.card.update({
+      where: { id },
+      data: updateData,
+      include: {
+        cardProduct: {
+          select: {
+            id: true,
+            category: { select: { id: true, categoryName: true } },
+            type: { select: { id: true, typeName: true } },
+          },
+        },
+        station: {
+          select: {
+            id: true,
+            stationName: true,
+            stationCode: true,
+          },
+        },
+        fileObject: {
+          select: {
+            id: true,
+            originalName: true,
+            relativePath: true,
+            mimeType: true,
+          },
+        },
+      },
+    });
+
+    // Format response
+    return {
+      ...updatedCard,
+      createdAt: updatedCard.createdAt.toISOString(),
+      purchaseDate: updatedCard.purchaseDate?.toISOString() || null,
+      expiredDate: updatedCard.expiredDate?.toISOString() || null,
+      station: updatedCard.station || null,
+      fileObject: updatedCard.fileObject || null,
+      cardProduct: updatedCard.cardProduct as any,
+      notes: updatedCard.notes || null,
+    };
   }
 }

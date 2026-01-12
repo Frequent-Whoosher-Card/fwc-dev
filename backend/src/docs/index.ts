@@ -142,6 +142,10 @@ export const docsConfig = swagger({
         name: "Stock Analysis",
         description: "Stock analysis endpoints for card inventory",
       },
+      {
+        name: "Redeem",
+        description: "Redeem management endpoints",
+      },
     ],
     components: {
       securitySchemes: {
