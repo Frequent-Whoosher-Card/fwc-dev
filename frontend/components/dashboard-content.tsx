@@ -367,38 +367,66 @@
 //     </div>
 //   );
 // }
-
 'use client';
 import { useEffect, useState } from 'react';
 
 export default function DashboardContent() {
   const [src, setSrc] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     fetch('/api/superset/guest-token?dashboardId=1138237b-ff01-4ad9-be19-a576acdfb8ae')
       .then(res => res.json())
       .then(data => {
         if (data.success) {
-          setSrc(
-            `https://superset.fwc-kcic.me/superset/dashboard/p/v2YGXxyGXNL/?standalone=1&guest_token=${data.token}`
-          );
+          const embedUrl = `https://superset.fwc-kcic.me/superset/dashboard/1138237b-ff01-4ad9-be19-a576acdfb8ae/?standalone=true&guest_token=${data.token}`;
+          setSrc(embedUrl);
         } else {
-          throw new Error(data.message);
+          setError(data.message || 'Failed to get guest token');
         }
       })
       .catch(err => {
-        console.error("Failed load dashboard:", err);
-      });
+        setError('Failed to load dashboard');
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  if (!src) return <div>Loading dashboard...</div>;
+  if (loading) {
+    return (
+      <div className="w-full h-[calc(100vh-64px)] flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-lg font-semibold">Loading dashboard...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !src) {
+    return (
+      <div className="w-full h-[calc(100vh-64px)] flex items-center justify-center bg-gray-50">
+        <div className="text-center max-w-md">
+          <div className="text-red-600 text-lg font-semibold mb-4">⚠️ Unable to Load Dashboard</div>
+          <p className="text-gray-600 mb-6">{error || 'Failed to load Superset dashboard'}</p>
+          <a
+            href="https://superset.fwc-kcic.me/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Open Superset Login
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <iframe
       src={src}
       className="w-full h-[calc(100vh-64px)]"
       style={{ border: 'none' }}
+      title="Superset Dashboard"
     />
   );
 }
-
