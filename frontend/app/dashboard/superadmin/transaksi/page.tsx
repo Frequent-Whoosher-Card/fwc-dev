@@ -1,20 +1,3 @@
-<<<<<<< HEAD
-'use client';
-
-import TransactionToolbar from './components/TransactionToolbar';
-import TransactionFilter from './components/TransactionFilter';
-import TransactionTable from './components/TransactionTable';
-
-export default function TransactionPage() {
-  return (
-    <div className="space-y-4">
-      <TransactionToolbar />
-      <TransactionFilter />
-      <TransactionTable />
-    </div>
-  );
-}
-=======
 'use client';
 
 import { useState } from 'react';
@@ -91,4 +74,3 @@ export default function TransactionPage() {
     </div>
   );
 }
->>>>>>> da9ad286010c29f3d8e17c72ef368bf0864559eb

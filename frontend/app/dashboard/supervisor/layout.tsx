@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { DashboardLayout } from '@/app/dashboard/superadmin/dashboard/dashboard-layout';
+import DashboardLayout from "@/app/dashboard/superadmin/dashboard/dashboard-layout";
 
 export default function SupervisorLayout({
   children,

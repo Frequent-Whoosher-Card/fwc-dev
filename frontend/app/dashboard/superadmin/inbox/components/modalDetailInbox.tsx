@@ -1,5 +1,6 @@
-'use client';
-import StatusBadge from './StatusBadge';
+"use client";
+import StatusBadge from "./StatusBadge";
+import { InboxStatus } from "../models/inbox.model";
 
 interface Sender {
   fullName: string;
@@ -16,10 +17,10 @@ interface InboxPayload {
 
 export interface InboxDetail {
   id: string;
-  status: 'accepted' | 'damaged' | 'missing';
+  status: InboxStatus;
   message: string;
-  date_label: string;
-  time_label: string;
+  dateLabel: string;
+  timeLabel: string;
   sender: Sender;
   payload?: InboxPayload;
 }
@@ -32,12 +33,12 @@ export default function ModalDetailInbox({
   onClose: () => void;
 }) {
   const avatarLetter =
-    data.sender?.fullName?.trim().charAt(0).toUpperCase() ?? '?';
+    data.sender?.fullName?.trim().charAt(0).toUpperCase() ?? "?";
 
   const isSerialCase =
-    data.status === 'damaged' || data.status === 'missing';
+    data.status === "CARD_DAMAGED" || data.status === "CARD_MISSING";
 
-  const createdAt = new Date(`${data.date_label} ${data.time_label}`);
+  const createdAt = new Date(`${data.dateLabel} ${data.timeLabel}`);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
@@ -54,28 +55,29 @@ export default function ModalDetailInbox({
                 {data.sender.fullName}
               </p>
               <p className="text-xs text-gray-500">
-                {data.sender.station ?? '-'}
+                {data.sender.station ?? "-"}
               </p>
             </div>
           </div>
 
           <div className="flex flex-col text-right whitespace-nowrap">
             <span className="text-xs text-gray-500 font-medium">
-              {data.date_label}
+              {data.dateLabel}
             </span>
-            <span className="text-xs text-gray-400">
-              {data.time_label}
-            </span>
-      </div>
+            <span className="text-xs text-gray-400">{data.timeLabel}</span>
+          </div>
         </div>
 
         {/* ===== Body ===== */}
         <div className="space-y-4 px-6 py-6">
-          <Row label="Batch Card:" value={data.sender.batch_card ?? '-'} />
-          <Row label="Card Category:" value={data.sender.card_category ?? '-'} />
-          <Row label="Card Type:" value={data.sender.card_type ?? '-'} />
-          <Row label="Amount Card:" value={data.sender.amount_card ?? '-'} />
-          <Row label="Station:" value={data.sender.station ?? '-'} />
+          <Row label="Batch Card:" value={data.sender.batch_card ?? "-"} />
+          <Row
+            label="Card Category:"
+            value={data.sender.card_category ?? "-"}
+          />
+          <Row label="Card Type:" value={data.sender.card_type ?? "-"} />
+          <Row label="Amount Card:" value={data.sender.amount_card ?? "-"} />
+          <Row label="Station:" value={data.sender.station ?? "-"} />
 
           <div className="grid grid-cols-[180px_1fr] items-center gap-4">
             <span className="text-sm text-gray-700">Card Condition:</span>
@@ -86,7 +88,7 @@ export default function ModalDetailInbox({
             data.payload?.serials?.map((sn, i) => (
               <Row
                 key={sn}
-                label={i === 0 ? 'Serial Number Card:' : ''}
+                label={i === 0 ? "Serial Number Card:" : ""}
                 value={`${i + 1}. ${sn}`}
               />
             ))}

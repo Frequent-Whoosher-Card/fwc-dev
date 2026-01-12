@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # GLOBAL
 ############################
 node_modules/
@@ -225,4 +225,3 @@ frontend/yarn-debug.log*
 Thumbs.db
 frontend/.DS_Store
 frontend/Thumbs.db
->>>>>>> da9ad286010c29f3d8e17c72ef368bf0864559eb

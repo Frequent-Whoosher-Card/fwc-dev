@@ -1,19 +1,15 @@
-'use client';
-import { useState } from 'react';
-import InboxItem from './InboxItem';
-import ModalDetailInbox from './modalDetailInbox';
+"use client";
+import InboxItem from "./InboxItem";
 
 export default function InboxList({
   items,
   loading,
-  onRefresh,
+  onClickItem,
 }: {
   items: any[];
   loading: boolean;
-  onRefresh: () => void;
+  onClickItem: (item: any) => void;
 }) {
-  const [selectedItem, setSelectedItem] = useState<any | null>(null);
-
   if (loading) {
     return (
       <div className="p-20 text-center text-gray-400 animate-pulse">
@@ -31,23 +27,14 @@ export default function InboxList({
   }
 
   return (
-    <>
-      <div className="flex flex-col px-6 pb-6">
-        {items.map((item) => (
-          <InboxItem
-            key={item.id}
-            item={item}
-            onClick={() => setSelectedItem(item)}
-          />
-        ))}
-      </div>
-
-      {selectedItem && (
-        <ModalDetailInbox
-          data={selectedItem}
-          onClose={() => setSelectedItem(null)}
+    <div className="flex flex-col px-6 pb-6">
+      {items.map((item) => (
+        <InboxItem
+          key={item.id}
+          item={item}
+          onClick={() => onClickItem(item)}
         />
-      )}
-    </>
+      ))}
+    </div>
   );
 }

@@ -1,26 +1,3 @@
-<<<<<<< HEAD
-'use client';
-
-export default function TransactionFilter() {
-  return (
-    <div className="flex items-center gap-3">
-      <select className="h-9 rounded-md border px-3 text-sm">
-        <option>Station</option>
-      </select>
-
-      <input
-        type="date"
-        className="h-9 rounded-md border px-3 text-sm"
-      />
-
-      <input
-        type="date"
-        className="h-9 rounded-md border px-3 text-sm"
-      />
-    </div>
-  );
-}
-=======
 'use client';
 
 import { RotateCcw } from 'lucide-react';
@@ -158,4 +135,3 @@ export default function TransactionFilter({
     </div>
   );
 }
->>>>>>> da9ad286010c29f3d8e17c72ef368bf0864559eb

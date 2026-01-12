@@ -1,5 +1,5 @@
-'use client';
-import StatusBadge from './StatusBadge';
+"use client";
+import StatusBadge from "./StatusBadge";
 
 export default function InboxItem({
   item,
@@ -8,7 +8,7 @@ export default function InboxItem({
   item: any;
   onClick: () => void;
 }) {
-  const senderName = item.sender?.fullName || '';
+  const senderName = item.sender?.fullName || "";
   const avatarLetter = senderName.charAt(0).toUpperCase();
 
   return (
@@ -44,9 +44,7 @@ export default function InboxItem({
 
       {/* MIDDLE : SUBJECT + MESSAGE */}
       <div className="flex flex-col gap-0.5">
-        <span className="text-sm font-medium text-gray-800">
-          {item.title}
-        </span>
+        <span className="text-sm font-medium text-gray-800">{item.title}</span>
 
         <span className="text-xs text-gray-500 line-clamp-1">
           {item.message}
@@ -58,9 +56,7 @@ export default function InboxItem({
         <span className="text-xs text-gray-500 font-medium">
           {item.date_label}
         </span>
-        <span className="text-xs text-gray-400">
-          {item.time_label}
-        </span>
+        <span className="text-xs text-gray-400">{item.time_label}</span>
       </div>
     </div>
   );

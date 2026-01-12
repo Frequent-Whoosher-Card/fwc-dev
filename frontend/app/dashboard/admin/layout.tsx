@@ -1,17 +1,11 @@
-<<<<<<< HEAD
-'use client';
+"use client";
 
-import { DashboardLayout } from '@/app/dashboard/superadmin/dashboard/dashboard-layout';
+import DashboardLayout from "@/app/dashboard/superadmin/dashboard/dashboard-layout";
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return <DashboardLayout>{children}</DashboardLayout>;
 }
-=======
-'use client';
-
-import DashboardLayout from '@/app/dashboard/superadmin/dashboard/dashboard-layout';
-
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  return <DashboardLayout>{children}</DashboardLayout>;
-}
->>>>>>> da9ad286010c29f3d8e17c72ef368bf0864559eb

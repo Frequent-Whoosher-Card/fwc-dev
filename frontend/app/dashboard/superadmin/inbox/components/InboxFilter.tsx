@@ -1,49 +1,41 @@
-'use client';
-import { useState } from 'react';
-import { Filter, RotateCcw, Calendar } from 'lucide-react';
+"use client";
 
-export default function InboxFilter({ onFilter }: { onFilter: (filters: any) => void }) {
-  const [status, setStatus] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+import { useState } from "react";
+import { Filter, RotateCcw, Calendar } from "lucide-react";
+
+export interface InboxFilters {
+  status?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export default function InboxFilter({
+  onFilter,
+}: {
+  onFilter: (filters: InboxFilters) => void;
+}) {
+  // =========================
+  // STATE FILTER (LOCAL UI)
+  // =========================
+  const [status, setStatus] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  const reset = () => {
+    setStatus("");
+    setStartDate("");
+    setEndDate("");
+    onFilter({});
+  };
+  const applyFilters = () => {
+    onFilter({ status, startDate, endDate });
+  };
 
   return (
     <div className="flex flex-wrap items-center gap-4">
-      {/* START DATE */}
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium">Start</span>
-        <div className="relative">
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="h-9 w-[150px] rounded-md border px-3 pr-9 text-sm focus:ring-1 focus:ring-red-500"
-          />
-          <Calendar
-            size={16}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-red-500 pointer-events-none"
-          />
-        </div>
-      </div>
+      <DateInput label="Start" value={startDate} onChange={setStartDate} />
+      <DateInput label="End" value={endDate} onChange={setEndDate} />
 
-      {/* END DATE */}
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium">End</span>
-        <div className="relative">
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="h-9 w-[150px] rounded-md border px-3 pr-9 text-sm focus:ring-1 focus:ring-red-500"
-          />
-          <Calendar
-            size={16}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-red-500 pointer-events-none"
-          />
-        </div>
-      </div>
-
-      {/* STATUS */}
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium">Status</span>
         <select
@@ -52,28 +44,55 @@ export default function InboxFilter({ onFilter }: { onFilter: (filters: any) => 
           className="h-9 w-[160px] rounded-md border px-3 text-sm"
         >
           <option value="">Semua Status</option>
-          <option value="accepted">Accepted</option>
-          <option value="missing">Missing</option>
-          <option value="damaged">Damaged</option>
+          <option value="ACCEPTED">Accepted</option>
+          <option value="CARD_MISSING">Missing</option>
+          <option value="CARD_DAMAGED">Damaged</option>
         </select>
       </div>
 
-      {/* ACTION */}
-      <div className="flex items-center gap-2 ml-auto">
-        <button 
+      <div className="ml-auto flex gap-2">
+        <button
           onClick={() => onFilter({ status, startDate, endDate })}
-          className="bg-[#E31E24] text-white px-8 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-red-700 "
+          className="bg-red-600 text-white px-8 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2"
         >
           Filter <Filter size={16} />
         </button>
-        <button 
-          onClick={() => { setStatus(''); setStartDate(''); setEndDate(''); onFilter({}); }}
-          className="p-2.5 border border-gray-200 rounded-xl text-gray-400 hover:bg-gray-50 transition-all shadow-sm"
+
+        <button
+          onClick={reset}
+          className="p-2.5 border rounded-xl text-gray-400"
         >
           <RotateCcw size={20} />
         </button>
       </div>
+    </div>
+  );
+}
 
+function DateInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-sm font-medium">{label}</span>
+      <div className="relative">
+        <input
+          type="date"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-9 w-[150px] rounded-md border px-3 pr-9 text-sm"
+        />
+        <Calendar
+          size={16}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-red-500"
+        />
+      </div>
     </div>
   );
 }

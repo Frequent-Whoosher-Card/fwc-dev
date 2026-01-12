@@ -1,42 +1,33 @@
-'use client';
+"use client";
 
-import StatusBadge from './StatusBadge';
+import { Inbox } from "../models/inbox.model";
+import StatusBadge from "./StatusBadge";
 
 export default function InboxItem({
   item,
   onClick,
 }: {
-  item: any;
+  item: Inbox;
   onClick: () => void;
 }) {
-  const senderName = item.sender?.fullName || '';
-  const avatarLetter = senderName.charAt(0).toUpperCase();
+  const avatar = item.sender.fullName.charAt(0).toUpperCase();
 
   return (
     <div
       onClick={onClick}
-      className="
-        grid grid-cols-[56px_184px_1fr_160px]
-        items-center
-        gap-6
-        px-6 py-5
-        border-b border-gray-200
-        hover:bg-gray-50
-        transition
-        cursor-pointer
-      "
+      className="grid grid-cols-[56px_184px_1fr_160px] gap-6 px-6 py-5 border-b hover:bg-gray-50 cursor-pointer"
     >
       {/* AVATAR */}
       <div className="flex items-center justify-center">
         <div className="w-10 h-10 rounded-full bg-gray-600 text-white flex items-center justify-center font-semibold">
-          {avatarLetter}
+          {avatar}
         </div>
       </div>
 
       {/* LEFT : SENDER + CARD CONDITION */}
       <div className="flex flex-col gap-1">
         <span className="text-sm font-semibold text-gray-900 truncate">
-          {senderName}
+          {item.sender.fullName}
         </span>
 
         {/* Card Condition from backend */}
@@ -45,9 +36,7 @@ export default function InboxItem({
 
       {/* MIDDLE : SUBJECT + MESSAGE */}
       <div className="flex flex-col gap-0.5">
-        <span className="text-sm font-medium text-gray-800">
-          {item.title}
-        </span>
+        <span className="text-sm font-medium text-gray-800">{item.title}</span>
 
         <span className="text-xs text-gray-500 line-clamp-1">
           {item.message}
@@ -57,11 +46,9 @@ export default function InboxItem({
       {/* RIGHT : INBOX DATE & TIME */}
       <div className="flex flex-col text-right whitespace-nowrap">
         <span className="text-xs text-gray-500 font-medium">
-          {item.date_label}
+          {item.dateLabel}
         </span>
-        <span className="text-xs text-gray-400">
-          {item.time_label}
-        </span>
+        <span className="text-xs text-gray-400">{item.timeLabel}</span>
       </div>
     </div>
   );
