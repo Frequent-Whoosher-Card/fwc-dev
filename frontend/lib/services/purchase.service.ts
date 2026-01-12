@@ -132,3 +132,59 @@ export const getPurchases = async (params?: {
 export const getPurchaseById = (id: string | number) => {
   return apiFetch(`/purchases/${id}`, { method: 'GET' });
 };
+
+/* =========================
+   TWO-STEP ACTIVATION
+========================= */
+
+/**
+ * ACTIVATE CARD (Step 2)
+ */
+export const activateCard = (purchaseId: string, physicalCardSerialNumber: string) => {
+  return apiFetch(`/purchases/${purchaseId}/activate`, {
+    method: 'POST',
+    body: JSON.stringify({ physicalCardSerialNumber }),
+  });
+};
+
+/**
+ * SWAP CARD (Before activation)
+ */
+export const swapCard = (purchaseId: string, correctCardSerialNumber: string, reason?: string) => {
+  return apiFetch(`/purchases/${purchaseId}/swap-card`, {
+    method: 'POST',
+    body: JSON.stringify({ correctCardSerialNumber, reason }),
+  });
+};
+
+/**
+ * CANCEL PURCHASE
+ */
+export const cancelPurchase = (purchaseId: string, reason?: string) => {
+  return apiFetch(`/purchases/${purchaseId}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
+};
+
+/**
+ * GET ACTIVATION STATUS
+ */
+export const getActivationStatus = (purchaseId: string) => {
+  return apiFetch(`/purchases/${purchaseId}/activation-status`, {
+    method: 'GET',
+  });
+};
+
+/**
+ * GET PENDING ACTIVATIONS
+ */
+export const getPendingActivations = (stationId?: string) => {
+  const query = new URLSearchParams();
+  if (stationId) {
+    query.append('stationId', stationId);
+  }
+  return apiFetch(`/purchases/pending-activations?${query.toString()}`, {
+    method: 'GET',
+  });
+};

@@ -144,11 +144,12 @@ export class PurchaseService {
         },
       });
 
-      // 10. Update card: set status to SOLD_ACTIVE, set purchaseDate, memberId, expiredDate
+      // 10. Update card: set status to ASSIGNED (two-step activation), assign serial number
       await tx.card.update({
         where: { id: data.cardId },
         data: {
-          status: "SOLD_ACTIVE",
+          status: "ASSIGNED", // Step 1: Assign card to purchase, waiting for activation
+          assignedSerialNumber: card.serialNumber, // Store serial for validation
           purchaseDate: purchaseDate,
           memberId: data.memberId,
           expiredDate: expiredDate,
@@ -157,7 +158,8 @@ export class PurchaseService {
         },
       });
 
-      // 11. Update inventory: decrease cardBelumTerjual, increase cardAktif
+      // 11. Update inventory: decrease cardBelumTerjual (card is now assigned, not available)
+      // Note: cardAktif will be incremented when purchase is activated
       const inventory = await tx.cardInventory.findFirst({
         where: {
           categoryId: card.cardProduct.categoryId,
@@ -173,9 +175,7 @@ export class PurchaseService {
             cardBelumTerjual: {
               decrement: 1,
             },
-            cardAktif: {
-              increment: 1,
-            },
+            // cardAktif will be incremented on activation, not here
             updatedBy: userId,
           },
         });
@@ -321,6 +321,7 @@ export class PurchaseService {
             select: {
               id: true,
               serialNumber: true,
+              assignedSerialNumber: true,
               status: true,
               expiredDate: true,
               quotaTicket: true,
@@ -396,6 +397,10 @@ export class PurchaseService {
       purchaseDate: item.purchaseDate.toISOString(),
       price: Number(item.price),
       notes: item.notes,
+      activationStatus: item.activationStatus,
+      activatedAt: item.activatedAt ? item.activatedAt.toISOString() : null,
+      activatedBy: item.activatedBy,
+      physicalCardSerialNumber: item.physicalCardSerialNumber,
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
       createdByName: item.createdBy
@@ -440,6 +445,7 @@ export class PurchaseService {
           select: {
             id: true,
             serialNumber: true,
+            assignedSerialNumber: true,
             status: true,
             expiredDate: true,
             quotaTicket: true,
@@ -519,6 +525,10 @@ export class PurchaseService {
       purchaseDate: purchase.purchaseDate.toISOString(),
       price: Number(purchase.price),
       notes: purchase.notes,
+      activationStatus: purchase.activationStatus,
+      activatedAt: purchase.activatedAt ? purchase.activatedAt.toISOString() : null,
+      activatedBy: purchase.activatedBy,
+      physicalCardSerialNumber: purchase.physicalCardSerialNumber,
       createdAt: purchase.createdAt.toISOString(),
       updatedAt: purchase.updatedAt.toISOString(),
       createdByName: creator?.fullName || null,
