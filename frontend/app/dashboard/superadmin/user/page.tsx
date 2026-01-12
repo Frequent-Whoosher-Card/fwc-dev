@@ -18,8 +18,8 @@ interface User {
   email: string;
   phone: string;
 
-  role: string;       // ADMIN | PETUGAS | SUPERVISOR
-  roleLabel: string;  // Admin | Petugas | Supervisor
+  role: string; // ADMIN | PETUGAS | SUPERVISOR
+  roleLabel: string; // Admin | Petugas | Supervisor
   station: string;
 }
 
@@ -197,9 +197,9 @@ export default function UserManagementPage() {
           className="h-10 min-w-[140px] rounded-lg border px-4 text-sm"
         >
           <option value="all">Role</option>
-          <option value="ADMIN">Admin</option>
-          <option value="PETUGAS">Petugas</option>
-          <option value="SUPERVISOR">Supervisor</option>
+          <option value="admin">Admin</option>
+          <option value="petugas">Petugas</option>
+          <option value="supervisor">Supervisor</option>
         </select>
 
         <button
@@ -274,9 +274,7 @@ export default function UserManagementPage() {
       <div className="flex items-center justify-center gap-2 text-sm">
         <button
           disabled={pagination.page === 1}
-          onClick={() =>
-            setPagination((p) => ({ ...p, page: p.page - 1 }))
-          }
+          onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))}
         >
           <ChevronLeft size={18} />
         </button>
@@ -293,9 +291,7 @@ export default function UserManagementPage() {
 
         <button
           disabled={pagination.page === pagination.totalPages}
-          onClick={() =>
-            setPagination((p) => ({ ...p, page: p.page + 1 }))
-          }
+          onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}
         >
           <ChevronRight size={18} />
         </button>
