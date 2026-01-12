@@ -18,7 +18,9 @@ export class UserService {
     });
 
     if (existingRole) {
-      throw new ValidationError(`Role with code '${data.roleCode}' already exists`);
+      throw new ValidationError(
+        `Role with code '${data.roleCode}' already exists`
+      );
     }
 
     const role = await db.role.create({
@@ -284,15 +286,15 @@ export class UserService {
     stationId?: string;
     isActive?: boolean;
   }) {
-    const { 
-      page = 1, 
-      limit = 10, 
-      search, 
-      roleId, 
-      stationId, 
-      isActive 
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      roleId,
+      stationId,
+      isActive,
     } = params || {};
-    
+
     const skip = (page - 1) * limit;
 
     // Build where clause
@@ -365,11 +367,13 @@ export class UserService {
           roleCode: user.role.roleCode,
           roleName: user.role.roleName,
         },
-        station: user.station ? {
-          id: user.station.id,
-          stationCode: user.station.stationCode,
-          stationName: user.station.stationName,
-        } : null,
+        station: user.station
+          ? {
+              id: user.station.id,
+              stationCode: user.station.stationCode,
+              stationName: user.station.stationName,
+            }
+          : null,
         isActive: user.isActive,
         lastLogin: user.lastLogin?.toISOString() || null,
         createdAt: user.createdAt.toISOString(),
@@ -422,11 +426,13 @@ export class UserService {
         roleCode: user.role.roleCode,
         roleName: user.role.roleName,
       },
-      station: user.station ? {
-        id: user.station.id,
-        stationCode: user.station.stationCode,
-        stationName: user.station.stationName,
-      } : null,
+      station: user.station
+        ? {
+            id: user.station.id,
+            stationCode: user.station.stationCode,
+            stationName: user.station.stationName,
+          }
+        : null,
       isActive: user.isActive,
       lastLogin: user.lastLogin?.toISOString() || null,
       createdAt: user.createdAt.toISOString(),
@@ -569,7 +575,9 @@ export class UserService {
     confirmPassword: string
   ) {
     if (newPassword !== confirmPassword) {
-      throw new ValidationError("New password and confirm password do not match");
+      throw new ValidationError(
+        "New password and confirm password do not match"
+      );
     }
 
     const user = await db.user.findFirst({
@@ -584,7 +592,10 @@ export class UserService {
     }
 
     // Verify current password
-    const isValid = await Bun.password.verify(currentPassword, user.passwordHash);
+    const isValid = await Bun.password.verify(
+      currentPassword,
+      user.passwordHash
+    );
     if (!isValid) {
       throw new ValidationError("Current password is incorrect");
     }
@@ -604,4 +615,3 @@ export class UserService {
     return { message: "Password changed successfully" };
   }
 }
-
