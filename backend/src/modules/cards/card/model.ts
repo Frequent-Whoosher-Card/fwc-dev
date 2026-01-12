@@ -39,6 +39,7 @@ export namespace CardModel {
       }),
       t.Null(),
     ]),
+    notes: t.Union([t.String(), t.Null()]),
   });
 
   // Get Cards Query
@@ -64,8 +65,10 @@ export namespace CardModel {
     ),
     categoryId: t.Optional(t.String({ format: "uuid" })),
     typeId: t.Optional(t.String({ format: "uuid" })),
+    stationId: t.Optional(t.String({ format: "uuid" })),
     categoryName: t.Optional(t.String()),
     typeName: t.Optional(t.String()),
+    stationName: t.Optional(t.String()),
     page: t.Optional(
       t.String({
         description: "Page number for pagination (default: 1). Minimum: 1",
@@ -146,7 +149,34 @@ export namespace CardModel {
         }),
         t.Null(),
       ]),
+      station: t.Union([
+        t.Object({
+          id: t.String({ format: "uuid" }),
+          stationName: t.String(),
+          stationCode: t.String(),
+        }),
+        t.Null(),
+      ]),
+      notes: t.Union([t.String(), t.Null()]),
     }),
+  });
+
+  // Update Card Body
+  export const updateCardBody = t.Object({
+    status: t.Optional(
+      t.String({
+        description:
+          "New status for the card (e.g., IN_OFFICE, IN_STATION, LOST, DAMAGED)",
+      })
+    ),
+    notes: t.Optional(t.String({ description: "Notes for the card" })),
+  });
+
+  // Update Card Response
+  export const updateCardResponse = t.Object({
+    success: t.Boolean(),
+    message: t.String(),
+    data: cardData,
   });
 
   // Get First Available Card Response

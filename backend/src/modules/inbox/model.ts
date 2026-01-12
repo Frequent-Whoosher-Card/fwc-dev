@@ -118,6 +118,7 @@ export namespace InboxModel {
       }),
     }),
   });
+
   export const getInboxDetailResponse = t.Object({
     success: t.Boolean(),
     data: t.Object({
