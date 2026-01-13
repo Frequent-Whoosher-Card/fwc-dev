@@ -165,9 +165,7 @@ export default function EditUserPage() {
 
   if (pageLoading) {
     return (
-      <div className="p-8 text-sm text-gray-400">
-        Loading user data...
-      </div>
+      <div className="p-8 text-sm text-gray-400">Loading user data...</div>
     );
   }
 
@@ -197,14 +195,10 @@ export default function EditUserPage() {
             </label>
             <input
               value={form.name}
-              onChange={(e) =>
-                setForm({ ...form, name: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
               className="h-11 w-full rounded-md border px-4 text-sm"
             />
-            <p className="mt-1 text-xs text-gray-400">
-              Minimal 3 karakter
-            </p>
+            <p className="mt-1 text-xs text-gray-400">Minimal 3 karakter</p>
           </div>
 
           {/* NIP */}
@@ -247,9 +241,7 @@ export default function EditUserPage() {
             </label>
             <select
               value={form.roleId}
-              onChange={(e) =>
-                setForm({ ...form, roleId: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, roleId: e.target.value })}
               className="h-11 w-full appearance-none rounded-md border px-4 text-sm"
             >
               <option value="">Pilih role</option>
@@ -268,13 +260,19 @@ export default function EditUserPage() {
               Phone Number<span className="ml-1 text-red-500">*</span>
             </label>
             <input
+              placeholder="+6281…"
               value={form.phone}
               onChange={(e) =>
-                setForm({ ...form, phone: e.target.value })
+                setForm({
+                  ...form,
+                  phone: e.target.value
+                    .replace(/[^\d+]/g, "") // hanya angka & +
+                    .slice(0, 16), // + + 15 digit
+                })
               }
-              placeholder="+6281…"
-              className="h-11 w-full rounded-md border px-4 text-sm"
+              className="h-11 w-full rounded-md border px-4 pr-10 text-sm"
             />
+
             <p className="mt-1 text-xs text-gray-400">
               Gunakan format internasional (+kode negara)
             </p>
@@ -287,9 +285,7 @@ export default function EditUserPage() {
             </label>
             <input
               value={form.email}
-              onChange={(e) =>
-                setForm({ ...form, email: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
               className="h-11 w-full rounded-md border px-4 pr-10 text-sm"
             />
             <Mail className="absolute right-3 top-[55%] h-4 w-4 text-gray-400" />
@@ -305,9 +301,7 @@ export default function EditUserPage() {
             </label>
             <select
               value={form.stationId}
-              onChange={(e) =>
-                setForm({ ...form, stationId: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, stationId: e.target.value })}
               className="h-11 w-full appearance-none rounded-md border px-4 text-sm"
             >
               <option value="">Pilih stasiun</option>

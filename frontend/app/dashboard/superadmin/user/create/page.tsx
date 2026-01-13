@@ -292,7 +292,14 @@ export default function CreateUserPage() {
               <input
                 placeholder="+6281…"
                 value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    phone: e.target.value
+                      .replace(/[^\d+]/g, "") // hanya angka & +
+                      .slice(0, 16), // + + 15 digit
+                  })
+                }
                 className="h-11 w-full rounded-md border px-4 pr-10 text-sm"
               />
 
