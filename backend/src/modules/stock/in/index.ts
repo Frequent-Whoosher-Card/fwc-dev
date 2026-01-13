@@ -31,8 +31,7 @@ export const stockIn = new Elysia({ prefix: "/in" })
           try {
             const stockIn = await StockInService.createStockIn(
               body.movementAt,
-              body.categoryId,
-              body.typeId,
+              body.cardProductId,
               body.startSerial,
               body.endSerial,
               user.id,

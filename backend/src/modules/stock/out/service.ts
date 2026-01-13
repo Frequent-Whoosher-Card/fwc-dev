@@ -3,7 +3,7 @@ import { ValidationError } from "../../../utils/errors";
 import { parseSmartSerial } from "../../../utils/serialHelper";
 import { InboxService } from "../../inbox/service";
 import { BatchService } from "../../../services/batchService";
-import { LowStockService } from "../../../services/lowStockService";
+import { LowStockService } from "src/services/lowStockService";
 
 function normalizeSerials(arr: string[]) {
   return Array.from(
