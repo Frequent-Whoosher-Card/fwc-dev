@@ -8,8 +8,7 @@ export namespace StockInModel {
       description: "Tanggal produksi / stok masuk (ISO date-time)",
     }),
 
-    categoryId: t.String({ format: "uuid" }),
-    typeId: t.Optional(t.String({ format: "uuid" })),
+    cardProductId: t.String({ format: "uuid" }),
 
     // contoh: "000123" atau "123"
     startSerial: t.String({
