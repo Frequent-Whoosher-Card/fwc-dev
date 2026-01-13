@@ -158,14 +158,21 @@ export default function UserManagementPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="search operator"
-            className="h-10 w-96 rounded-lg border border-gray-300 px-4 text-sm
-              focus:border-[#8D1231] focus:ring-1 focus:ring-[#8D1231]"
+            className="
+    h-10 w-full md:w-96
+    rounded-lg border border-gray-300 px-4 text-sm
+    focus:border-[#8D1231] focus:ring-1 focus:ring-[#8D1231]
+  "
           />
 
           <button
             onClick={() => router.push("/dashboard/superadmin/user/create")}
-            className="flex items-center gap-2 rounded-lg bg-[#8D1231]
-              px-5 py-2 text-sm text-white hover:bg-[#73122E]"
+            className="
+    flex w-full items-center justify-center gap-2
+    rounded-lg bg-[#8D1231] px-5 py-2 text-sm text-white
+    hover:bg-[#73122E]
+    md:w-auto
+  "
           >
             <Plus size={16} />
             add new User
@@ -174,7 +181,13 @@ export default function UserManagementPage() {
       </div>
 
       {/* FILTER */}
-      <div className="flex items-center gap-4 rounded-xl border bg-white px-6 py-4 shadow-sm">
+      <div
+        className="
+  flex flex-col gap-3
+  md:flex-row md:items-center
+  rounded-xl border bg-white px-6 py-4 shadow-sm
+"
+      >
         <span className="text-sm font-semibold text-[#8D1231]">Filters:</span>
 
         {/* STATION (UUID) */}
@@ -272,7 +285,7 @@ export default function UserManagementPage() {
                 <td className="px-4 py-2 text-gray-700">{u.station}</td>
                 {/* ACTION */}
                 <td className="px-4 py-2">
-                  <div className="flex justify-center gap-1.5">
+                  <div className="flex flex-col items-center gap-1 md:flex-row md:justify-center">
                     {/* EDIT */}
                     <button
                       onClick={() =>
@@ -312,7 +325,12 @@ export default function UserManagementPage() {
       </div>
 
       {/* PAGINATION */}
-      <div className="flex items-center justify-center gap-2 text-sm">
+      <div
+        className="
+  flex flex-wrap items-center justify-center gap-3
+  px-4 text-sm
+"
+      >
         <button
           disabled={pagination.page === 1}
           onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))}
@@ -341,7 +359,12 @@ export default function UserManagementPage() {
       {/* DELETE CONFIRM */}
       {showDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-[400px] rounded-2xl bg-white p-6 text-center">
+          <div
+            className="
+  w-[90%] max-w-[400px]
+  rounded-2xl bg-white p-6
+"
+          >
             <h2 className="text-lg font-semibold">Delete User</h2>
             <p className="mt-2 text-sm">
               Are you sure want to delete <b>{selectedUser?.fullname}</b>?
