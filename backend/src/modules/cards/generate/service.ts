@@ -567,10 +567,20 @@ export class CardGenerateService {
     const yearSuffix = new Date().getFullYear().toString().slice(-2);
     const prefix = `${product.serialTemplate}${yearSuffix}`;
 
-    const lastCard = await db.card.findFirst({
-      where: { cardProductId: product.id },
-      orderBy: { serialNumber: "desc" },
-    });
+    let lastCard = null;
+    try {
+      lastCard = await db.card.findFirst({
+        where: {
+          cardProductId: product.id,
+          serialNumber: {
+            startsWith: prefix,
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    } catch (error) {
+      console.warn("Error finding last card, defaulting to start", error);
+    }
 
     let nextSuffix = 1;
     let lastSerial = null;
