@@ -115,6 +115,11 @@ export namespace UserModel {
     roleId: t.String({
       description: "Role ID (UUID)",
     }),
+    stationId: t.Optional(
+      t.String({
+        description: "Station ID (UUID) - optional",
+      })
+    ),
     isActive: t.Optional(
       t.Boolean({
         default: true,
@@ -153,6 +158,11 @@ export namespace UserModel {
     roleId: t.Optional(
       t.String({
         description: "Role ID (UUID)",
+      })
+    ),
+    stationId: t.Optional(
+      t.String({
+        description: "Station ID (UUID) - optional",
       })
     ),
     isActive: t.Optional(

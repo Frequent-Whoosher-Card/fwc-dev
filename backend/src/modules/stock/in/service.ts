@@ -166,7 +166,7 @@ export class StockInService {
       // 7) Update inventory OFFICE (stationId=null): cardOffice += quantity
       const officeInv = await tx.cardInventory.findFirst({
         where: { categoryId, typeId, stationId: null },
-        select: { id: true },
+        select: { id: true, cardOffice: true },
       });
 
       if (!officeInv) {
