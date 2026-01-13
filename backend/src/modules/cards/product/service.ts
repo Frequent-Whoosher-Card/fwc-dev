@@ -112,6 +112,46 @@ export class CardProductService {
       throw new ValidationError("Card Type Not Found", "CARD_TYPE_NOT_FOUND");
     }
 
+    // Check if product already exists (including soft deleted)
+    const existingProduct = await db.cardProduct.findFirst({
+      where: {
+        categoryId,
+        typeId,
+      },
+    });
+
+    if (existingProduct) {
+      if (!existingProduct.deletedAt) {
+        throw new ValidationError(
+          "Produk dengan Kategori dan Tipe ini sudah ada.",
+          "PRODUCT_ALREADY_EXISTS"
+        );
+      }
+
+      // If soft deleted, restore and update
+      const restoredProduct = await db.cardProduct.update({
+        where: {
+          id: existingProduct.id,
+        },
+        data: {
+          isActive: true,
+          deletedAt: null,
+          deletedBy: null,
+          totalQuota,
+          masaBerlaku,
+          price,
+          serialTemplate: serialTemplate.toString(),
+          updatedAt: new Date(),
+          updatedBy: userId,
+        },
+      });
+
+      return {
+        ...restoredProduct,
+        price: restoredProduct.price.toString(),
+      };
+    }
+
     const createCardProduct = await db.cardProduct.create({
       data: {
         categoryId,
