@@ -12,10 +12,6 @@ export namespace PurchaseModel {
     purchaseDate: t.String({ format: "date-time" }),
     price: t.Number(),
     notes: t.Union([t.String(), t.Null()]),
-    activationStatus: t.String(),
-    activatedAt: t.Union([t.String({ format: "date-time" }), t.Null()]),
-    activatedBy: t.Union([t.String({ format: "uuid" }), t.Null()]),
-    physicalCardSerialNumber: t.Union([t.String(), t.Null()]),
     createdAt: t.String({ format: "date-time" }),
     updatedAt: t.String({ format: "date-time" }),
     createdByName: t.Union([t.String(), t.Null()]),
@@ -24,7 +20,6 @@ export namespace PurchaseModel {
     card: t.Object({
       id: t.String({ format: "uuid" }),
       serialNumber: t.String(),
-      assignedSerialNumber: t.Union([t.String(), t.Null()]),
       status: t.String(),
       expiredDate: t.Union([t.String({ format: "date-time" }), t.Null()]),
       quotaTicket: t.Number(),
@@ -204,53 +199,5 @@ export namespace PurchaseModel {
       code: t.String(),
       statusCode: t.Number(),
     }),
-  });
-
-  // --- Two-Step Activation Models ---
-  export const activateCardBody = t.Object({
-    physicalCardSerialNumber: t.String({
-      minLength: 1,
-      description:
-        "Serial number kartu fisik yang diberikan ke customer. Harus sesuai dengan kartu yang di-assign saat purchase.",
-      examples: ["CARD-2024-001", "FWC-12345"],
-    }),
-  });
-
-  export const swapCardBody = t.Object({
-    correctCardSerialNumber: t.String({
-      minLength: 1,
-      description:
-        "Serial number kartu yang benar untuk mengganti kartu yang salah. Kartu harus berstatus IN_STATION dan kategori harus sama.",
-      examples: ["CARD-2024-002", "FWC-12346"],
-    }),
-    reason: t.Optional(
-      t.String({
-        maxLength: 500,
-        description: "Alasan penggantian kartu (opsional)",
-        examples: ["Salah ambil kartu", "Kartu yang diberikan tidak sesuai"],
-      })
-    ),
-  });
-
-  export const cancelPurchaseBody = t.Object({
-    reason: t.Optional(
-      t.String({
-        maxLength: 500,
-        description: "Alasan pembatalan purchase (opsional)",
-        examples: ["Customer membatalkan transaksi", "Kesalahan input"],
-      })
-    ),
-  });
-
-  export const activationStatusResponse = t.Object({
-    success: t.Boolean(),
-    data: t.Any(), // Allow flexible response from service with Date objects
-    message: t.Optional(t.String()),
-  });
-
-  export const pendingActivationsResponse = t.Object({
-    success: t.Boolean(),
-    data: t.Array(purchaseData),
-    message: t.Optional(t.String()),
   });
 }
