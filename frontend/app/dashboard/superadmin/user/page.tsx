@@ -225,53 +225,76 @@ export default function UserManagementPage() {
 
       {/* TABLE */}
       <div className="overflow-x-auto rounded-xl border bg-white shadow-sm">
-        <table className="w-full table-fixed">
-          <thead className="bg-gray-50 text-xs font-semibold text-gray-600 border-b">
+        <table className="w-full table-fixed text-sm">
+          <thead className="border-b bg-gray-50 text-[11px] font-semibold uppercase text-gray-600">
             <tr>
-              <th className="w-[220px] px-5 py-4 text-left">Name</th>
-              <th className="w-[140px] px-5 py-4 text-left">NIP</th>
-              <th className="w-[160px] px-5 py-4 text-left">Username</th>
-              <th className="w-[220px] px-5 py-4 text-left">Email</th>
-              <th className="w-[160px] px-5 py-4 text-left">Phone</th>
-              <th className="w-[120px] px-5 py-4 text-left">Role</th>
-              <th className="w-[140px] px-5 py-4 text-left">Stasiun</th>
-              <th className="w-[120px] px-5 py-4 text-center">Aksi</th>
+              <th className="w-[200px] px-4 py-3 text-left">Name</th>
+              <th className="w-[120px] px-4 py-3 text-left">NIP</th>
+              <th className="w-[140px] px-4 py-3 text-left">Username</th>
+              <th className="w-[200px] px-4 py-3 text-left">Email</th>
+              <th className="w-[140px] px-4 py-3 text-left">Phone</th>
+              <th className="w-[120px] px-4 py-3 text-left">Role</th>
+              <th className="w-[120px] px-4 py-3 text-left">Stasiun</th>
+              <th className="w-[100px] px-4 py-3 text-center">Aksi</th>
             </tr>
           </thead>
 
           <tbody>
             {data.map((u) => (
-              <tr key={u.id} className="border-t text-sm hover:bg-gray-50">
+              <tr key={u.id} className="border-t transition hover:bg-gray-50">
                 {/* NAME */}
-                <td className="px-5 py-3">
-                  <div className="line-clamp-2 break-words">{u.fullname}</div>
+                <td className="px-4 py-2">
+                  <div className="truncate text-gray-900">{u.fullname}</div>
                 </td>
 
                 {/* NIP */}
-                <td className="px-5 py-3 whitespace-nowrap">{u.nip}</td>
+                <td className="px-4 py-2 whitespace-nowrap text-gray-700">
+                  {u.nip}
+                </td>
 
                 {/* USERNAME */}
-                <td className="px-5 py-3 truncate">{u.username}</td>
+                <td className="px-4 py-2 truncate text-gray-700">
+                  {u.username}
+                </td>
 
                 {/* EMAIL */}
-                <td className="px-5 py-3 truncate">{u.email}</td>
+                <td className="px-4 py-2 truncate text-gray-700">{u.email}</td>
 
                 {/* PHONE */}
-                <td className="px-5 py-3 whitespace-nowrap">{u.phone}</td>
+                <td className="px-4 py-2 whitespace-nowrap text-gray-700">
+                  {u.phone}
+                </td>
 
                 {/* ROLE */}
-                <td className="px-5 py-3 font-medium">{u.roleLabel}</td>
+                <td className="px-4 py-2 text-gray-800">{u.roleLabel}</td>
 
                 {/* STATION */}
-                <td className="px-5 py-3">{u.station}</td>
-
+                <td className="px-4 py-2 text-gray-700">{u.station}</td>
                 {/* ACTION */}
-                <td className="px-5 py-3">
-                  <div className="flex justify-center gap-2">
-                    <button className="rounded bg-gray-200 px-3 py-1 text-xs">
+                <td className="px-4 py-2">
+                  <div className="flex justify-center gap-1.5">
+                    {/* EDIT */}
+                    <button
+                      onClick={() =>
+                        router.push(
+                          `/dashboard/superadmin/user/edit?id=${u.id}`
+                        )
+                      }
+                      className="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-700
+      hover:bg-gray-200"
+                    >
                       Edit
                     </button>
-                    <button className="rounded bg-[#8D1231] px-3 py-1 text-xs text-white">
+
+                    {/* DELETE */}
+                    <button
+                      onClick={() => {
+                        setSelectedUser(u);
+                        setShowDelete(true);
+                      }}
+                      className="rounded-md bg-[#8D1231] px-2 py-1 text-xs text-white
+      hover:bg-[#73122E]"
+                    >
                       Delete
                     </button>
                   </div>
@@ -282,7 +305,9 @@ export default function UserManagementPage() {
         </table>
 
         {loading && (
-          <div className="p-4 text-sm text-gray-400">Loading data...</div>
+          <div className="p-4 text-center text-sm text-gray-400">
+            Loading data...
+          </div>
         )}
       </div>
 
