@@ -4,8 +4,7 @@ export namespace StockOutModel {
   // Stock Out Request
   export const stockOutRequest = t.Object({
     movementAt: t.String({ format: "date-time" }),
-    categoryId: t.String({ format: "uuid" }),
-    typeId: t.String({ format: "uuid" }),
+    cardProductId: t.String({ format: "uuid" }),
     stationId: t.String({ format: "uuid" }),
 
     // start and end serial numbers (e.g., FWC2500001)
