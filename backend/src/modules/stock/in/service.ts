@@ -8,8 +8,7 @@ export class StockInService {
    */
   static async createStockIn(
     movementAt: Date,
-    categoryId: string,
-    typeId: string,
+    cardProductId: string,
     startSerial: string,
     endSerial: string,
     userId: string,
@@ -27,18 +26,15 @@ export class StockInService {
 
     const transaction = await db.$transaction(async (tx) => {
       const product = await tx.cardProduct.findUnique({
-        where: {
-          unique_category_type: {
-            categoryId,
-            typeId,
-          },
-        },
+        where: { id: cardProductId },
         select: {
           id: true,
           serialTemplate: true,
           totalQuota: true,
           masaBerlaku: true,
           price: true,
+          categoryId: true,
+          typeId: true,
         },
       });
 
@@ -47,6 +43,8 @@ export class StockInService {
           "CardProduct untuk kategori/tipe ini tidak ditemukan"
         );
       }
+
+      const { categoryId, typeId } = product;
 
       // --- SMART PARSING ---
       const yearSuffix = new Date(movementAt)
@@ -168,7 +166,7 @@ export class StockInService {
       // 7) Update inventory OFFICE (stationId=null): cardOffice += quantity
       const officeInv = await tx.cardInventory.findFirst({
         where: { categoryId, typeId, stationId: null },
-        select: { id: true },
+        select: { id: true, cardOffice: true },
       });
 
       if (!officeInv) {

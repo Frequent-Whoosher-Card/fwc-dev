@@ -88,58 +88,19 @@ const baseRoutes = new Elysia()
   // Get All Users - All authenticated users
   .get(
     "",
-    async ({ query, set }) => {
+    async (context) => {
+      const { query, set } = context;
       try {
-        // Debug: Log raw query
-        console.log('Raw query received:', query);
+        const { page, limit, search, roleId, stationId, isActive } = query;
 
-        // Helper to clean undefined/null parameters
-        const cleanParam = (value: any) => {
-          if (value === "undefined" || value === undefined || value === null || value === "") {
-            return undefined;
-          }
-          return value;
-        };
-
-        // Helper to parse boolean
-        const parseBoolean = (value: any) => {
-          const cleaned = cleanParam(value);
-          if (cleaned === undefined) return undefined;
-          return cleaned === "true" || cleaned === true;
-        };
-
-        // Helper to parse integer
-        const safeParseInt = (value: any) => {
-          const cleaned = cleanParam(value);
-          if (cleaned === undefined) return undefined;
-          const parsed = parseInt(cleaned);
-          return isNaN(parsed) ? undefined : parsed;
-        };
-
-        const page = safeParseInt(query?.page) || 1;
-        const limit = safeParseInt(query?.limit) || 10;
-
-        // Validate page and limit
-        if (page < 1 || limit < 1) {
-          set.status = 400;
-          return formatErrorResponse(
-            new Error("Page and limit must be positive integers")
-          );
-        }
-
-        const filterParams = {
-          page,
-          limit,
-          search: cleanParam(query?.search),
-          roleId: cleanParam(query?.roleId),
-          stationId: cleanParam(query?.stationId),
-          isActive: parseBoolean(query?.isActive),
-        };
-
-        // Debug log (remove after testing)
-        console.log('GET /users - Filter params:', filterParams);
-
-        const result = await UserService.getUsers(filterParams);
+        const result = await UserService.getUsers({
+          page: page ? parseInt(page) : undefined,
+          limit: limit ? parseInt(limit) : undefined,
+          search,
+          roleId,
+          stationId,
+          isActive: isActive ? isActive === "true" : undefined,
+        });
 
         return {
           success: true,

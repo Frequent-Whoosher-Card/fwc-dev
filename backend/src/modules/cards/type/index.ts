@@ -42,7 +42,6 @@ const baseRoutes = new Elysia()
       }
     },
     {
-      body: CardTypeModel.getCardTypesResponse,
       response: {
         200: CardTypeModel.getCardTypesResponse,
         400: CardTypeModel.errorResponse,

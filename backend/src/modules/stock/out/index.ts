@@ -70,94 +70,8 @@ const baseRoutes = new Elysia()
       detail: {
         tags: ["Stock Out"],
         summary: "Stock Out Validate",
-        description: "Validasi stok keluar oleh petugas station.",
-      },
-    }
-  );
-
-const adminRoutes = new Elysia()
-  .use(authMiddleware)
-  .use(rbacMiddleware(["superadmin", "admin"]))
-  .get(
-    "/available-serials",
-    async (context) => {
-      const { query, set } = context;
-      try {
-        const result = await StockOutService.getAvailableSerials(
-          query.cardProductId
-        );
-        return {
-          success: true,
-          data: result,
-        };
-      } catch (error) {
-        set.status =
-          error instanceof Error && "statusCode" in error
-            ? (error as any).statusCode
-            : 500;
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      query: StockOutModel.getAvailableSerialsQuery,
-      response: {
-        200: StockOutModel.getAvailableSerialsResponse,
-        400: StockOutModel.errorResponse,
-        500: StockOutModel.errorResponse,
-      },
-      detail: {
-        tags: ["Stock Out"],
-        summary: "Get Available Serials",
         description:
-          "Mendapatkan daftar nomor serial yang statusnya IN_OFFICE (siap untuk dikirim).",
-      },
-    }
-  )
-  .post(
-    "/",
-    async (context) => {
-      const { body, set, user } = context as typeof context & AuthContextUser;
-      try {
-        const result = await StockOutService.stockOutDistribution(
-          new Date(body.movementAt),
-          body.categoryId,
-          body.typeId,
-          body.stationId,
-          body.startSerial,
-          body.endSerial,
-          user.id,
-          body.note
-        );
-
-        return {
-          success: true,
-          message:
-            "Distribusi stok berhasil dibuat (PENDING, menunggu validasi petugas)",
-          data: result,
-        };
-      } catch (error) {
-        set.status =
-          error instanceof Error && "statusCode" in error
-            ? (error as any).statusCode
-            : 500;
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      body: StockOutModel.stockOutRequest,
-      response: {
-        200: StockOutModel.stockOutResponse,
-        400: StockOutModel.errorResponse,
-        401: StockOutModel.errorResponse,
-        403: StockOutModel.errorResponse,
-        422: StockOutModel.errorResponse,
-        500: StockOutModel.errorResponse,
-      },
-      detail: {
-        tags: ["Stock Out"],
-        summary: "Stock Out Distribution",
-        description:
-          "Menyimpan distribusi stok ke tabel stock_out dengan status PENDING. Role: superadmin/admin.",
+          "Validasi stok keluar oleh petugas station. Triggers: 1) STOCK_OUT_REPORT (Success), 2) STOCK_ISSUE_APPROVAL (If issues), 3) Resolves LOW_STOCK_ALERT.",
       },
     }
   )
@@ -231,6 +145,92 @@ const adminRoutes = new Elysia()
         summary: "Get Stock Out Detail",
         description:
           "Melihat detail distribusi, termasuk log serial number yang dikirim, diterima, dan hilang.",
+      },
+    }
+  );
+
+const adminRoutes = new Elysia()
+  .use(authMiddleware)
+  .use(rbacMiddleware(["superadmin", "admin"]))
+  .get(
+    "/available-serials",
+    async (context) => {
+      const { query, set } = context;
+      try {
+        const result = await StockOutService.getAvailableSerials(
+          query.cardProductId
+        );
+        return {
+          success: true,
+          data: result,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      query: StockOutModel.getAvailableSerialsQuery,
+      response: {
+        200: StockOutModel.getAvailableSerialsResponse,
+        400: StockOutModel.errorResponse,
+        500: StockOutModel.errorResponse,
+      },
+      detail: {
+        tags: ["Stock Out"],
+        summary: "Get Available Serials",
+        description:
+          "Mendapatkan daftar nomor serial yang statusnya IN_OFFICE (siap untuk dikirim).",
+      },
+    }
+  )
+  .post(
+    "/",
+    async (context) => {
+      const { body, set, user } = context as typeof context & AuthContextUser;
+      try {
+        const result = await StockOutService.stockOutDistribution(
+          new Date(body.movementAt),
+          body.cardProductId,
+          body.stationId,
+          body.startSerial,
+          body.endSerial,
+          user.id,
+          body.note
+        );
+
+        return {
+          success: true,
+          message:
+            "Distribusi stok berhasil dibuat (PENDING, menunggu validasi petugas)",
+          data: result,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      body: StockOutModel.stockOutRequest,
+      response: {
+        200: StockOutModel.stockOutResponse,
+        400: StockOutModel.errorResponse,
+        401: StockOutModel.errorResponse,
+        403: StockOutModel.errorResponse,
+        422: StockOutModel.errorResponse,
+        500: StockOutModel.errorResponse,
+      },
+      detail: {
+        tags: ["Stock Out"],
+        summary: "Stock Out Distribution",
+        description:
+          "Menyimpan distribusi stok ke tabel stock_out dengan status PENDING. Role: superadmin/admin. Triggers: STOCK_DISTRIBUTION Notification to Station Supervisors.",
       },
     }
   )

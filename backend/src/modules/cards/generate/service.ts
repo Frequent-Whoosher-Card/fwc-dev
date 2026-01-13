@@ -212,7 +212,7 @@ export class CardGenerateService {
       // BWIP-JS
       const pngBuffer = await bwipjs.toBuffer({
         bcid: "code128",
-        text: textFormatted,
+        text: sn,
         scale: 2,
         scaleX: 2,
         scaleY: 2,
@@ -226,9 +226,7 @@ export class CardGenerateService {
       const barcodeHeight = barcodeImg.height;
 
       const targetBarcodeWidth = 530;
-      const targetBarcodeHeight = Math.round(
-        barcodeHeight * (targetBarcodeWidth / barcodeWidth)
-      );
+      const targetBarcodeHeight = 130; // Fixed height to ensure space for text
       const barcodeX = Math.round((TARGET_W - targetBarcodeWidth) / 2);
       const barcodeY = 20;
 
@@ -249,10 +247,10 @@ export class CardGenerateService {
 
       const textY = barcodeY + targetBarcodeHeight + 8;
       ctx.fillStyle = "#000000";
-      ctx.font = `22px "${FONT_FAMILY}"`;
+      ctx.font = `44px "${FONT_FAMILY}"`;
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
-      ctx.fillText(textFormatted, TARGET_W / 2, textY);
+      ctx.fillText(sn, TARGET_W / 2, textY);
 
       const finalBuffer = canvas.toBuffer("image/png");
 
@@ -373,7 +371,9 @@ export class CardGenerateService {
       categoryId,
       typeId,
     } = params;
-    const skip = (page - 1) * limit;
+    const pageNum = Number(page) || 1;
+    const limitNum = Number(limit) || 10;
+    const skip = (pageNum - 1) * limitNum;
 
     const where: any = {
       type: "GENERATED",
@@ -394,7 +394,7 @@ export class CardGenerateService {
       db.cardStockMovement.findMany({
         where,
         skip,
-        take: limit,
+        take: limitNum,
         orderBy: { movementAt: "desc" },
         include: {
           category: { select: { id: true, categoryName: true } },
@@ -473,9 +473,9 @@ export class CardGenerateService {
       items: formattedItems,
       pagination: {
         total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
       },
     };
   }

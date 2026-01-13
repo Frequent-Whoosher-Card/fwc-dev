@@ -1,267 +1,339 @@
-'use client';
+"use client";
 
-import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import DeleteConfirmModal from './components/DeleteConfirmModal';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Plus, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
+import toast from "react-hot-toast";
+import { createUser, getRoles, RoleItem } from "@/lib/services/user.service";
+
+import { getUsers, deleteUser } from "../../../../lib/services/user.service";
 
 /* ======================
    TYPES
 ====================== */
 interface User {
-  id: number;
-  name: string;
+  id: string;
+  fullname: string;
   nip: string;
   username: string;
   email: string;
   phone: string;
   role: string;
-  stasiun: string;
+  roleLabel: string;
+  station: string;
 }
 
-export default function UserPage() {
+interface Pagination {
+  page: number;
+  limit: number;
+  totalPages: number;
+  total: number;
+}
+
+/* ======================
+   PAGE
+====================== */
+export default function UserManagementPage() {
   const router = useRouter();
+  const LIMIT = 10;
 
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
 
+  const [pagination, setPagination] = useState<Pagination>({
+    page: 1,
+    limit: LIMIT,
+    totalPages: 1,
+    total: 0,
+  });
+
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  // ⬇️ value = UUID (sesuai API)
+  const [role, setRole] = useState("all");
+  const [station, setStation] = useState("all");
+
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showDelete, setShowDelete] = useState(false);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-
-  const [search, setSearch] = useState('');
-  const [stationFilter, setStationFilter] = useState('all');
-
-  /* ======================
-     LOAD DATA (INIT)
-  ====================== */
-  useEffect(() => {
-    fetchUsers();
-  }, []);
 
   /* ======================
      FETCH USERS
-     (nanti tinggal ganti ke API)
   ====================== */
-  const fetchUsers = async () => {
-    setLoading(true);
+  const fetchUsers = async (page: number) => {
+    try {
+      setLoading(true);
 
-    // 🔁 SIMULASI FETCH (localStorage sekarang)
-    await new Promise((res) => setTimeout(res, 500));
+      const res = await getUsers({
+        page,
+        limit: LIMIT,
+        search: debouncedSearch || undefined,
 
-    const stored = JSON.parse(
-      localStorage.getItem('fwc_users') || '[]'
-    );
+        // ✅ SESUAI SWAGGER
+        roleId: role !== "all" ? role : undefined,
+        stationId: station !== "all" ? station : undefined,
+      });
 
-    setUsers(stored);
-    setLoading(false);
+      const mapped: User[] = res.data.items.map((item: any) => ({
+        id: item.id,
+        fullname: item.fullName,
+        nip: item.nip ?? "-",
+        username: item.username,
+        email: item.email ?? "-",
+        phone: item.phone ?? "-",
+
+        // ✅ AMBIL DARI SERVICE, BUKAN RAW API
+        role: item.roleCode ?? "-",
+        roleLabel: item.roleName ?? "-",
+
+        station: item.stationName ?? "-",
+      }));
+      console.log("USERS FROM SERVICE:", res.data.items);
+
+
+      setData(mapped);
+      setPagination(res.data.pagination);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed load users");
+    } finally {
+      setLoading(false);
+    }
   };
 
   /* ======================
-     FILTER + SEARCH
+     EFFECTS
   ====================== */
-  const filteredUsers = useMemo(() => {
-    const keyword = search.toLowerCase();
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
-    return users.filter((user) => {
-      const stationMatch =
-        stationFilter === 'all' ||
-        user.stasiun === stationFilter;
+  useEffect(() => {
+    setPagination((p) => ({ ...p, page: 1 }));
+    fetchUsers(1);
+  }, [debouncedSearch, role, station]);
 
-      const searchMatch =
-        user.name.toLowerCase().includes(keyword) ||
-        user.username.toLowerCase().includes(keyword) ||
-        user.role.toLowerCase().includes(keyword);
-
-      return stationMatch && searchMatch;
-    });
-  }, [users, search, stationFilter]);
+  useEffect(() => {
+    fetchUsers(pagination.page);
+  }, [pagination.page]);
 
   /* ======================
-     DELETE CONFIRM
+     DELETE
   ====================== */
-  const handleDelete = () => {
-    if (selectedId === null) return;
+  const confirmDelete = async () => {
+    if (!selectedUser) return;
 
-    const updated = users.filter(
-      (u) => u.id !== selectedId
-    );
-
-    localStorage.setItem(
-      'fwc_users',
-      JSON.stringify(updated)
-    );
-
-    setUsers(updated);
-    setShowDelete(false);
-    setSelectedId(null);
+    try {
+      await deleteUser(selectedUser.id);
+      toast.success("User deleted");
+      setShowDelete(false);
+      setSelectedUser(null);
+      fetchUsers(pagination.page);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed delete user");
+    }
   };
 
+  /* ======================
+     PAGINATION
+  ====================== */
+  const pageNumbers = Array.from(
+    { length: pagination.totalPages },
+    (_, i) => i + 1
+  ).slice(Math.max(0, pagination.page - 3), pagination.page + 2);
+
+  /* ======================
+     RENDER
+  ====================== */
   return (
-    <div className="space-y-6">
-      {/* ================= HEADER ================= */}
+    <div className="space-y-8">
+      {/* HEADER */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">
-          User Management
-        </h1>
+        <h1 className="text-xl font-semibold">User Management</h1>
 
-        <div className="flex gap-3">
+        <div className="flex items-center gap-3">
           <input
-            type="text"
-            placeholder="Search operator"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-10 w-64 rounded-md border px-3 text-sm"
+            placeholder="search operator"
+            className="h-10 w-96 rounded-lg border border-gray-300 px-4 text-sm
+              focus:border-[#8D1231] focus:ring-1 focus:ring-[#8D1231]"
           />
 
           <button
-            onClick={() =>
-              router.push('/dashboard/superadmin/user/create')
-            }
-            className="h-10 rounded-md bg-[#7A0C2E] px-4 text-sm text-white hover:opacity-90"
+            onClick={() => router.push("/dashboard/superadmin/user/create")}
+            className="flex items-center gap-2 rounded-lg bg-[#8D1231]
+              px-5 py-2 text-sm text-white hover:bg-[#73122E]"
           >
-            + add new User
+            <Plus size={16} />
+            add new User
           </button>
         </div>
       </div>
 
-      {/* ================= FILTER + REFRESH ================= */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">
-            Filters:
-          </span>
+      {/* FILTER */}
+      <div className="flex items-center gap-4 rounded-xl border bg-white px-6 py-4 shadow-sm">
+        <span className="text-sm font-semibold text-[#8D1231]">Filters:</span>
 
-          <select
-            value={stationFilter}
-            onChange={(e) => setStationFilter(e.target.value)}
-            className="rounded-md border px-3 py-1 text-sm"
-          >
-            <option value="all">All Stasiun</option>
-            <option value="Halim">Halim</option>
-            <option value="Karawang">Karawang</option>
-            <option value="Padalarang">Padalarang</option>
-            <option value="Tegalluar">Tegalluar</option>
-          </select>
-        </div>
-
-        {/* REFRESH BUTTON */}
-        <button
-          onClick={fetchUsers}
-          disabled={loading}
-          title="Refresh data"
-          className={`flex h-9 w-9 items-center justify-center rounded-md border text-gray-500 hover:bg-gray-100 ${
-            loading ? 'cursor-not-allowed opacity-50' : ''
-          }`}
+        {/* STATION (UUID) */}
+        <select
+          value={station}
+          onChange={(e) => setStation(e.target.value)}
+          className="h-10 min-w-[160px] rounded-lg border px-4 text-sm"
         >
-          {loading ? '⏳' : '⟳'}
+          <option value="all">Stasiun</option>
+          <option value="60de76b2-8e6b-4d80-87a8-98789b7d9b13">Halim</option>
+          <option value="59cd9c0a-52c2-4aed-8826-fc450b33bf2b">Karawang</option>
+          <option value="0f7d5d88-342f-4185-98ef-b467a44e9f15">
+            Padalarang
+          </option>
+          <option value="9324c06d-764d-4046-a014-8cf8c5f4ce5d">
+            Tegalluar
+          </option>
+        </select>
+
+        {/* ROLE (UUID) */}
+        <select
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+          className="h-10 min-w-[160px] rounded-lg border px-4 text-sm"
+        >
+          <option value="all">Role</option>
+          <option value="3b8845bd-5ff4-4ecb-9912-57dea897b42a">Admin</option>
+          <option value="39871847-d1c3-4433-9772-a779b0900da1">Petugas</option>
+          <option value="61a8fd34-14d8-4d40-a5fa-191af3ac8fb9">
+            Supervisor
+          </option>
+          <option value="74de7dd5-e09d-4e36-b1f8-996191a33438">
+            Super Admin
+          </option>
+        </select>
+
+        <button
+          onClick={() => {
+            setSearch("");
+            setRole("all");
+            setStation("all");
+          }}
+          className="flex h-10 w-10 items-center justify-center rounded-lg border"
+        >
+          <RotateCcw size={16} />
         </button>
       </div>
 
-      {/* ================= TABLE ================= */}
-      <div className="overflow-hidden rounded-lg border">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50">
+      {/* TABLE */}
+      <div className="overflow-x-auto rounded-xl border bg-white shadow-sm">
+        <table className="min-w-[1200px] w-full">
+          <thead className="bg-gray-50 text-xs font-semibold text-gray-600 border-b">
             <tr>
-              <th className="px-4 py-3 text-left font-medium">
-                Name
-              </th>
-              <th className="px-4 py-3 text-left font-medium">
-                NIP
-              </th>
-              <th className="px-4 py-3 text-left font-medium">
-                Username
-              </th>
-              <th className="px-4 py-3 text-left font-medium">
-                Email
-              </th>
-              <th className="px-4 py-3 text-left font-medium">
-                Phone Number
-              </th>
-              <th className="px-4 py-3 text-left font-medium">
-                Role
-              </th>
-              <th className="px-4 py-3 text-left font-medium">
-                Stasiun
-              </th>
-              <th className="px-4 py-3 text-center font-medium w-[160px]">
-                Aksi
-              </th>
+              <th className="px-5 py-4 text-left">Name</th>
+              <th className="px-5 py-4 text-left">NIP</th>
+              <th className="px-5 py-4 text-left">Username</th>
+              <th className="px-5 py-4 text-left">Email</th>
+              <th className="px-5 py-4 text-left">Phone</th>
+              <th className="px-5 py-4 text-left">Role</th>
+              <th className="px-5 py-4 text-left">Stasiun</th>
+              <th className="px-5 py-4 text-center">Aksi</th>
             </tr>
           </thead>
 
           <tbody>
-            {loading ? (
-              <tr>
-                <td
-                  colSpan={8}
-                  className="py-16 text-center text-gray-400"
-                >
-                  Loading data...
-                </td>
-              </tr>
-            ) : filteredUsers.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={8}
-                  className="py-16 text-center text-gray-500"
-                >
-                  Data tidak ditemukan
-                </td>
-              </tr>
-            ) : (
-              filteredUsers.map((user) => (
-                <tr
-                  key={user.id}
-                  className="border-t hover:bg-gray-50"
-                >
-                  <td className="px-4 py-3">{user.name}</td>
-                  <td className="px-4 py-3">{user.nip}</td>
-                  <td className="px-4 py-3">
-                    {user.username}
-                  </td>
-                  <td className="px-4 py-3">{user.email}</td>
-                  <td className="px-4 py-3">{user.phone}</td>
-                  <td className="px-4 py-3">{user.role}</td>
-                  <td className="px-4 py-3">{user.stasiun}</td>
-                  <td className="px-4 py-3 text-center space-x-2">
+            {!loading &&
+              data.map((u) => (
+                <tr key={u.id} className="border-t text-sm hover:bg-gray-50">
+                  <td className="px-5 py-3">{u.fullname}</td>
+                  <td className="px-5 py-3">{u.nip}</td>
+                  <td className="px-5 py-3">{u.username}</td>
+                  <td className="px-5 py-3">{u.email}</td>
+                  <td className="px-5 py-3">{u.phone}</td>
+                  <td className="px-5 py-3">{u.roleLabel}</td>
+                  <td className="px-5 py-3">{u.station}</td>
+                  <td className="px-5 py-3 text-center">
                     <button
                       onClick={() =>
-                        router.push(
-                          `/dashboard/superadmin/user/${user.id}/edit`
-                        )
+                        router.push(`/dashboard/superadmin/user/${u.id}/edit`)
                       }
-                      className="h-8 rounded-md bg-gray-200 px-3 text-xs text-gray-700 hover:bg-gray-300"
+                      className="mr-2 rounded bg-gray-200 px-3 py-1 text-xs"
                     >
                       Edit
                     </button>
-
                     <button
                       onClick={() => {
-                        setSelectedId(user.id);
+                        setSelectedUser(u);
                         setShowDelete(true);
                       }}
-                      className="h-8 rounded-md bg-red-100 px-3 text-xs text-red-600 hover:bg-red-200"
+                      className="rounded bg-[#8D1231] px-3 py-1 text-xs text-white"
                     >
                       Delete
                     </button>
                   </td>
                 </tr>
-              ))
-            )}
+              ))}
           </tbody>
         </table>
+
+        {loading && (
+          <div className="p-4 text-sm text-gray-400">Loading data...</div>
+        )}
       </div>
 
-      {/* ================= PAGINATION ================= */}
-      <div className="flex justify-center text-sm text-gray-400">
-        ← Prev | Next →
+      {/* PAGINATION */}
+      <div className="flex items-center justify-center gap-2 text-sm">
+        <button
+          disabled={pagination.page === 1}
+          onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))}
+        >
+          <ChevronLeft size={18} />
+        </button>
+
+        {pageNumbers.map((p) => (
+          <button
+            key={p}
+            onClick={() => setPagination((pg) => ({ ...pg, page: p }))}
+            className={p === pagination.page ? "font-semibold underline" : ""}
+          >
+            {p}
+          </button>
+        ))}
+
+        <button
+          disabled={pagination.page === pagination.totalPages}
+          onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}
+        >
+          <ChevronRight size={18} />
+        </button>
       </div>
 
-      {/* ================= DELETE MODAL ================= */}
-      <DeleteConfirmModal
-        open={showDelete}
-        onCancel={() => setShowDelete(false)}
-        onConfirm={handleDelete}
-      />
+      {/* DELETE CONFIRM */}
+      {showDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-[400px] rounded-2xl bg-white p-6 text-center">
+            <h2 className="text-lg font-semibold">Delete User</h2>
+            <p className="mt-2 text-sm">
+              Are you sure want to delete <b>{selectedUser?.fullname}</b>?
+            </p>
+
+            <div className="mt-6 flex justify-center gap-3">
+              <button
+                onClick={() => setShowDelete(false)}
+                className="h-9 w-24 rounded-md bg-gray-100 text-sm"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={confirmDelete}
+                className="h-9 w-24 rounded-md bg-[#8D1231] text-sm text-white"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
