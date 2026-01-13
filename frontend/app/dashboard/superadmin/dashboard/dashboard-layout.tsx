@@ -10,7 +10,7 @@ import Image from 'next/image';
 import toast from 'react-hot-toast';
 import ClientOnly from '@/components/ui/client-only';
 
-import { LayoutDashboard, CreditCard, UserPlus, Receipt, Users, Menu, X, User, LogOut, IdCard, ArrowDownToLine, ArrowUpNarrowWide, ChevronDown, FolderKanban, UserCircle } from 'lucide-react';
+import { LayoutDashboard, CreditCard, UserPlus, Receipt, Users, Menu, X, User, LogOut, IdCard, ArrowDownToLine, ArrowUpNarrowWide, ChevronDown, FolderKanban, UserCircle, UserPlus2, UserRoundPlus, FilePlus } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -50,7 +50,8 @@ const superadminMenuItems = [
       { title: 'Card All', href: '/dashboard/superadmin/stock/allcard', icon: UserCircle },
     ],
   },
-  { title: 'Generate Number', icon: FolderKanban, href: '/dashboard/superadmin/generatenumber' },
+  { title: 'Generate Number', icon: FilePlus, href: '/dashboard/superadmin/generatenumber' },
+  { title: 'Create New Card', icon: FolderKanban, href: '/dashboard/superadmin/createnewcard' },
 
   { title: 'Membership', icon: UserPlus, href: '/dashboard/superadmin/membership' },
   { title: 'Transaksi', icon: Receipt, href: '/dashboard/superadmin/transaksi' },

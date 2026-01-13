@@ -1,39 +1,28 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import axiosInstance from '@/lib/axios';
 import { ChevronLeft, ChevronRight, Eye, Calendar, FileDown, Plus } from 'lucide-react';
 
 /* ======================
-    TYPES
+   TYPES (SESUI DOC API)
 ====================== */
 
-type AllCardStatus = 'IN' | 'OUT' | 'TRANSFER' | 'USED' | 'DAMAGED' | 'UNKNOWN';
+type CardStatus = 'IN_OFFICE' | 'IN_TRANSIT' | 'IN_STATION' | 'LOST' | 'DAMAGED' | 'SOLD_ACTIVE' | 'SOLD_INACTIVE';
 
 interface AllCardItem {
   id: string;
+  serialNumber: string;
+  status: CardStatus;
   date: string;
-  serialNumbers: string[];
 
-  cardCategory: {
-    id: string;
-    name: string;
-    code: string;
-  };
+  cardCategoryName: string;
+  cardTypeName: string;
+  stationName: string;
 
-  cardType: {
-    id: string;
-    name: string;
-    code: string;
-  };
-
-  senderStation?: string | null;
-  receiverStation?: string | null;
-
-  status: AllCardStatus;
-  note?: string | null;
+  note: string;
 }
 
 interface PaginationMeta {
@@ -44,21 +33,21 @@ interface PaginationMeta {
 }
 
 /* ======================
-    HELPERS
+   CONSTANT
 ====================== */
 
-const formatSerialNumbers = (serials: string[]) => {
-  if (!serials || serials.length === 0) return '-';
-  if (serials.length <= 5) return serials.join(', ');
-  return `${serials[0]} - ${serials[serials.length - 1]} (${serials.length})`;
-};
+const STATUS_OPTIONS: CardStatus[] = ['IN_OFFICE', 'IN_TRANSIT', 'IN_STATION', 'LOST', 'DAMAGED', 'SOLD_ACTIVE', 'SOLD_INACTIVE'];
 
 /* ======================
-    PAGE
+   PAGE
 ====================== */
 
 export default function AllCardPage() {
   const router = useRouter();
+
+  /* ======================
+      STATE
+  ====================== */
 
   const [data, setData] = useState<AllCardItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -70,10 +59,11 @@ export default function AllCardPage() {
     totalPages: 0,
   });
 
-  // FILTER STATE
-  const [status, setStatus] = useState('all');
-  const [category, setCategory] = useState('all');
-  const [type, setType] = useState('all');
+  // FILTER
+  const [status, setStatus] = useState<'all' | CardStatus>('all');
+  const [category, setCategory] = useState('');
+  const [type, setType] = useState('');
+  const [search, setSearch] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
@@ -86,51 +76,79 @@ export default function AllCardPage() {
 
   const fetchAllCard = useCallback(async () => {
     setLoading(true);
+
     try {
-      const res = await axiosInstance.get('/allcard', {
+      const res = await axiosInstance.get('/cards', {
         params: {
           page: pagination.page,
           limit: pagination.limit,
+
+          // 🔥 FILTER SESUAI DOC
+          status: status === 'all' ? undefined : status,
+          categoryName: category || undefined,
+          typeName: type || undefined,
+          search: search || undefined,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
         },
       });
 
       const { items, pagination: paging } = res.data.data;
-      setData(items);
+
+      const mapped: AllCardItem[] = items.map((item: any) => ({
+        id: item.id,
+        serialNumber: item.serialNumber,
+        status: item.status,
+        date: item.purchaseDate || item.createdAt,
+
+        cardCategoryName: item.cardProduct?.category?.categoryName ?? '-',
+
+        cardTypeName: item.cardProduct?.type?.typeName ?? '-',
+
+        stationName: item.station?.stationName ?? '-',
+
+        note: item.notes ?? '-',
+      }));
+
+      setData(mapped);
       setPagination(paging);
-    } catch (error) {
+    } catch (err) {
+      console.error(err);
       toast.error('Gagal mengambil data All Card');
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit]);
+  }, [pagination.page, pagination.limit, status, category, type, search, startDate, endDate]);
 
   useEffect(() => {
     fetchAllCard();
   }, [fetchAllCard]);
 
   /* ======================
-      FILTER LOGIC
+      PAGINATION HELPER
   ====================== */
 
-  const filteredData = useMemo(() => {
-    return data.filter((item) => {
-      const statusMatch = status === 'all' || item.status === status;
-      const categoryMatch = category === 'all' || item.cardCategory.name === category;
-      const typeMatch = type === 'all' || item.cardType.name === type;
+  const getPaginationRange = (current: number, total: number, delta = 2): (number | '...')[] => {
+    const range: (number | '...')[] = [];
 
-      const date = new Date(item.date);
-      const startMatch = startDate ? date >= new Date(startDate) : true;
-      const endMatch = endDate ? date <= new Date(`${endDate}T23:59:59`) : true;
+    const left = Math.max(2, current - delta);
+    const right = Math.min(total - 1, current + delta);
 
-      return statusMatch && categoryMatch && typeMatch && startMatch && endMatch;
-    });
-  }, [data, status, category, type, startDate, endDate]);
+    range.push(1);
 
-  const pageNumbers = Array.from({ length: pagination.totalPages }, (_, i) => i + 1);
+    if (left > 2) range.push('...');
 
-  /* ======================
-      EXPORT PDF (STUB)
-  ====================== */
+    for (let i = left; i <= right; i++) {
+      range.push(i);
+    }
+
+    if (right < total - 1) range.push('...');
+
+    if (total > 1) range.push(total);
+
+    return range;
+  };
+
   const handleExportPDF = () => {
     toast('Export PDF (coming soon)');
   };
@@ -141,46 +159,73 @@ export default function AllCardPage() {
 
   return (
     <div className="space-y-6">
-      {/* =====================
-          HEADER
-      ===================== */}
+      {/* HEADER */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <h2 className="text-lg font-semibold">All Card</h2>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           {/* STATUS */}
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-md border px-3 py-2 text-sm">
+          <select
+            value={status}
+            onChange={(e) => {
+              setStatus(e.target.value as any);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            className="rounded-md border px-3 py-2 text-sm"
+          >
             <option value="all">All Status</option>
-            <option value="IN">IN</option>
-            <option value="OUT">OUT</option>
-            <option value="TRANSFER">TRANSFER</option>
-            <option value="USED">USED</option>
-            <option value="DAMAGED">DAMAGED</option>
+            {STATUS_OPTIONS.map((st) => (
+              <option key={st} value={st}>
+                {st.replace(/_/g, ' ')}
+              </option>
+            ))}
           </select>
 
           {/* CATEGORY */}
-          <select value={category} onChange={(e) => setCategory(e.target.value)} className="rounded-md border px-3 py-2 text-sm">
-            <option value="all">All Category</option>
-            {[...new Set(data.map((d) => d.cardCategory.name))].filter(Boolean).map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
+          <input
+            placeholder="Category"
+            value={category}
+            onChange={(e) => {
+              setCategory(e.target.value);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            className="rounded-md border px-3 py-2 text-sm"
+          />
 
           {/* TYPE */}
-          <select value={type} onChange={(e) => setType(e.target.value)} className="rounded-md border px-3 py-2 text-sm">
-            <option value="all">All Type</option>
-            {[...new Set(data.map((d) => d.cardType.name))].filter(Boolean).map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
+          <input
+            placeholder="Type"
+            value={type}
+            onChange={(e) => {
+              setType(e.target.value);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            className="rounded-md border px-3 py-2 text-sm"
+          />
+
+          {/* SEARCH */}
+          <input
+            placeholder="Search serial / station"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            className="rounded-md border px-3 py-2 text-sm"
+          />
 
           {/* START DATE */}
           <div className="relative">
-            <input ref={startDateRef} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="rounded-md border px-3 py-2 pr-9 text-sm" />
+            <input
+              ref={startDateRef}
+              type="date"
+              value={startDate}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                setPagination((p) => ({ ...p, page: 1 }));
+              }}
+              className="rounded-md border px-3 py-2 pr-9 text-sm"
+            />
             <button type="button" onClick={() => startDateRef.current?.showPicker?.()} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8D1231]">
               <Calendar size={16} />
             </button>
@@ -188,7 +233,16 @@ export default function AllCardPage() {
 
           {/* END DATE */}
           <div className="relative">
-            <input ref={endDateRef} type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="rounded-md border px-3 py-2 pr-9 text-sm" />
+            <input
+              ref={endDateRef}
+              type="date"
+              value={endDate}
+              onChange={(e) => {
+                setEndDate(e.target.value);
+                setPagination((p) => ({ ...p, page: 1 }));
+              }}
+              className="rounded-md border px-3 py-2 pr-9 text-sm"
+            />
             <button type="button" onClick={() => endDateRef.current?.showPicker?.()} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8D1231]">
               <Calendar size={16} />
             </button>
@@ -199,28 +253,25 @@ export default function AllCardPage() {
             <FileDown size={16} /> PDF
           </button>
 
-          {/* TAMBAH */}
+          {/* ADD */}
           <button onClick={() => router.push('/dashboard/superadmin/stock/allcard/add')} className="flex items-center gap-2 rounded-md bg-[#8D1231] px-4 py-2 text-sm text-white">
             <Plus size={16} /> Tambah
           </button>
         </div>
       </div>
 
-      {/* =====================
-          DESKTOP / TABLET
-      ===================== */}
+      {/* DESKTOP TABLE */}
       <div className="hidden sm:block rounded-lg border bg-white overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1200px] text-sm">
+          <table className="w-full min-w-[1100px] text-sm">
             <thead className="bg-gray-100 border-b">
               <tr>
                 <th className="px-3 py-2 text-center">No</th>
                 <th className="px-3 py-2 text-center">Tanggal</th>
-                <th className="px-3 py-2 text-center">Serial Number</th>
+                <th className="px-3 py-2 text-center">Serial</th>
                 <th className="px-3 py-2 text-center">Category</th>
                 <th className="px-3 py-2 text-center">Type</th>
-                <th className="px-3 py-2 text-center">Pengirim</th>
-                <th className="px-3 py-2 text-center">Penerima</th>
+                <th className="px-3 py-2 text-center">Station</th>
                 <th className="px-3 py-2 text-center">Status</th>
                 <th className="px-3 py-2 text-center">Note</th>
                 <th className="px-3 py-2 text-center">Aksi</th>
@@ -230,32 +281,31 @@ export default function AllCardPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="py-8 text-center text-gray-500">
+                  <td colSpan={9} className="py-8 text-center text-gray-500">
                     Loading...
                   </td>
                 </tr>
-              ) : filteredData.length === 0 ? (
+              ) : data.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-8 text-center text-gray-500">
+                  <td colSpan={9} className="py-8 text-center text-gray-500">
                     Tidak ada data
                   </td>
                 </tr>
               ) : (
-                filteredData.map((row, index) => (
+                data.map((row, index) => (
                   <tr key={row.id} className="border-b hover:bg-gray-50">
                     <td className="px-3 py-2 text-center">{(pagination.page - 1) * pagination.limit + index + 1}</td>
                     <td className="px-3 py-2 text-center">{new Date(row.date).toLocaleDateString('id-ID')}</td>
-                    <td className="px-3 py-2 text-center max-w-[220px] truncate">{formatSerialNumbers(row.serialNumbers)}</td>
-                    <td className="px-3 py-2 text-center">{row.cardCategory.name}</td>
-                    <td className="px-3 py-2 text-center">{row.cardType.name}</td>
-                    <td className="px-3 py-2 text-center">{row.senderStation || '-'}</td>
-                    <td className="px-3 py-2 text-center">{row.receiverStation || '-'}</td>
+                    <td className="px-3 py-2 text-center">{row.serialNumber}</td>
+                    <td className="px-3 py-2 text-center">{row.cardCategoryName}</td>
+                    <td className="px-3 py-2 text-center">{row.cardTypeName}</td>
+                    <td className="px-3 py-2 text-center">{row.stationName}</td>
                     <td className="px-3 py-2 text-center">
-                      <span className="rounded-full bg-gray-100 px-3 py-1 text-xs">{row.status}</span>
+                      <span className="rounded-full bg-gray-100 px-3 py-1 text-xs">{row.status.replace(/_/g, ' ')}</span>
                     </td>
-                    <td className="px-3 py-2 text-center max-w-[200px] truncate">{row.note || '-'}</td>
+                    <td className="px-3 py-2 text-center">{row.note}</td>
                     <td className="px-3 py-2 text-center">
-                      <button onClick={() => router.push(`/dashboard/superadmin/all-card/${row.id}`)} className="mx-auto flex h-8 w-8 items-center justify-center rounded-md border hover:bg-gray-100">
+                      <button onClick={() => router.push(`/dashboard/superadmin/stock/allcard/${row.id}`)} className="mx-auto flex h-8 w-8 items-center justify-center rounded-md border hover:bg-gray-100">
                         <Eye size={16} />
                       </button>
                     </td>
@@ -267,68 +317,25 @@ export default function AllCardPage() {
         </div>
       </div>
 
-      {/* =====================
-          MOBILE / CARD VIEW
-      ===================== */}
-      <div className="block sm:hidden space-y-4">
-        {filteredData.map((row, index) => (
-          <div key={row.id} className="rounded-lg border bg-white p-4 space-y-2">
-            <div className="flex justify-between">
-              <span className="font-semibold">#{(pagination.page - 1) * pagination.limit + index + 1}</span>
-              <span className="text-xs text-gray-500">{new Date(row.date).toLocaleDateString('id-ID')}</span>
-            </div>
-
-            <div>
-              <p className="text-xs text-gray-500">Serial</p>
-              <p className="text-sm font-medium truncate">{formatSerialNumbers(row.serialNumbers)}</p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <p className="text-xs text-gray-500">Category</p>
-                <p className="text-sm">{row.cardCategory.name}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Type</p>
-                <p className="text-sm">{row.cardType.name}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <p className="text-xs text-gray-500">Pengirim</p>
-                <p className="text-sm">{row.senderStation || '-'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Penerima</p>
-                <p className="text-sm">{row.receiverStation || '-'}</p>
-              </div>
-            </div>
-
-            <span className="inline-block rounded-full bg-gray-100 px-3 py-1 text-xs">{row.status}</span>
-
-            {row.note && <p className="text-sm text-gray-600 truncate">{row.note}</p>}
-
-            <button onClick={() => router.push(`/dashboard/superadmin/all-card/${row.id}`)} className="w-full rounded-md border px-3 py-2 text-sm hover:bg-gray-100">
-              Detail
-            </button>
-          </div>
-        ))}
-      </div>
-
       {/* PAGINATION */}
-      <div className="flex flex-wrap justify-center gap-2 text-sm">
-        <button disabled={pagination.page === 1} onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))} className="px-2 disabled:opacity-40">
+      <div className="flex flex-wrap items-center justify-center gap-1 text-sm">
+        <button disabled={pagination.page === 1} onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))} className="px-2 py-1 disabled:opacity-40">
           <ChevronLeft size={18} />
         </button>
 
-        {pageNumbers.map((p) => (
-          <button key={p} onClick={() => setPagination((pg) => ({ ...pg, page: p }))} className={`px-3 py-1 ${p === pagination.page ? 'font-semibold underline' : ''}`}>
-            {p}
-          </button>
-        ))}
+        {getPaginationRange(pagination.page, pagination.totalPages).map((p, idx) =>
+          p === '...' ? (
+            <span key={`dots-${idx}`} className="px-2 text-gray-500">
+              …
+            </span>
+          ) : (
+            <button key={p} onClick={() => setPagination((pg) => ({ ...pg, page: p }))} className={`px-3 py-1 rounded ${p === pagination.page ? 'bg-[#8D1231] text-white font-semibold' : 'hover:bg-gray-100'}`}>
+              {p}
+            </button>
+          )
+        )}
 
-        <button disabled={pagination.page === pagination.totalPages} onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))} className="px-2 disabled:opacity-40">
+        <button disabled={pagination.page === pagination.totalPages} onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))} className="px-2 py-1 disabled:opacity-40">
           <ChevronRight size={18} />
         </button>
       </div>
