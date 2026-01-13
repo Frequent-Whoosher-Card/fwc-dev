@@ -135,13 +135,25 @@ export class CardGenerateService {
     // Check Sequential (Read-Only)
     // Note: There is a small race condition here if someone generates exactly at the same time,
     // but the unique constraint on serialNumber will catch it safely.
-    const lastCard = await db.card.findFirst({
-      where: { cardProductId: product.id },
-      orderBy: { serialNumber: "desc" },
-    });
+    // Check Sequential (Read-Only)
+    let lastCard = null;
+    const prefix = `${product.serialTemplate}${yearSuffix}`;
+
+    try {
+      lastCard = await db.card.findFirst({
+        where: {
+          cardProductId: product.id,
+          serialNumber: {
+            startsWith: prefix,
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    } catch (e) {
+      console.warn("Failed to check last card sequence", e);
+    }
 
     let expectedStartNum = 1;
-    const prefix = `${product.serialTemplate}${yearSuffix}`;
 
     if (lastCard && lastCard.serialNumber.startsWith(prefix)) {
       const lastSuffixStr = lastCard.serialNumber.slice(prefix.length);

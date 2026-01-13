@@ -2,7 +2,7 @@ import db from "../../../config/db";
 import { ValidationError } from "../../../utils/errors";
 import { parseSmartSerial } from "../../../utils/serialHelper";
 import { InboxService } from "../../inbox/service";
-import { BatchService } from "../../../services/batchService";
+import { BatchService } from "src/services/batchService";
 import { LowStockService } from "src/services/lowStockService";
 
 function normalizeSerials(arr: string[]) {
