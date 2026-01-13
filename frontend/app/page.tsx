@@ -228,7 +228,7 @@ export default function LoginPage() {
       setIsLoading(false);
 
       // role sudah ADA di json.data.user
-      const role = user.role?.roleCode;
+      const role = user.role?.roleCode?.toLowerCase();
 
       switch (role) {
         case 'superadmin':
@@ -239,6 +239,10 @@ export default function LoginPage() {
           break;
         case 'petugas':
           router.push('/dashboard/petugas');
+          break;
+        case 'supervisor':
+        case 'spv':
+          router.push('/dashboard/supervisor/membership');
           break;
         default:
           router.push('/dashboard');

@@ -10,7 +10,7 @@ import Image from 'next/image';
 import toast from 'react-hot-toast';
 import ClientOnly from '@/components/ui/client-only';
 
-import { LayoutDashboard, CreditCard, UserPlus, Receipt, Users, Menu, X, User, LogOut, IdCard, ArrowDownToLine, ArrowUpNarrowWide, ChevronDown, FolderKanban } from 'lucide-react';
+import { LayoutDashboard, CreditCard, UserPlus, Receipt, Users, Menu, X, User, LogOut, IdCard, ArrowDownToLine, ArrowUpNarrowWide, ChevronDown, FolderKanban, Inbox } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,7 @@ import { API_BASE_URL } from '@/lib/apiConfig';
 /* =========================
    ROLE TYPE
 ========================= */
-type Role = 'superadmin' | 'admin' | 'petugas';
+type Role = 'superadmin' | 'admin' | 'petugas' | 'supervisor';
 
 /* =========================
    USER CONTEXT (SINGLE SOURCE)
@@ -50,7 +50,7 @@ const superadminMenuItems = [
     ],
   },
   { title: 'Generate Number', icon: FolderKanban, href: '/dashboard/superadmin/generatenumber' },
-
+  { title: 'Inbox', icon: Inbox, href: '/dashboard/superadmin/inbox' },
   { title: 'Membership', icon: UserPlus, href: '/dashboard/superadmin/membership' },
   { title: 'Transaksi', icon: Receipt, href: '/dashboard/superadmin/transaksi' },
   { title: 'User', icon: Users, href: '/dashboard/superadmin/user' },
@@ -80,10 +80,17 @@ const petugasMenuItems = [
   { title: 'Transaksi', icon: Receipt, href: '/dashboard/petugas/transaksi' },
 ];
 
+/* SUPERVISOR */
+const supervisorMenuItems = [
+  { title: 'Membership', icon: UserPlus, href: '/dashboard/supervisor/membership' },
+  { title: 'Noted', icon: Inbox, href: '/dashboard/supervisor/noted' },
+];
+
 const menuByRole: Record<Role, any[]> = {
   superadmin: superadminMenuItems,
   admin: adminMenuItems,
   petugas: petugasMenuItems,
+  supervisor: supervisorMenuItems,
 };
 
 /* =========================
@@ -133,6 +140,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           ADMIN: 'admin',
           PETUGAS: 'petugas',
           OFFICER: 'petugas',
+          SUPERVISOR: 'supervisor',
+          SPV: 'supervisor',
         };
 
         const mappedRole = roleMap[rawRole];
