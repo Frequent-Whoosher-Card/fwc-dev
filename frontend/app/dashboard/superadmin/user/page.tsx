@@ -1,10 +1,12 @@
 "use client";
 
+import { getStations, StationItem } from "@/lib/services/station.service";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
 import toast from "react-hot-toast";
-import { createUser, getRoles, RoleItem } from "@/lib/services/user.service";
+import { getRoles, RoleItem } from "@/lib/services/user.service";
 
 import { getUsers, deleteUser } from "../../../../lib/services/user.service";
 
@@ -56,6 +58,12 @@ export default function UserManagementPage() {
 
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showDelete, setShowDelete] = useState(false);
+
+  const [stations, setStations] = useState<StationItem[]>([]);
+  const [loadingStation, setLoadingStation] = useState(false);
+
+  const [roles, setRoles] = useState<RoleItem[]>([]);
+  const [loadingRole, setLoadingRole] = useState(false);
 
   /* ======================
      FETCH USERS
@@ -118,6 +126,43 @@ export default function UserManagementPage() {
   useEffect(() => {
     fetchUsers(pagination.page);
   }, [pagination.page]);
+
+  useEffect(() => {
+    setLoadingStation(true);
+
+    getStations()
+      .then((res) => {
+        setStations(res.data.items); // ✅ INI FIX UTAMA
+      })
+      .catch(() => {
+        toast.error("Failed load stations");
+      })
+      .finally(() => {
+        setLoadingStation(false);
+      });
+  }, []);
+
+  useEffect(() => {
+  setLoadingRole(true);
+
+  getRoles()
+    .then((res) => {
+      // AMAN: fallback ke array kosong
+      const roleItems = Array.isArray(res.data)
+        ? res.data
+        : res.data?.items ?? [];
+
+      setRoles(roleItems);
+    })
+    .catch(() => {
+      toast.error("Failed load roles");
+      setRoles([]); // ⬅️ jaga-jaga
+    })
+    .finally(() => {
+      setLoadingRole(false);
+    });
+}, []);
+
 
   /* ======================
      DELETE
@@ -194,34 +239,36 @@ export default function UserManagementPage() {
         <select
           value={station}
           onChange={(e) => setStation(e.target.value)}
+          disabled={loadingStation}
           className="h-10 min-w-[160px] rounded-lg border px-4 text-sm"
         >
-          <option value="all">Stasiun</option>
-          <option value="60de76b2-8e6b-4d80-87a8-98789b7d9b13">Halim</option>
-          <option value="59cd9c0a-52c2-4aed-8826-fc450b33bf2b">Karawang</option>
-          <option value="0f7d5d88-342f-4185-98ef-b467a44e9f15">
-            Padalarang
+          <option value="all" disabled={loadingStation}>
+            {loadingStation ? "Loading stasiun..." : "Stasiun"}
           </option>
-          <option value="9324c06d-764d-4046-a014-8cf8c5f4ce5d">
-            Tegalluar
-          </option>
+
+          {stations.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.stationName}
+            </option>
+          ))}
         </select>
 
         {/* ROLE (UUID) */}
         <select
           value={role}
           onChange={(e) => setRole(e.target.value)}
+          disabled={loadingRole}
           className="h-10 min-w-[160px] rounded-lg border px-4 text-sm"
         >
-          <option value="all">Role</option>
-          <option value="3b8845bd-5ff4-4ecb-9912-57dea897b42a">Admin</option>
-          <option value="39871847-d1c3-4433-9772-a779b0900da1">Petugas</option>
-          <option value="61a8fd34-14d8-4d40-a5fa-191af3ac8fb9">
-            Supervisor
+          <option value="all" disabled={loadingRole}>
+            {loadingRole ? "Loading role..." : "Role"}
           </option>
-          <option value="74de7dd5-e09d-4e36-b1f8-996191a33438">
-            Super Admin
-          </option>
+
+          {roles.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.roleName}
+            </option>
+          ))}
         </select>
 
         <button
