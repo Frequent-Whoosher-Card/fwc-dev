@@ -193,8 +193,7 @@ const adminRoutes = new Elysia()
       try {
         const result = await StockOutService.stockOutDistribution(
           new Date(body.movementAt),
-          body.categoryId,
-          body.typeId,
+          body.cardProductId,
           body.stationId,
           body.startSerial,
           body.endSerial,

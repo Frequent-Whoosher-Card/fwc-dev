@@ -3,7 +3,7 @@ import { ValidationError } from "../../../utils/errors";
 import { parseSmartSerial } from "../../../utils/serialHelper";
 import { InboxService } from "../../inbox/service";
 import { BatchService } from "../../../services/batchService";
-import { LowStockService } from "../../../services/lowStockService";
+import { LowStockService } from "src/services/lowStockService";
 
 function normalizeSerials(arr: string[]) {
   return Array.from(
@@ -23,8 +23,7 @@ export class StockOutService {
    */
   static async stockOutDistribution(
     movementAt: Date,
-    categoryId: string,
-    typeId: string,
+    cardProductId: string,
     stationId: string,
     startSerial: string,
     endSerial: string,
@@ -44,13 +43,13 @@ export class StockOutService {
     const transaction = await db.$transaction(async (tx) => {
       // Find valid Card Product first
       const cardProduct = await tx.cardProduct.findUnique({
-        where: {
-          unique_category_type: {
-            categoryId,
-            typeId,
-          },
+        where: { id: cardProductId },
+        select: {
+          id: true,
+          serialTemplate: true,
+          categoryId: true,
+          typeId: true,
         },
-        select: { id: true, serialTemplate: true },
       });
 
       if (!cardProduct) {
@@ -59,7 +58,7 @@ export class StockOutService {
         );
       }
 
-      const { id: cardProductId, serialTemplate } = cardProduct;
+      const { serialTemplate, categoryId, typeId } = cardProduct;
       const suffixLength = 5;
       const yearSuffix = movementAt.getFullYear().toString().slice(-2);
 
