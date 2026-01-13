@@ -3,6 +3,7 @@ import { ValidationError } from "../../../utils/errors";
 import { parseSmartSerial } from "../../../utils/serialHelper";
 import { InboxService } from "../../inbox/service";
 import { BatchService } from "../../../services/batchService";
+import { LowStockService } from "../../../services/lowStockService";
 
 function normalizeSerials(arr: string[]) {
   return Array.from(
@@ -448,7 +449,7 @@ export class StockOutService {
         // Validasi di awal menjamin stationId ada
         const stationId = movement.stationId!;
 
-        await tx.cardInventory.upsert({
+        const updatedInv = await tx.cardInventory.upsert({
           where: {
             unique_category_type_station: {
               categoryId: movement.categoryId,
@@ -477,6 +478,16 @@ export class StockOutService {
             updatedBy: validatorUserId,
           },
         });
+
+        // --- LOW STOCK CHECK (Resolve Alert if Stock Replenished) ---
+        await LowStockService.checkStock(
+          movement.categoryId,
+          movement.typeId,
+          stationId,
+          updatedInv.cardBelumTerjual,
+          tx
+        );
+        // ------------------------------------------------------------
       }
 
       // 7) Update movement -> APPROVED + simpan hasil arrays + audit
