@@ -25,10 +25,12 @@ const baseRoutes = new Elysia()
   .get(
     "/",
     async (context) => {
-      const { set } = context as typeof context;
+      const { query, set } = context as typeof context;
 
       try {
-        const cardProducts = await CardProductService.getCardProducts();
+        const cardProducts = await CardProductService.getCardProducts(
+          query?.search
+        );
 
         return {
           success: true,
@@ -44,6 +46,7 @@ const baseRoutes = new Elysia()
       }
     },
     {
+      query: CardProductModel.getCardProductsQuery,
       response: {
         200: CardProductModel.getCardProductsResponse,
         400: CardProductModel.errorResponse,
@@ -110,8 +113,8 @@ const adminRoutes = new Elysia()
           body.typeId,
           body.totalQuota,
           body.masaBerlaku,
-          body.price,
           body.serialTemplate,
+          body.price,
           user.id
         );
 

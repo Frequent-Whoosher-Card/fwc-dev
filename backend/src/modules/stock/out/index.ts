@@ -70,7 +70,8 @@ const baseRoutes = new Elysia()
       detail: {
         tags: ["Stock Out"],
         summary: "Stock Out Validate",
-        description: "Validasi stok keluar oleh petugas station.",
+        description:
+          "Validasi stok keluar oleh petugas station. Triggers: 1) STOCK_OUT_REPORT (Success), 2) STOCK_ISSUE_APPROVAL (If issues), 3) Resolves LOW_STOCK_ALERT.",
       },
     }
   )
@@ -193,8 +194,7 @@ const adminRoutes = new Elysia()
       try {
         const result = await StockOutService.stockOutDistribution(
           new Date(body.movementAt),
-          body.categoryId,
-          body.typeId,
+          body.cardProductId,
           body.stationId,
           body.startSerial,
           body.endSerial,
@@ -230,7 +230,7 @@ const adminRoutes = new Elysia()
         tags: ["Stock Out"],
         summary: "Stock Out Distribution",
         description:
-          "Menyimpan distribusi stok ke tabel stock_out dengan status PENDING. Role: superadmin/admin.",
+          "Menyimpan distribusi stok ke tabel stock_out dengan status PENDING. Role: superadmin/admin. Triggers: STOCK_DISTRIBUTION Notification to Station Supervisors.",
       },
     }
   )

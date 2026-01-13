@@ -4,8 +4,7 @@ export namespace StockOutModel {
   // Stock Out Request
   export const stockOutRequest = t.Object({
     movementAt: t.String({ format: "date-time" }),
-    categoryId: t.String({ format: "uuid" }),
-    typeId: t.String({ format: "uuid" }),
+    cardProductId: t.String({ format: "uuid" }),
     stationId: t.String({ format: "uuid" }),
 
     // start and end serial numbers (e.g., FWC2500001)
@@ -85,6 +84,7 @@ export namespace StockOutModel {
           id: t.String(),
           movementAt: t.String(),
           status: t.String(),
+          batchId: t.Union([t.String(), t.Null()]),
           quantity: t.Number(),
           stationName: t.Union([t.String(), t.Null()]),
           note: t.Union([t.String(), t.Null()]),
@@ -120,6 +120,7 @@ export namespace StockOutModel {
         id: t.String(),
         movementAt: t.String(),
         status: t.String(),
+        batchId: t.Union([t.String(), t.Null()]),
         quantity: t.Number(),
         note: t.Union([t.String(), t.Null()]),
         createdAt: t.String(),
