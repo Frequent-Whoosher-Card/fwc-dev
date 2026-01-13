@@ -221,6 +221,7 @@ model CardInventory {
 
 model CardStockMovement {
   id         String              @id @default(uuid()) @map("movement_id") @db.Uuid
+  batchId    String?             @map("batch_id")
   movementAt DateTime            @map("movement_at")
   type       StockMovementType   @map("movement_type")
   status     StockMovementStatus @default(APPROVED) @map("status")

@@ -2,6 +2,8 @@ import db from "../../../config/db";
 import { ValidationError } from "../../../utils/errors";
 import { parseSmartSerial } from "../../../utils/serialHelper";
 import { InboxService } from "../../inbox/service";
+import { BatchService } from "../../../services/batchService";
+import { LowStockService } from "../../../services/lowStockService";
 
 function normalizeSerials(arr: string[]) {
   return Array.from(
@@ -209,7 +211,15 @@ export class StockOutService {
         );
       }
 
-      // 5) Create movement OUT PENDING
+      // 5) Generate Batch ID
+      const batchId = await BatchService.generateBatchId(
+        tx,
+        categoryId,
+        typeId,
+        stationId
+      );
+
+      // 6) Create movement OUT PENDING
       const movement = await tx.cardStockMovement.create({
         data: {
           movementAt,
@@ -218,6 +228,7 @@ export class StockOutService {
           categoryId,
           typeId,
           stationId,
+          batchId, // Add generated batchId
           quantity: sentCount,
           note: note ?? null,
 
@@ -438,7 +449,7 @@ export class StockOutService {
         // Validasi di awal menjamin stationId ada
         const stationId = movement.stationId!;
 
-        await tx.cardInventory.upsert({
+        const updatedInv = await tx.cardInventory.upsert({
           where: {
             unique_category_type_station: {
               categoryId: movement.categoryId,
@@ -467,6 +478,16 @@ export class StockOutService {
             updatedBy: validatorUserId,
           },
         });
+
+        // --- LOW STOCK CHECK (Resolve Alert if Stock Replenished) ---
+        await LowStockService.checkStock(
+          movement.categoryId,
+          movement.typeId,
+          stationId,
+          updatedInv.cardBelumTerjual,
+          tx
+        );
+        // ------------------------------------------------------------
       }
 
       // 7) Update movement -> APPROVED + simpan hasil arrays + audit
@@ -688,6 +709,7 @@ export class StockOutService {
       id: item.id,
       movementAt: item.movementAt.toISOString(),
       status: item.status,
+      batchId: item.batchId,
       quantity: item.quantity,
       stationName: item.station?.stationName || null,
       note: item.note,
@@ -766,6 +788,7 @@ export class StockOutService {
         id: movement.id,
         movementAt: movement.movementAt.toISOString(),
         status: movement.status,
+        batchId: movement.batchId,
         quantity: movement.quantity,
         note: movement.note,
         createdAt: movement.createdAt.toISOString(),

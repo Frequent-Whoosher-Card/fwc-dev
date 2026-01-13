@@ -371,7 +371,9 @@ export class CardGenerateService {
       categoryId,
       typeId,
     } = params;
-    const skip = (page - 1) * limit;
+    const pageNum = Number(page) || 1;
+    const limitNum = Number(limit) || 10;
+    const skip = (pageNum - 1) * limitNum;
 
     const where: any = {
       type: "GENERATED",
@@ -392,7 +394,7 @@ export class CardGenerateService {
       db.cardStockMovement.findMany({
         where,
         skip,
-        take: limit,
+        take: limitNum,
         orderBy: { movementAt: "desc" },
         include: {
           category: { select: { id: true, categoryName: true } },
@@ -471,9 +473,9 @@ export class CardGenerateService {
       items: formattedItems,
       pagination: {
         total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
       },
     };
   }
