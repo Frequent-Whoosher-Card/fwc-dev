@@ -107,28 +107,38 @@ export default function CreateUserPage() {
     const fetchRoles = async () => {
       try {
         const res = await getRoles();
-        setRoles(res.data);
-      } catch {
+
+        const roleItems = Array.isArray(res.data)
+          ? res.data
+          : res.data?.items ?? [];
+
+        setRoles(roleItems);
+      } catch (err) {
+        console.error("fetchRoles error:", err);
         setRoles([]);
       }
     };
+
     fetchRoles();
   }, []);
 
   /* ======================
-     FETCH STATIONS
-  ====================== */
+   FETCH STATIONS
+====================== */
   useEffect(() => {
-    const fetchStations = async () => {
-      try {
-        const res = await getStations({ limit: 50 });
-        setStations(res.data?.items ?? []);
-      } catch {
-        setStations([]);
-      }
-    };
-    fetchStations();
-  }, []);
+  const fetchStations = async () => {
+    try {
+      const res = await getStations();
+      setStations(res.data.items); // ⬅️ INI FIX FINAL
+    } catch (err) {
+      console.error(err);
+      setStations([]);
+    }
+  };
+
+  fetchStations();
+}, []);
+
 
   /* ======================
      SUBMIT
@@ -152,40 +162,39 @@ export default function CreateUserPage() {
       newErrors.email = "Invalid email format";
 
     const phoneCheck = parsePhone(form.phone);
-
-    if (!form.phone) {
-      newErrors.phone = "Phone number is required";
-    } else if (!phoneCheck.isValid) {
-      newErrors.phone = "Invalid international phone number";
-    }
+    if (!form.phone) newErrors.phone = "Phone number is required";
+    else if (!phoneCheck.isValid) newErrors.phone = "Invalid phone number";
 
     if (!form.roleId) newErrors.roleId = "Role is required";
 
     if (!form.stationId) newErrors.stationId = "Stasiun is required";
 
     if (Object.keys(newErrors).length > 0) {
+      console.warn("FORM ERROR:", newErrors);
       setErrors(newErrors);
       return;
     }
 
     try {
       setLoading(true);
-      const phoneCheck = parsePhone(form.phone);
 
       await createUser({
         username: form.username,
         fullName: form.name,
         email: form.email,
-        phone: phoneCheck.e164, // format internasional
+        phone: phoneCheck.e164,
         nip: form.nip,
         roleId: form.roleId,
-        stationId: form.stationId, // ✅ WAJIB
+        stationId: form.stationId,
         password: "Default@123",
       });
 
       setShowSuccess(true);
     } catch (err: any) {
-      alert(err?.message || "Failed create user");
+      console.error("CREATE USER ERROR:", err);
+      alert(
+        err?.response?.data?.message || err?.message || "Failed create user"
+      );
     } finally {
       setLoading(false);
     }
@@ -339,11 +348,12 @@ export default function CreateUserPage() {
                 className="h-11 w-full appearance-none rounded-md border px-4 text-sm"
               >
                 <option value="">Pilih stasiun</option>
-                {stations.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.stationName}
-                  </option>
-                ))}
+                {Array.isArray(stations) &&
+                  stations.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.stationName}
+                    </option>
+                  ))}
               </select>
               <ChevronDown className="absolute right-3 top-[55%] h-4 w-4 text-gray-400" />
             </div>
@@ -352,6 +362,7 @@ export default function CreateUserPage() {
           {/* ACTION */}
           <div className="mt-10 flex justify-end">
             <button
+              type="button" // ⬅️ WAJIB
               onClick={handleSubmit}
               disabled={loading}
               className="h-11 rounded-md bg-[#7A0C2E] px-10 text-sm text-white disabled:opacity-50"
