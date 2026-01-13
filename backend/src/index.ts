@@ -19,7 +19,6 @@ import { purchases } from "./modules/purchases";
 import { AuthenticationError, AuthorizationError } from "./utils/errors";
 import { inbox } from "./modules/inbox";
 import { redeem } from "./modules/redeem";
-import { superset } from "./modules/superset";
 
 const app = new Elysia()
   .use(docsConfig)
@@ -45,7 +44,6 @@ const app = new Elysia()
   .use(metrics)
   .use(inbox)
   .use(redeem)
-  .use(superset)
 
   .onError(({ code, error, set }) => {
     // Global error handler
