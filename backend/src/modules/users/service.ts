@@ -18,7 +18,9 @@ export class UserService {
     });
 
     if (existingRole) {
-      throw new ValidationError(`Role with code '${data.roleCode}' already exists`);
+      throw new ValidationError(
+        `Role with code '${data.roleCode}' already exists`
+      );
     }
 
     const role = await db.role.create({
@@ -233,6 +235,20 @@ export class UserService {
       throw new NotFoundError("Role not found");
     }
 
+    // Verify station exists (if provided)
+    if (data.stationId) {
+      const station = await db.station.findFirst({
+        where: {
+          id: data.stationId,
+          deletedAt: null,
+        },
+      });
+
+      if (!station) {
+        throw new NotFoundError("Station not found");
+      }
+    }
+
     // Hash password
     const passwordHash = await Bun.password.hash(data.password);
 
@@ -246,11 +262,13 @@ export class UserService {
         phone: data.phone || null,
         nip: data.nip || null,
         roleId: data.roleId,
+        stationId: data.stationId || null,
         isActive: data.isActive ?? true,
         createdBy: createdBy || null,
       },
       include: {
         role: true,
+        station: true,
       },
     });
 
@@ -266,6 +284,12 @@ export class UserService {
         roleCode: user.role.roleCode,
         roleName: user.role.roleName,
       },
+      station: user.station ? {
+        id: user.station.id,
+        stationCode: user.station.stationCode,
+        stationName: user.station.stationName,
+        location: user.station.location,
+      } : null,
       isActive: user.isActive,
       lastLogin: user.lastLogin?.toISOString() || null,
       createdAt: user.createdAt.toISOString(),
@@ -284,15 +308,15 @@ export class UserService {
     stationId?: string;
     isActive?: boolean;
   }) {
-    const { 
-      page = 1, 
-      limit = 10, 
-      search, 
-      roleId, 
-      stationId, 
-      isActive 
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      roleId,
+      stationId,
+      isActive,
     } = params || {};
-    
+
     const skip = (page - 1) * limit;
 
     // Build where clause
@@ -365,11 +389,13 @@ export class UserService {
           roleCode: user.role.roleCode,
           roleName: user.role.roleName,
         },
-        station: user.station ? {
-          id: user.station.id,
-          stationCode: user.station.stationCode,
-          stationName: user.station.stationName,
-        } : null,
+        station: user.station
+          ? {
+              id: user.station.id,
+              stationCode: user.station.stationCode,
+              stationName: user.station.stationName,
+            }
+          : null,
         isActive: user.isActive,
         lastLogin: user.lastLogin?.toISOString() || null,
         createdAt: user.createdAt.toISOString(),
@@ -422,11 +448,13 @@ export class UserService {
         roleCode: user.role.roleCode,
         roleName: user.role.roleName,
       },
-      station: user.station ? {
-        id: user.station.id,
-        stationCode: user.station.stationCode,
-        stationName: user.station.stationName,
-      } : null,
+      station: user.station
+        ? {
+            id: user.station.id,
+            stationCode: user.station.stationCode,
+            stationName: user.station.stationName,
+          }
+        : null,
       isActive: user.isActive,
       lastLogin: user.lastLogin?.toISOString() || null,
       createdAt: user.createdAt.toISOString(),
@@ -497,6 +525,20 @@ export class UserService {
       }
     }
 
+    // Verify station exists (if provided)
+    if (data.stationId) {
+      const station = await db.station.findFirst({
+        where: {
+          id: data.stationId,
+          deletedAt: null,
+        },
+      });
+
+      if (!station) {
+        throw new NotFoundError("Station not found");
+      }
+    }
+
     const updatedUser = await db.user.update({
       where: { id: userId },
       data: {
@@ -505,12 +547,14 @@ export class UserService {
         phone: data.phone,
         nip: data.nip,
         roleId: data.roleId,
+        stationId: data.stationId,
         isActive: data.isActive,
         updatedBy: updatedBy || null,
         updatedAt: new Date(),
       },
       include: {
         role: true,
+        station: true,
       },
     });
 
@@ -526,6 +570,12 @@ export class UserService {
         roleCode: updatedUser.role.roleCode,
         roleName: updatedUser.role.roleName,
       },
+      station: updatedUser.station ? {
+        id: updatedUser.station.id,
+        stationCode: updatedUser.station.stationCode,
+        stationName: updatedUser.station.stationName,
+        location: updatedUser.station.location,
+      } : null,
       isActive: updatedUser.isActive,
       lastLogin: updatedUser.lastLogin?.toISOString() || null,
       createdAt: updatedUser.createdAt.toISOString(),
@@ -569,7 +619,9 @@ export class UserService {
     confirmPassword: string
   ) {
     if (newPassword !== confirmPassword) {
-      throw new ValidationError("New password and confirm password do not match");
+      throw new ValidationError(
+        "New password and confirm password do not match"
+      );
     }
 
     const user = await db.user.findFirst({
@@ -584,7 +636,10 @@ export class UserService {
     }
 
     // Verify current password
-    const isValid = await Bun.password.verify(currentPassword, user.passwordHash);
+    const isValid = await Bun.password.verify(
+      currentPassword,
+      user.passwordHash
+    );
     if (!isValid) {
       throw new ValidationError("Current password is incorrect");
     }
@@ -604,4 +659,3 @@ export class UserService {
     return { message: "Password changed successfully" };
   }
 }
-
