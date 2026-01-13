@@ -59,6 +59,12 @@ export namespace AuthModel {
           roleCode: t.String(),
           roleName: t.String(),
         }),
+        station: t.Nullable(t.Object({
+          id: t.String(),
+          stationCode: t.String(),
+          stationName: t.String(),
+          location: t.Nullable(t.String()),
+        })),
       }),
       token: t.String(),
     }),
@@ -131,7 +137,12 @@ export namespace AuthModel {
       }),
       isActive: t.Boolean(),
       lastLogin: t.Nullable(t.String()),
-      stationId: t.Nullable(t.String({ format: "uuid" })),
+      station: t.Nullable(t.Object({
+        id: t.String(),
+        stationCode: t.String(),
+        stationName: t.String(),
+        location: t.Nullable(t.String()),
+      })),
     }),
   });
 }

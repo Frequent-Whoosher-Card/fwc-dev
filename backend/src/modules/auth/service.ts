@@ -303,7 +303,6 @@ export class AuthService {
       },
       isActive: user.isActive,
       lastLogin: user.lastLogin?.toISOString() || null,
-      stationId: user.stationId,
       station: user.station ? {
         id: user.station.id,
         stationCode: user.station.stationCode,
