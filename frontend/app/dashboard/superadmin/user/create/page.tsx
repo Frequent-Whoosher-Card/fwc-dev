@@ -176,9 +176,10 @@ export default function CreateUserPage() {
         username: form.username,
         fullName: form.name,
         email: form.email,
-        phone: phoneCheck.e164, // ✅ FORMAT INTERNASIONAL
+        phone: phoneCheck.e164, // format internasional
         nip: form.nip,
         roleId: form.roleId,
+        stationId: form.stationId, // ✅ WAJIB
         password: "Default@123",
       });
 

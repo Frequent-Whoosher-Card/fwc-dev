@@ -194,6 +194,7 @@ export const createUser = (payload: {
   email?: string | null;
   phone?: string | null;
   roleId: string;
+  stationId?: string;
   password: string;
 }) => {
   return apiFetch("/users", {
@@ -206,6 +207,7 @@ export const createUser = (payload: {
       phone: payload.phone ?? null,
       nip: payload.nip,
       roleId: payload.roleId,
+      stationId: payload.stationId ?? null,
       isActive: true,
     }),
   });
