@@ -33,6 +33,11 @@ export namespace CardProductModel {
     ),
   });
 
+  // Get Card Products Query
+  export const getCardProductsQuery = t.Object({
+    search: t.Optional(t.String()),
+  });
+
   // Get Card Product by ID Response
   export const getCardProductByIdResponse = t.Object({
     success: t.Boolean(),
@@ -71,11 +76,11 @@ export namespace CardProductModel {
     masaBerlaku: t.Number({
       description: "Masa berlaku",
     }),
-    price: t.Number({
-      description: "Harga",
-    }),
     serialTemplate: t.String({
       description: "Template serial untuk produk ini",
+    }),
+    price: t.Number({
+      description: "Harga",
     }),
   });
 

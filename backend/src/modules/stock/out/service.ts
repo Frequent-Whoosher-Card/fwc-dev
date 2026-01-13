@@ -2,7 +2,7 @@ import db from "../../../config/db";
 import { ValidationError } from "../../../utils/errors";
 import { parseSmartSerial } from "../../../utils/serialHelper";
 import { InboxService } from "../../inbox/service";
-import { BatchService } from "../../../services/batchService";
+import { BatchService } from "src/services/batchService";
 import { LowStockService } from "src/services/lowStockService";
 
 function normalizeSerials(arr: string[]) {
@@ -49,6 +49,8 @@ export class StockOutService {
           serialTemplate: true,
           categoryId: true,
           typeId: true,
+          category: { select: { categoryName: true } },
+          type: { select: { typeName: true } },
         },
       });
 
@@ -239,6 +241,44 @@ export class StockOutService {
           createdBy: userId,
         },
       });
+
+      // --- NOTIFICATION TO SUPERVISOR ---
+      const stationObj = await tx.station.findUnique({
+        where: { id: stationId },
+        select: { stationName: true },
+      });
+      const stationName = stationObj?.stationName || "Station";
+
+      const supervisors = await tx.user.findMany({
+        where: {
+          role: { roleCode: "supervisor" },
+          stationId: stationId,
+          isActive: true,
+        },
+        select: { id: true },
+      });
+
+      if (supervisors.length > 0) {
+        const productName = `${cardProduct.category.categoryName} - ${cardProduct.type.typeName}`;
+        const inboxData = supervisors.map((spv) => ({
+          title: `Kiriman Stock: ${productName}`,
+          message: `Office mengirimkan ${sentCount} kartu ${productName} ke stasiun ${stationName}. Mohon cek fisik & validasi penerimaan.`,
+          sentTo: spv.id,
+          sentBy: userId,
+          stationId: stationId,
+          type: "STOCK_DISTRIBUTION",
+          payload: {
+            movementId: movement.id,
+            cardProductId: cardProductId,
+            quantity: sentCount,
+          },
+          isRead: false,
+          createdAt: new Date(),
+        }));
+
+        await tx.inbox.createMany({ data: inboxData });
+      }
+      // ----------------------------------
 
       return {
         movementId: movement.id,
