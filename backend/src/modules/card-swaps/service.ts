@@ -1,166 +1,207 @@
 import db from "../../config/db";
 import { ValidationError, NotFoundError, AuthorizationError } from "../../utils/errors";
 
+// Helper to safely convert Date to ISO string
+function toISOStringOrNull(date: Date | null | undefined): string | null {
+  if (!date) return null;
+  return date instanceof Date ? date.toISOString() : String(date);
+}
+
 // Helper functions to transform database objects to API response format
 function transformSwapRequestData(swapRequest: any) {
   return {
-    ...swapRequest,
-    createdAt: swapRequest.createdAt.toISOString(),
-    updatedAt: swapRequest.updatedAt.toISOString(),
-    requestedAt: swapRequest.requestedAt.toISOString(),
-    approvedAt: swapRequest.approvedAt?.toISOString() || null,
-    executedAt: swapRequest.executedAt?.toISOString() || null,
-    rejectedAt: swapRequest.rejectedAt?.toISOString() || null,
+    id: swapRequest.id,
+    purchaseId: swapRequest.purchaseId,
+    originalCardId: swapRequest.originalCardId,
+    replacementCardId: swapRequest.replacementCardId,
+    sourceStationId: swapRequest.sourceStationId,
+    targetStationId: swapRequest.targetStationId,
+    expectedProductId: swapRequest.expectedProductId,
+    status: swapRequest.status,
+    reason: swapRequest.reason,
+    notes: swapRequest.notes,
+    requestedBy: swapRequest.requestedBy,
+    approvedBy: swapRequest.approvedBy,
+    executedBy: swapRequest.executedBy,
+    rejectedBy: swapRequest.rejectedBy,
+    rejectionReason: swapRequest.rejectionReason,
+    createdAt: toISOStringOrNull(swapRequest.createdAt),
+    updatedAt: toISOStringOrNull(swapRequest.updatedAt),
+    requestedAt: toISOStringOrNull(swapRequest.requestedAt),
+    approvedAt: toISOStringOrNull(swapRequest.approvedAt),
+    executedAt: toISOStringOrNull(swapRequest.executedAt),
+    rejectedAt: toISOStringOrNull(swapRequest.rejectedAt),
     purchase: swapRequest.purchase
       ? {
-          ...swapRequest.purchase,
-          purchaseDate: swapRequest.purchase.purchaseDate.toISOString(),
-          createdAt: swapRequest.purchase.createdAt.toISOString(),
-          updatedAt: swapRequest.purchase.updatedAt.toISOString(),
-          deletedAt: swapRequest.purchase.deletedAt?.toISOString() || null,
+          id: swapRequest.purchase.id,
+          cardId: swapRequest.purchase.cardId,
+          memberId: swapRequest.purchase.memberId,
+          operatorId: swapRequest.purchase.operatorId,
+          stationId: swapRequest.purchase.stationId,
+          edcReferenceNumber: swapRequest.purchase.edcReferenceNumber,
+          price: swapRequest.purchase.price,
+          notes: swapRequest.purchase.notes,
+          purchaseDate: toISOStringOrNull(swapRequest.purchase.purchaseDate),
+          createdAt: toISOStringOrNull(swapRequest.purchase.createdAt),
+          updatedAt: toISOStringOrNull(swapRequest.purchase.updatedAt),
           member: swapRequest.purchase.member
             ? {
-                ...swapRequest.purchase.member,
-                createdAt: swapRequest.purchase.member.createdAt.toISOString(),
-                updatedAt: swapRequest.purchase.member.updatedAt.toISOString(),
+                id: swapRequest.purchase.member.id,
+                name: swapRequest.purchase.member.name,
+                identityNumber: swapRequest.purchase.member.identityNumber,
               }
             : null,
-          card: {
-            ...swapRequest.purchase.card,
-            createdAt: swapRequest.purchase.card.createdAt.toISOString(),
-            updatedAt: swapRequest.purchase.card.updatedAt.toISOString(),
-            deletedAt: swapRequest.purchase.card.deletedAt?.toISOString() || null,
-            cardProduct: {
-              ...swapRequest.purchase.card.cardProduct,
-              createdAt: swapRequest.purchase.card.cardProduct.createdAt.toISOString(),
-              updatedAt: swapRequest.purchase.card.cardProduct.updatedAt.toISOString(),
-              deletedAt: swapRequest.purchase.card.cardProduct.deletedAt?.toISOString() || null,
-              category: {
-                ...swapRequest.purchase.card.cardProduct.category,
-                createdAt: swapRequest.purchase.card.cardProduct.category.createdAt.toISOString(),
-                updatedAt: swapRequest.purchase.card.cardProduct.category.updatedAt.toISOString(),
-              },
-              type: {
-                ...swapRequest.purchase.card.cardProduct.type,
-                createdAt: swapRequest.purchase.card.cardProduct.type.createdAt.toISOString(),
-                updatedAt: swapRequest.purchase.card.cardProduct.type.updatedAt.toISOString(),
-              },
-            },
-          },
+          card: swapRequest.purchase.card
+            ? {
+                id: swapRequest.purchase.card.id,
+                serialNumber: swapRequest.purchase.card.serialNumber,
+                status: swapRequest.purchase.card.status,
+                cardProduct: swapRequest.purchase.card.cardProduct
+                  ? {
+                      id: swapRequest.purchase.card.cardProduct.id,
+                      totalQuota: swapRequest.purchase.card.cardProduct.totalQuota,
+                      masaBerlaku: swapRequest.purchase.card.cardProduct.masaBerlaku,
+                      price: swapRequest.purchase.card.cardProduct.price,
+                      category: swapRequest.purchase.card.cardProduct.category
+                        ? {
+                            id: swapRequest.purchase.card.cardProduct.category.id,
+                            categoryCode: swapRequest.purchase.card.cardProduct.category.categoryCode,
+                            categoryName: swapRequest.purchase.card.cardProduct.category.categoryName,
+                          }
+                        : null,
+                      type: swapRequest.purchase.card.cardProduct.type
+                        ? {
+                            id: swapRequest.purchase.card.cardProduct.type.id,
+                            typeCode: swapRequest.purchase.card.cardProduct.type.typeCode,
+                            typeName: swapRequest.purchase.card.cardProduct.type.typeName,
+                          }
+                        : null,
+                    }
+                  : null,
+              }
+            : null,
         }
       : null,
     originalCard: swapRequest.originalCard
       ? {
-          ...swapRequest.originalCard,
-          createdAt: swapRequest.originalCard.createdAt.toISOString(),
-          updatedAt: swapRequest.originalCard.updatedAt.toISOString(),
-          deletedAt: swapRequest.originalCard.deletedAt?.toISOString() || null,
-          cardProduct: {
-            ...swapRequest.originalCard.cardProduct,
-            createdAt: swapRequest.originalCard.cardProduct.createdAt.toISOString(),
-            updatedAt: swapRequest.originalCard.cardProduct.updatedAt.toISOString(),
-            deletedAt: swapRequest.originalCard.cardProduct.deletedAt?.toISOString() || null,
-            category: {
-              ...swapRequest.originalCard.cardProduct.category,
-              createdAt: swapRequest.originalCard.cardProduct.category.createdAt.toISOString(),
-              updatedAt: swapRequest.originalCard.cardProduct.category.updatedAt.toISOString(),
-            },
-            type: {
-              ...swapRequest.originalCard.cardProduct.type,
-              createdAt: swapRequest.originalCard.cardProduct.type.createdAt.toISOString(),
-              updatedAt: swapRequest.originalCard.cardProduct.type.updatedAt.toISOString(),
-            },
-          },
+          id: swapRequest.originalCard.id,
+          serialNumber: swapRequest.originalCard.serialNumber,
+          status: swapRequest.originalCard.status,
+          cardProduct: swapRequest.originalCard.cardProduct
+            ? {
+                id: swapRequest.originalCard.cardProduct.id,
+                totalQuota: swapRequest.originalCard.cardProduct.totalQuota,
+                masaBerlaku: swapRequest.originalCard.cardProduct.masaBerlaku,
+                price: swapRequest.originalCard.cardProduct.price,
+                category: swapRequest.originalCard.cardProduct.category
+                  ? {
+                      id: swapRequest.originalCard.cardProduct.category.id,
+                      categoryCode: swapRequest.originalCard.cardProduct.category.categoryCode,
+                      categoryName: swapRequest.originalCard.cardProduct.category.categoryName,
+                    }
+                  : null,
+                type: swapRequest.originalCard.cardProduct.type
+                  ? {
+                      id: swapRequest.originalCard.cardProduct.type.id,
+                      typeCode: swapRequest.originalCard.cardProduct.type.typeCode,
+                      typeName: swapRequest.originalCard.cardProduct.type.typeName,
+                    }
+                  : null,
+              }
+            : null,
         }
       : null,
     replacementCard: swapRequest.replacementCard
       ? {
-          ...swapRequest.replacementCard,
-          createdAt: swapRequest.replacementCard.createdAt.toISOString(),
-          updatedAt: swapRequest.replacementCard.updatedAt.toISOString(),
-          deletedAt: swapRequest.replacementCard.deletedAt?.toISOString() || null,
-          cardProduct: {
-            ...swapRequest.replacementCard.cardProduct,
-            createdAt: swapRequest.replacementCard.cardProduct.createdAt.toISOString(),
-            updatedAt: swapRequest.replacementCard.cardProduct.updatedAt.toISOString(),
-            deletedAt: swapRequest.replacementCard.cardProduct.deletedAt?.toISOString() || null,
-            category: {
-              ...swapRequest.replacementCard.cardProduct.category,
-              createdAt: swapRequest.replacementCard.cardProduct.category.createdAt.toISOString(),
-              updatedAt: swapRequest.replacementCard.cardProduct.category.updatedAt.toISOString(),
-            },
-            type: {
-              ...swapRequest.replacementCard.cardProduct.type,
-              createdAt: swapRequest.replacementCard.cardProduct.type.createdAt.toISOString(),
-              updatedAt: swapRequest.replacementCard.cardProduct.type.updatedAt.toISOString(),
-            },
-          },
+          id: swapRequest.replacementCard.id,
+          serialNumber: swapRequest.replacementCard.serialNumber,
+          status: swapRequest.replacementCard.status,
+          cardProduct: swapRequest.replacementCard.cardProduct
+            ? {
+                id: swapRequest.replacementCard.cardProduct.id,
+                totalQuota: swapRequest.replacementCard.cardProduct.totalQuota,
+                masaBerlaku: swapRequest.replacementCard.cardProduct.masaBerlaku,
+                price: swapRequest.replacementCard.cardProduct.price,
+                category: swapRequest.replacementCard.cardProduct.category
+                  ? {
+                      id: swapRequest.replacementCard.cardProduct.category.id,
+                      categoryCode: swapRequest.replacementCard.cardProduct.category.categoryCode,
+                      categoryName: swapRequest.replacementCard.cardProduct.category.categoryName,
+                    }
+                  : null,
+                type: swapRequest.replacementCard.cardProduct.type
+                  ? {
+                      id: swapRequest.replacementCard.cardProduct.type.id,
+                      typeCode: swapRequest.replacementCard.cardProduct.type.typeCode,
+                      typeName: swapRequest.replacementCard.cardProduct.type.typeName,
+                    }
+                  : null,
+              }
+            : null,
         }
       : null,
     sourceStation: swapRequest.sourceStation
       ? {
-          ...swapRequest.sourceStation,
-          createdAt: swapRequest.sourceStation.createdAt.toISOString(),
-          updatedAt: swapRequest.sourceStation.updatedAt.toISOString(),
-          deletedAt: swapRequest.sourceStation.deletedAt?.toISOString() || null,
+          id: swapRequest.sourceStation.id,
+          stationCode: swapRequest.sourceStation.stationCode,
+          stationName: swapRequest.sourceStation.stationName,
         }
       : null,
     targetStation: swapRequest.targetStation
       ? {
-          ...swapRequest.targetStation,
-          createdAt: swapRequest.targetStation.createdAt.toISOString(),
-          updatedAt: swapRequest.targetStation.updatedAt.toISOString(),
-          deletedAt: swapRequest.targetStation.deletedAt?.toISOString() || null,
+          id: swapRequest.targetStation.id,
+          stationCode: swapRequest.targetStation.stationCode,
+          stationName: swapRequest.targetStation.stationName,
         }
       : null,
     expectedProduct: swapRequest.expectedProduct
       ? {
-          ...swapRequest.expectedProduct,
-          createdAt: swapRequest.expectedProduct.createdAt.toISOString(),
-          updatedAt: swapRequest.expectedProduct.updatedAt.toISOString(),
-          deletedAt: swapRequest.expectedProduct.deletedAt?.toISOString() || null,
-          category: {
-            ...swapRequest.expectedProduct.category,
-            createdAt: swapRequest.expectedProduct.category.createdAt.toISOString(),
-            updatedAt: swapRequest.expectedProduct.category.updatedAt.toISOString(),
-          },
-          type: {
-            ...swapRequest.expectedProduct.type,
-            createdAt: swapRequest.expectedProduct.type.createdAt.toISOString(),
-            updatedAt: swapRequest.expectedProduct.type.updatedAt.toISOString(),
-          },
+          id: swapRequest.expectedProduct.id,
+          totalQuota: swapRequest.expectedProduct.totalQuota,
+          masaBerlaku: swapRequest.expectedProduct.masaBerlaku,
+          price: swapRequest.expectedProduct.price,
+          category: swapRequest.expectedProduct.category
+            ? {
+                id: swapRequest.expectedProduct.category.id,
+                categoryCode: swapRequest.expectedProduct.category.categoryCode,
+                categoryName: swapRequest.expectedProduct.category.categoryName,
+              }
+            : null,
+          type: swapRequest.expectedProduct.type
+            ? {
+                id: swapRequest.expectedProduct.type.id,
+                typeCode: swapRequest.expectedProduct.type.typeCode,
+                typeName: swapRequest.expectedProduct.type.typeName,
+              }
+            : null,
         }
       : null,
     requester: swapRequest.requester
       ? {
-          ...swapRequest.requester,
-          createdAt: swapRequest.requester.createdAt.toISOString(),
-          updatedAt: swapRequest.requester.updatedAt.toISOString(),
-          lastLogin: swapRequest.requester.lastLogin?.toISOString() || null,
+          id: swapRequest.requester.id,
+          fullName: swapRequest.requester.fullName,
+          username: swapRequest.requester.username,
         }
       : null,
     approver: swapRequest.approver
       ? {
-          ...swapRequest.approver,
-          createdAt: swapRequest.approver.createdAt.toISOString(),
-          updatedAt: swapRequest.approver.updatedAt.toISOString(),
-          lastLogin: swapRequest.approver.lastLogin?.toISOString() || null,
+          id: swapRequest.approver.id,
+          fullName: swapRequest.approver.fullName,
+          username: swapRequest.approver.username,
         }
       : null,
     executor: swapRequest.executor
       ? {
-          ...swapRequest.executor,
-          createdAt: swapRequest.executor.createdAt.toISOString(),
-          updatedAt: swapRequest.executor.updatedAt.toISOString(),
-          lastLogin: swapRequest.executor.lastLogin?.toISOString() || null,
+          id: swapRequest.executor.id,
+          fullName: swapRequest.executor.fullName,
+          username: swapRequest.executor.username,
         }
       : null,
     rejecter: swapRequest.rejecter
       ? {
-          ...swapRequest.rejecter,
-          createdAt: swapRequest.rejecter.createdAt.toISOString(),
-          updatedAt: swapRequest.rejecter.updatedAt.toISOString(),
-          lastLogin: swapRequest.rejecter.lastLogin?.toISOString() || null,
+          id: swapRequest.rejecter.id,
+          fullName: swapRequest.rejecter.fullName,
+          username: swapRequest.rejecter.username,
         }
       : null,
   };
@@ -168,51 +209,77 @@ function transformSwapRequestData(swapRequest: any) {
 
 function transformSwapHistoryData(history: any) {
   return {
-    ...history,
-    executedAt: history.executedAt.toISOString(),
+    id: history.id,
+    swapRequestId: history.swapRequestId,
+    originalCardId: history.originalCardId,
+    replacementCardId: history.replacementCardId,
+    executedBy: history.executedBy,
+    executedAt: toISOStringOrNull(history.executedAt),
     swapRequest: history.swapRequest
       ? {
-          ...history.swapRequest,
-          createdAt: history.swapRequest.createdAt.toISOString(),
-          updatedAt: history.swapRequest.updatedAt.toISOString(),
-          requestedAt: history.swapRequest.requestedAt.toISOString(),
-          approvedAt: history.swapRequest.approvedAt?.toISOString() || null,
-          executedAt: history.swapRequest.executedAt?.toISOString() || null,
-          rejectedAt: history.swapRequest.rejectedAt?.toISOString() || null,
-          sourceStation: {
-            ...history.swapRequest.sourceStation,
-            createdAt: history.swapRequest.sourceStation.createdAt.toISOString(),
-            updatedAt: history.swapRequest.sourceStation.updatedAt.toISOString(),
-            deletedAt: history.swapRequest.sourceStation.deletedAt?.toISOString() || null,
-          },
-          targetStation: {
-            ...history.swapRequest.targetStation,
-            createdAt: history.swapRequest.targetStation.createdAt.toISOString(),
-            updatedAt: history.swapRequest.targetStation.updatedAt.toISOString(),
-            deletedAt: history.swapRequest.targetStation.deletedAt?.toISOString() || null,
-          },
-          requester: {
-            ...history.swapRequest.requester,
-            createdAt: history.swapRequest.requester.createdAt.toISOString(),
-            updatedAt: history.swapRequest.requester.updatedAt.toISOString(),
-            lastLogin: history.swapRequest.requester.lastLogin?.toISOString() || null,
-          },
+          id: history.swapRequest.id,
+          status: history.swapRequest.status,
+          reason: history.swapRequest.reason,
+          createdAt: toISOStringOrNull(history.swapRequest.createdAt),
+          requestedAt: toISOStringOrNull(history.swapRequest.requestedAt),
+          approvedAt: toISOStringOrNull(history.swapRequest.approvedAt),
+          executedAt: toISOStringOrNull(history.swapRequest.executedAt),
+          sourceStation: history.swapRequest.sourceStation
+            ? {
+                id: history.swapRequest.sourceStation.id,
+                stationCode: history.swapRequest.sourceStation.stationCode,
+                stationName: history.swapRequest.sourceStation.stationName,
+              }
+            : null,
+          targetStation: history.swapRequest.targetStation
+            ? {
+                id: history.swapRequest.targetStation.id,
+                stationCode: history.swapRequest.targetStation.stationCode,
+                stationName: history.swapRequest.targetStation.stationName,
+              }
+            : null,
+          requester: history.swapRequest.requester
+            ? {
+                id: history.swapRequest.requester.id,
+                fullName: history.swapRequest.requester.fullName,
+                username: history.swapRequest.requester.username,
+              }
+            : null,
           approver: history.swapRequest.approver
             ? {
-                ...history.swapRequest.approver,
-                createdAt: history.swapRequest.approver.createdAt.toISOString(),
-                updatedAt: history.swapRequest.approver.updatedAt.toISOString(),
-                lastLogin: history.swapRequest.approver.lastLogin?.toISOString() || null,
+                id: history.swapRequest.approver.id,
+                fullName: history.swapRequest.approver.fullName,
+                username: history.swapRequest.approver.username,
               }
             : null,
           executor: history.swapRequest.executor
             ? {
-                ...history.swapRequest.executor,
-                createdAt: history.swapRequest.executor.createdAt.toISOString(),
-                updatedAt: history.swapRequest.executor.updatedAt.toISOString(),
-                lastLogin: history.swapRequest.executor.lastLogin?.toISOString() || null,
+                id: history.swapRequest.executor.id,
+                fullName: history.swapRequest.executor.fullName,
+                username: history.swapRequest.executor.username,
               }
             : null,
+        }
+      : null,
+    originalCard: history.originalCard
+      ? {
+          id: history.originalCard.id,
+          serialNumber: history.originalCard.serialNumber,
+          status: history.originalCard.status,
+        }
+      : null,
+    replacementCard: history.replacementCard
+      ? {
+          id: history.replacementCard.id,
+          serialNumber: history.replacementCard.serialNumber,
+          status: history.replacementCard.status,
+        }
+      : null,
+    executor: history.executor
+      ? {
+          id: history.executor.id,
+          fullName: history.executor.fullName,
+          username: history.executor.username,
         }
       : null,
   };

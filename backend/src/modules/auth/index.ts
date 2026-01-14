@@ -73,10 +73,7 @@ export const auth = new Elysia({ prefix: "/auth" })
         const { username, password } = body;
 
         // Authenticate user (without token verification)
-        const { user } = await AuthService.simpleLogin(
-          username,
-          password
-        );
+        const { user } = await AuthService.simpleLogin(username, password);
 
         // Generate JWT token
         const token = await jwt.sign({
@@ -122,7 +119,8 @@ export const auth = new Elysia({ prefix: "/auth" })
       detail: {
         tags: ["Authentication"],
         summary: "Simple login (for Swagger/testing)",
-        description: "Authenticate user with username/email and password only. No security tokens required. WARNING: Only use in development/testing environment.",
+        description:
+          "Authenticate user with username/email and password only. No security tokens required. WARNING: Only use in development/testing environment.",
         requestBody: {
           content: {
             "application/json": {
@@ -194,14 +192,16 @@ export const auth = new Elysia({ prefix: "/auth" })
       detail: {
         tags: ["Authentication"],
         summary: "Login with username/email and password",
-        description: "Authenticate user and create session. Requires Firebase App Check token and Cloudflare Turnstile token for double layer security protection.",
+        description:
+          "Authenticate user and create session. Requires Firebase App Check token and Cloudflare Turnstile token for double layer security protection.",
         requestBody: {
           content: {
             "application/json": {
               example: {
                 username: "rama",
                 password: "ramaPassword",
-                appCheckToken: "eyJraWQiOiJ2ckU4dWciLCJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...",
+                appCheckToken:
+                  "eyJraWQiOiJ2ckU4dWciLCJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...",
                 turnstileToken: "0.abc123...",
               },
             },

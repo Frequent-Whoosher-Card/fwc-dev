@@ -9,23 +9,34 @@ export namespace CardSwapModel {
     replacementCardId: t.Union([t.String({ format: "uuid" }), t.Null()]),
     sourceStationId: t.String({ format: "uuid" }),
     targetStationId: t.String({ format: "uuid" }),
-    expectedProductId: t.String({ format: "uuid" }),
+    expectedProductId: t.Union([t.String({ format: "uuid" }), t.Null()]),
     status: t.String(),
     reason: t.String(),
     notes: t.Union([t.String(), t.Null()]),
+    requestedBy: t.Union([t.String({ format: "uuid" }), t.Null()]),
+    approvedBy: t.Union([t.String({ format: "uuid" }), t.Null()]),
+    executedBy: t.Union([t.String({ format: "uuid" }), t.Null()]),
+    rejectedBy: t.Union([t.String({ format: "uuid" }), t.Null()]),
     rejectionReason: t.Union([t.String(), t.Null()]),
-    requestedAt: t.String({ format: "date-time" }),
+    requestedAt: t.Union([t.String({ format: "date-time" }), t.Null()]),
     approvedAt: t.Union([t.String({ format: "date-time" }), t.Null()]),
     executedAt: t.Union([t.String({ format: "date-time" }), t.Null()]),
     rejectedAt: t.Union([t.String({ format: "date-time" }), t.Null()]),
-    createdAt: t.String({ format: "date-time" }),
-    updatedAt: t.String({ format: "date-time" }),
+    createdAt: t.Union([t.String({ format: "date-time" }), t.Null()]),
+    updatedAt: t.Union([t.String({ format: "date-time" }), t.Null()]),
     // Relations
     purchase: t.Object({
       id: t.String({ format: "uuid" }),
+      cardId: t.String({ format: "uuid" }),
+      memberId: t.Union([t.String({ format: "uuid" }), t.Null()]),
+      operatorId: t.String({ format: "uuid" }),
+      stationId: t.String({ format: "uuid" }),
       edcReferenceNumber: t.String(),
       purchaseDate: t.String({ format: "date-time" }),
-      price: t.Number(),
+      price: t.Union([t.Number(), t.String()]),
+      notes: t.Union([t.String(), t.Null()]),
+      createdAt: t.Union([t.String({ format: "date-time" }), t.Null()]),
+      updatedAt: t.Union([t.String({ format: "date-time" }), t.Null()]),
       member: t.Union([
         t.Object({
           id: t.String({ format: "uuid" }),
@@ -38,53 +49,96 @@ export namespace CardSwapModel {
         id: t.String({ format: "uuid" }),
         serialNumber: t.String(),
         status: t.String(),
-        cardProduct: t.Object({
-          id: t.String({ format: "uuid" }),
-          totalQuota: t.Number(),
-          masaBerlaku: t.Number(),
-          category: t.Object({
+        cardProduct: t.Union([
+          t.Object({
             id: t.String({ format: "uuid" }),
-            categoryName: t.String(),
+            totalQuota: t.Number(),
+            masaBerlaku: t.Number(),
+            price: t.Union([t.Number(), t.String()]),
+            category: t.Union([
+              t.Object({
+                id: t.String({ format: "uuid" }),
+                categoryCode: t.String(),
+                categoryName: t.String(),
+              }),
+              t.Null(),
+            ]),
+            type: t.Union([
+              t.Object({
+                id: t.String({ format: "uuid" }),
+                typeCode: t.String(),
+                typeName: t.String(),
+              }),
+              t.Null(),
+            ]),
           }),
-          type: t.Object({
-            id: t.String({ format: "uuid" }),
-            typeName: t.String(),
-          }),
-        }),
+          t.Null(),
+        ]),
       }),
     }),
-    originalCard: t.Object({
-      id: t.String({ format: "uuid" }),
-      serialNumber: t.String(),
-      status: t.String(),
-      cardProduct: t.Object({
+    originalCard: t.Union([
+      t.Object({
         id: t.String({ format: "uuid" }),
-        category: t.Object({
-          id: t.String({ format: "uuid" }),
-          categoryName: t.String(),
-        }),
-        type: t.Object({
-          id: t.String({ format: "uuid" }),
-          typeName: t.String(),
-        }),
+        serialNumber: t.String(),
+        status: t.String(),
+        cardProduct: t.Union([
+          t.Object({
+            id: t.String({ format: "uuid" }),
+            totalQuota: t.Number(),
+            masaBerlaku: t.Number(),
+            price: t.Union([t.Number(), t.String()]),
+            category: t.Union([
+              t.Object({
+                id: t.String({ format: "uuid" }),
+                categoryCode: t.String(),
+                categoryName: t.String(),
+              }),
+              t.Null(),
+            ]),
+            type: t.Union([
+              t.Object({
+                id: t.String({ format: "uuid" }),
+                typeCode: t.String(),
+                typeName: t.String(),
+              }),
+              t.Null(),
+            ]),
+          }),
+          t.Null(),
+        ]),
       }),
-    }),
+      t.Null(),
+    ]),
     replacementCard: t.Union([
       t.Object({
         id: t.String({ format: "uuid" }),
         serialNumber: t.String(),
         status: t.String(),
-        cardProduct: t.Object({
-          id: t.String({ format: "uuid" }),
-          category: t.Object({
+        cardProduct: t.Union([
+          t.Object({
             id: t.String({ format: "uuid" }),
-            categoryName: t.String(),
+            totalQuota: t.Number(),
+            masaBerlaku: t.Number(),
+            price: t.Union([t.Number(), t.String()]),
+            category: t.Union([
+              t.Object({
+                id: t.String({ format: "uuid" }),
+                categoryCode: t.String(),
+                categoryName: t.String(),
+              }),
+              t.Null(),
+            ]),
+            type: t.Union([
+              t.Object({
+                id: t.String({ format: "uuid" }),
+                typeCode: t.String(),
+                typeName: t.String(),
+              }),
+              t.Null(),
+            ]),
           }),
-          type: t.Object({
-            id: t.String({ format: "uuid" }),
-            typeName: t.String(),
-          }),
-        }),
+          t.Null(),
+        ]),
       }),
       t.Null(),
     ]),
@@ -98,19 +152,31 @@ export namespace CardSwapModel {
       stationCode: t.String(),
       stationName: t.String(),
     }),
-    expectedProduct: t.Object({
-      id: t.String({ format: "uuid" }),
-      totalQuota: t.Number(),
-      masaBerlaku: t.Number(),
-      category: t.Object({
+    expectedProduct: t.Union([
+      t.Object({
         id: t.String({ format: "uuid" }),
-        categoryName: t.String(),
+        totalQuota: t.Number(),
+        masaBerlaku: t.Number(),
+        price: t.Union([t.Number(), t.String()]),
+        category: t.Union([
+          t.Object({
+            id: t.String({ format: "uuid" }),
+            categoryCode: t.String(),
+            categoryName: t.String(),
+          }),
+          t.Null(),
+        ]),
+        type: t.Union([
+          t.Object({
+            id: t.String({ format: "uuid" }),
+            typeCode: t.String(),
+            typeName: t.String(),
+          }),
+          t.Null(),
+        ]),
       }),
-      type: t.Object({
-        id: t.String({ format: "uuid" }),
-        typeName: t.String(),
-      }),
-    }),
+      t.Null(),
+    ]),
     requester: t.Object({
       id: t.String({ format: "uuid" }),
       fullName: t.String(),
