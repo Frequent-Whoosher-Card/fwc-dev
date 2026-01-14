@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Phone, Mail, ChevronDown } from "lucide-react";
-import { phone as phoneLib } from "phone";
 
 import { createUser, getRoles, RoleItem } from "@/lib/services/user.service";
 import { getStations, StationItem } from "@/lib/services/station.service";
@@ -89,17 +88,6 @@ export default function CreateUserPage() {
   const isValidEmail = (email: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-  const parsePhone = (value: string) => {
-    const cleaned = value.replace(/[^\d+]/g, "");
-    const result = phoneLib(cleaned);
-
-    return {
-      raw: cleaned,
-      e164: result.isValid ? result.phoneNumber : "",
-      isValid: result.isValid,
-    };
-  };
-
   /* ======================
      FETCH ROLES
   ====================== */
@@ -126,19 +114,18 @@ export default function CreateUserPage() {
    FETCH STATIONS
 ====================== */
   useEffect(() => {
-  const fetchStations = async () => {
-    try {
-      const res = await getStations();
-      setStations(res.data.items); // ⬅️ INI FIX FINAL
-    } catch (err) {
-      console.error(err);
-      setStations([]);
-    }
-  };
+    const fetchStations = async () => {
+      try {
+        const res = await getStations();
+        setStations(res.data.items); // ⬅️ INI FIX FINAL
+      } catch (err) {
+        console.error(err);
+        setStations([]);
+      }
+    };
 
-  fetchStations();
-}, []);
-
+    fetchStations();
+  }, []);
 
   /* ======================
      SUBMIT
@@ -161,12 +148,10 @@ export default function CreateUserPage() {
     else if (!isValidEmail(form.email))
       newErrors.email = "Invalid email format";
 
-    const phoneCheck = parsePhone(form.phone);
-    if (!form.phone) newErrors.phone = "Phone number is required";
-    else if (!phoneCheck.isValid) newErrors.phone = "Invalid phone number";
+    if (!form.phone || form.phone.length < 10)
+      newErrors.phone = "Phone number is required";
 
     if (!form.roleId) newErrors.roleId = "Role is required";
-
     if (!form.stationId) newErrors.stationId = "Stasiun is required";
 
     if (Object.keys(newErrors).length > 0) {
@@ -178,23 +163,26 @@ export default function CreateUserPage() {
     try {
       setLoading(true);
 
-      await createUser({
+      const payload = {
         username: form.username,
+        password: "Default@123",
         fullName: form.name,
         email: form.email,
-        phone: phoneCheck.e164,
+        phone: form.phone, // ✅ KIRIM APA ADANYA
         nip: form.nip,
         roleId: form.roleId,
         stationId: form.stationId,
-        password: "Default@123",
-      });
+        isActive: true,
+      };
+
+      console.log("CREATE USER PAYLOAD >>>", payload);
+
+      await createUser(payload);
 
       setShowSuccess(true);
     } catch (err: any) {
-      console.error("CREATE USER ERROR:", err);
-      alert(
-        err?.response?.data?.message || err?.message || "Failed create user"
-      );
+      console.error("CREATE USER ERROR FULL:", err);
+      alert(JSON.stringify(err?.response?.data ?? err, null, 2));
     } finally {
       setLoading(false);
     }
@@ -300,7 +288,7 @@ export default function CreateUserPage() {
                 Phone Number<span className="ml-1 text-red-500">*</span>
               </label>
               <input
-                placeholder="+6281…"
+                placeholder="08xxxxxxxx"
                 value={form.phone}
                 onChange={(e) =>
                   setForm({
