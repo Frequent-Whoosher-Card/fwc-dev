@@ -1,4 +1,4 @@
-import axios from '../axios';
+import axios from "../axios";
 
 export interface SwapRequest {
   id: string;
@@ -8,7 +8,12 @@ export interface SwapRequest {
   sourceStationId: string;
   targetStationId: string;
   expectedProductId: string;
-  status: 'PENDING_APPROVAL' | 'APPROVED' | 'COMPLETED' | 'REJECTED' | 'CANCELLED';
+  status:
+    | "PENDING_APPROVAL"
+    | "APPROVED"
+    | "COMPLETED"
+    | "REJECTED"
+    | "CANCELLED";
   reason: string;
   notes: string | null;
   rejectionReason: string | null;
@@ -121,7 +126,7 @@ export class CardSwapService {
    * Create a new swap request
    */
   static async createSwapRequest(data: CreateSwapRequestPayload) {
-    const response = await axios.post('/card-swaps', data);
+    const response = await axios.post("/card-swaps", data);
     return response.data;
   }
 
@@ -129,7 +134,7 @@ export class CardSwapService {
    * Get list of swap requests with filters
    */
   static async getSwapRequests(params?: GetSwapRequestsParams) {
-    const response = await axios.get('/card-swaps', { params });
+    const response = await axios.get("/card-swaps", { params });
     return response.data;
   }
 
@@ -181,7 +186,9 @@ export class CardSwapService {
    * Get swap history for a purchase
    */
   static async getSwapHistory(purchaseId: string) {
-    const response = await axios.get(`/card-swaps/purchase/${purchaseId}/history`);
+    const response = await axios.get(
+      `/card-swaps/purchase/${purchaseId}/history`
+    );
     return response.data;
   }
 }

@@ -1,17 +1,9 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { 
-  getPurchases
-} from '@/lib/services/purchase.service';
-import { 
-  ChevronLeft, 
-  ChevronRight
-} from 'lucide-react';
-import { toast } from 'sonner';
-
-
-
+import { useEffect, useState } from "react";
+import { getPurchases } from "@/lib/services/purchase.service";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
 
 interface Purchase {
   id: string;
@@ -61,19 +53,19 @@ interface Pagination {
 }
 
 const formatDate = (iso?: string | null) => {
-  if (!iso) return '-';
+  if (!iso) return "-";
   const d = new Date(iso);
-  return d.toLocaleDateString('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
+  return d.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
   });
 };
 
 const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
     minimumFractionDigits: 0,
   }).format(amount);
 };
@@ -88,19 +80,17 @@ export default function TransactionTable() {
   });
   const [loading, setLoading] = useState(true);
 
-
-
   const fetchPurchases = async (page: number = 1) => {
     try {
       setLoading(true);
       const res = await getPurchases({ page, limit: 10 });
-      
+
       if (res.success && res.data) {
         setData(res.data.items || []);
         setPagination(res.data.pagination || pagination);
       }
     } catch (err) {
-      console.error('Error fetching purchases:', err);
+      console.error("Error fetching purchases:", err);
     } finally {
       setLoading(false);
     }
@@ -110,52 +100,79 @@ export default function TransactionTable() {
     fetchPurchases(pagination.page);
   }, [pagination.page]);
 
-
-
   const pageNumbers = Array.from(
     { length: pagination.totalPages },
     (_, i) => i + 1
-  ).slice(
-    Math.max(0, pagination.page - 3),
-    pagination.page + 2
-  );
+  ).slice(Math.max(0, pagination.page - 3), pagination.page + 2);
 
   return (
     <div className="space-y-4">
       <div className="overflow-x-auto rounded-md border bg-white">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50">
-          <tr>
-              <th className="px-3 py-2 text-left whitespace-nowrap">Purchase Date</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">Masa Berlaku</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">Expired Date</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">Status Card</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">Card Category</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">Card Type</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">Total Quota</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">Remaining Quota</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">Serial Number</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">No. Reference EDC</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">FWC Price</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">Shift Date</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">Operator Name</th>
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-3 py-2 text-left whitespace-nowrap">
+                Purchase Date
+              </th>
+              <th className="px-3 py-2 text-left whitespace-nowrap">
+                Masa Berlaku
+              </th>
+              <th className="px-3 py-2 text-left whitespace-nowrap">
+                Expired Date
+              </th>
+              <th className="px-3 py-2 text-left whitespace-nowrap">
+                Status Card
+              </th>
+              <th className="px-3 py-2 text-left whitespace-nowrap">
+                Card Category
+              </th>
+              <th className="px-3 py-2 text-left whitespace-nowrap">
+                Card Type
+              </th>
+              <th className="px-3 py-2 text-left whitespace-nowrap">
+                Total Quota
+              </th>
+              <th className="px-3 py-2 text-left whitespace-nowrap">
+                Remaining Quota
+              </th>
+              <th className="px-3 py-2 text-left whitespace-nowrap">
+                Serial Number
+              </th>
+              <th className="px-3 py-2 text-left whitespace-nowrap">
+                No. Reference EDC
+              </th>
+              <th className="px-3 py-2 text-left whitespace-nowrap">
+                FWC Price
+              </th>
+              <th className="px-3 py-2 text-left whitespace-nowrap">
+                Shift Date
+              </th>
+              <th className="px-3 py-2 text-left whitespace-nowrap">
+                Operator Name
+              </th>
               <th className="px-3 py-2 text-left whitespace-nowrap">Stasiun</th>
-          </tr>
-        </thead>
+            </tr>
+          </thead>
 
-        <tbody>
+          <tbody>
             {loading ? (
               <tr>
-                <td colSpan={16} className="px-3 py-6 text-center text-gray-400">
+                <td
+                  colSpan={16}
+                  className="px-3 py-6 text-center text-gray-400"
+                >
                   Loading...
                 </td>
               </tr>
             ) : data.length === 0 ? (
-          <tr>
-                <td colSpan={15} className="px-3 py-6 text-center text-gray-400">
-              No data
-            </td>
-          </tr>
+              <tr>
+                <td
+                  colSpan={15}
+                  className="px-3 py-6 text-center text-gray-400"
+                >
+                  No data
+                </td>
+              </tr>
             ) : (
               data.map((item) => (
                 <tr key={item.id} className="border-t hover:bg-gray-50">
@@ -171,11 +188,11 @@ export default function TransactionTable() {
                   <td className="px-3 py-2 whitespace-nowrap">
                     <span
                       className={`px-2 py-1 rounded text-xs ${
-                        item.card.status === 'SOLD_ACTIVE'
-                          ? 'bg-green-100 text-green-700'
-                          : item.card.status === 'EXPIRED'
-                          ? 'bg-red-100 text-red-700'
-                          : 'bg-gray-100 text-gray-700'
+                        item.card.status === "SOLD_ACTIVE"
+                          ? "bg-green-100 text-green-700"
+                          : item.card.status === "EXPIRED"
+                          ? "bg-red-100 text-red-700"
+                          : "bg-gray-100 text-gray-700"
                       }`}
                     >
                       {item.card.status}
@@ -214,8 +231,8 @@ export default function TransactionTable() {
                 </tr>
               ))
             )}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
       </div>
 
       {/* PAGINATION */}
@@ -244,9 +261,7 @@ export default function TransactionTable() {
                 }))
               }
               className={`px-3 py-1 ${
-                p === pagination.page
-                  ? 'font-semibold underline'
-                  : ''
+                p === pagination.page ? "font-semibold underline" : ""
               }`}
             >
               {p}
@@ -267,8 +282,6 @@ export default function TransactionTable() {
           </button>
         </div>
       )}
-
-
     </div>
   );
 }

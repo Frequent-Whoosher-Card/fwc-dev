@@ -22,7 +22,7 @@ export default function CardSwapPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [stations, setStations] = useState<Station[]>([]);
   const [products, setProducts] = useState<CardProduct[]>([]);
-  
+
   // Form state
   const [edcReference, setEdcReference] = useState("");
   const [targetStationId, setTargetStationId] = useState("");
@@ -80,7 +80,7 @@ export default function CardSwapPage() {
     try {
       const response = await axios.get(`/card-purchases/edc/${edcReference}`);
       const purchase = response.data.data;
-      
+
       if (purchase) {
         setPurchaseId(purchase.id);
         alert(`Purchase ditemukan: ${purchase.card.serialNumber}`);
@@ -117,7 +117,9 @@ export default function CardSwapPage() {
       loadSwapRequests();
     } catch (error: any) {
       console.error("Error creating swap request:", error);
-      alert(error.response?.data?.error?.message || "Gagal membuat swap request");
+      alert(
+        error.response?.data?.error?.message || "Gagal membuat swap request"
+      );
     } finally {
       setLoading(false);
     }
@@ -132,7 +134,9 @@ export default function CardSwapPage() {
       loadSwapRequests();
     } catch (error: any) {
       console.error("Error canceling swap:", error);
-      alert(error.response?.data?.error?.message || "Gagal membatalkan swap request");
+      alert(
+        error.response?.data?.error?.message || "Gagal membatalkan swap request"
+      );
     }
   };
 
@@ -161,7 +165,9 @@ export default function CardSwapPage() {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold">Card Swap Request</h2>
-          <p className="text-gray-600">Pengajuan penukaran kartu antar stasiun</p>
+          <p className="text-gray-600">
+            Pengajuan penukaran kartu antar stasiun
+          </p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
@@ -225,22 +231,29 @@ export default function CardSwapPage() {
                     <div className="flex items-center gap-2">
                       <span>{swap.sourceStation.stationCode}</span>
                       <span>→</span>
-                      <span className="font-semibold">{swap.targetStation.stationCode}</span>
+                      <span className="font-semibold">
+                        {swap.targetStation.stationCode}
+                      </span>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm">
-                    {swap.expectedProduct.category.categoryName} - {swap.expectedProduct.type.typeName}
+                    {swap.expectedProduct.category.categoryName} -{" "}
+                    {swap.expectedProduct.type.typeName}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadge(swap.status)}`}>
+                    <span
+                      className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadge(
+                        swap.status
+                      )}`}
+                    >
                       {swap.status}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(swap.requestedAt).toLocaleDateString('id-ID')}
+                    {new Date(swap.requestedAt).toLocaleDateString("id-ID")}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {swap.status === 'PENDING_APPROVAL' && (
+                    {swap.status === "PENDING_APPROVAL" && (
                       <button
                         onClick={() => handleCancelSwap(swap.id)}
                         className="text-red-600 hover:text-red-900"
@@ -261,7 +274,7 @@ export default function CardSwapPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-bold mb-4">Buat Swap Request Baru</h3>
-            
+
             <form onSubmit={handleCreateSwap} className="space-y-4">
               {/* Search Purchase */}
               <div>
@@ -285,7 +298,9 @@ export default function CardSwapPage() {
                   </button>
                 </div>
                 {purchaseId && (
-                  <p className="text-xs text-green-600 mt-1">✓ Purchase ditemukan</p>
+                  <p className="text-xs text-green-600 mt-1">
+                    ✓ Purchase ditemukan
+                  </p>
                 )}
               </div>
 

@@ -1,11 +1,9 @@
 // ✅ BENAR
-import { apiFetch } from '@/lib/apiConfig';
+import { apiFetch } from "@/lib/apiConfig";
 
 /* =========================
    TYPES
 ========================= */
-
-
 
 export interface CreatePurchasePayload {
   cardId: string;
@@ -33,7 +31,6 @@ export interface CreatePurchasePayload {
   /** CATATAN OPSIONAL */
   notes?: string;
 }
-
 
 export interface PurchaseListItem {
   id: string;
@@ -73,8 +70,8 @@ export interface PurchaseListItem {
  * CREATE PURCHASE
  */
 export const createPurchase = (payload: CreatePurchasePayload) => {
-  return apiFetch('/purchases', {
-    method: 'POST',
+  return apiFetch("/purchases", {
+    method: "POST",
     body: JSON.stringify(payload),
   });
 };
@@ -95,32 +92,32 @@ export const getPurchases = async (params?: {
   const query = new URLSearchParams();
 
   if (params?.page) {
-    query.append('page', String(params.page));
+    query.append("page", String(params.page));
   }
   if (params?.limit) {
-    query.append('limit', String(params.limit));
+    query.append("limit", String(params.limit));
   }
   if (params?.search) {
-    query.append('search', params.search);
+    query.append("search", params.search);
   }
   if (params?.startDate) {
-    query.append('startDate', params.startDate);
+    query.append("startDate", params.startDate);
   }
   if (params?.endDate) {
-    query.append('endDate', params.endDate);
+    query.append("endDate", params.endDate);
   }
   if (params?.categoryId) {
-    query.append('categoryId', params.categoryId);
+    query.append("categoryId", params.categoryId);
   }
   if (params?.typeId) {
-    query.append('typeId', params.typeId);
+    query.append("typeId", params.typeId);
   }
   if (params?.stationId) {
-    query.append('stationId', params.stationId);
+    query.append("stationId", params.stationId);
   }
 
   const res = await apiFetch(`/purchases?${query.toString()}`, {
-    method: 'GET',
+    method: "GET",
   });
 
   return res;
@@ -130,5 +127,5 @@ export const getPurchases = async (params?: {
  * GET PURCHASE BY ID
  */
 export const getPurchaseById = (id: string | number) => {
-  return apiFetch(`/purchases/${id}`, { method: 'GET' });
+  return apiFetch(`/purchases/${id}`, { method: "GET" });
 };

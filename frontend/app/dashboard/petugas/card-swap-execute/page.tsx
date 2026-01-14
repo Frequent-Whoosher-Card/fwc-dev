@@ -90,7 +90,11 @@ export default function CardSwapExecutePage() {
       return;
     }
 
-    if (!confirm("Yakin ingin mengeksekusi swap ini? Tindakan ini tidak dapat dibatalkan.")) {
+    if (
+      !confirm(
+        "Yakin ingin mengeksekusi swap ini? Tindakan ini tidak dapat dibatalkan."
+      )
+    ) {
       return;
     }
 
@@ -114,21 +118,34 @@ export default function CardSwapExecutePage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold">Eksekusi Card Swap</h2>
-        <p className="text-gray-600">Lakukan penukaran kartu yang telah disetujui</p>
+        <p className="text-gray-600">
+          Lakukan penukaran kartu yang telah disetujui
+        </p>
       </div>
 
       {/* Info Box */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div className="flex items-start gap-3">
-          <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+          <svg
+            className="w-5 h-5 text-blue-600 mt-0.5"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
+            <path
+              fillRule="evenodd"
+              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+              clipRule="evenodd"
+            />
           </svg>
           <div className="text-sm text-blue-800">
             <p className="font-semibold mb-1">Petunjuk Eksekusi Swap:</p>
             <ul className="list-disc list-inside space-y-1">
               <li>Pilih swap request yang sudah APPROVED</li>
               <li>Pilih kartu pengganti dari stok yang tersedia</li>
-              <li>Sistem akan otomatis memproses: kembalikan kartu lama, update purchase, dan aktivasi kartu baru</li>
+              <li>
+                Sistem akan otomatis memproses: kembalikan kartu lama, update
+                purchase, dan aktivasi kartu baru
+              </li>
               <li>Serahkan kartu baru kepada member</li>
             </ul>
           </div>
@@ -184,7 +201,9 @@ export default function CardSwapExecutePage() {
                   </td>
                   <td className="px-6 py-4 text-sm">
                     <div>
-                      <div className="font-medium">{swap.purchase.member?.name || "N/A"}</div>
+                      <div className="font-medium">
+                        {swap.purchase.member?.name || "N/A"}
+                      </div>
                       <div className="text-gray-500 text-xs">
                         {swap.purchase.member?.identityNumber}
                       </div>
@@ -192,20 +211,29 @@ export default function CardSwapExecutePage() {
                   </td>
                   <td className="px-6 py-4 text-sm">
                     <div>
-                      <div className="font-medium">{swap.purchase.card.serialNumber}</div>
+                      <div className="font-medium">
+                        {swap.purchase.card.serialNumber}
+                      </div>
                       <div className="text-gray-500 text-xs">
-                        {swap.purchase.card.cardProduct.category.categoryName} - {swap.purchase.card.cardProduct.type.typeName}
+                        {swap.purchase.card.cardProduct.category.categoryName} -{" "}
+                        {swap.purchase.card.cardProduct.type.typeName}
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm">
-                    {swap.expectedProduct.category.categoryName} - {swap.expectedProduct.type.typeName}
+                    {swap.expectedProduct.category.categoryName} -{" "}
+                    {swap.expectedProduct.type.typeName}
                   </td>
-                  <td className="px-6 py-4 text-sm max-w-xs truncate" title={swap.reason}>
+                  <td
+                    className="px-6 py-4 text-sm max-w-xs truncate"
+                    title={swap.reason}
+                  >
                     {swap.reason}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {swap.approvedAt ? new Date(swap.approvedAt).toLocaleDateString('id-ID') : "-"}
+                    {swap.approvedAt
+                      ? new Date(swap.approvedAt).toLocaleDateString("id-ID")
+                      : "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <button
@@ -226,27 +254,36 @@ export default function CardSwapExecutePage() {
       {showExecuteModal && selectedSwap && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-bold mb-4">Eksekusi Swap: {selectedSwap.purchase.edcReferenceNumber}</h3>
-            
+            <h3 className="text-xl font-bold mb-4">
+              Eksekusi Swap: {selectedSwap.purchase.edcReferenceNumber}
+            </h3>
+
             {/* Swap Details */}
             <div className="bg-gray-50 rounded-lg p-4 mb-4 space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">Member:</span>
-                <span className="font-semibold">{selectedSwap.purchase.member?.name || "N/A"}</span>
+                <span className="font-semibold">
+                  {selectedSwap.purchase.member?.name || "N/A"}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Kartu Saat Ini:</span>
-                <span className="font-semibold">{selectedSwap.purchase.card.serialNumber}</span>
+                <span className="font-semibold">
+                  {selectedSwap.purchase.card.serialNumber}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Produk Diharapkan:</span>
                 <span className="font-semibold">
-                  {selectedSwap.expectedProduct.category.categoryName} - {selectedSwap.expectedProduct.type.typeName}
+                  {selectedSwap.expectedProduct.category.categoryName} -{" "}
+                  {selectedSwap.expectedProduct.type.typeName}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Stasiun Asal:</span>
-                <span className="font-semibold">{selectedSwap.sourceStation.stationName}</span>
+                <span className="font-semibold">
+                  {selectedSwap.sourceStation.stationName}
+                </span>
               </div>
               <div>
                 <span className="text-gray-600">Alasan Swap:</span>
@@ -259,11 +296,14 @@ export default function CardSwapExecutePage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Pilih Kartu Pengganti *
               </label>
-              
+
               {availableCards.length === 0 ? (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800">
                   <p className="font-semibold">⚠️ Tidak ada kartu tersedia</p>
-                  <p className="mt-1">Tidak ada kartu dengan status IN_STATION untuk produk yang diharapkan.</p>
+                  <p className="mt-1">
+                    Tidak ada kartu dengan status IN_STATION untuk produk yang
+                    diharapkan.
+                  </p>
                 </div>
               ) : (
                 <div className="border border-gray-300 rounded-lg max-h-64 overflow-y-auto">
@@ -282,7 +322,9 @@ export default function CardSwapExecutePage() {
                       />
                       <div className="flex-1">
                         <div className="font-medium">{card.serialNumber}</div>
-                        <div className="text-xs text-gray-500">Status: {card.status}</div>
+                        <div className="text-xs text-gray-500">
+                          Status: {card.status}
+                        </div>
                       </div>
                     </label>
                   ))}
@@ -300,7 +342,10 @@ export default function CardSwapExecutePage() {
                 ⚠️ Perhatian: Tindakan ini akan:
               </p>
               <ul className="text-sm text-yellow-800 list-disc list-inside mt-2 space-y-1">
-                <li>Mengembalikan kartu asli ke stasiun asal dengan status IN_STATION</li>
+                <li>
+                  Mengembalikan kartu asli ke stasiun asal dengan status
+                  IN_STATION
+                </li>
                 <li>Mengupdate purchase dengan kartu pengganti yang dipilih</li>
                 <li>Mengaktifkan kartu pengganti (status SOLD_ACTIVE)</li>
                 <li>Membuat audit trail di history</li>
@@ -323,7 +368,9 @@ export default function CardSwapExecutePage() {
               <button
                 onClick={handleExecuteSwap}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-                disabled={loading || !selectedCardId || availableCards.length === 0}
+                disabled={
+                  loading || !selectedCardId || availableCards.length === 0
+                }
               >
                 {loading ? "Memproses..." : "Eksekusi Swap"}
               </button>

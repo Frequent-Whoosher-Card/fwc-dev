@@ -20,10 +20,11 @@ export default function CardSwapApprovalPage() {
   const loadSwapRequests = async () => {
     try {
       setLoading(true);
-      const params = activeTab === "pending" 
-        ? { status: "PENDING_APPROVAL", page: 1, limit: 50 }
-        : { page: 1, limit: 50 };
-      
+      const params =
+        activeTab === "pending"
+          ? { status: "PENDING_APPROVAL", page: 1, limit: 50 }
+          : { page: 1, limit: 50 };
+
       const response = await CardSwapService.getSwapRequests(params);
       setSwapRequests(response.data.items || []);
     } catch (error) {
@@ -50,7 +51,9 @@ export default function CardSwapApprovalPage() {
       loadSwapRequests();
     } catch (error: any) {
       console.error("Error approving swap:", error);
-      alert(error.response?.data?.error?.message || "Gagal menyetujui swap request");
+      alert(
+        error.response?.data?.error?.message || "Gagal menyetujui swap request"
+      );
     } finally {
       setLoading(false);
     }
@@ -72,7 +75,9 @@ export default function CardSwapApprovalPage() {
       loadSwapRequests();
     } catch (error: any) {
       console.error("Error rejecting swap:", error);
-      alert(error.response?.data?.error?.message || "Gagal menolak swap request");
+      alert(
+        error.response?.data?.error?.message || "Gagal menolak swap request"
+      );
     } finally {
       setLoading(false);
     }
@@ -93,7 +98,9 @@ export default function CardSwapApprovalPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold">Persetujuan Card Swap</h2>
-        <p className="text-gray-600">Review dan setujui pengajuan penukaran kartu</p>
+        <p className="text-gray-600">
+          Review dan setujui pengajuan penukaran kartu
+        </p>
       </div>
 
       {/* Tabs */}
@@ -174,17 +181,27 @@ export default function CardSwapApprovalPage() {
                     <div className="flex items-center gap-2">
                       <span>{swap.sourceStation.stationCode}</span>
                       <span>→</span>
-                      <span className="font-semibold">{swap.targetStation.stationCode}</span>
+                      <span className="font-semibold">
+                        {swap.targetStation.stationCode}
+                      </span>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm">
-                    {swap.expectedProduct.category.categoryName} - {swap.expectedProduct.type.typeName}
+                    {swap.expectedProduct.category.categoryName} -{" "}
+                    {swap.expectedProduct.type.typeName}
                   </td>
-                  <td className="px-6 py-4 text-sm max-w-xs truncate" title={swap.reason}>
+                  <td
+                    className="px-6 py-4 text-sm max-w-xs truncate"
+                    title={swap.reason}
+                  >
                     {swap.reason}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadge(swap.status)}`}>
+                    <span
+                      className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadge(
+                        swap.status
+                      )}`}
+                    >
                       {swap.status}
                     </span>
                   </td>
@@ -224,26 +241,32 @@ export default function CardSwapApprovalPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-lg">
             <h3 className="text-xl font-bold mb-4">Setujui Swap Request</h3>
-            
+
             <div className="space-y-3 mb-4 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">EDC Reference:</span>
-                <span className="font-semibold">{selectedSwap.purchase.edcReferenceNumber}</span>
+                <span className="font-semibold">
+                  {selectedSwap.purchase.edcReferenceNumber}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Serial Number:</span>
-                <span className="font-semibold">{selectedSwap.purchase.card.serialNumber}</span>
+                <span className="font-semibold">
+                  {selectedSwap.purchase.card.serialNumber}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Route:</span>
                 <span className="font-semibold">
-                  {selectedSwap.sourceStation.stationCode} → {selectedSwap.targetStation.stationCode}
+                  {selectedSwap.sourceStation.stationCode} →{" "}
+                  {selectedSwap.targetStation.stationCode}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Produk:</span>
                 <span className="font-semibold">
-                  {selectedSwap.expectedProduct.category.categoryName} - {selectedSwap.expectedProduct.type.typeName}
+                  {selectedSwap.expectedProduct.category.categoryName} -{" "}
+                  {selectedSwap.expectedProduct.type.typeName}
                 </span>
               </div>
               <div>
@@ -294,15 +317,19 @@ export default function CardSwapApprovalPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-lg">
             <h3 className="text-xl font-bold mb-4">Tolak Swap Request</h3>
-            
+
             <div className="space-y-3 mb-4 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">EDC Reference:</span>
-                <span className="font-semibold">{selectedSwap.purchase.edcReferenceNumber}</span>
+                <span className="font-semibold">
+                  {selectedSwap.purchase.edcReferenceNumber}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Serial Number:</span>
-                <span className="font-semibold">{selectedSwap.purchase.card.serialNumber}</span>
+                <span className="font-semibold">
+                  {selectedSwap.purchase.card.serialNumber}
+                </span>
               </div>
             </div>
 
