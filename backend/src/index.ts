@@ -50,13 +50,35 @@ const app = new Elysia()
   .onError(({ code, error, set }) => {
     // Global error handler
     if (code === "VALIDATION") {
-      set.status = 400;
+      set.status = 422;
+      
+      // Extract validation details from TypeBox error
+      let message = "Validation error";
+      let details: any = null;
+      
+      if (error && typeof error === "object") {
+        // Elysia wraps TypeBox errors
+        if ("all" in error && Array.isArray((error as any).all)) {
+          details = (error as any).all.map((e: any) => ({
+            path: e.path,
+            message: e.message,
+            value: e.value,
+          }));
+          message = details.map((d: any) => `${d.path}: ${d.message}`).join("; ");
+        } else if (error.message) {
+          message = error.message;
+        }
+      }
+      
+      console.error("[VALIDATION ERROR]", { message, details, raw: error });
+      
       return {
         success: false,
         error: {
-          message: error.message,
+          message,
           code: "VALIDATION_ERROR",
-          statusCode: 400,
+          statusCode: 422,
+          details,
         },
       };
     }
