@@ -1,25 +1,25 @@
-import path from 'path';
-import { Elysia } from 'elysia';
-import { cors } from '@elysiajs/cors';
-import { docsConfig } from './docs';
-import { auth } from './modules/auth';
-import { users } from './modules/users';
-import { cardCategory } from './modules/cards/category';
-import { cardTypes } from './modules/cards/type';
-import { cardProducts } from './modules/cards/product';
-import { cards } from './modules/cards/card';
-import { cardGenerateRoutes } from './modules/cards/generate';
-import { sales } from './modules/sales';
-import { metrics } from './modules/metrics';
-import { stock } from './modules/stock';
-import { station } from './modules/station';
-import { cardInventory } from './modules/stock/inventory';
-import { members } from './modules/members';
-import { purchases } from './modules/purchases';
-import { AuthenticationError, AuthorizationError } from './utils/errors';
-import { inbox } from './modules/inbox';
-import { redeem } from './modules/redeem';
-// import { superset } from "./modules/superset";
+import path from "path";
+import { Elysia } from "elysia";
+import { cors } from "@elysiajs/cors";
+import { docsConfig } from "./docs";
+import { auth } from "./modules/auth";
+import { users } from "./modules/users";
+import { cardCategory } from "./modules/cards/category";
+import { cardTypes } from "./modules/cards/type";
+import { cardProducts } from "./modules/cards/product";
+import { cards } from "./modules/cards/card";
+import { cardGenerateRoutes } from "./modules/cards/generate";
+import { sales } from "./modules/sales";
+import { metrics } from "./modules/metrics";
+import { stock } from "./modules/stock";
+import { station } from "./modules/station";
+import { cardInventory } from "./modules/stock/inventory";
+import { members } from "./modules/members";
+import { purchases } from "./modules/purchases";
+import { AuthenticationError, AuthorizationError } from "./utils/errors";
+import { inbox } from "./modules/inbox";
+import { redeem } from "./modules/redeem";
+import { cardSwaps } from "./modules/card-swaps";
 
 const app = new Elysia()
   .use(docsConfig)
@@ -33,6 +33,7 @@ const app = new Elysia()
   .use(users)
   .use(members)
   .use(purchases)
+  .use(cardSwaps)
   .use(cardCategory)
   .use(cardTypes)
   .use(cardProducts)
@@ -142,7 +143,9 @@ setInterval(
     const { tempStorage } = await import('./utils/temp_storage');
     const cleanedCount = await tempStorage.cleanupExpired();
     if (cleanedCount > 0) {
-      console.log(`[Cleanup] Removed ${cleanedCount} expired temporary file(s) on startup`);
+      console.log(
+        `[Cleanup] Removed ${cleanedCount} expired temporary file(s) on startup`
+      );
     }
   } catch (error) {
     console.error('[Cleanup] Error cleaning up temporary files on startup:', error);

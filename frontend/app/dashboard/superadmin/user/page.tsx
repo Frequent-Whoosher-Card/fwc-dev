@@ -1,10 +1,12 @@
 "use client";
 
+import { getStations, StationItem } from "@/lib/services/station.service";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
 import toast from "react-hot-toast";
-import { createUser, getRoles, RoleItem } from "@/lib/services/user.service";
+import { getRoles, RoleItem } from "@/lib/services/user.service";
 
 import { getUsers, deleteUser } from "../../../../lib/services/user.service";
 
@@ -57,6 +59,12 @@ export default function UserManagementPage() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showDelete, setShowDelete] = useState(false);
 
+  const [stations, setStations] = useState<StationItem[]>([]);
+  const [loadingStation, setLoadingStation] = useState(false);
+
+  const [roles, setRoles] = useState<RoleItem[]>([]);
+  const [loadingRole, setLoadingRole] = useState(false);
+
   /* ======================
      FETCH USERS
   ====================== */
@@ -90,7 +98,6 @@ export default function UserManagementPage() {
       }));
       console.log("USERS FROM SERVICE:", res.data.items);
 
-
       setData(mapped);
       setPagination(res.data.pagination);
     } catch (err) {
@@ -119,6 +126,43 @@ export default function UserManagementPage() {
   useEffect(() => {
     fetchUsers(pagination.page);
   }, [pagination.page]);
+
+  useEffect(() => {
+    setLoadingStation(true);
+
+    getStations()
+      .then((res) => {
+        setStations(res.data.items); // ✅ INI FIX UTAMA
+      })
+      .catch(() => {
+        toast.error("Failed load stations");
+      })
+      .finally(() => {
+        setLoadingStation(false);
+      });
+  }, []);
+
+  useEffect(() => {
+  setLoadingRole(true);
+
+  getRoles()
+    .then((res) => {
+      // AMAN: fallback ke array kosong
+      const roleItems = Array.isArray(res.data)
+        ? res.data
+        : res.data?.items ?? [];
+
+      setRoles(roleItems);
+    })
+    .catch(() => {
+      toast.error("Failed load roles");
+      setRoles([]); // ⬅️ jaga-jaga
+    })
+    .finally(() => {
+      setLoadingRole(false);
+    });
+}, []);
+
 
   /* ======================
      DELETE
@@ -159,14 +203,21 @@ export default function UserManagementPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="search operator"
-            className="h-10 w-96 rounded-lg border border-gray-300 px-4 text-sm
-              focus:border-[#8D1231] focus:ring-1 focus:ring-[#8D1231]"
+            className="
+    h-10 w-full md:w-96
+    rounded-lg border border-gray-300 px-4 text-sm
+    focus:border-[#8D1231] focus:ring-1 focus:ring-[#8D1231]
+  "
           />
 
           <button
             onClick={() => router.push("/dashboard/superadmin/user/create")}
-            className="flex items-center gap-2 rounded-lg bg-[#8D1231]
-              px-5 py-2 text-sm text-white hover:bg-[#73122E]"
+            className="
+    flex w-full items-center justify-center gap-2
+    rounded-lg bg-[#8D1231] px-5 py-2 text-sm text-white
+    hover:bg-[#73122E]
+    md:w-auto
+  "
           >
             <Plus size={16} />
             add new User
@@ -175,41 +226,49 @@ export default function UserManagementPage() {
       </div>
 
       {/* FILTER */}
-      <div className="flex items-center gap-4 rounded-xl border bg-white px-6 py-4 shadow-sm">
+      <div
+        className="
+  flex flex-col gap-3
+  md:flex-row md:items-center
+  rounded-xl border bg-white px-6 py-4 shadow-sm
+"
+      >
         <span className="text-sm font-semibold text-[#8D1231]">Filters:</span>
 
         {/* STATION (UUID) */}
         <select
           value={station}
           onChange={(e) => setStation(e.target.value)}
+          disabled={loadingStation}
           className="h-10 min-w-[160px] rounded-lg border px-4 text-sm"
         >
-          <option value="all">Stasiun</option>
-          <option value="60de76b2-8e6b-4d80-87a8-98789b7d9b13">Halim</option>
-          <option value="59cd9c0a-52c2-4aed-8826-fc450b33bf2b">Karawang</option>
-          <option value="0f7d5d88-342f-4185-98ef-b467a44e9f15">
-            Padalarang
+          <option value="all" disabled={loadingStation}>
+            {loadingStation ? "Loading stasiun..." : "Stasiun"}
           </option>
-          <option value="9324c06d-764d-4046-a014-8cf8c5f4ce5d">
-            Tegalluar
-          </option>
+
+          {stations.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.stationName}
+            </option>
+          ))}
         </select>
 
         {/* ROLE (UUID) */}
         <select
           value={role}
           onChange={(e) => setRole(e.target.value)}
+          disabled={loadingRole}
           className="h-10 min-w-[160px] rounded-lg border px-4 text-sm"
         >
-          <option value="all">Role</option>
-          <option value="3b8845bd-5ff4-4ecb-9912-57dea897b42a">Admin</option>
-          <option value="39871847-d1c3-4433-9772-a779b0900da1">Petugas</option>
-          <option value="61a8fd34-14d8-4d40-a5fa-191af3ac8fb9">
-            Supervisor
+          <option value="all" disabled={loadingRole}>
+            {loadingRole ? "Loading role..." : "Role"}
           </option>
-          <option value="74de7dd5-e09d-4e36-b1f8-996191a33438">
-            Super Admin
-          </option>
+
+          {roles.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.roleName}
+            </option>
+          ))}
         </select>
 
         <button
@@ -226,62 +285,99 @@ export default function UserManagementPage() {
 
       {/* TABLE */}
       <div className="overflow-x-auto rounded-xl border bg-white shadow-sm">
-        <table className="min-w-[1200px] w-full">
-          <thead className="bg-gray-50 text-xs font-semibold text-gray-600 border-b">
+        <table className="w-full table-fixed text-sm">
+          <thead className="border-b bg-gray-50 text-[11px] font-semibold uppercase text-gray-600">
             <tr>
-              <th className="px-5 py-4 text-left">Name</th>
-              <th className="px-5 py-4 text-left">NIP</th>
-              <th className="px-5 py-4 text-left">Username</th>
-              <th className="px-5 py-4 text-left">Email</th>
-              <th className="px-5 py-4 text-left">Phone</th>
-              <th className="px-5 py-4 text-left">Role</th>
-              <th className="px-5 py-4 text-left">Stasiun</th>
-              <th className="px-5 py-4 text-center">Aksi</th>
+              <th className="w-[200px] px-4 py-3 text-left">Name</th>
+              <th className="w-[120px] px-4 py-3 text-left">NIP</th>
+              <th className="w-[140px] px-4 py-3 text-left">Username</th>
+              <th className="w-[200px] px-4 py-3 text-left">Email</th>
+              <th className="w-[140px] px-4 py-3 text-left">Phone</th>
+              <th className="w-[120px] px-4 py-3 text-left">Role</th>
+              <th className="w-[120px] px-4 py-3 text-left">Stasiun</th>
+              <th className="w-[100px] px-4 py-3 text-center">Aksi</th>
             </tr>
           </thead>
 
           <tbody>
-            {!loading &&
-              data.map((u) => (
-                <tr key={u.id} className="border-t text-sm hover:bg-gray-50">
-                  <td className="px-5 py-3">{u.fullname}</td>
-                  <td className="px-5 py-3">{u.nip}</td>
-                  <td className="px-5 py-3">{u.username}</td>
-                  <td className="px-5 py-3">{u.email}</td>
-                  <td className="px-5 py-3">{u.phone}</td>
-                  <td className="px-5 py-3">{u.roleLabel}</td>
-                  <td className="px-5 py-3">{u.station}</td>
-                  <td className="px-5 py-3 text-center">
+            {data.map((u) => (
+              <tr key={u.id} className="border-t transition hover:bg-gray-50">
+                {/* NAME */}
+                <td className="px-4 py-2">
+                  <div className="truncate text-gray-900">{u.fullname}</div>
+                </td>
+
+                {/* NIP */}
+                <td className="px-4 py-2 whitespace-nowrap text-gray-700">
+                  {u.nip}
+                </td>
+
+                {/* USERNAME */}
+                <td className="px-4 py-2 truncate text-gray-700">
+                  {u.username}
+                </td>
+
+                {/* EMAIL */}
+                <td className="px-4 py-2 truncate text-gray-700">{u.email}</td>
+
+                {/* PHONE */}
+                <td className="px-4 py-2 whitespace-nowrap text-gray-700">
+                  {u.phone}
+                </td>
+
+                {/* ROLE */}
+                <td className="px-4 py-2 text-gray-800">{u.roleLabel}</td>
+
+                {/* STATION */}
+                <td className="px-4 py-2 text-gray-700">{u.station}</td>
+                {/* ACTION */}
+                <td className="px-4 py-2">
+                  <div className="flex flex-col items-center gap-1 md:flex-row md:justify-center">
+                    {/* EDIT */}
                     <button
                       onClick={() =>
-                        router.push(`/dashboard/superadmin/user/${u.id}/edit`)
+                        router.push(
+                          `/dashboard/superadmin/user/edit?id=${u.id}`
+                        )
                       }
-                      className="mr-2 rounded bg-gray-200 px-3 py-1 text-xs"
+                      className="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-700
+      hover:bg-gray-200"
                     >
                       Edit
                     </button>
+
+                    {/* DELETE */}
                     <button
                       onClick={() => {
                         setSelectedUser(u);
                         setShowDelete(true);
                       }}
-                      className="rounded bg-[#8D1231] px-3 py-1 text-xs text-white"
+                      className="rounded-md bg-[#8D1231] px-2 py-1 text-xs text-white
+      hover:bg-[#73122E]"
                     >
                       Delete
                     </button>
-                  </td>
-                </tr>
-              ))}
+                  </div>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
 
         {loading && (
-          <div className="p-4 text-sm text-gray-400">Loading data...</div>
+          <div className="p-4 text-center text-sm text-gray-400">
+            Loading data...
+          </div>
         )}
       </div>
 
       {/* PAGINATION */}
-      <div className="flex items-center justify-center gap-2 text-sm">
+      <div
+        className="
+  flex flex-wrap items-center justify-center gap-3
+  px-4 text-sm
+"
+      >
         <button
           disabled={pagination.page === 1}
           onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))}
@@ -310,7 +406,12 @@ export default function UserManagementPage() {
       {/* DELETE CONFIRM */}
       {showDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-[400px] rounded-2xl bg-white p-6 text-center">
+          <div
+            className="
+  w-[90%] max-w-[400px]
+  rounded-2xl bg-white p-6
+"
+          >
             <h2 className="text-lg font-semibold">Delete User</h2>
             <p className="mt-2 text-sm">
               Are you sure want to delete <b>{selectedUser?.fullname}</b>?

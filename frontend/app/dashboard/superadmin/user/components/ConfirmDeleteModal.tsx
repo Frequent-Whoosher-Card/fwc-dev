@@ -6,7 +6,7 @@ interface Props {
   onConfirm: () => void;
 }
 
-export default function DeleteConfirmModal({
+export default function ConfirmDeleteModal({
   open,
   onCancel,
   onConfirm,
