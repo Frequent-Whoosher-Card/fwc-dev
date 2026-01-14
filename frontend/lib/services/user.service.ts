@@ -205,13 +205,14 @@ export const createUser = (payload: {
       fullName: payload.fullName,
       email: payload.email ?? null,
       phone: payload.phone ?? null,
-      nip: payload.nip,
+      nip: payload.nip,              // ⬅️ INI NIH
       roleId: payload.roleId,
       stationId: payload.stationId ?? null,
-      isActive: true,
+      isActive: true,                // ⬅️ DAN INI
     }),
   });
 };
+
 
 
 /**

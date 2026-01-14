@@ -24,10 +24,10 @@ import { cardSwaps } from "./modules/card-swaps";
 const app = new Elysia()
   .use(docsConfig)
   .use(cors())
-  .get('/', () => ({
+  .get("/", () => ({
     success: true,
-    message: 'FWC API is running',
-    version: '1.0.0',
+    message: "FWC API is running",
+    version: "1.0.0",
   }))
   .use(auth)
   .use(users)
@@ -50,25 +50,49 @@ const app = new Elysia()
 
   .onError(({ code, error, set }) => {
     // Global error handler
-    if (code === 'VALIDATION') {
-      set.status = 400;
+    if (code === "VALIDATION") {
+      set.status = 422;
+
+      // Extract validation details from TypeBox error
+      let message = "Validation error";
+      let details: any = null;
+
+      if (error && typeof error === "object") {
+        // Elysia wraps TypeBox errors
+        if ("all" in error && Array.isArray((error as any).all)) {
+          details = (error as any).all.map((e: any) => ({
+            path: e.path,
+            message: e.message,
+            value: e.value,
+          }));
+          message = details
+            .map((d: any) => `${d.path}: ${d.message}`)
+            .join("; ");
+        } else if (error.message) {
+          message = error.message;
+        }
+      }
+
+      console.error("[VALIDATION ERROR]", { message, details, raw: error });
+
       return {
         success: false,
         error: {
-          message: error.message,
-          code: 'VALIDATION_ERROR',
-          statusCode: 400,
+          message,
+          code: "VALIDATION_ERROR",
+          statusCode: 422,
+          details,
         },
       };
     }
 
-    if (code === 'NOT_FOUND') {
+    if (code === "NOT_FOUND") {
       set.status = 404;
       return {
         success: false,
         error: {
-          message: 'Route not found',
-          code: 'NOT_FOUND',
+          message: "Route not found",
+          code: "NOT_FOUND",
           statusCode: 404,
         },
       };
@@ -81,7 +105,7 @@ const app = new Elysia()
         success: false,
         error: {
           message: error.message,
-          code: error.code || 'AUTHORIZATION_ERROR',
+          code: error.code || "AUTHORIZATION_ERROR",
           statusCode: error.statusCode,
         },
       };
@@ -94,7 +118,7 @@ const app = new Elysia()
         success: false,
         error: {
           message: error.message,
-          code: error.code || 'AUTH_ERROR',
+          code: error.code || "AUTH_ERROR",
           statusCode: error.statusCode,
         },
       };
@@ -104,34 +128,39 @@ const app = new Elysia()
     return {
       success: false,
       error: {
-        message: error instanceof Error ? error.message : 'Internal server error',
-        code: 'INTERNAL_ERROR',
+        message:
+          error instanceof Error ? error.message : "Internal server error",
+        code: "INTERNAL_ERROR",
         statusCode: 500,
       },
     };
   })
   // Static File Serving
-  .get('/storage/*', async ({ params }) => {
+  .get("/storage/*", async ({ params }) => {
     // Basic Path Traversal Protection
-    const cleanPath = params['*'].replace(/\.\./g, '');
-    const filePath = path.join(process.cwd(), 'storage', cleanPath);
+    const cleanPath = params["*"].replace(/\.\./g, "");
+    const filePath = path.join(process.cwd(), "storage", cleanPath);
     return Bun.file(filePath);
   })
   .listen(3001);
 
-console.log(`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`);
+console.log(
+  `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`
+);
 
 // Cleanup job for temporary storage (runs every 30 minutes)
 setInterval(
   async () => {
     try {
-      const { tempStorage } = await import('./utils/temp_storage');
+      const { tempStorage } = await import("./utils/temp_storage");
       const cleanedCount = await tempStorage.cleanupExpired();
       if (cleanedCount > 0) {
-        console.log(`[Cleanup] Removed ${cleanedCount} expired temporary file(s)`);
+        console.log(
+          `[Cleanup] Removed ${cleanedCount} expired temporary file(s)`
+        );
       }
     } catch (error) {
-      console.error('[Cleanup] Error cleaning up temporary files:', error);
+      console.error("[Cleanup] Error cleaning up temporary files:", error);
     }
   },
   30 * 60 * 1000
@@ -140,7 +169,7 @@ setInterval(
 // Run cleanup immediately on startup
 (async () => {
   try {
-    const { tempStorage } = await import('./utils/temp_storage');
+    const { tempStorage } = await import("./utils/temp_storage");
     const cleanedCount = await tempStorage.cleanupExpired();
     if (cleanedCount > 0) {
       console.log(
@@ -148,21 +177,25 @@ setInterval(
       );
     }
   } catch (error) {
-    console.error('[Cleanup] Error cleaning up temporary files on startup:', error);
+    console.error(
+      "[Cleanup] Error cleaning up temporary files on startup:",
+      error
+    );
   }
 })();
 
 // Graceful shutdown untuk OCR daemon dan KTP detection daemon
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM received, shutting down gracefully...');
+process.on("SIGTERM", async () => {
+  console.log("SIGTERM received, shutting down gracefully...");
   try {
-    const { ocrService } = await import('./services/ocr_service');
+    const { ocrService } = await import("./services/ocr_service");
     await ocrService.shutdown();
   } catch (e) {
     // Ignore if OCR service not initialized
   }
   try {
-    const { ktpDetectionService } = await import('./services/ktp_detection_service');
+    const { ktpDetectionService } =
+      await import("./services/ktp_detection_service");
     await ktpDetectionService.shutdown();
   } catch (e) {
     // Ignore if detection service not initialized
@@ -170,16 +203,17 @@ process.on('SIGTERM', async () => {
   process.exit(0);
 });
 
-process.on('SIGINT', async () => {
-  console.log('SIGINT received, shutting down gracefully...');
+process.on("SIGINT", async () => {
+  console.log("SIGINT received, shutting down gracefully...");
   try {
-    const { ocrService } = await import('./services/ocr_service');
+    const { ocrService } = await import("./services/ocr_service");
     await ocrService.shutdown();
   } catch (e) {
     // Ignore if OCR service not initialized
   }
   try {
-    const { ktpDetectionService } = await import('./services/ktp_detection_service');
+    const { ktpDetectionService } =
+      await import("./services/ktp_detection_service");
     await ktpDetectionService.shutdown();
   } catch (e) {
     // Ignore if detection service not initialized
