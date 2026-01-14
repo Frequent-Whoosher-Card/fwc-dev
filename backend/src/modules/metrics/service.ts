@@ -51,13 +51,13 @@ export class MetricsService {
       purchaseFilter.purchaseDate = {};
       if (startDate) {
         // Parse date string in local timezone
-        const [year, month, day] = startDate.split('-').map(Number);
+        const [year, month, day] = startDate.split("-").map(Number);
         const start = new Date(year, month - 1, day, 0, 0, 0, 0);
         purchaseFilter.purchaseDate.gte = start;
       }
       if (endDate) {
         // Parse date string in local timezone for end of day
-        const [year, month, day] = endDate.split('-').map(Number);
+        const [year, month, day] = endDate.split("-").map(Number);
         const end = new Date(year, month - 1, day, 23, 59, 59, 999);
         purchaseFilter.purchaseDate.lte = end;
       }
@@ -94,7 +94,7 @@ export class MetricsService {
     endDate?: string
   ): Promise<number> {
     const where = this.buildPurchaseDateFilter(startDate, endDate);
-    
+
     // Get all cards with cardProduct relation to access price
     const cards = await db.card.findMany({
       where,
@@ -113,7 +113,7 @@ export class MetricsService {
       const price = card.cardProduct?.price;
       if (price) {
         // Prisma Decimal type needs to be converted to number
-        const priceNumber = typeof price === 'number' ? price : Number(price);
+        const priceNumber = typeof price === "number" ? price : Number(price);
         return sum + priceNumber;
       }
       return sum;
@@ -131,7 +131,7 @@ export class MetricsService {
     endDate?: string
   ): Promise<number> {
     const where = this.buildPurchaseDateFilter(startDate, endDate);
-    
+
     // Get all cards with cardProduct relation
     const cards = await db.card.findMany({
       where,
@@ -162,7 +162,7 @@ export class MetricsService {
     endDate?: string
   ): Promise<number> {
     const where = this.buildPurchaseDateFilter(startDate, endDate);
-    
+
     // Get all cards with cardProduct relation to access price
     const cards = await db.card.findMany({
       where,
@@ -180,9 +180,13 @@ export class MetricsService {
     // Revenue = total harga dari semua card yang memiliki totalQuota
     const totalRevenue = cards.reduce((sum, card) => {
       const price = card.cardProduct?.price;
-      if (price && card.cardProduct?.totalQuota && card.cardProduct.totalQuota > 0) {
+      if (
+        price &&
+        card.cardProduct?.totalQuota &&
+        card.cardProduct.totalQuota > 0
+      ) {
         // Prisma Decimal type needs to be converted to number
-        const priceNumber = typeof price === 'number' ? price : Number(price);
+        const priceNumber = typeof price === "number" ? price : Number(price);
         return sum + priceNumber;
       }
       return sum;
@@ -201,7 +205,7 @@ export class MetricsService {
     endDate?: string
   ): Promise<number> {
     const where = this.buildPurchaseDateFilter(startDate, endDate);
-    
+
     // Get all cards with cardProduct relation
     const cards = await db.card.findMany({
       where,
@@ -237,7 +241,7 @@ export class MetricsService {
     endDate?: string
   ): Promise<number> {
     const where = this.buildPurchaseDateFilter(startDate, endDate);
-    
+
     // Get all cards with cardProduct relation
     const cards = await db.card.findMany({
       where,
@@ -257,14 +261,14 @@ export class MetricsService {
       const price = card.cardProduct?.price;
       const totalQuota = card.cardProduct?.totalQuota || 0;
       const quotaTicket = card.quotaTicket || 0;
-      
+
       if (price && totalQuota > 0) {
         // Calculate redeem for this card
         const redeem = totalQuota - quotaTicket;
-        
+
         if (redeem > 0) {
           // Calculate proportional revenue: (redeem / totalQuota) * price
-          const priceNumber = typeof price === 'number' ? price : Number(price);
+          const priceNumber = typeof price === "number" ? price : Number(price);
           const proportionalRevenue = (redeem / totalQuota) * priceNumber;
           return sum + proportionalRevenue;
         }
@@ -284,7 +288,7 @@ export class MetricsService {
   ): Promise<number> {
     const now = new Date();
     const where = this.buildPurchaseDateFilter(startDate, endDate);
-    
+
     // Add expired date condition
     where.expiredDate = {
       lt: now,
@@ -310,7 +314,7 @@ export class MetricsService {
   ): Promise<number> {
     const now = new Date();
     const where = this.buildPurchaseDateFilter(startDate, endDate);
-    
+
     // Add expired date condition
     where.expiredDate = {
       lt: now,
@@ -335,10 +339,10 @@ export class MetricsService {
       const price = card.cardProduct?.price;
       const totalQuota = card.cardProduct?.totalQuota || 0;
       const quotaTicket = card.quotaTicket || 0;
-      
+
       if (price && totalQuota > 0 && quotaTicket > 0) {
         // Calculate proportional revenue: (quotaTicket / totalQuota) * price
-        const priceNumber = typeof price === 'number' ? price : Number(price);
+        const priceNumber = typeof price === "number" ? price : Number(price);
         const proportionalRevenue = (quotaTicket / totalQuota) * priceNumber;
         return sum + proportionalRevenue;
       }
@@ -354,7 +358,7 @@ export class MetricsService {
   ): Promise<number> {
     const now = new Date();
     const where = this.buildPurchaseDateFilter(startDate, endDate);
-    
+
     // Add active card conditions
     where.status = "SOLD_ACTIVE";
     where.OR = [
@@ -391,7 +395,7 @@ export class MetricsService {
   ): Promise<number> {
     const now = new Date();
     const where = this.buildPurchaseDateFilter(startDate, endDate);
-    
+
     // Add active card conditions
     where.status = "SOLD_ACTIVE";
     where.OR = [
@@ -427,10 +431,10 @@ export class MetricsService {
       const price = card.cardProduct?.price;
       const totalQuota = card.cardProduct?.totalQuota || 0;
       const quotaTicket = card.quotaTicket || 0;
-      
+
       if (price && totalQuota > 0 && quotaTicket > 0) {
         // Calculate proportional revenue: (quotaTicket / totalQuota) * price
-        const priceNumber = typeof price === 'number' ? price : Number(price);
+        const priceNumber = typeof price === "number" ? price : Number(price);
         const proportionalRevenue = (quotaTicket / totalQuota) * priceNumber;
         return sum + proportionalRevenue;
       }
@@ -494,9 +498,7 @@ export class MetricsService {
   /**
    * Get all metrics in one call
    */
-  static async getMetrics(
-    params: MetricsQueryParams
-  ): Promise<MetricsData> {
+  static async getMetrics(params: MetricsQueryParams): Promise<MetricsData> {
     const { startDate, endDate } = params;
 
     const [
@@ -539,4 +541,3 @@ export class MetricsService {
     };
   }
 }
-
