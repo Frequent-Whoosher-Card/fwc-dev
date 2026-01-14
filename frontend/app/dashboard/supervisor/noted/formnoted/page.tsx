@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { API_BASE_URL } from "@/lib/apiConfig";
 
 /* ======================
    BASE INPUT STYLE
@@ -26,10 +27,7 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs text-gray-500">
-        {label}
-        {required && <span className="ml-1 text-red-500">*</span>}
-      </label>
+      <label className="text-xs text-gray-500">{label}</label>
       {children}
       {hint && <p className="text-[11px] text-gray-400">{hint}</p>}
     </div>
@@ -47,12 +45,9 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-md border border-gray-200 p-4 md:col-span-2">
+    <div className="rounded-md border border-gray-200 p-4">
       <h3 className="mb-4 text-sm font-semibold text-gray-700">{title}</h3>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-        {children}
-      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{children}</div>
     </div>
   );
 }
@@ -60,29 +55,33 @@ function SectionCard({
 /* ======================
    YES / NO RADIO
 ====================== */
-function YesNoRadio({
+function YesNoToggle({
   value,
   onChange,
 }: {
-  value: "yes" | "no";
-  onChange: (v: "yes" | "no") => void;
+  value: boolean;
+  onChange: (v: boolean) => void;
 }) {
   return (
-    <div className="flex gap-4">
-      {["yes", "no"].map((v) => (
-        <button
-          key={v}
-          type="button"
-          onClick={() => onChange(v as "yes" | "no")}
-          className={`rounded-md border px-4 py-2 text-sm ${
-            value === v
-              ? "border-[#8B1538] bg-[#8B1538]/10 text-[#8B1538]"
-              : "border-gray-300 text-gray-500"
-          }`}
-        >
-          {v.toUpperCase()}
-        </button>
-      ))}
+    <div className="inline-flex rounded-full bg-gray-100 p-1">
+      <button
+        type="button"
+        onClick={() => onChange(true)}
+        className={`px-6 py-2 text-sm rounded-full transition ${
+          value ? "bg-[#8B1538] text-white shadow" : "text-gray-500"
+        }`}
+      >
+        Yes
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange(false)}
+        className={`px-6 py-2 text-sm rounded-full transition ${
+          !value ? "bg-[#8B1538] text-white shadow" : "text-gray-500"
+        }`}
+      >
+        No
+      </button>
     </div>
   );
 }
@@ -92,7 +91,10 @@ function YesNoRadio({
 ====================== */
 export default function FormNoted() {
   const router = useRouter();
+  const params = useParams();
+  const stockOutId = params.id as string;
 
+  // auto-filled (READ ONLY)
   const [batchCard, setBatchCard] = useState<number | "">("");
   const [station, setStation] = useState("");
   const [category, setCategory] = useState("");
@@ -100,6 +102,7 @@ export default function FormNoted() {
 
   const [goodQty, setGoodQty] = useState(0);
 
+  // validation input
   const [hasDamaged, setHasDamaged] = useState<"yes" | "no">("no");
   const [damagedQty, setDamagedQty] = useState(0);
   const [damagedSerials, setDamagedSerials] = useState<string[]>([]);
@@ -109,47 +112,73 @@ export default function FormNoted() {
   const [missingSerials, setMissingSerials] = useState<string[]>([]);
 
   const [message, setMessage] = useState("");
+  /* ======================
+     FETCH STOCK OUT DETAIL
+  ====================== */
+  useEffect(() => {
+    async function fetchStockOut() {
+      const token = localStorage.getItem("fwc_token");
+      if (!token) return;
+
+      const res = await fetch(`${API_BASE_URL}/stock/out/${stockOutId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const result = await res.json();
+      if (result.success) {
+        const d = result.data;
+        setBatchCard(Number(d.batchId));
+        setStation(d.stationName);
+        setCategory(d.cardCategory.name);
+        setType(d.cardType.name);
+        setGoodQty(d.quantity);
+      }
+    }
+
+    fetchStockOut();
+  }, [stockOutId]);
 
   /* ======================
-   HANDLERS SUBMIT & CANCEL
+     SUBMIT VALIDATION
   ====================== */
 
   const handleSubmit = async () => {
-    const payload = {
-      batchCard,
-      station,
-      category,
-      type,
-      goodQty,
-      damaged: {
-        hasDamaged,
-        damagedQty,
+    const token = localStorage.getItem("fwc_token");
+    if (!token) return alert("Session expired");
+
+    const body = {
+      title: `Validasi Stock Out - ${station}`,
+      message,
+      type: "STOCK_ISSUE_APPROVAL",
+      payload: {
+        stockOutId,
+        batchCard,
+        cardCategory: category,
+        cardType: type,
+        amountCard: goodQty,
         damagedSerials,
-      },
-      missing: {
-        hasMissing,
-        missingQty,
         missingSerials,
       },
-      message,
     };
 
     try {
-      const res = await fetch("/api/noted", {
+      const res = await fetch(`${API_BASE_URL}/inbox`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(body),
       });
 
-      if (!res.ok) throw new Error("Failed to submit");
+      if (!res.ok) throw new Error("Submit failed");
 
-      alert("Data successfully saved!");
-      router.push("/noted"); // redirect kalau mau
+      alert("Validasi berhasil dikirim ke Admin");
+      router.push("/dashboard/supervisor/inbox");
     } catch (err) {
       alert("Error submitting data");
       console.error(err);
+      alert("Gagal submit validasi");
     }
   };
 
@@ -157,179 +186,140 @@ export default function FormNoted() {
     <div className="space-y-6 pb-10">
       {/* HEADER */}
       <div className="flex items-center gap-3">
-        <button
-          onClick={() => router.back()}
-          className="rounded p-1 hover:bg-gray-100"
-        >
+        <button onClick={() => router.back()}>
           <ArrowLeft size={20} />
         </button>
-        <h1 className="text-xl font-semibold">Add New Noted</h1>
+        <h1 className="text-xl font-semibold">Validasi Stock In</h1>
       </div>
-
-      {/* BASIC INFORMATION */}
-      <SectionCard title="Basic Information">
-        {" "}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Field label="Batch Card" required>
-            <input
-              type="number"
-              value={batchCard}
-              onChange={(e) =>
-                setBatchCard(
-                  e.target.value === "" ? "" : Number(e.target.value)
-                )
-              }
-              className={base}
-            />
-          </Field>
-          <Field label="Station" required>
-            <select
-              value={station}
-              onChange={(e) => setStation(e.target.value)}
-              className={base}
-            >
-              <option value="">Select station</option> <option>Halim</option>{" "}
-              <option>Karawang</option> <option>Padalarang</option>{" "}
-              <option>Tegalluar</option>{" "}
-            </select>
-          </Field>
-          <Field label="Card Category" required>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className={base}
-            >
-              <option value="">Select category</option> <option>Gold</option>{" "}
-              <option>Silver</option> <option>KAI</option>{" "}
-            </select>
-          </Field>
-          <Field label="Card Product" required>
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              className={base}
-            >
-              <option value="">Select type</option> <option>JaKa</option>{" "}
-              <option>JaBan</option> <option>KaBan</option>{" "}
-            </select>
-          </Field>
+      {/* BASIC INFO (AUTO-FILL) */}
+      {/* SUMMARY */}
+      <div className="rounded-xl border bg-white p-6 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-gray-700">
+            Stock In Summary
+          </h2>
+          <span className="text-xs text-gray-400">Auto-filled</span>
         </div>
-      </SectionCard>
 
-      {/* GOOD CARDS */}
-      <SectionCard title="1. Good Cards">
-        <div className="md:col-span-2">
-          <Field label="Total good cards received" required>
-            <input type="number" className={base} />
-          </Field>
+        <div className="grid grid-cols-2 gap-6 text-sm">
+          <div>
+            <p className="text-gray-500">Total Cards Sent</p>
+            <p className="text-2xl font-bold">{goodQty}</p>
+          </div>
+
+          <div>
+            <p className="text-gray-500">Total Issues</p>
+            <p className="text-2xl font-bold text-red-600">
+              {damagedSerials.length + missingSerials.length}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-gray-500">Station</p>
+            <p className="font-medium">{station || "-"}</p>
+          </div>
+
+          <div>
+            <p className="text-gray-500">Card</p>
+            <p className="font-medium">
+              {category || "-"} – {type || "-"}
+            </p>
+          </div>
         </div>
-      </SectionCard>
-
-      {/* DAMAGED CARDS */}
-      <SectionCard title="2. Damaged Cards">
+      </div>
+      {/* DAMAGED */}
+      <SectionCard title="Apakah ada kartu yang rusak?">
         <div className="md:col-span-2">
-          <YesNoRadio value={hasDamaged} onChange={setHasDamaged} />
+          <YesNoToggle
+            value={hasDamaged === "yes"}
+            onChange={(v) => setHasDamaged(v ? "yes" : "no")}
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            {damagedSerials.length} dari {goodQty} kartu
+          </p>
         </div>
 
         {hasDamaged === "yes" && (
-          <>
-            <Field label="Damaged Quantity" required>
-              <input
-                type="number"
-                min={1}
-                value={damagedQty}
-                onChange={(e) => {
-                  const qty = Number(e.target.value);
-                  setDamagedQty(qty);
-                  setDamagedSerials(
-                    Array.from(
-                      { length: qty },
-                      (_, i) => damagedSerials[i] || ""
-                    )
-                  );
-                }}
-                className={base}
-              />
-            </Field>
-
-            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
-              {damagedSerials.map((val, idx) => (
+          <div className="md:col-span-2 space-y-2">
+            {damagedSerials.map((v, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <span className="w-6 text-sm text-gray-400">{i + 1}.</span>
                 <input
-                  key={idx}
-                  value={val}
+                  value={v}
                   onChange={(e) => {
                     const arr = [...damagedSerials];
-                    arr[idx] = e.target.value;
+                    arr[i] = e.target.value;
                     setDamagedSerials(arr);
                   }}
                   className={base}
-                  placeholder={`Damaged serial ${idx + 1}`}
+                  placeholder="Enter damaged serial number"
                 />
-              ))}
-            </div>
-          </>
+              </div>
+            ))}
+
+            <button
+              type="button"
+              onClick={() => setDamagedSerials([...damagedSerials, ""])}
+              className="rounded-md border px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
+            >
+              + Add Damaged Serial
+            </button>
+          </div>
         )}
       </SectionCard>
-
-      {/* MISSING CARDS */}
-      <SectionCard title="3. Missing Cards">
+      {/* MISSING */}
+      <SectionCard title="Apakah ada kartu yang hilang?">
         <div className="md:col-span-2">
-          <YesNoRadio value={hasMissing} onChange={setHasMissing} />
+          <YesNoToggle
+            value={hasMissing === "yes"}
+            onChange={(v) => setHasMissing(v ? "yes" : "no")}
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            {missingSerials.length} dari {goodQty} kartu
+          </p>
         </div>
 
         {hasMissing === "yes" && (
-          <>
-            <Field label="Missing Quantity" required>
-              <input
-                type="number"
-                min={1}
-                value={missingQty}
-                onChange={(e) => {
-                  const qty = Number(e.target.value);
-                  setMissingQty(qty);
-                  setMissingSerials(
-                    Array.from(
-                      { length: qty },
-                      (_, i) => missingSerials[i] || ""
-                    )
-                  );
-                }}
-                className={base}
-              />
-            </Field>
-
-            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
-              {missingSerials.map((val, idx) => (
+          <div className="md:col-span-2 space-y-2">
+            {missingSerials.map((v, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <span className="w-6 text-sm text-gray-400">{i + 1}.</span>
                 <input
-                  key={idx}
-                  value={val}
+                  value={v}
                   onChange={(e) => {
                     const arr = [...missingSerials];
-                    arr[idx] = e.target.value;
+                    arr[i] = e.target.value;
                     setMissingSerials(arr);
                   }}
                   className={base}
-                  placeholder={`Missing serial ${idx + 1}`}
+                  placeholder="Enter missing serial number"
                 />
-              ))}
-            </div>
-          </>
+              </div>
+            ))}
+
+            <button
+              type="button"
+              onClick={() => setMissingSerials([...missingSerials, ""])}
+              className="rounded-md border px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
+            >
+              + Add Missing Serial
+            </button>
+          </div>
         )}
       </SectionCard>
 
       {/* NOTES */}
-      <SectionCard title="Additional Notes">
-        <div className="md:col-span-2">
-          <textarea
-            rows={4}
-            className="w-full rounded-md border border-gray-300 p-3 text-sm"
-            placeholder="Additional information (optional)"
-          />
-        </div>
+      <SectionCard title="Notes">
+        <textarea
+          rows={4}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          className="w-full rounded-md border p-3 text-sm md:col-span-2 focus:border-gray-400 focus:outline-none"
+        />
       </SectionCard>
 
-      {/* ACTION BAR */}
-      <div className="flex justify-end gap-3 pt-4 border-t">
+      {/* SUBMIT BUTTON */}
+      <div className="sticky bottom-0 flex justify-end gap-3">
         <button
           onClick={() => router.back()}
           className="rounded-md border px-6 py-2 text-sm"
@@ -339,9 +329,9 @@ export default function FormNoted() {
 
         <button
           onClick={handleSubmit}
-          className="rounded-md bg-[#8B1538] px-8 py-2 text-sm font-medium text-white"
+          className="rounded-md bg-[#8B1538] px-8 py-2 text-sm font-medium text-white shadow"
         >
-          Submit
+          Submit Validation
         </button>
       </div>
     </div>

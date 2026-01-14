@@ -17,136 +17,108 @@ export default function InboxPage() {
   const [loading, setLoading] = useState(true);
   const [activeItem, setActiveItem] = useState<any | null>(null);
 
-  // =========================
-  // FETCH INBOX DATA
-  // =========================
-  const fetchInbox = useCallback(
-    async (filters: any = {}) => {
-      setLoading(true);
-      try {
-        const token = localStorage.getItem("fwc_token");
-        if (!token) return router.push("/");
+  /* =========================
+     FETCH STOCK OUT HISTORY
+  ========================= */
+  const fetchInbox = useCallback(async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("fwc_token");
+      if (!token) return router.push("/");
 
-        // Jika tidak ada token → redirect ke login
-        if (!token) {
-          setLoading(false);
-          router.push("/");
-          return;
-        }
+      const res = await fetch(`${API_BASE_URL}/stock/out/history`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-        /**
-         * Build query string dengan URLSearchParams
-         * Lebih aman & rapi dibanding string concat manual
-         */
-        const params = new URLSearchParams({ limit: "10" });
-
-        if (filters.status) params.append("status", filters.status);
-
-        const url = `${API_BASE_URL}/inbox/?${params.toString()}`;
-
-        // Request ke backend
-        const res = await fetch(`${API_BASE_URL}/inbox/?${params.toString()}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        /**
-         * Jika token expired / unauthorized
-         * → clear localStorage & redirect
-         */
-        if (res.status === 401) {
-          localStorage.clear();
-          return router.push("/");
-        }
-
-        const result = await res.json();
-
-        // MAP DATA FROM BACKEND TO FRONTEND FORMAT
-
-        if (result.success) {
-          let mappedItems = result.data.items.map((item: any) => {
-            const sentDate = new Date(item.sentAt);
-
-            return {
-              id: item.id,
-              title: item.title,
-              message: item.message,
-              sender: item.sender,
-              isRead: item.isRead,
-              readAt: item.readAt,
-
-              // 🔥 SIMPAN DATE ASLI UNTUK FILTER
-              sentAt: sentDate,
-
-              dateLabel: sentDate.toLocaleDateString("id-ID", {
-                day: "2-digit",
-                month: "long",
-                year: "numeric",
-              }),
-              timeLabel:
-                sentDate.toLocaleTimeString("id-ID", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }) + " WIB",
-
-              status: deriveCardCondition(item.message),
-            };
-          });
-
-          /**
-           * ✅ FILTER FRONTEND (INI KUNCINYA)
-           */
-          if (filters.status) {
-            mappedItems = mappedItems.filter(
-              (item) => item.status === filters.status
-            );
-          }
-          if (filters.startDate) {
-            const start = new Date(filters.startDate);
-            start.setHours(0, 0, 0, 0); // awal hari
-
-            mappedItems = mappedItems.filter((item) => item.sentAt >= start);
-          }
-
-          if (filters.endDate) {
-            const end = new Date(filters.endDate);
-            end.setHours(23, 59, 59, 999); // akhir hari
-
-            mappedItems = mappedItems.filter((item) => item.sentAt <= end);
-          }
-
-          setItems(mappedItems);
-        }
-      } catch (error) {
-        console.error("Error fetching inbox:", error);
-      } finally {
-        setLoading(false);
+      if (res.status === 401) {
+        localStorage.clear();
+        return router.push("/");
       }
-    },
-    [router]
-  );
 
-  // INITIAL FETCH
+      const result = await res.json();
+      if (!result.success) return;
+
+      const mappedItems = result.data.items.map((item: any) => {
+        const date = new Date(item.movementAt);
+
+        const hasDamaged =
+          item.damagedSerialNumbers && item.damagedSerialNumbers.length > 0;
+
+        const hasMissing =
+          item.lostSerialNumbers && item.lostSerialNumbers.length > 0;
+
+        let status = "ACCEPTED";
+        if (hasDamaged) status = "CARD_DAMAGED";
+        if (hasMissing) status = "CARD_MISSING";
+
+        return {
+          id: item.id,
+
+          sender: {
+            fullName: item.createdByName || "-",
+          },
+
+          status,
+
+          title: `Stock Out - ${item.stationName}`,
+          message: item.note || "Menunggu validasi stock out",
+
+          date_label: date.toLocaleDateString("id-ID", {
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+          }),
+
+          time_label:
+            date.toLocaleTimeString("id-ID", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }) + " WIB",
+
+          // simpan raw untuk halaman detail
+          raw: item,
+        };
+      });
+
+      setItems(mappedItems);
+    } catch (err) {
+      console.error("Fetch stock out history error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [router]);
+
+  /* =========================
+     INITIAL LOAD
+  ========================= */
   useEffect(() => {
     fetchInbox();
   }, [fetchInbox]);
 
-  // ✅ ADD NOTE → HALAMAN FORM BARU
+  /* =========================
+     HANDLERS
+  ========================= */
   const handleAddNote = () => {
     router.push("/dashboard/supervisor/noted/formnoted");
   };
 
   // ✅ CLICK ITEM → HALAMAN DETAIL / EDIT
   const handleOpenDetail = (item: any) => {
-    router.push(`/dashboard/supervisor/noted/${item.id}`);
+    router.push(`/dashboard/supervisor/noted/formnoted?stockOutId=${item.id}`);
   };
 
+  /* =========================
+     RENDER
+  ========================= */
   return (
     <div className="space-y-6 h-full">
       {/* HEADER */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-gray-900">Noted History</h1>
+        <h1 className="text-xl font-semibold text-gray-900">
+          Stock Out Validation
+        </h1>
       </div>
 
       {/* FILTER */}
@@ -166,7 +138,4 @@ export default function InboxPage() {
       </div>
     </div>
   );
-}
-function deriveCardCondition(message: any) {
-  throw new Error("Function not implemented.");
 }

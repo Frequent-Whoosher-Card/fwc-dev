@@ -1,7 +1,7 @@
-'use client';
-import { useState } from 'react';
-import InboxItem from './InboxItem';
-import ModalDetailInbox from './modalDetailInbox';
+"use client";
+import { useState } from "react";
+import InboxItem from "./InboxItem";
+import ModalDetailInbox from "./modalDetailInbox";
 
 export default function InboxList({
   items,
@@ -10,6 +10,7 @@ export default function InboxList({
   items: any[];
   loading: boolean;
 }) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
 
   if (loading) {
@@ -35,15 +36,22 @@ export default function InboxList({
           <InboxItem
             key={item.id}
             item={item}
-            onClick={() => setSelectedItem(item)}
+            onClick={() => {
+              setSelectedId(item.id);
+              setSelectedItem(item);
+            }}
           />
         ))}
       </div>
 
       {selectedItem && (
         <ModalDetailInbox
+          inboxId={selectedId}
           data={selectedItem}
-          onClose={() => setSelectedItem(null)}
+          onClose={() => {
+            setSelectedId(null);
+            setSelectedItem(null);
+          }}
         />
       )}
     </>

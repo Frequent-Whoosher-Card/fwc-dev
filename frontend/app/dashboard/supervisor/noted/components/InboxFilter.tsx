@@ -54,7 +54,7 @@ export default function InboxFilter({
     onFilter({
       status: "",
       startDate: "",
-      endDate: ""
+      endDate: "",
     });
   };
 
@@ -97,7 +97,7 @@ export default function InboxFilter({
         <div className="flex gap-2 w-full sm:w-auto">
           <button
             onClick={() => onFilter(filters)}
-            className="bg-[#E31E24] text-white px-8 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-red-700"
+            className="bg-[#8B1538] text-white px-8 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-red-700"
           >
             Filter <Filter size={16} />
           </button>
@@ -116,7 +116,7 @@ export default function InboxFilter({
       <div className="w-full md:w-auto md:ml-auto">
         <button
           onClick={() => router.push("/dashboard/supervisor/noted/formnoted")}
-          className="bg-[#E31E24] text-white px-8 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-red-700"
+          className="bg-[#8B1538] text-white px-8 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-red-700"
         >
           <PlusCircle size={16} /> Add Note
         </button>

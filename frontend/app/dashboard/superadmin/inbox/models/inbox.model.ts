@@ -21,6 +21,6 @@ export interface Inbox {
   message: string;
   sender: Sender;
   status: InboxStatus;
-  dateLabel: string;                                                                 
+  dateLabel: string;
   timeLabel: string;
 }
