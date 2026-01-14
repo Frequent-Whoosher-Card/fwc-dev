@@ -19,6 +19,7 @@ import { purchases } from "./modules/purchases";
 import { AuthenticationError, AuthorizationError } from "./utils/errors";
 import { inbox } from "./modules/inbox";
 import { redeem } from "./modules/redeem";
+import { cardSwaps } from "./modules/card-swaps";
 
 const app = new Elysia()
   .use(docsConfig)
@@ -32,6 +33,7 @@ const app = new Elysia()
   .use(users)
   .use(members)
   .use(purchases)
+  .use(cardSwaps)
   .use(cardCategory)
   .use(cardTypes)
   .use(cardProducts)
@@ -122,17 +124,22 @@ console.log(
 );
 
 // Cleanup job for temporary storage (runs every 30 minutes)
-setInterval(async () => {
-  try {
-    const { tempStorage } = await import("./utils/temp_storage");
-    const cleanedCount = await tempStorage.cleanupExpired();
-    if (cleanedCount > 0) {
-      console.log(`[Cleanup] Removed ${cleanedCount} expired temporary file(s)`);
+setInterval(
+  async () => {
+    try {
+      const { tempStorage } = await import("./utils/temp_storage");
+      const cleanedCount = await tempStorage.cleanupExpired();
+      if (cleanedCount > 0) {
+        console.log(
+          `[Cleanup] Removed ${cleanedCount} expired temporary file(s)`
+        );
+      }
+    } catch (error) {
+      console.error("[Cleanup] Error cleaning up temporary files:", error);
     }
-  } catch (error) {
-    console.error("[Cleanup] Error cleaning up temporary files:", error);
-  }
-}, 30 * 60 * 1000); // 30 minutes
+  },
+  30 * 60 * 1000
+); // 30 minutes
 
 // Run cleanup immediately on startup
 (async () => {
@@ -140,10 +147,15 @@ setInterval(async () => {
     const { tempStorage } = await import("./utils/temp_storage");
     const cleanedCount = await tempStorage.cleanupExpired();
     if (cleanedCount > 0) {
-      console.log(`[Cleanup] Removed ${cleanedCount} expired temporary file(s) on startup`);
+      console.log(
+        `[Cleanup] Removed ${cleanedCount} expired temporary file(s) on startup`
+      );
     }
   } catch (error) {
-    console.error("[Cleanup] Error cleaning up temporary files on startup:", error);
+    console.error(
+      "[Cleanup] Error cleaning up temporary files on startup:",
+      error
+    );
   }
 })();
 
@@ -157,7 +169,8 @@ process.on("SIGTERM", async () => {
     // Ignore if OCR service not initialized
   }
   try {
-    const { ktpDetectionService } = await import("./services/ktp_detection_service");
+    const { ktpDetectionService } =
+      await import("./services/ktp_detection_service");
     await ktpDetectionService.shutdown();
   } catch (e) {
     // Ignore if detection service not initialized
@@ -174,7 +187,8 @@ process.on("SIGINT", async () => {
     // Ignore if OCR service not initialized
   }
   try {
-    const { ktpDetectionService } = await import("./services/ktp_detection_service");
+    const { ktpDetectionService } =
+      await import("./services/ktp_detection_service");
     await ktpDetectionService.shutdown();
   } catch (e) {
     // Ignore if detection service not initialized
