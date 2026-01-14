@@ -186,9 +186,10 @@ export default function StockOutPage() {
       }
 
       const doc = new jsPDF('p', 'mm', 'a4');
-      const title = 'Laporan Stock Out (Admin ke Outlet)';
+      const title = 'Laporan Stock Out (Admin ke Stasiun)';
       const pageWidth = doc.internal.pageSize.getWidth();
 
+      // TITLE
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(14);
       doc.text(title, pageWidth / 2, 18, { align: 'center' });
@@ -196,11 +197,13 @@ export default function StockOutPage() {
       doc.setLineWidth(0.3);
       doc.line(14, 22, pageWidth - 14, 22);
 
+      // TABLE
       autoTable(doc, {
         startY: 26,
-        head: [['Tanggal', 'Card Category', 'Card Type', 'Stasiun', 'Stock Out', 'Serial Awal', 'Status', 'Note']],
-        body: allData.map((item: any) => [
-          new Date(item.movementAt).toLocaleDateString('id-ID'),
+        head: [['No', 'Tanggal', 'Card Category', 'Card Type', 'Stasiun', 'Stock Out', 'Serial Awal', 'Status', 'Note']],
+        body: allData.map((item: any, index: number) => [
+          index + 1, // ✅ NOMOR URUT
+          new Date(item.movementAt).toLocaleDateString('id-ID').replace(/\//g, '-'),
           item.cardCategory?.name ?? '-',
           item.cardType?.name ?? '-',
           item.stationName ?? '-',
@@ -219,9 +222,11 @@ export default function StockOutPage() {
           fillColor: [141, 18, 49],
           textColor: 255,
           fontStyle: 'bold',
+          halign: 'center',
         },
         columnStyles: {
-          7: { halign: 'left' },
+          0: { cellWidth: 10 }, // kolom No
+          8: { halign: 'left' }, // kolom Note
         },
       });
 

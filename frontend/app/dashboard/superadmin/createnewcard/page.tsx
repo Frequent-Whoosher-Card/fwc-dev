@@ -13,7 +13,7 @@ interface CardProduct {
   typeId: string;
   totalQuota: number;
   masaBerlaku: number;
-  price: number;
+  price: string;
   serialTemplate: string;
   isActive: boolean;
   createdAt: string;
@@ -152,7 +152,7 @@ export default function CreateNewCardPage() {
         totalQuota: Number(quota),
         masaBerlaku: Number(validityDays),
         price: Number(price),
-        serialTemplate,
+        serialTemplate: serialTemplate,
       });
 
       toast.success('Card product berhasil dibuat');
@@ -217,21 +217,58 @@ export default function CreateNewCardPage() {
 
       {/* LIST PRODUCT */}
       <div className="rounded-xl border bg-white overflow-hidden">
+        {/* TITLE */}
         <div className="px-4 py-3 font-semibold border-b">List Card Product</div>
-        <table className="w-full text-sm">
-          <tbody>
-            {cardProducts.map((p) => (
-              <tr key={p.id} className="border-t">
-                <td>{p.category.categoryName}</td>
-                <td>{p.type.typeName}</td>
-                <td>{p.masaBerlaku} hari</td>
-                <td>{p.price}</td>
-                <td>{p.totalQuota}</td>
-                <td className="font-mono text-xs">{p.serialTemplate}</td>
+
+        {/* RESPONSIVE */}
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            {/* HEADER */}
+            <thead className="bg-gray-50 border-b">
+              <tr className="text-left text-xs uppercase tracking-wide text-gray-600">
+                <th className="px-4 py-3">Category</th>
+                <th className="px-4 py-3">Type</th>
+                <th className="px-4 py-3">Masa Berlaku</th>
+                <th className="px-4 py-3">Harga</th>
+                <th className="px-4 py-3 text-center">Kuota</th>
+                <th className="px-4 py-3">Serial Template</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+
+            {/* BODY */}
+            <tbody className="divide-y">
+              {cardProducts.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-6 text-center text-gray-400">
+                    Belum ada card product
+                  </td>
+                </tr>
+              ) : (
+                cardProducts.map((p) => (
+                  <tr key={p.id} className="hover:bg-gray-50 transition">
+                    {/* CATEGORY */}
+                    <td className="px-4 py-3 whitespace-nowrap">{p.category.categoryName}</td>
+
+                    {/* TYPE */}
+                    <td className="px-4 py-3 whitespace-nowrap">{p.type.typeName}</td>
+
+                    {/* MASA BERLAKU */}
+                    <td className="px-4 py-3 whitespace-nowrap">{p.masaBerlaku} hari</td>
+
+                    {/* HARGA */}
+                    <td className="px-4 py-3 whitespace-nowrap">{Number(p.price).toLocaleString('id-ID')}</td>
+
+                    {/* KUOTA */}
+                    <td className="px-4 py-3 text-center">{p.totalQuota}</td>
+
+                    {/* SERIAL TEMPLATE */}
+                    <td className="px-4 py-3 font-mono text-xs whitespace-nowrap tracking-wider">{p.serialTemplate}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* MODAL CATEGORY */}

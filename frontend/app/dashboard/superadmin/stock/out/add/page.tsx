@@ -210,7 +210,7 @@ export default function AddStockOutPage() {
     try {
       await axios.post('/stock/out', {
         movementAt: new Date(form.tanggal).toISOString(),
-        productId: form.productId,
+        cardProductId: form.productId,
         stationId: form.station,
         startSerial: form.initialSerial,
         endSerial: form.lastSerial,

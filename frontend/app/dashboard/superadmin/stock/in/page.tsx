@@ -19,6 +19,7 @@ interface StockInItem {
   category: string;
   type: string;
   stock: number;
+  sentSerialNumbers?: string[]; // ✅ INI SAJA
 }
 
 interface PaginationMeta {
@@ -56,6 +57,7 @@ export default function StockInPage() {
   // delete
   const [openDelete, setOpenDelete] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedSerial, setSelectedSerial] = useState<string>('');
 
   const fromDateRef = useRef<HTMLInputElement>(null);
   const toDateRef = useRef<HTMLInputElement>(null);
@@ -95,6 +97,9 @@ export default function StockInPage() {
             category: item.cardCategory?.name || '-',
             type: item.cardType?.name || '-',
             stock: item.quantity,
+
+            // ✅ SESUAI RESPONSE BACKEND
+            sentSerialNumbers: item.sentSerialNumbers ?? [],
           }))
         );
 
@@ -163,15 +168,23 @@ export default function StockInPage() {
       const title = 'Laporan Stock In (Vendor ke Office)';
       const pageWidth = doc.internal.pageSize.getWidth();
 
+      // TITLE
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(14);
       doc.text(title, pageWidth / 2, 18, { align: 'center' });
       doc.line(14, 22, pageWidth - 14, 22);
 
+      // TABLE
       autoTable(doc, {
         startY: 26,
-        head: [['Tanggal', 'Category', 'Type', 'Stock Masuk']],
-        body: allData.map((item: any) => [new Date(item.movementAt).toLocaleDateString('id-ID').replace(/\//g, '-'), item.cardCategory?.name ?? '-', item.cardType?.name ?? '-', item.quantity.toLocaleString()]),
+        head: [['No', 'Tanggal', 'Category', 'Type', 'Stock Masuk']],
+        body: allData.map((item: any, index: number) => [
+          index + 1, // ✅ NOMOR URUT
+          new Date(item.movementAt).toLocaleDateString('id-ID').replace(/\//g, '-'),
+          item.cardCategory?.name ?? '-',
+          item.cardType?.name ?? '-',
+          item.quantity.toLocaleString(),
+        ]),
         styles: {
           font: 'helvetica',
           fontSize: 10,
@@ -182,6 +195,10 @@ export default function StockInPage() {
           fillColor: [141, 18, 49],
           textColor: 255,
           fontStyle: 'bold',
+          halign: 'center',
+        },
+        columnStyles: {
+          0: { cellWidth: 10 }, // kolom No lebih kecil
         },
       });
 
@@ -275,7 +292,7 @@ export default function StockInPage() {
 
       {/* TABLE */}
       <div className="rounded-lg border bg-white overflow-x-auto">
-        <table className="w-full min-w-[800px] text-sm">
+        <table className="w-full min-w-200 text-sm">
           <thead className="border-b bg-gray-50">
             <tr>
               <th className="p-3">No</th>
@@ -336,18 +353,32 @@ export default function StockInPage() {
                       Edit
                     </button> */}
 
-                    {/* HAPUS */}
                     <button
                       onClick={() => {
                         setSelectedId(row.id);
+
+                        let serialRange = '-';
+
+                        if (Array.isArray(row.sentSerialNumbers) && row.sentSerialNumbers.length > 0) {
+                          const first = row.sentSerialNumbers[0];
+                          const last = row.sentSerialNumbers[row.sentSerialNumbers.length - 1];
+
+                          serialRange = first === last ? first : `${first} - ${last}`;
+                        }
+
+                        setSelectedSerial(serialRange);
                         setOpenDelete(true);
                       }}
                       className="
-      rounded-md border border-red-500
-      px-3 py-1 text-xs
-      text-red-500
-      hover:bg-red-500 hover:text-white
-    "
+    rounded-md
+    border border-red-500
+    px-3 py-1
+    text-xs font-medium
+    text-red-500
+    hover:bg-red-500
+    hover:text-white
+    transition-colors
+  "
                     >
                       Hapus
                     </button>
@@ -381,8 +412,12 @@ export default function StockInPage() {
         onClose={() => {
           setOpenDelete(false);
           setSelectedId(null);
+          setSelectedSerial('');
         }}
         onConfirm={handleDelete}
+        title="Konfirmasi Hapus Data"
+        description="Apakah Anda yakin ingin menghapus data ini"
+        serialNumber={selectedSerial}
       />
     </div>
   );

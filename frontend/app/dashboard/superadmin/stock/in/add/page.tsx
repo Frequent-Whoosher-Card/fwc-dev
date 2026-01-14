@@ -108,8 +108,18 @@ export default function AddStockInPage() {
      HANDLE SUBMIT
   ===================== */
   const handleSubmit = async () => {
-    if (!form.tanggal || !form.productId || !form.initialSerial || !form.lastSerial) {
-      toast.error('Semua field wajib diisi');
+    if (!form.tanggal || !form.productId) {
+      toast.error('Tanggal & product wajib diisi');
+      return;
+    }
+
+    if (!form.initialSerial) {
+      toast.error('Initial serial belum tersedia');
+      return;
+    }
+
+    if (!form.lastSerial) {
+      toast.error('Last serial wajib diisi');
       return;
     }
 
@@ -127,20 +137,20 @@ export default function AddStockInPage() {
     }
 
     setLoading(true);
+
     try {
       await axios.post('/stock/in', {
         movementAt: new Date(form.tanggal).toISOString(),
-        productId: form.productId,
-        startSerial: form.initialSerial.padStart(4, '0'),
-        endSerial: form.lastSerial.padStart(4, '0'),
+        cardProductId: form.productId, // ✅ WAJIB
+        startSerial: form.initialSerial.padStart(5, '0'), // ✅ WAJIB
+        endSerial: form.lastSerial.padStart(5, '0'), // ✅ WAJIB
         note: '',
       });
 
       toast.success('Stock berhasil ditambahkan');
       router.push('/dashboard/superadmin/stock/in');
     } catch (err: any) {
-      console.error(err);
-      toast.error(err.response?.data?.error?.message || err.response?.data?.message || 'Gagal menyimpan stock');
+      toast.error(err?.response?.data?.error?.message || err?.response?.data?.message || 'Gagal menyimpan stock');
     } finally {
       setLoading(false);
     }
