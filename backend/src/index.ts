@@ -56,7 +56,7 @@ const app = new Elysia()
         success: false,
         error: {
           message: error.message,
-          code: 'VALIDATION_ERROR',
+          code: "VALIDATION_ERROR",
           statusCode: 400,
         },
       };
