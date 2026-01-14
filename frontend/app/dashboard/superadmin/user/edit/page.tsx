@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Mail, ChevronDown } from "lucide-react";
-import { phone as phoneLib } from "phone";
 
 import {
   getRoles,
@@ -53,26 +52,21 @@ export default function EditUserPage() {
   /* ======================
      HELPERS (SAMA DENGAN ADD)
   ====================== */
-  const sanitizeNip = (value: string) => value.replace(/\D/g, "").slice(0, 20);
+  const sanitizeNip = (value: string) =>
+    value.replace(/\D/g, "").slice(0, 20);
 
   const isValidEmail = (email: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-
-  const parsePhone = (value: string) => {
-    const cleaned = value.replace(/[^\d+]/g, "");
-    const result = phoneLib(cleaned);
-
-    return {
-      e164: result.isValid ? result.phoneNumber : "",
-      isValid: result.isValid,
-    };
-  };
 
   /* ======================
      FETCH INITIAL DATA
   ====================== */
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      alert("Invalid user id");
+      router.back();
+      return;
+    }
 
     const init = async () => {
       try {
@@ -81,7 +75,7 @@ export default function EditUserPage() {
         const [userRes, roleRes, stationRes] = await Promise.all([
           getUserById(userId),
           getRoles(),
-          getStations({ limit: 50 }),
+          getStations(),
         ]);
 
         const user = userRes.data;
@@ -96,10 +90,14 @@ export default function EditUserPage() {
           stationId: user.station?.id ?? "",
         });
 
-        setRoles(roleRes.data);
+        const roleItems = Array.isArray(roleRes.data)
+          ? roleRes.data
+          : roleRes.data?.items ?? [];
+
+        setRoles(roleItems);
         setStations(stationRes.data?.items ?? []);
       } catch (err) {
-        console.error(err);
+        console.error("LOAD USER ERROR:", err);
         alert("Failed load user data");
         router.back();
       } finally {
@@ -121,21 +119,24 @@ export default function EditUserPage() {
     if (!form.name || form.name.length < 3)
       newErrors.name = "Name must be at least 3 characters";
 
-    if (!form.nip) newErrors.nip = "NIP is required";
+    if (!form.nip)
+      newErrors.nip = "NIP is required";
     else if (form.nip.length < 6 || form.nip.length > 20)
       newErrors.nip = "NIP must be 6–20 digits";
 
-    if (!form.email) newErrors.email = "Email is required";
+    if (!form.email)
+      newErrors.email = "Email is required";
     else if (!isValidEmail(form.email))
       newErrors.email = "Invalid email format";
 
-    const phoneCheck = parsePhone(form.phone);
-    if (!form.phone) newErrors.phone = "Phone number is required";
-    else if (!phoneCheck.isValid)
-      newErrors.phone = "Invalid international phone number";
+    if (!form.phone || form.phone.length < 10)
+      newErrors.phone = "Phone number is required";
 
-    if (!form.roleId) newErrors.roleId = "Role is required";
-    if (!form.stationId) newErrors.stationId = "Stasiun is required";
+    if (!form.roleId)
+      newErrors.roleId = "Role is required";
+
+    if (!form.stationId)
+      newErrors.stationId = "Stasiun is required";
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -148,7 +149,7 @@ export default function EditUserPage() {
       await updateUser(userId, {
         fullName: form.name,
         email: form.email,
-        phone: phoneCheck.e164,
+        phone: form.phone, // ✅ SAMA PERSIS DENGAN ADD
         nip: form.nip,
         roleId: form.roleId,
         stationId: form.stationId,
@@ -157,7 +158,8 @@ export default function EditUserPage() {
 
       router.push("/dashboard/superadmin/user");
     } catch (err: any) {
-      alert(err?.message || "Failed update user");
+      console.error("UPDATE USER ERROR:", err);
+      alert(err?.response?.data?.message || "Failed update user");
     } finally {
       setLoading(false);
     }
@@ -165,12 +167,14 @@ export default function EditUserPage() {
 
   if (pageLoading) {
     return (
-      <div className="p-8 text-sm text-gray-400">Loading user data...</div>
+      <div className="p-8 text-sm text-gray-400">
+        Loading user data...
+      </div>
     );
   }
 
   /* ======================
-     RENDER (100% SAMA DENGAN ADD)
+     RENDER
   ====================== */
   return (
     <div className="space-y-6">
@@ -195,10 +199,11 @@ export default function EditUserPage() {
             </label>
             <input
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, name: e.target.value })
+              }
               className="h-11 w-full rounded-md border px-4 text-sm"
             />
-            <p className="mt-1 text-xs text-gray-400">Minimal 3 karakter</p>
           </div>
 
           {/* NIP */}
@@ -210,16 +215,16 @@ export default function EditUserPage() {
               value={form.nip}
               inputMode="numeric"
               onChange={(e) =>
-                setForm({ ...form, nip: sanitizeNip(e.target.value) })
+                setForm({
+                  ...form,
+                  nip: sanitizeNip(e.target.value),
+                })
               }
               className="h-11 w-full rounded-md border px-4 text-sm"
             />
-            <p className="mt-1 text-xs text-gray-400">
-              6–20 digit, hanya angka
-            </p>
           </div>
 
-          {/* USERNAME (READ ONLY) */}
+          {/* USERNAME */}
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
               Username
@@ -229,9 +234,6 @@ export default function EditUserPage() {
               disabled
               className="h-11 w-full rounded-md border bg-gray-100 px-4 text-sm"
             />
-            <p className="mt-1 text-xs text-gray-400">
-              Username tidak dapat diubah
-            </p>
           </div>
 
           {/* ROLE */}
@@ -241,7 +243,9 @@ export default function EditUserPage() {
             </label>
             <select
               value={form.roleId}
-              onChange={(e) => setForm({ ...form, roleId: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, roleId: e.target.value })
+              }
               className="h-11 w-full appearance-none rounded-md border px-4 text-sm"
             >
               <option value="">Pilih role</option>
@@ -260,22 +264,17 @@ export default function EditUserPage() {
               Phone Number<span className="ml-1 text-red-500">*</span>
             </label>
             <input
-              placeholder="+6281…"
               value={form.phone}
               onChange={(e) =>
                 setForm({
                   ...form,
                   phone: e.target.value
-                    .replace(/[^\d+]/g, "") // hanya angka & +
-                    .slice(0, 16), // + + 15 digit
+                    .replace(/[^\d+]/g, "")
+                    .slice(0, 16),
                 })
               }
-              className="h-11 w-full rounded-md border px-4 pr-10 text-sm"
+              className="h-11 w-full rounded-md border px-4 text-sm"
             />
-
-            <p className="mt-1 text-xs text-gray-400">
-              Gunakan format internasional (+kode negara)
-            </p>
           </div>
 
           {/* EMAIL */}
@@ -285,23 +284,24 @@ export default function EditUserPage() {
             </label>
             <input
               value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, email: e.target.value })
+              }
               className="h-11 w-full rounded-md border px-4 pr-10 text-sm"
             />
             <Mail className="absolute right-3 top-[55%] h-4 w-4 text-gray-400" />
-            <p className="mt-1 text-xs text-gray-400">
-              Gunakan email yang valid
-            </p>
           </div>
 
-          {/* STASIUN */}
+          {/* STATION */}
           <div className="relative md:col-span-2">
             <label className="mb-1 block text-sm font-medium text-gray-700">
               Stasiun<span className="ml-1 text-red-500">*</span>
             </label>
             <select
               value={form.stationId}
-              onChange={(e) => setForm({ ...form, stationId: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, stationId: e.target.value })
+              }
               className="h-11 w-full appearance-none rounded-md border px-4 text-sm"
             >
               <option value="">Pilih stasiun</option>

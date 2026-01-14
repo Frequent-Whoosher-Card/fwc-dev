@@ -1,9 +1,13 @@
 "use client";
 
+import toast from "react-hot-toast";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Phone, Mail, ChevronDown } from "lucide-react";
-import { phone as phoneLib } from "phone";
+
+import SuccessModal from "../components/SuccesModal";
+// sesuaikan path aslinya
 
 import { createUser, getRoles, RoleItem } from "@/lib/services/user.service";
 import { getStations, StationItem } from "@/lib/services/station.service";
@@ -22,43 +26,9 @@ interface UserForm {
 }
 
 /* ======================
-   SUCCESS MODAL
-====================== */
-function SuccessModal({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-[420px] rounded-xl bg-white p-6 text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-          <span className="text-xl font-bold text-green-600">✓</span>
-        </div>
-
-        <h3 className="text-lg font-semibold">Data Saved</h3>
-        <p className="mt-2 text-sm text-gray-500">
-          The new user has been saved to the database
-        </p>
-
-        <button
-          onClick={onClose}
-          className="mt-6 h-10 rounded-md bg-[#7A0C2E] px-8 text-sm text-white hover:opacity-90"
-        >
-          OK
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* ======================
    PAGE
 ====================== */
+
 export default function CreateUserPage() {
   const router = useRouter();
 
@@ -77,6 +47,8 @@ export default function CreateUserPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showSuccess, setShowSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmData, setConfirmData] = useState<Record<string, string>>({});
 
   /* ======================
      HELPERS (BEST PRACTICE)
@@ -88,17 +60,6 @@ export default function CreateUserPage() {
 
   const isValidEmail = (email: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-
-  const parsePhone = (value: string) => {
-    const cleaned = value.replace(/[^\d+]/g, "");
-    const result = phoneLib(cleaned);
-
-    return {
-      raw: cleaned,
-      e164: result.isValid ? result.phoneNumber : "",
-      isValid: result.isValid,
-    };
-  };
 
   /* ======================
      FETCH ROLES
@@ -126,19 +87,18 @@ export default function CreateUserPage() {
    FETCH STATIONS
 ====================== */
   useEffect(() => {
-  const fetchStations = async () => {
-    try {
-      const res = await getStations();
-      setStations(res.data.items); // ⬅️ INI FIX FINAL
-    } catch (err) {
-      console.error(err);
-      setStations([]);
-    }
-  };
+    const fetchStations = async () => {
+      try {
+        const res = await getStations();
+        setStations(res.data.items); // ⬅️ INI FIX FINAL
+      } catch (err) {
+        console.error(err);
+        setStations([]);
+      }
+    };
 
-  fetchStations();
-}, []);
-
+    fetchStations();
+  }, []);
 
   /* ======================
      SUBMIT
@@ -161,40 +121,46 @@ export default function CreateUserPage() {
     else if (!isValidEmail(form.email))
       newErrors.email = "Invalid email format";
 
-    const phoneCheck = parsePhone(form.phone);
-    if (!form.phone) newErrors.phone = "Phone number is required";
-    else if (!phoneCheck.isValid) newErrors.phone = "Invalid phone number";
+    if (!form.phone || form.phone.length < 10)
+      newErrors.phone = "Phone number is required";
 
     if (!form.roleId) newErrors.roleId = "Role is required";
-
     if (!form.stationId) newErrors.stationId = "Stasiun is required";
 
     if (Object.keys(newErrors).length > 0) {
-      console.warn("FORM ERROR:", newErrors);
       setErrors(newErrors);
+      toast.error("Please fix the form errors");
       return;
     }
 
     try {
       setLoading(true);
 
-      await createUser({
+      const payload = {
         username: form.username,
+        password: "Default@123",
         fullName: form.name,
         email: form.email,
-        phone: phoneCheck.e164,
+        phone: form.phone,
         nip: form.nip,
         roleId: form.roleId,
         stationId: form.stationId,
-        password: "Default@123",
-      });
+        isActive: true,
+      };
 
-      setShowSuccess(true);
+      console.log("CREATE USER PAYLOAD >>>", payload);
+
+      await createUser(payload);
+
+      // ✅ FEEDBACK SATU KALI AJA
+      toast.success("User successfully created");
+
+      // ✅ LANGSUNG KE LIST
+      router.push("/dashboard/superadmin/user");
     } catch (err: any) {
-      console.error("CREATE USER ERROR:", err);
-      alert(
-        err?.response?.data?.message || err?.message || "Failed create user"
-      );
+      console.error("CREATE USER ERROR FULL:", err);
+
+      toast.error(err?.response?.data?.message ?? "Failed to create user");
     } finally {
       setLoading(false);
     }
@@ -300,7 +266,7 @@ export default function CreateUserPage() {
                 Phone Number<span className="ml-1 text-red-500">*</span>
               </label>
               <input
-                placeholder="+6281…"
+                placeholder="08xxxxxxxx"
                 value={form.phone}
                 onChange={(e) =>
                   setForm({
@@ -362,9 +328,24 @@ export default function CreateUserPage() {
           {/* ACTION */}
           <div className="mt-10 flex justify-end">
             <button
-              type="button" // ⬅️ WAJIB
-              onClick={handleSubmit}
+              type="button"
               disabled={loading}
+              onClick={() => {
+                setConfirmData({
+                  Name: form.name || "-",
+                  NIP: form.nip || "-",
+                  Username: form.username || "-",
+                  Role:
+                    roles.find((r) => r.id === form.roleId)?.roleName || "-",
+                  "Phone Number": form.phone || "-",
+                  "Email Address": form.email || "-",
+                  Stasiun:
+                    stations.find((s) => s.id === form.stationId)
+                      ?.stationName || "-",
+                });
+
+                setShowConfirm(true); // ✅ buka modal SETELAH data disimpan
+              }}
               className="h-11 rounded-md bg-[#7A0C2E] px-10 text-sm text-white disabled:opacity-50"
             >
               {loading ? "Saving..." : "Submit"}
@@ -373,11 +354,34 @@ export default function CreateUserPage() {
         </div>
       </div>
 
+      {/* ======================
+   SUCCESS MODAL
+====================== */}
+
+      {/* ======================
+   CONFIRM SAVE MODAL
+====================== */}
       <SuccessModal
-        open={showSuccess}
+        open={showConfirm}
+        title="Confirm Save"
+        message="Please review the user data before saving"
+        confirmText="Save"
+        data={{
+          Name: form.name || "-",
+          NIP: form.nip || "-",
+          Username: form.username || "-",
+          Role: roles.find((r) => r.id === form.roleId)?.roleName || "-",
+          "Phone Number": form.phone || "-",
+          "Email Address": form.email || "-",
+          Stasiun:
+            stations.find((s) => s.id === form.stationId)?.stationName || "-",
+        }}
         onClose={() => {
-          setShowSuccess(false);
-          router.push("/dashboard/superadmin/user");
+          setShowConfirm(false);
+        }}
+        onConfirm={async () => {
+          setShowConfirm(false);
+          await handleSubmit(); // ✅ API BENAR-BENAR KEKIRIM DI SINI
         }}
       />
     </>

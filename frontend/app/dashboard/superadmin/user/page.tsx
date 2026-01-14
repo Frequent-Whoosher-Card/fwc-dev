@@ -1,5 +1,7 @@
 "use client";
 
+import ConfirmDeleteModal from "./components/ConfirmDeleteModal";
+
 import { getStations, StationItem } from "@/lib/services/station.service";
 
 import { useEffect, useState } from "react";
@@ -403,38 +405,32 @@ export default function UserManagementPage() {
         </button>
       </div>
 
-      {/* DELETE CONFIRM */}
-      {showDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div
-            className="
-  w-[90%] max-w-[400px]
-  rounded-2xl bg-white p-6
-"
-          >
-            <h2 className="text-lg font-semibold">Delete User</h2>
-            <p className="mt-2 text-sm">
-              Are you sure want to delete <b>{selectedUser?.fullname}</b>?
-            </p>
+    {/* DELETE CONFIRM MODAL */}
+      <ConfirmDeleteModal
+        open={showDelete}
+        name={selectedUser?.fullname || "-"}
+        identity={selectedUser?.nip || "-"}
+        onCancel={() => {
+          setShowDelete(false);
+          setSelectedUser(null);
+        }}
+        onConfirm={async () => {
+          if (!selectedUser) return;
 
-            <div className="mt-6 flex justify-center gap-3">
-              <button
-                onClick={() => setShowDelete(false)}
-                className="h-9 w-24 rounded-md bg-gray-100 text-sm"
-              >
-                Cancel
-              </button>
+          try {
+            await deleteUser(selectedUser.id);
+            toast.success("User deleted successfully");
 
-              <button
-                onClick={confirmDelete}
-                className="h-9 w-24 rounded-md bg-[#8D1231] text-sm text-white"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            setShowDelete(false);
+            setSelectedUser(null);
+            fetchUsers(pagination.page);
+          } catch (err: any) {
+            toast.error(
+              err?.response?.data?.message || "Failed delete user"
+            );
+          }
+        }}
+      />
     </div>
   );
 }
