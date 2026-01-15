@@ -1,5 +1,6 @@
 import db from "../../../config/db";
 import { ValidationError } from "../../../utils/errors";
+import { getEnumStatus, getFriendlyStatus } from "./constants";
 
 export class CardService {
   // Get All Cards with filters
@@ -35,7 +36,8 @@ export class CardService {
 
     // Filter by status
     if (status) {
-      where.status = status.toUpperCase();
+      const enumStatus = getEnumStatus(status) || status.toUpperCase();
+      where.status = enumStatus;
     }
 
     // Search by serialNumber, Category Name, or Type Name
@@ -167,6 +169,7 @@ export class CardService {
     // Convert Date objects to ISO strings
     const formattedCards = cards.map((card) => ({
       ...card,
+      status: getFriendlyStatus(card.status),
       createdAt: card.createdAt.toISOString(),
       purchaseDate: card.purchaseDate?.toISOString() || null,
       expiredDate: card.expiredDate?.toISOString() || null,
@@ -247,6 +250,7 @@ export class CardService {
     // Convert Date objects to ISO strings
     return {
       ...card,
+      status: getFriendlyStatus(card.status),
       createdAt: card.createdAt.toISOString(),
       updatedAt: card.updatedAt.toISOString(),
       purchaseDate: card.purchaseDate?.toISOString() || null,
@@ -304,6 +308,7 @@ export class CardService {
     // Convert Date objects to ISO strings
     return {
       ...card,
+      status: getFriendlyStatus(card.status),
       createdAt: card.createdAt.toISOString(),
       updatedAt: card.updatedAt.toISOString(),
       purchaseDate: card.purchaseDate?.toISOString() || null,
@@ -391,6 +396,7 @@ export class CardService {
     // Format response
     return {
       ...updatedCard,
+      status: getFriendlyStatus(updatedCard.status),
       createdAt: updatedCard.createdAt.toISOString(),
       purchaseDate: updatedCard.purchaseDate?.toISOString() || null,
       expiredDate: updatedCard.expiredDate?.toISOString() || null,
