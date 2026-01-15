@@ -5,6 +5,7 @@ import bwipjs from "bwip-js";
 import { createCanvas, loadImage, registerFont } from "canvas";
 import fs from "fs";
 import path from "path";
+import archiver from "archiver";
 
 // ====== FONT SETUP ======
 const FONT_PATH = path.resolve(process.cwd(), "assets/fonts/OCRB.ttf");
@@ -639,10 +640,91 @@ export class CardGenerateService {
     const width = 5;
     const nextSerial = `${prefix}${String(nextSuffix).padStart(width, "0")}`;
 
+    // ... (previous code)
     return {
       nextSerial,
       prefix,
       lastSerial,
+    };
+  }
+
+  static async downloadZip(batchId: string) {
+    const movement = await db.cardStockMovement.findUnique({
+      where: { id: batchId },
+      include: {
+        category: true,
+        cardType: true,
+      },
+    });
+
+    if (!movement) {
+      throw new ValidationError("Batch generation tidak ditemukan");
+    }
+
+    const serials = movement.receivedSerialNumbers || [];
+    if (serials.length === 0) {
+      throw new ValidationError("Batch ini tidak memiliki serial number");
+    }
+
+    // Fetch cards with file objects
+    const cards = await db.card.findMany({
+      where: { serialNumber: { in: serials } },
+      include: { fileObject: true },
+    });
+
+    const validCards = cards.filter(
+      (c) => c.fileObject && c.fileObject.relativePath
+    );
+
+    if (validCards.length === 0) {
+      throw new ValidationError(
+        "Tidak ada file barcode yang ditemukan untuk batch ini"
+      );
+    }
+
+    // Setup Archive
+    const archive = archiver("zip", {
+      zlib: { level: 9 }, // Sets the compression level.
+    });
+
+    // Handle archive errors
+    archive.on("error", (err: any) => {
+      throw err;
+    });
+
+    // Append files
+    let addedCount = 0;
+    for (const card of validCards) {
+      if (card.fileObject?.relativePath) {
+        const absolutePath = path.join(
+          process.cwd(),
+          card.fileObject.relativePath
+        );
+        if (fs.existsSync(absolutePath)) {
+          archive.file(absolutePath, { name: card.fileObject.originalName });
+          addedCount++;
+        }
+      }
+    }
+
+    if (addedCount === 0) {
+      throw new ValidationError("File fisik barcode tidak ditemukan di server");
+    }
+
+    await archive.finalize();
+
+    // Construct a friendly filename
+    // e.g., "Barcode_Batch_TYPE_CATEGORY_DATE.zip" or just Batch ID
+    const dateStr = movement.movementAt.toISOString().split("T")[0];
+    const categoryName =
+      movement.category?.categoryName?.replace(/\s+/g, "_") || "CAT";
+    const typeName =
+      movement.cardType?.typeName?.replace(/\s+/g, "_") || "TYPE";
+    const filename = `Barcode_${typeName}_${categoryName}_${dateStr}.zip`;
+
+    return {
+      stream: archive,
+      filename,
     };
   }
 }
