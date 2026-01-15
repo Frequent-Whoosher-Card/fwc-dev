@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { API_BASE_URL } from "@/lib/apiConfig";
+import api from "@/lib/axios";
 
 /* ======================
    BASE INPUT STYLE
@@ -35,7 +35,7 @@ function Field({
 }
 
 /* ======================
-   SECTION CARD (Membership Style)
+   SECTION CARD
 ====================== */
 function SectionCard({
   title,
@@ -53,7 +53,7 @@ function SectionCard({
 }
 
 /* ======================
-   YES / NO RADIO
+   YES / NO TOGGLE
 ====================== */
 function YesNoToggle({
   value,
@@ -91,47 +91,80 @@ function YesNoToggle({
 ====================== */
 export default function FormNoted() {
   const router = useRouter();
-  const params = useParams();
-  const stockOutId = params.id as string;
 
-  // auto-filled (READ ONLY)
-  const [batchCard, setBatchCard] = useState<number | "">("");
+  /* ======================
+     QUERY PARAM
+  ====================== */
+  const searchParams = useSearchParams();
+  const rawId = searchParams.get("stockOutId");
+  const stockOutId = rawId ? Number(rawId) : null;
+
+  /* ======================
+     STATE
+  ====================== */
   const [station, setStation] = useState("");
   const [category, setCategory] = useState("");
   const [type, setType] = useState("");
-
   const [goodQty, setGoodQty] = useState(0);
 
-  // validation input
-  const [hasDamaged, setHasDamaged] = useState<"yes" | "no">("no");
-  const [damagedQty, setDamagedQty] = useState(0);
+  const [sender, setSender] = useState("-");
+  const [movementAt, setMovementAt] = useState("-");
+
+  const [hasDamaged, setHasDamaged] = useState(false);
   const [damagedSerials, setDamagedSerials] = useState<string[]>([]);
 
-  const [hasMissing, setHasMissing] = useState<"yes" | "no">("no");
-  const [missingQty, setMissingQty] = useState(0);
+  const [hasMissing, setHasMissing] = useState(false);
   const [missingSerials, setMissingSerials] = useState<string[]>([]);
 
   const [message, setMessage] = useState("");
+
   /* ======================
      FETCH STOCK OUT DETAIL
   ====================== */
   useEffect(() => {
+    if (!stockOutId || Number.isNaN(stockOutId)) {
+      console.warn("⛔ stockOutId invalid:", stockOutId);
+      return;
+    }
+
     async function fetchStockOut() {
-      const token = localStorage.getItem("fwc_token");
-      if (!token) return;
+      try {
+        console.log("✅ FETCH stockOutId =", stockOutId);
 
-      const res = await fetch(`${API_BASE_URL}/stock/out/${stockOutId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+        const res = await api.get(`/stock/out/${stockOutId}`);
+        const d = res.data?.data ?? res.data;
 
-      const result = await res.json();
-      if (result.success) {
-        const d = result.data;
-        setBatchCard(Number(d.batchId));
-        setStation(d.stationName);
-        setCategory(d.cardCategory.name);
-        setType(d.cardType.name);
-        setGoodQty(d.quantity);
+        if (!d) {
+          console.warn("⚠️ Response kosong:", res.data);
+          return;
+        }
+
+        setStation(d.stationName || "-");
+        setCategory(d.cardCategory?.name || "-");
+        setType(d.cardType?.name || "-");
+        setGoodQty(d.quantity || 0);
+        setSender(d.createdByName || "-");
+
+        if (d.movementAt) {
+          const date = new Date(d.movementAt);
+          setMovementAt(
+            date.toLocaleDateString("id-ID", {
+              day: "2-digit",
+              month: "long",
+              year: "numeric",
+            }) +
+              " • " +
+              date.toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }) +
+              " WIB"
+          );
+        }
+      } catch (err: any) {
+        console.error("❌ Fetch stock out detail error");
+        console.error("➡️ status:", err?.response?.status);
+        console.error("➡️ data:", err?.response?.data);
       }
     }
 
@@ -141,47 +174,43 @@ export default function FormNoted() {
   /* ======================
      SUBMIT VALIDATION
   ====================== */
-
   const handleSubmit = async () => {
-    const token = localStorage.getItem("fwc_token");
-    if (!token) return alert("Session expired");
+    if (!message.trim()) {
+      return alert("Notes wajib diisi.");
+    }
 
-    const body = {
-      title: `Validasi Stock Out - ${station}`,
-      message,
-      type: "STOCK_ISSUE_APPROVAL",
-      payload: {
-        stockOutId,
-        batchCard,
-        cardCategory: category,
-        cardType: type,
-        amountCard: goodQty,
-        damagedSerials,
-        missingSerials,
-      },
+    if (hasDamaged && damagedSerials.some((s) => !s.trim())) {
+      return alert("Semua serial rusak wajib diisi.");
+    }
+
+    if (hasMissing && missingSerials.some((s) => !s.trim())) {
+      return alert("Semua serial hilang wajib diisi.");
+    }
+
+    if (!stockOutId) {
+      return alert("StockOut ID tidak valid.");
+    }
+
+    const payload = {
+      stockOutId, // number ✅
+      damagedSerialNumbers: damagedSerials,
+      lostSerialNumbers: missingSerials,
+      notes: message,
     };
 
     try {
-      const res = await fetch(`${API_BASE_URL}/inbox`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) throw new Error("Submit failed");
-
-      alert("Validasi berhasil dikirim ke Admin");
+      await api.post("/stock/out/validate", payload);
+      alert("Validasi berhasil disimpan");
       router.push("/dashboard/supervisor/inbox");
     } catch (err) {
-      alert("Error submitting data");
-      console.error(err);
+      console.error("❌ Submit validation error:", err);
       alert("Gagal submit validasi");
     }
   };
 
+  /* ======================
+     RENDER
+  ====================== */
   return (
     <div className="space-y-6 pb-10">
       {/* HEADER */}
@@ -191,120 +220,91 @@ export default function FormNoted() {
         </button>
         <h1 className="text-xl font-semibold">Validasi Stock In</h1>
       </div>
-      {/* BASIC INFO (AUTO-FILL) */}
+
       {/* SUMMARY */}
-      <div className="rounded-xl border bg-white p-6 shadow-sm space-y-4">
+      <div className="rounded-xl border bg-white p-5 sm:p-6 shadow-sm space-y-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-700">
-            Stock In Summary
-          </h2>
-          <span className="text-xs text-gray-400">Auto-filled</span>
+          <div>
+            <h2 className="text-base font-semibold text-gray-800">
+              Stock In Summary
+            </h2>
+            <p className="text-xs text-gray-400">
+              Data otomatis dari superadmin
+            </p>
+          </div>
+
+          <span className="text-[11px] px-2 py-1 rounded-full bg-gray-100 text-gray-500">
+            Auto-filled
+          </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-6 text-sm">
-          <div>
-            <p className="text-gray-500">Total Cards Sent</p>
-            <p className="text-2xl font-bold">{goodQty}</p>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="rounded-lg border bg-gray-50 p-4">
+            <p className="text-xs text-gray-500">Total Cards</p>
+            <p className="text-3xl font-bold text-gray-900">{goodQty}</p>
+            <p className="text-[11px] text-gray-400">Kartu dikirim</p>
           </div>
 
-          <div>
-            <p className="text-gray-500">Total Issues</p>
-            <p className="text-2xl font-bold text-red-600">
+          <div className="rounded-lg border bg-red-50 p-4">
+            <p className="text-xs text-red-600">Total Issues</p>
+            <p className="text-3xl font-bold text-red-700">
               {damagedSerials.length + missingSerials.length}
             </p>
+            <p className="text-[11px] text-red-500">Rusak / Hilang</p>
           </div>
+        </div>
 
-          <div>
-            <p className="text-gray-500">Station</p>
-            <p className="font-medium">{station || "-"}</p>
-          </div>
+        <div className="h-px bg-gray-100" />
 
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-5 text-sm">
+          <Info label="Sender" value={sender} />
+          <Info label="Waktu Stock Out" value={movementAt} />
+          <Info label="Station" value={station} />
           <div>
-            <p className="text-gray-500">Card</p>
-            <p className="font-medium">
-              {category || "-"} – {type || "-"}
+            <p className="text-[11px] uppercase tracking-wide text-gray-400">
+              Card
             </p>
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              <Tag text={category} />
+              <Tag text={type} />
+            </div>
           </div>
         </div>
       </div>
+
       {/* DAMAGED */}
       <SectionCard title="Apakah ada kartu yang rusak?">
         <div className="md:col-span-2">
-          <YesNoToggle
-            value={hasDamaged === "yes"}
-            onChange={(v) => setHasDamaged(v ? "yes" : "no")}
-          />
+          <YesNoToggle value={hasDamaged} onChange={setHasDamaged} />
           <p className="mt-1 text-xs text-gray-500">
             {damagedSerials.length} dari {goodQty} kartu
           </p>
         </div>
 
-        {hasDamaged === "yes" && (
-          <div className="md:col-span-2 space-y-2">
-            {damagedSerials.map((v, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <span className="w-6 text-sm text-gray-400">{i + 1}.</span>
-                <input
-                  value={v}
-                  onChange={(e) => {
-                    const arr = [...damagedSerials];
-                    arr[i] = e.target.value;
-                    setDamagedSerials(arr);
-                  }}
-                  className={base}
-                  placeholder="Enter damaged serial number"
-                />
-              </div>
-            ))}
-
-            <button
-              type="button"
-              onClick={() => setDamagedSerials([...damagedSerials, ""])}
-              className="rounded-md border px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
-            >
-              + Add Damaged Serial
-            </button>
-          </div>
+        {hasDamaged && (
+          <SerialList
+            values={damagedSerials}
+            onChange={setDamagedSerials}
+            placeholder="Enter damaged serial number"
+          />
         )}
       </SectionCard>
+
       {/* MISSING */}
       <SectionCard title="Apakah ada kartu yang hilang?">
         <div className="md:col-span-2">
-          <YesNoToggle
-            value={hasMissing === "yes"}
-            onChange={(v) => setHasMissing(v ? "yes" : "no")}
-          />
+          <YesNoToggle value={hasMissing} onChange={setHasMissing} />
           <p className="mt-1 text-xs text-gray-500">
             {missingSerials.length} dari {goodQty} kartu
           </p>
         </div>
 
-        {hasMissing === "yes" && (
-          <div className="md:col-span-2 space-y-2">
-            {missingSerials.map((v, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <span className="w-6 text-sm text-gray-400">{i + 1}.</span>
-                <input
-                  value={v}
-                  onChange={(e) => {
-                    const arr = [...missingSerials];
-                    arr[i] = e.target.value;
-                    setMissingSerials(arr);
-                  }}
-                  className={base}
-                  placeholder="Enter missing serial number"
-                />
-              </div>
-            ))}
-
-            <button
-              type="button"
-              onClick={() => setMissingSerials([...missingSerials, ""])}
-              className="rounded-md border px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
-            >
-              + Add Missing Serial
-            </button>
-          </div>
+        {hasMissing && (
+          <SerialList
+            values={missingSerials}
+            onChange={setMissingSerials}
+            placeholder="Enter missing serial number"
+          />
         )}
       </SectionCard>
 
@@ -318,7 +318,7 @@ export default function FormNoted() {
         />
       </SectionCard>
 
-      {/* SUBMIT BUTTON */}
+      {/* ACTION */}
       <div className="sticky bottom-0 flex justify-end gap-3">
         <button
           onClick={() => router.back()}
@@ -334,6 +334,67 @@ export default function FormNoted() {
           Submit Validation
         </button>
       </div>
+    </div>
+  );
+}
+
+/* ======================
+   SMALL UI HELPERS
+====================== */
+
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[11px] uppercase tracking-wide text-gray-400">
+        {label}
+      </p>
+      <p className="font-semibold text-gray-800">{value || "-"}</p>
+    </div>
+  );
+}
+
+function Tag({ text }: { text: string }) {
+  return (
+    <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+      {text || "-"}
+    </span>
+  );
+}
+
+function SerialList({
+  values,
+  onChange,
+  placeholder,
+}: {
+  values: string[];
+  onChange: (v: string[]) => void;
+  placeholder: string;
+}) {
+  return (
+    <div className="md:col-span-2 space-y-2">
+      {values.map((v, i) => (
+        <div key={i} className="flex items-center gap-3">
+          <span className="w-6 text-sm text-gray-400">{i + 1}.</span>
+          <input
+            value={v}
+            onChange={(e) => {
+              const arr = [...values];
+              arr[i] = e.target.value;
+              onChange(arr);
+            }}
+            className={base}
+            placeholder={placeholder}
+          />
+        </div>
+      ))}
+
+      <button
+        type="button"
+        onClick={() => onChange([...values, ""])}
+        className="rounded-md border px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
+      >
+        + Add Serial
+      </button>
     </div>
   );
 }

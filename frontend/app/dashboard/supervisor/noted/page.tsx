@@ -4,8 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import InboxFilter from "./components/InboxFilter";
 import InboxList from "./components/InboxList";
-import { API_BASE_URL } from "@/lib/apiConfig";
-import FormNoted from "./formnoted/page";
+import api from "@/lib/axios";
 
 export default function InboxPage() {
   // =========================
@@ -15,62 +14,67 @@ export default function InboxPage() {
 
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeItem, setActiveItem] = useState<any | null>(null);
 
   /* =========================
-     FETCH STOCK OUT HISTORY
+     FETCH STOCK OUT LIST
   ========================= */
   const fetchInbox = useCallback(async () => {
-    setLoading(true);
     try {
-      const token = localStorage.getItem("fwc_token");
-      if (!token) return router.push("/");
+      setLoading(true);
 
-      const res = await fetch(`${API_BASE_URL}/stock/out/history`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      // ⚠️ Jangan kirim filter param dulu supaya API aman
+      const params = {
+        page: 1,
+        limit: 10,
+      };
+
+      const res = await api.get("/stock/out", {
+        params,
+        validateStatus: (status) => status < 500, // allow 422
       });
 
-      if (res.status === 401) {
-        localStorage.clear();
-        return router.push("/");
-      }
+      // ✅ Aman untuk berbagai bentuk response
+      const data = res.data?.found?.data ?? res.data?.data ?? res.data;
 
-      const result = await res.json();
-      if (!result.success) return;
+      const rawItems = Array.isArray(data?.items) ? data.items : [];
 
-      const mappedItems = result.data.items.map((item: any) => {
+      const mappedItems = rawItems.map((item: any) => {
         const date = new Date(item.movementAt);
 
-        const hasDamaged =
-          item.damagedSerialNumbers && item.damagedSerialNumbers.length > 0;
+        // =====================
+        // STATUS MAPPING (BENAR)
+        // =====================
+        let status = "PENDING";
 
-        const hasMissing =
-          item.lostSerialNumbers && item.lostSerialNumbers.length > 0;
+        // backend yang menentukan status validasi
+        if (item.validationStatus === "COMPLETED") status = "COMPLETED";
+        if (item.validationStatus === "ISSUE") status = "ISSUE";
 
-        let status = "ACCEPTED";
-        if (hasDamaged) status = "CARD_DAMAGED";
-        if (hasMissing) status = "CARD_MISSING";
+        // fallback: hitung dari data rusak / hilang
+        if (!item.validationStatus) {
+          const hasDamaged = item.damagedSerialNumbers?.length > 0;
+          const hasMissing = item.lostSerialNumbers?.length > 0;
+
+          if (hasDamaged || hasMissing) {
+            status = "ISSUE";
+          } else {
+            status = "COMPLETED";
+          }
+        }
 
         return {
           id: item.id,
-
           sender: {
             fullName: item.createdByName || "-",
           },
-
           status,
-
           title: `Stock Out - ${item.stationName}`,
           message: item.note || "Menunggu validasi stock out",
-
           date_label: date.toLocaleDateString("id-ID", {
             day: "2-digit",
             month: "long",
             year: "numeric",
           }),
-
           time_label:
             date.toLocaleTimeString("id-ID", {
               hour: "2-digit",
@@ -83,12 +87,13 @@ export default function InboxPage() {
       });
 
       setItems(mappedItems);
-    } catch (err) {
-      console.error("Fetch stock out history error:", err);
+    } catch (error) {
+      console.error("Fetch stock out error >>>", error);
+      setItems([]);
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, []);
 
   /* =========================
      INITIAL LOAD
@@ -110,25 +115,26 @@ export default function InboxPage() {
   };
 
   /* =========================
-     RENDER
+     RENDER (SCROLL FIXED)
   ========================= */
   return (
-    <div className="space-y-6 h-full">
+    <div className="flex flex-col gap-4 min-h-screen p-3 sm:p-6">
       {/* HEADER */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-gray-900">
-          Stock Out Validation
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <h1 className="text-lg sm:text-xl font-semibold text-gray-900">
+          Stock In Validation
         </h1>
       </div>
 
       {/* FILTER */}
-      <div className="rounded-xl border bg-white px-4 py-3 shadow-sm">
+      <div className="rounded-xl border bg-white p-3 sm:p-4 shadow-sm">
         <InboxFilter onFilter={fetchInbox} onAddNote={handleAddNote} />
       </div>
 
       {/* LIST */}
-      <div className="rounded-xl border bg-white shadow-sm h-[65vh] overflow-hidden">
-        <div className="h-full overflow-y-auto">
+      <div className="rounded-xl border bg-white shadow-sm flex flex-col min-h-[420px] max-h-[70vh]">
+        {/* SCROLL AREA */}
+        <div className="flex-1 overflow-y-auto">
           <InboxList
             items={items}
             loading={loading}

@@ -1,4 +1,6 @@
 "use client";
+
+import { InboxItemModel } from "@/lib/services/inbox";
 import InboxItem from "./InboxItem";
 
 export default function InboxList({
@@ -6,9 +8,9 @@ export default function InboxList({
   loading,
   onClickItem,
 }: {
-  items: any[];
+  items: InboxItemModel[];
   loading: boolean;
-  onClickItem: (item: any) => void;
+  onClickItem: (item: InboxItemModel) => void;
 }) {
   if (loading) {
     return (
@@ -20,7 +22,7 @@ export default function InboxList({
 
   if (!items.length) {
     return (
-      <div className="flex items-center justify-center h-full py-20 text-gray-400">
+      <div className="flex justify-center py-20 text-gray-400">
         Tidak ada data ditemukan.
       </div>
     );

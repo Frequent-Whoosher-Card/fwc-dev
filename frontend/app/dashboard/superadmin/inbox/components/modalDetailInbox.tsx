@@ -1,24 +1,28 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import StatusBadge from "./StatusBadge";
-import { API_BASE_URL } from "@/lib/apiConfig";
-import { InboxStatus } from "../models/inbox.model";
+import api from "@/lib/axios";
+import type { InboxStatus } from "../models/inbox.model";
+
+/* ================= TYPES ================= */
 
 interface Sender {
   fullName: string;
   station?: string;
-  batch_card?: string;
-  card_category?: string;
-  card_type?: string;
-  amount_card?: string;
 }
 
 interface InboxPayload {
+  stockOutId?: string;
+  damagedSerials?: string[];
+  missingSerials?: string[];
+}
+
+interface StockDetail {
   batchCard?: string;
   cardCategory?: string;
   cardType?: string;
   amountCard?: number;
-  serials?: string[];
 }
 
 export interface InboxDetail {
@@ -31,6 +35,8 @@ export interface InboxDetail {
   payload?: InboxPayload;
 }
 
+/* ================= COMPONENT ================= */
+
 export default function ModalDetailInbox({
   inboxId,
   data,
@@ -41,8 +47,9 @@ export default function ModalDetailInbox({
   onClose: () => void;
 }) {
   const [detail, setDetail] = useState<InboxDetail | null>(null);
+  const [stockDetail, setStockDetail] = useState<StockDetail | null>(null);
 
-  // 🔑 SATU SUMBER DATA UNTUK RENDER
+  // 👉 single source of truth untuk render
   const viewData = detail ?? data;
 
   const avatarLetter =
@@ -51,57 +58,89 @@ export default function ModalDetailInbox({
   const isSerialCase =
     viewData.status === "CARD_DAMAGED" || viewData.status === "CARD_MISSING";
 
-  /* ===== FETCH DETAIL ===== */
+  /* ================= FETCH DETAIL ================= */
+
   useEffect(() => {
     async function fetchDetail() {
       try {
-        const token = localStorage.getItem("fwc_token");
+        /**
+         * =====================
+         * 1️⃣ FETCH INBOX DETAIL
+         * =====================
+         */
+        const inboxRes = await api.get(`/inbox/${inboxId}`);
+        if (!inboxRes.data?.success) return;
 
-        const res = await fetch(
-          `${API_BASE_URL}/inbox/${inboxId}`, // ❗ BUKAN "{id}"
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        const item = inboxRes.data.data;
+        const sentDate = new Date(item.sentAt);
 
-        const result = await res.json();
+        // ✅ mapping status aman
+        const mappedStatus: InboxStatus =
+          item.payload?.damagedSerials?.length > 0
+            ? "CARD_DAMAGED"
+            : item.payload?.missingSerials?.length > 0
+            ? "CARD_MISSING"
+            : "ACCEPTED";
 
-        if (result.success) {
-          const item = result.data;
-          const sentDate = new Date(item.sentAt);
+        const inboxPayload: InboxPayload = {
+          stockOutId: item.payload?.stockOutId,
+          damagedSerials: item.payload?.damagedSerials ?? [],
+          missingSerials: item.payload?.missingSerials ?? [],
+        };
 
-          setDetail({
-            id: item.id,
-            status: data.status, // pakai status dari list
-            message: item.message,
-            dateLabel: sentDate.toLocaleDateString("id-ID", {
-              day: "2-digit",
-              month: "long",
-              year: "numeric",
-            }),
-            timeLabel:
-              sentDate.toLocaleTimeString("id-ID", {
-                hour: "2-digit",
-                minute: "2-digit",
-              }) + " WIB",
-            sender: {
-              fullName: item.sender.fullName,
-              station: item.sender.station,
-            },
-            payload: item.payload,
-          });
+        setDetail({
+          id: item.id,
+          status: mappedStatus,
+          message: item.message,
+          dateLabel: sentDate.toLocaleDateString("id-ID", {
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+          }),
+          timeLabel:
+            sentDate.toLocaleTimeString("id-ID", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }) + " WIB",
+          sender: {
+            fullName: item.sender?.fullName ?? "-",
+            station: item.station?.name ?? "-",
+          },
+          payload: inboxPayload,
+        });
+
+        /**
+         * ==========================
+         * 2️⃣ FETCH STOCK OUT DETAIL
+         * ==========================
+         */
+        if (!inboxPayload.stockOutId) {
+          console.warn("stockOutId not found in inbox payload");
+          return;
         }
-      } catch (e) {
-        console.error(e);
+
+        const stockRes = await api.get(`/stock/out/${inboxPayload.stockOutId}`);
+
+        if (!stockRes.data?.success) return;
+
+        const s = stockRes.data.data;
+
+        setStockDetail({
+          batchCard: String(s.batchId ?? "-"),
+          cardCategory: s.cardCategory?.name ?? "-",
+          cardType: s.cardType?.name ?? "-",
+          amountCard: s.quantity ?? 0,
+        });
+      } catch (err) {
+        console.error("Fetch inbox / stock detail error:", err);
       }
     }
 
     fetchDetail();
-  }, [inboxId, data.status]);
+  }, [inboxId]);
 
-  /*================= Helper Functions =================*/
+  /* ================= RENDER ================= */
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
       <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
@@ -111,6 +150,7 @@ export default function ModalDetailInbox({
             <div className="flex h-12 w-12 items-center justify-center rounded-full border text-lg font-bold">
               {avatarLetter}
             </div>
+
             <div>
               <p className="font-semibold text-gray-800">
                 {viewData.sender.fullName}
@@ -131,15 +171,10 @@ export default function ModalDetailInbox({
 
         {/* Body */}
         <div className="space-y-4 px-6 py-6">
-          <Row label="Batch Card:" value={viewData.payload?.batchCard ?? "-"} />
-          <Row
-            label="Card Category:"
-            value={viewData.payload?.cardCategory ?? "-"}
-          />
-          <Row label="Card Type:" value={viewData.payload?.cardType ?? "-"} />
+          <Row label="Card Type:" value={stockDetail?.cardType ?? "-"} />
           <Row
             label="Amount Card:"
-            value={String(viewData.payload?.amountCard ?? "-")}
+            value={String(stockDetail?.amountCard ?? "-")}
           />
           <Row label="Station:" value={viewData.sender.station ?? "-"} />
 
@@ -149,9 +184,12 @@ export default function ModalDetailInbox({
           </div>
 
           {isSerialCase &&
-            viewData.payload?.serials?.map((sn, i) => (
+            [
+              ...(viewData.payload?.damagedSerials ?? []),
+              ...(viewData.payload?.missingSerials ?? []),
+            ].map((sn, i) => (
               <Row
-                key={sn}
+                key={`${sn}-${i}`}
                 label={i === 0 ? "Serial Number Card:" : ""}
                 value={`${i + 1}. ${sn}`}
               />
@@ -182,7 +220,8 @@ export default function ModalDetailInbox({
   );
 }
 
-/* ===== Helper Row ===== */
+/* ================= HELPER ================= */
+
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid grid-cols-[180px_1fr] items-center gap-4">
