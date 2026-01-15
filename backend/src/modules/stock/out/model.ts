@@ -27,19 +27,19 @@ export namespace StockOutModel {
   // Stock Out Validate Request
   export const stockOutValidateRequest = t.Object({
     receivedSerialNumbers: t.Optional(
-      t.Array(t.String({ minLength: 1 }), {
+      t.Array(t.String(), {
         minItems: 0,
         maxItems: 10000,
       })
     ),
     lostSerialNumbers: t.Optional(
-      t.Array(t.String({ minLength: 1 }), {
+      t.Array(t.String(), {
         minItems: 0,
         maxItems: 10000,
       })
     ),
     damagedSerialNumbers: t.Optional(
-      t.Array(t.String({ minLength: 1 }), {
+      t.Array(t.String(), {
         minItems: 0,
         maxItems: 10000,
       })
