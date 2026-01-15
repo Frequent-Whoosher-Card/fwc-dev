@@ -20,6 +20,7 @@ import { AuthenticationError, AuthorizationError } from "./utils/errors";
 import { inbox } from "./modules/inbox";
 import { redeem } from "./modules/redeem";
 import { cardSwaps } from "./modules/card-swaps";
+import { activityLogModule } from "./modules/activitylog/controller";
 
 const app = new Elysia()
   .use(docsConfig)
@@ -46,7 +47,7 @@ const app = new Elysia()
   .use(metrics)
   .use(inbox)
   .use(redeem)
-  // .use(superset)
+  .use(activityLogModule)
 
   .onError(({ code, error, set }) => {
     // Global error handler

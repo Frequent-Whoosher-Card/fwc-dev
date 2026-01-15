@@ -58,6 +58,7 @@ model User {
   passwordResetTokens PasswordResetToken[]
   role                Role                 @relation(fields: [roleId], references: [id])
   station             Station?             @relation(fields: [stationId], references: [id])
+  activityLogs        ActivityLog[]
 
   @@map("users")
 }
@@ -444,6 +445,23 @@ enum PurchaseActivationStatus {
   PENDING
   ACTIVATED
   CANCELLED
+}
+
+
+model ActivityLog {
+  id          String    @id @default(uuid()) @map("log_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  action      String    @map("action")
+  description String?   @map("description")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  createdBy   String?   @map("created_by") @db.Uuid
+  updatedAt   DateTime  @default(now()) @map("updated_at")
+  updatedBy   String?   @map("updated_by") @db.Uuid
+  deletedAt   DateTime? @map("deleted_at")
+  deletedBy   String?   @map("deleted_by") @db.Uuid
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("activity_logs")
 }
 
 enum RedeemType {
