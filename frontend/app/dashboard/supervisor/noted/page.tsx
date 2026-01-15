@@ -111,9 +111,8 @@ export default function InboxPage() {
 
   // ✅ CLICK ITEM → HALAMAN DETAIL / EDIT
   const handleOpenDetail = (item: any) => {
-    router.push(`/dashboard/supervisor/noted/formnoted?stockOutId=${item.id}`);
+    router.push(`/dashboard/supervisor/noted/formnoted?id=${item.id}`);
   };
-
   /* =========================
      RENDER (SCROLL FIXED)
   ========================= */

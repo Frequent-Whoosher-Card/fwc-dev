@@ -1,16 +1,16 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function DashboardRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    const userRaw = localStorage.getItem('fwc_user');
+    const userRaw = localStorage.getItem("fwc_user");
 
     if (!userRaw) {
-      router.replace('/login');
+      router.replace("/login");
       return;
     }
 
@@ -18,17 +18,24 @@ export default function DashboardRedirect() {
     const role = user.role;
 
     switch (role) {
-      case 'superadmin':
-        router.replace('/dashboard/superadmin');
+      case "superadmin":
+        router.replace("/dashboard/superadmin");
         break;
-      case 'admin':
-        router.replace('/dashboard/admin');
+
+      case "admin":
+        router.replace("/dashboard/admin");
         break;
-      case 'petugas':
-        router.replace('/dashboard/petugas');
+
+      case "petugas":
+        router.replace("/dashboard/petugas");
         break;
+
+      case "supervisor":
+        router.replace("/dashboard/supervisor");
+        break;
+
       default:
-        router.replace('/login');
+        router.replace("/login");
     }
   }, [router]);
 

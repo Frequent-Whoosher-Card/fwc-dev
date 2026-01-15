@@ -12,29 +12,6 @@ const base =
   "h-10 w-full rounded-md border border-gray-300 px-3 text-sm focus:border-gray-400 focus:outline-none";
 
 /* ======================
-   FIELD
-====================== */
-function Field({
-  label,
-  required,
-  hint,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs text-gray-500">{label}</label>
-      {children}
-      {hint && <p className="text-[11px] text-gray-400">{hint}</p>}
-    </div>
-  );
-}
-
-/* ======================
    SECTION CARD
 ====================== */
 function SectionCard({
@@ -91,22 +68,18 @@ function YesNoToggle({
 ====================== */
 export default function FormNoted() {
   const router = useRouter();
-
-  /* ======================
-     QUERY PARAM
-  ====================== */
   const searchParams = useSearchParams();
-  const rawId = searchParams.get("stockOutId");
-  const stockOutId = rawId ? Number(rawId) : null;
+  const id = searchParams.get("id"); // ✅ pakai id
 
   /* ======================
      STATE
   ====================== */
-  const [station, setStation] = useState("");
-  const [category, setCategory] = useState("");
-  const [type, setType] = useState("");
-  const [goodQty, setGoodQty] = useState(0);
+  const [loading, setLoading] = useState(true);
 
+  const [station, setStation] = useState("-");
+  const [category, setCategory] = useState("-");
+  const [type, setType] = useState("-");
+  const [goodQty, setGoodQty] = useState(0);
   const [sender, setSender] = useState("-");
   const [movementAt, setMovementAt] = useState("-");
 
@@ -119,34 +92,62 @@ export default function FormNoted() {
   const [message, setMessage] = useState("");
 
   /* ======================
-     FETCH STOCK OUT DETAIL
+     TOTAL ISSUES
+  ====================== */
+  const totalIssues =
+    damagedSerials.filter((s) => s.trim()).length +
+    missingSerials.filter((s) => s.trim()).length;
+
+  /* ======================
+     FETCH DETAIL
   ====================== */
   useEffect(() => {
-    if (!stockOutId || Number.isNaN(stockOutId)) {
-      console.warn("⛔ stockOutId invalid:", stockOutId);
+    if (!id) {
+      console.warn("⛔ id kosong dari query");
+      setLoading(false);
       return;
     }
 
-    async function fetchStockOut() {
+    async function fetchDetail() {
       try {
-        console.log("✅ FETCH stockOutId =", stockOutId);
+        console.log("🚀 Fetch stock out detail:", id);
 
-        const res = await api.get(`/stock/out/${stockOutId}`);
-        const d = res.data?.data ?? res.data;
+        const res = await api.get(`/stock/out/${id}`, {
+          validateStatus: (status) => status < 500, // ✅ allow 422
+        });
 
-        if (!d) {
-          console.warn("⚠️ Response kosong:", res.data);
+        console.log("📦 RAW RESPONSE:", res.data);
+
+        // normal + validator fallback
+        let movement =
+          res.data?.data?.movement ?? res.data?.found?.data?.movement;
+
+        if (!movement) {
+          console.error("❌ movement tidak ditemukan:", res.data);
+          alert("Data stock out tidak ditemukan");
           return;
         }
 
-        setStation(d.stationName || "-");
-        setCategory(d.cardCategory?.name || "-");
-        setType(d.cardType?.name || "-");
-        setGoodQty(d.quantity || 0);
-        setSender(d.createdByName || "-");
+        // patch batchId jika tidak dikirim backend
+        if (!("batchId" in movement)) {
+          movement = {
+            ...movement,
+            batchId: movement.id,
+          };
+          console.warn("⚠️ batchId missing → fallback to id");
+        }
 
-        if (d.movementAt) {
-          const date = new Date(d.movementAt);
+        console.log("✅ movement normalized:", movement);
+
+        // map ke state
+        setStation(movement.station?.name || "-");
+        setCategory(movement.cardCategory?.name || "-");
+        setType(movement.cardType?.name || "-");
+        setGoodQty(Number(movement.quantity || 0));
+        setSender(movement.createdByName || "-");
+
+        if (movement.movementAt) {
+          const date = new Date(movement.movementAt);
           setMovementAt(
             date.toLocaleDateString("id-ID", {
               day: "2-digit",
@@ -161,23 +162,22 @@ export default function FormNoted() {
               " WIB"
           );
         }
-      } catch (err: any) {
-        console.error("❌ Fetch stock out detail error");
-        console.error("➡️ status:", err?.response?.status);
-        console.error("➡️ data:", err?.response?.data);
+      } catch (err) {
+        console.error("❌ Fetch stock out detail error:", err);
+        alert("Gagal mengambil detail stock out");
+      } finally {
+        setLoading(false);
       }
     }
 
-    fetchStockOut();
-  }, [stockOutId]);
+    fetchDetail();
+  }, [id]);
 
   /* ======================
-     SUBMIT VALIDATION
+     SUBMIT
   ====================== */
   const handleSubmit = async () => {
-    if (!message.trim()) {
-      return alert("Notes wajib diisi.");
-    }
+    if (!message.trim()) return alert("Notes wajib diisi.");
 
     if (hasDamaged && damagedSerials.some((s) => !s.trim())) {
       return alert("Semua serial rusak wajib diisi.");
@@ -187,21 +187,20 @@ export default function FormNoted() {
       return alert("Semua serial hilang wajib diisi.");
     }
 
-    if (!stockOutId) {
-      return alert("StockOut ID tidak valid.");
-    }
+    if (!id) return alert("ID tidak valid.");
 
     const payload = {
-      stockOutId, // number ✅
-      damagedSerialNumbers: damagedSerials,
-      lostSerialNumbers: missingSerials,
+      stockOutId: id, // backend tetap minta stockOutId
+      damagedSerialNumbers: damagedSerials.filter((s) => s.trim()),
+      lostSerialNumbers: missingSerials.filter((s) => s.trim()),
       notes: message,
     };
 
     try {
       await api.post("/stock/out/validate", payload);
-      alert("Validasi berhasil disimpan");
-      router.push("/dashboard/supervisor/inbox");
+
+      alert("✅ Validasi berhasil disimpan");
+      router.push("/dashboard/supervisor/noted");
     } catch (err) {
       console.error("❌ Submit validation error:", err);
       alert("Gagal submit validasi");
@@ -221,119 +220,119 @@ export default function FormNoted() {
         <h1 className="text-xl font-semibold">Validasi Stock In</h1>
       </div>
 
-      {/* SUMMARY */}
-      <div className="rounded-xl border bg-white p-5 sm:p-6 shadow-sm space-y-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-gray-800">
-              Stock In Summary
-            </h2>
-            <p className="text-xs text-gray-400">
-              Data otomatis dari superadmin
-            </p>
-          </div>
-
-          <span className="text-[11px] px-2 py-1 rounded-full bg-gray-100 text-gray-500">
-            Auto-filled
-          </span>
+      {/* LOADING */}
+      {loading && (
+        <div className="p-6 text-sm text-gray-500">
+          Loading stock out detail...
         </div>
+      )}
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="rounded-lg border bg-gray-50 p-4">
-            <p className="text-xs text-gray-500">Total Cards</p>
-            <p className="text-3xl font-bold text-gray-900">{goodQty}</p>
-            <p className="text-[11px] text-gray-400">Kartu dikirim</p>
-          </div>
+      {/* CONTENT */}
+      {!loading && (
+        <>
+          {/* SUMMARY */}
+          <div className="rounded-xl border bg-white p-5 sm:p-6 shadow-sm space-y-5">
+            <div className="grid grid-cols-2 gap-4">
+              <SummaryBox label="Total Cards" value={goodQty} />
+              <SummaryBox label="Total Issues" value={totalIssues} danger />
+            </div>
 
-          <div className="rounded-lg border bg-red-50 p-4">
-            <p className="text-xs text-red-600">Total Issues</p>
-            <p className="text-3xl font-bold text-red-700">
-              {damagedSerials.length + missingSerials.length}
-            </p>
-            <p className="text-[11px] text-red-500">Rusak / Hilang</p>
-          </div>
-        </div>
+            <div className="h-px bg-gray-100" />
 
-        <div className="h-px bg-gray-100" />
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-5 text-sm">
-          <Info label="Sender" value={sender} />
-          <Info label="Waktu Stock Out" value={movementAt} />
-          <Info label="Station" value={station} />
-          <div>
-            <p className="text-[11px] uppercase tracking-wide text-gray-400">
-              Card
-            </p>
-            <div className="flex flex-wrap items-center gap-2 mt-1">
-              <Tag text={category} />
-              <Tag text={type} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-5 text-sm">
+              <Info label="Sender" value={sender} />
+              <Info label="Waktu Stock Out" value={movementAt} />
+              <Info label="Station" value={station} />
+              <div>
+                <p className="text-[11px] uppercase tracking-wide text-gray-400">
+                  Card
+                </p>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <Tag text={category} />
+                  <Tag text={type} />
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* DAMAGED */}
-      <SectionCard title="Apakah ada kartu yang rusak?">
-        <div className="md:col-span-2">
-          <YesNoToggle value={hasDamaged} onChange={setHasDamaged} />
-          <p className="mt-1 text-xs text-gray-500">
-            {damagedSerials.length} dari {goodQty} kartu
-          </p>
-        </div>
+          {/* DAMAGED */}
+          <SectionCard title="Apakah ada kartu yang rusak?">
+            <div className="md:col-span-2">
+              <YesNoToggle
+                value={hasDamaged}
+                onChange={(v) => {
+                  setHasDamaged(v);
+                  if (!v) setDamagedSerials([]);
+                }}
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                {damagedSerials.filter((s) => s.trim() !== "").length} dari{" "}
+                {goodQty} kartu
+              </p>
+            </div>
 
-        {hasDamaged && (
-          <SerialList
-            values={damagedSerials}
-            onChange={setDamagedSerials}
-            placeholder="Enter damaged serial number"
-          />
-        )}
-      </SectionCard>
+            {hasDamaged && (
+              <SerialList
+                values={damagedSerials}
+                onChange={setDamagedSerials}
+                placeholder="Enter damaged serial number"
+              />
+            )}
+          </SectionCard>
 
-      {/* MISSING */}
-      <SectionCard title="Apakah ada kartu yang hilang?">
-        <div className="md:col-span-2">
-          <YesNoToggle value={hasMissing} onChange={setHasMissing} />
-          <p className="mt-1 text-xs text-gray-500">
-            {missingSerials.length} dari {goodQty} kartu
-          </p>
-        </div>
+          {/* MISSING */}
+          <SectionCard title="Apakah ada kartu yang hilang?">
+            <div className="md:col-span-2">
+              <YesNoToggle
+                value={hasMissing}
+                onChange={(v) => {
+                  setHasMissing(v);
+                  if (!v) setMissingSerials([]);
+                }}
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                {missingSerials.filter((s) => s.trim() !== "").length} dari{" "}
+                {goodQty} kartu
+              </p>
+            </div>
 
-        {hasMissing && (
-          <SerialList
-            values={missingSerials}
-            onChange={setMissingSerials}
-            placeholder="Enter missing serial number"
-          />
-        )}
-      </SectionCard>
+            {hasMissing && (
+              <SerialList
+                values={missingSerials}
+                onChange={setMissingSerials}
+                placeholder="Enter missing serial number"
+              />
+            )}
+          </SectionCard>
 
-      {/* NOTES */}
-      <SectionCard title="Notes">
-        <textarea
-          rows={4}
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          className="w-full rounded-md border p-3 text-sm md:col-span-2 focus:border-gray-400 focus:outline-none"
-        />
-      </SectionCard>
+          {/* NOTES */}
+          <SectionCard title="Notes">
+            <textarea
+              rows={4}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              className="w-full rounded-md border p-3 text-sm focus:border-gray-400 focus:outline-none"
+            />
+          </SectionCard>
 
-      {/* ACTION */}
-      <div className="sticky bottom-0 flex justify-end gap-3">
-        <button
-          onClick={() => router.back()}
-          className="rounded-md border px-6 py-2 text-sm"
-        >
-          Cancel
-        </button>
+          {/* ACTION */}
+          <div className="sticky bottom-0 flex justify-end gap-3">
+            <button
+              onClick={() => router.back()}
+              className="rounded-md border px-6 py-2 text-sm"
+            >
+              Cancel
+            </button>
 
-        <button
-          onClick={handleSubmit}
-          className="rounded-md bg-[#8B1538] px-8 py-2 text-sm font-medium text-white shadow"
-        >
-          Submit Validation
-        </button>
-      </div>
+            <button
+              onClick={handleSubmit}
+              className="rounded-md bg-[#8B1538] px-8 py-2 text-sm font-medium text-white shadow"
+            >
+              Submit Validation
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -341,6 +340,31 @@ export default function FormNoted() {
 /* ======================
    SMALL UI HELPERS
 ====================== */
+
+function SummaryBox({
+  label,
+  value,
+  danger,
+}: {
+  label: string;
+  value: number;
+  danger?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-lg border p-4 ${danger ? "bg-red-50" : "bg-gray-50"}`}
+    >
+      <p className="text-xs text-gray-500">{label}</p>
+      <p
+        className={`text-3xl font-bold ${
+          danger ? "text-red-700" : "text-gray-900"
+        }`}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
@@ -371,7 +395,7 @@ function SerialList({
   placeholder: string;
 }) {
   return (
-    <div className="md:col-span-2 space-y-2">
+    <div className="space-y-2">
       {values.map((v, i) => (
         <div key={i} className="flex items-center gap-3">
           <span className="w-6 text-sm text-gray-400">{i + 1}.</span>
