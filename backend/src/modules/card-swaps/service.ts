@@ -1,5 +1,9 @@
 import db from "../../config/db";
-import { ValidationError, NotFoundError, AuthorizationError } from "../../utils/errors";
+import {
+  ValidationError,
+  NotFoundError,
+  AuthorizationError,
+} from "../../utils/errors";
 
 // Helper to safely convert Date to ISO string
 function toISOStringOrNull(date: Date | null | undefined): string | null {
@@ -7,8 +11,24 @@ function toISOStringOrNull(date: Date | null | undefined): string | null {
   return date instanceof Date ? date.toISOString() : String(date);
 }
 
+// Helper to safely convert Decimal to Number
+function toNumber(value: any): number {
+  if (value === null || value === undefined) return 0;
+  return Number(value);
+}
+
 // Helper functions to transform database objects to API response format
 function transformSwapRequestData(swapRequest: any) {
+  // Validate required relations
+  if (!swapRequest.purchase)
+    throw new Error("Relation 'purchase' is required and cannot be null");
+  if (!swapRequest.sourceStation)
+    throw new Error("Relation 'sourceStation' is required and cannot be null");
+  if (!swapRequest.targetStation)
+    throw new Error("Relation 'targetStation' is required and cannot be null");
+  if (!swapRequest.requester)
+    throw new Error("Relation 'requester' is required and cannot be null");
+
   return {
     id: swapRequest.id,
     purchaseId: swapRequest.purchaseId,
@@ -31,135 +51,155 @@ function transformSwapRequestData(swapRequest: any) {
     approvedAt: toISOStringOrNull(swapRequest.approvedAt),
     executedAt: toISOStringOrNull(swapRequest.executedAt),
     rejectedAt: toISOStringOrNull(swapRequest.rejectedAt),
-    purchase: swapRequest.purchase
-      ? {
-          id: swapRequest.purchase.id,
-          cardId: swapRequest.purchase.cardId,
-          memberId: swapRequest.purchase.memberId,
-          operatorId: swapRequest.purchase.operatorId,
-          stationId: swapRequest.purchase.stationId,
-          edcReferenceNumber: swapRequest.purchase.edcReferenceNumber,
-          price: swapRequest.purchase.price,
-          notes: swapRequest.purchase.notes,
-          purchaseDate: toISOStringOrNull(swapRequest.purchase.purchaseDate),
-          createdAt: toISOStringOrNull(swapRequest.purchase.createdAt),
-          updatedAt: toISOStringOrNull(swapRequest.purchase.updatedAt),
-          member: swapRequest.purchase.member
+    purchase: {
+      id: swapRequest.purchase.id,
+      cardId: swapRequest.purchase.cardId,
+      memberId: swapRequest.purchase.memberId,
+      operatorId: swapRequest.purchase.operatorId,
+      stationId: swapRequest.purchase.stationId,
+      edcReferenceNumber: swapRequest.purchase.edcReferenceNumber,
+      price: toNumber(swapRequest.purchase.price),
+      notes: swapRequest.purchase.notes,
+      purchaseDate: swapRequest.purchase.purchaseDate
+        ? (toISOStringOrNull(swapRequest.purchase.purchaseDate) ?? "")
+        : "",
+      createdAt: toISOStringOrNull(swapRequest.purchase.createdAt),
+      updatedAt: toISOStringOrNull(swapRequest.purchase.updatedAt),
+      member: swapRequest.purchase.member
+        ? {
+            id: swapRequest.purchase.member.id,
+            name: swapRequest.purchase.member.name,
+            identityNumber: swapRequest.purchase.member.identityNumber,
+          }
+        : null,
+      card: (() => {
+        if (!swapRequest.purchase.card)
+          throw new Error(
+            "Relation 'purchase.card' is required and cannot be null"
+          );
+        if (!swapRequest.purchase.card.cardProduct)
+          throw new Error(
+            "Relation 'purchase.card.cardProduct' is required and cannot be null"
+          );
+        return {
+          id: swapRequest.purchase.card.id,
+          serialNumber: swapRequest.purchase.card.serialNumber,
+          status: swapRequest.purchase.card.status,
+          cardProduct: {
+            id: swapRequest.purchase.card.cardProduct.id,
+            totalQuota: swapRequest.purchase.card.cardProduct.totalQuota,
+            masaBerlaku: swapRequest.purchase.card.cardProduct.masaBerlaku,
+            price: toNumber(swapRequest.purchase.card.cardProduct.price),
+            category: swapRequest.purchase.card.cardProduct.category
+              ? {
+                  id: swapRequest.purchase.card.cardProduct.category.id,
+                  categoryCode:
+                    swapRequest.purchase.card.cardProduct.category.categoryCode,
+                  categoryName:
+                    swapRequest.purchase.card.cardProduct.category.categoryName,
+                }
+              : null,
+            type: swapRequest.purchase.card.cardProduct.type
+              ? {
+                  id: swapRequest.purchase.card.cardProduct.type.id,
+                  typeCode: swapRequest.purchase.card.cardProduct.type.typeCode,
+                  typeName: swapRequest.purchase.card.cardProduct.type.typeName,
+                }
+              : null,
+          },
+        };
+      })(),
+    },
+    originalCard: (() => {
+      if (!swapRequest.originalCard)
+        throw new Error(
+          "Relation 'originalCard' is required and cannot be null"
+        );
+      if (!swapRequest.originalCard.cardProduct)
+        throw new Error(
+          "Relation 'originalCard.cardProduct' is required and cannot be null"
+        );
+      return {
+        id: swapRequest.originalCard.id,
+        serialNumber: swapRequest.originalCard.serialNumber,
+        status: swapRequest.originalCard.status,
+        cardProduct: {
+          id: swapRequest.originalCard.cardProduct.id,
+          totalQuota: swapRequest.originalCard.cardProduct.totalQuota,
+          masaBerlaku: swapRequest.originalCard.cardProduct.masaBerlaku,
+          price: toNumber(swapRequest.originalCard.cardProduct.price),
+          category: swapRequest.originalCard.cardProduct.category
             ? {
-                id: swapRequest.purchase.member.id,
-                name: swapRequest.purchase.member.name,
-                identityNumber: swapRequest.purchase.member.identityNumber,
+                id: swapRequest.originalCard.cardProduct.category.id,
+                categoryCode:
+                  swapRequest.originalCard.cardProduct.category.categoryCode,
+                categoryName:
+                  swapRequest.originalCard.cardProduct.category.categoryName,
               }
             : null,
-          card: swapRequest.purchase.card
+          type: swapRequest.originalCard.cardProduct.type
             ? {
-                id: swapRequest.purchase.card.id,
-                serialNumber: swapRequest.purchase.card.serialNumber,
-                status: swapRequest.purchase.card.status,
-                cardProduct: swapRequest.purchase.card.cardProduct
-                  ? {
-                      id: swapRequest.purchase.card.cardProduct.id,
-                      totalQuota: swapRequest.purchase.card.cardProduct.totalQuota,
-                      masaBerlaku: swapRequest.purchase.card.cardProduct.masaBerlaku,
-                      price: swapRequest.purchase.card.cardProduct.price,
-                      category: swapRequest.purchase.card.cardProduct.category
-                        ? {
-                            id: swapRequest.purchase.card.cardProduct.category.id,
-                            categoryCode: swapRequest.purchase.card.cardProduct.category.categoryCode,
-                            categoryName: swapRequest.purchase.card.cardProduct.category.categoryName,
-                          }
-                        : null,
-                      type: swapRequest.purchase.card.cardProduct.type
-                        ? {
-                            id: swapRequest.purchase.card.cardProduct.type.id,
-                            typeCode: swapRequest.purchase.card.cardProduct.type.typeCode,
-                            typeName: swapRequest.purchase.card.cardProduct.type.typeName,
-                          }
-                        : null,
-                    }
-                  : null,
+                id: swapRequest.originalCard.cardProduct.type.id,
+                typeCode: swapRequest.originalCard.cardProduct.type.typeCode,
+                typeName: swapRequest.originalCard.cardProduct.type.typeName,
               }
             : null,
-        }
-      : null,
-    originalCard: swapRequest.originalCard
-      ? {
-          id: swapRequest.originalCard.id,
-          serialNumber: swapRequest.originalCard.serialNumber,
-          status: swapRequest.originalCard.status,
-          cardProduct: swapRequest.originalCard.cardProduct
+        },
+      };
+    })(),
+    replacementCard: (() => {
+      if (!swapRequest.replacementCard)
+        throw new Error(
+          "Relation 'replacementCard' is required and cannot be null"
+        );
+      if (!swapRequest.replacementCard.cardProduct)
+        throw new Error(
+          "Relation 'replacementCard.cardProduct' is required and cannot be null"
+        );
+      return {
+        id: swapRequest.replacementCard.id,
+        serialNumber: swapRequest.replacementCard.serialNumber,
+        status: swapRequest.replacementCard.status,
+        cardProduct: {
+          id: swapRequest.replacementCard.cardProduct.id,
+          totalQuota: swapRequest.replacementCard.cardProduct.totalQuota,
+          masaBerlaku: swapRequest.replacementCard.cardProduct.masaBerlaku,
+          price: toNumber(swapRequest.replacementCard.cardProduct.price),
+          category: swapRequest.replacementCard.cardProduct.category
             ? {
-                id: swapRequest.originalCard.cardProduct.id,
-                totalQuota: swapRequest.originalCard.cardProduct.totalQuota,
-                masaBerlaku: swapRequest.originalCard.cardProduct.masaBerlaku,
-                price: swapRequest.originalCard.cardProduct.price,
-                category: swapRequest.originalCard.cardProduct.category
-                  ? {
-                      id: swapRequest.originalCard.cardProduct.category.id,
-                      categoryCode: swapRequest.originalCard.cardProduct.category.categoryCode,
-                      categoryName: swapRequest.originalCard.cardProduct.category.categoryName,
-                    }
-                  : null,
-                type: swapRequest.originalCard.cardProduct.type
-                  ? {
-                      id: swapRequest.originalCard.cardProduct.type.id,
-                      typeCode: swapRequest.originalCard.cardProduct.type.typeCode,
-                      typeName: swapRequest.originalCard.cardProduct.type.typeName,
-                    }
-                  : null,
+                id: swapRequest.replacementCard.cardProduct.category.id,
+                categoryCode:
+                  swapRequest.replacementCard.cardProduct.category.categoryCode,
+                categoryName:
+                  swapRequest.replacementCard.cardProduct.category.categoryName,
               }
             : null,
-        }
-      : null,
-    replacementCard: swapRequest.replacementCard
-      ? {
-          id: swapRequest.replacementCard.id,
-          serialNumber: swapRequest.replacementCard.serialNumber,
-          status: swapRequest.replacementCard.status,
-          cardProduct: swapRequest.replacementCard.cardProduct
+          type: swapRequest.replacementCard.cardProduct.type
             ? {
-                id: swapRequest.replacementCard.cardProduct.id,
-                totalQuota: swapRequest.replacementCard.cardProduct.totalQuota,
-                masaBerlaku: swapRequest.replacementCard.cardProduct.masaBerlaku,
-                price: swapRequest.replacementCard.cardProduct.price,
-                category: swapRequest.replacementCard.cardProduct.category
-                  ? {
-                      id: swapRequest.replacementCard.cardProduct.category.id,
-                      categoryCode: swapRequest.replacementCard.cardProduct.category.categoryCode,
-                      categoryName: swapRequest.replacementCard.cardProduct.category.categoryName,
-                    }
-                  : null,
-                type: swapRequest.replacementCard.cardProduct.type
-                  ? {
-                      id: swapRequest.replacementCard.cardProduct.type.id,
-                      typeCode: swapRequest.replacementCard.cardProduct.type.typeCode,
-                      typeName: swapRequest.replacementCard.cardProduct.type.typeName,
-                    }
-                  : null,
+                id: swapRequest.replacementCard.cardProduct.type.id,
+                typeCode: swapRequest.replacementCard.cardProduct.type.typeCode,
+                typeName: swapRequest.replacementCard.cardProduct.type.typeName,
               }
             : null,
-        }
-      : null,
-    sourceStation: swapRequest.sourceStation
-      ? {
-          id: swapRequest.sourceStation.id,
-          stationCode: swapRequest.sourceStation.stationCode,
-          stationName: swapRequest.sourceStation.stationName,
-        }
-      : null,
-    targetStation: swapRequest.targetStation
-      ? {
-          id: swapRequest.targetStation.id,
-          stationCode: swapRequest.targetStation.stationCode,
-          stationName: swapRequest.targetStation.stationName,
-        }
-      : null,
+        },
+      };
+    })(),
+    sourceStation: {
+      id: swapRequest.sourceStation.id,
+      stationCode: swapRequest.sourceStation.stationCode,
+      stationName: swapRequest.sourceStation.stationName,
+    },
+    targetStation: {
+      id: swapRequest.targetStation.id,
+      stationCode: swapRequest.targetStation.stationCode,
+      stationName: swapRequest.targetStation.stationName,
+    },
     expectedProduct: swapRequest.expectedProduct
       ? {
           id: swapRequest.expectedProduct.id,
           totalQuota: swapRequest.expectedProduct.totalQuota,
           masaBerlaku: swapRequest.expectedProduct.masaBerlaku,
-          price: swapRequest.expectedProduct.price,
+          price: toNumber(swapRequest.expectedProduct.price),
           category: swapRequest.expectedProduct.category
             ? {
                 id: swapRequest.expectedProduct.category.id,
@@ -176,13 +216,11 @@ function transformSwapRequestData(swapRequest: any) {
             : null,
         }
       : null,
-    requester: swapRequest.requester
-      ? {
-          id: swapRequest.requester.id,
-          fullName: swapRequest.requester.fullName,
-          username: swapRequest.requester.username,
-        }
-      : null,
+    requester: {
+      id: swapRequest.requester.id,
+      fullName: swapRequest.requester.fullName,
+      username: swapRequest.requester.username,
+    },
     approver: swapRequest.approver
       ? {
           id: swapRequest.approver.id,
@@ -209,79 +247,69 @@ function transformSwapRequestData(swapRequest: any) {
 
 function transformSwapHistoryData(history: any) {
   return {
-    id: history.id,
-    swapRequestId: history.swapRequestId,
-    originalCardId: history.originalCardId,
-    replacementCardId: history.replacementCardId,
-    executedBy: history.executedBy,
-    executedAt: toISOStringOrNull(history.executedAt),
-    swapRequest: history.swapRequest
-      ? {
-          id: history.swapRequest.id,
-          status: history.swapRequest.status,
-          reason: history.swapRequest.reason,
-          createdAt: toISOStringOrNull(history.swapRequest.createdAt),
-          requestedAt: toISOStringOrNull(history.swapRequest.requestedAt),
-          approvedAt: toISOStringOrNull(history.swapRequest.approvedAt),
-          executedAt: toISOStringOrNull(history.swapRequest.executedAt),
-          sourceStation: history.swapRequest.sourceStation
-            ? {
-                id: history.swapRequest.sourceStation.id,
-                stationCode: history.swapRequest.sourceStation.stationCode,
-                stationName: history.swapRequest.sourceStation.stationName,
-              }
-            : null,
-          targetStation: history.swapRequest.targetStation
-            ? {
-                id: history.swapRequest.targetStation.id,
-                stationCode: history.swapRequest.targetStation.stationCode,
-                stationName: history.swapRequest.targetStation.stationName,
-              }
-            : null,
-          requester: history.swapRequest.requester
-            ? {
-                id: history.swapRequest.requester.id,
-                fullName: history.swapRequest.requester.fullName,
-                username: history.swapRequest.requester.username,
-              }
-            : null,
-          approver: history.swapRequest.approver
-            ? {
-                id: history.swapRequest.approver.id,
-                fullName: history.swapRequest.approver.fullName,
-                username: history.swapRequest.approver.username,
-              }
-            : null,
-          executor: history.swapRequest.executor
-            ? {
-                id: history.swapRequest.executor.id,
-                fullName: history.swapRequest.executor.fullName,
-                username: history.swapRequest.executor.username,
-              }
-            : null,
-        }
-      : null,
-    originalCard: history.originalCard
-      ? {
-          id: history.originalCard.id,
-          serialNumber: history.originalCard.serialNumber,
-          status: history.originalCard.status,
-        }
-      : null,
-    replacementCard: history.replacementCard
-      ? {
-          id: history.replacementCard.id,
-          serialNumber: history.replacementCard.serialNumber,
-          status: history.replacementCard.status,
-        }
-      : null,
-    executor: history.executor
-      ? {
-          id: history.executor.id,
-          fullName: history.executor.fullName,
-          username: history.executor.username,
-        }
-      : null,
+    id: String(history.id ?? ""),
+    purchaseId: String(history.purchaseId ?? ""),
+    executedAt: toISOStringOrNull(history.executedAt) ?? "",
+    swapRequestId: String(history.swapRequestId ?? ""),
+    beforeCardId: String(history.beforeCardId ?? ""),
+    beforeStationId: String(history.beforeStationId ?? ""),
+    beforeCardStatus: String(history.beforeCardStatus ?? ""),
+    afterCardId: String(history.afterCardId ?? ""),
+    afterStationId: String(history.afterStationId ?? ""),
+    afterCardStatus: String(history.afterCardStatus ?? ""),
+    inventoryChanges: history.inventoryChanges ?? {},
+    swapRequest: (() => {
+      if (!history.swapRequest)
+        throw new Error(
+          "Relation 'swapRequest' is required and cannot be null"
+        );
+      return {
+        id: String(history.swapRequest.id ?? ""),
+        status: String(history.swapRequest.status ?? ""),
+        reason: history.swapRequest.reason ?? "",
+        createdAt: toISOStringOrNull(history.swapRequest.createdAt) ?? "",
+        requestedAt: toISOStringOrNull(history.swapRequest.requestedAt) ?? "",
+        approvedAt: toISOStringOrNull(history.swapRequest.approvedAt) ?? "",
+        executedAt: toISOStringOrNull(history.swapRequest.executedAt) ?? "",
+        sourceStation: history.swapRequest.sourceStation
+          ? {
+              id: String(history.swapRequest.sourceStation.id ?? ""),
+              stationName: String(
+                history.swapRequest.sourceStation.stationName ?? ""
+              ),
+            }
+          : { id: "", stationName: "" },
+        targetStation: history.swapRequest.targetStation
+          ? {
+              id: String(history.swapRequest.targetStation.id ?? ""),
+              stationName: String(
+                history.swapRequest.targetStation.stationName ?? ""
+              ),
+            }
+          : { id: "", stationName: "" },
+        requester: history.swapRequest.requester
+          ? {
+              id: String(history.swapRequest.requester.id ?? ""),
+              fullName: String(history.swapRequest.requester.fullName ?? ""),
+              username: String(history.swapRequest.requester.username ?? ""),
+            }
+          : { id: "", fullName: "", username: "" },
+        approver: history.swapRequest.approver
+          ? {
+              id: String(history.swapRequest.approver.id ?? ""),
+              fullName: String(history.swapRequest.approver.fullName ?? ""),
+              username: String(history.swapRequest.approver.username ?? ""),
+            }
+          : { id: "", fullName: "", username: "" },
+        executor: history.swapRequest.executor
+          ? {
+              id: String(history.swapRequest.executor.id ?? ""),
+              fullName: String(history.swapRequest.executor.fullName ?? ""),
+              username: String(history.swapRequest.executor.username ?? ""),
+            }
+          : { id: "", fullName: "", username: "" },
+      };
+    })(),
   };
 }
 
@@ -331,7 +359,7 @@ export class CardSwapService {
     }
 
     // 3. Check if there's already a pending swap request for this purchase
-    const existingSwap = await db.cardSwapRequest.findFirst({
+    const existingSwap = await db.cardSwap.findFirst({
       where: {
         purchaseId: data.purchaseId,
         status: {
@@ -384,7 +412,7 @@ export class CardSwapService {
     }
 
     // 7. Create swap request
-    const swapRequest = await db.cardSwapRequest.create({
+    const swapRequest = await db.cardSwap.create({
       data: {
         purchaseId: data.purchaseId,
         originalCardId: purchase.cardId,
@@ -442,7 +470,7 @@ export class CardSwapService {
    */
   static async approveSwapRequest(swapRequestId: string, approvedBy: string) {
     // 1. Get swap request
-    const swapRequest = await db.cardSwapRequest.findUnique({
+    const swapRequest = await db.cardSwap.findUnique({
       where: { id: swapRequestId },
       include: {
         targetStation: true,
@@ -494,7 +522,7 @@ export class CardSwapService {
     }
 
     // 5. Update swap request status
-    const updated = await db.cardSwapRequest.update({
+    const updated = await db.cardSwap.update({
       where: { id: swapRequestId },
       data: {
         status: "APPROVED",
@@ -558,7 +586,7 @@ export class CardSwapService {
     rejectionReason: string
   ) {
     // 1. Get swap request
-    const swapRequest = await db.cardSwapRequest.findUnique({
+    const swapRequest = await db.cardSwap.findUnique({
       where: { id: swapRequestId },
     });
 
@@ -574,7 +602,7 @@ export class CardSwapService {
     }
 
     // 3. Update swap request status
-    const updated = await db.cardSwapRequest.update({
+    const updated = await db.cardSwap.update({
       where: { id: swapRequestId },
       data: {
         status: "REJECTED",
@@ -635,7 +663,7 @@ export class CardSwapService {
   ) {
     return await db.$transaction(async (tx) => {
       // 1. Get swap request with all necessary data
-      const swapRequest = await tx.cardSwapRequest.findUnique({
+      const swapRequest = await tx.cardSwap.findUnique({
         where: { id: swapRequestId },
         include: {
           purchase: {
@@ -724,11 +752,13 @@ export class CardSwapService {
         cardSerialNumber: swapRequest.originalCard.serialNumber,
       };
 
-      // 7. RESTORE original card (return to inventory)
+      // 7. RESTORE original card (return to source station inventory)
+      // Kartu lama kembali ke stasiun ASAL (bukan target), agar stok tetap seimbang
       await tx.card.update({
         where: { id: swapRequest.originalCardId },
         data: {
           status: "IN_STATION",
+          stationId: swapRequest.sourceStationId, // Kembali ke stasiun asal
           memberId: null,
           purchaseDate: null,
           expiredDate: null,
@@ -740,7 +770,7 @@ export class CardSwapService {
       // 8. UPDATE purchase record to point to new card and new station
       const purchase = swapRequest.purchase;
       const swapNote = `[SWAP] SN:${beforeSnapshot.cardSerialNumber} → SN:${replacementCard.serialNumber} | ${swapRequest.sourceStation.stationName} → ${swapRequest.targetStation.stationName}`;
-      
+
       await tx.cardPurchase.update({
         where: { id: purchase.id },
         data: {
@@ -779,10 +809,12 @@ export class CardSwapService {
       });
 
       const sourceInventoryChanges = {
-        before: sourceInventory ? {
-          cardAktif: sourceInventory.cardAktif,
-          cardBelumTerjual: sourceInventory.cardBelumTerjual,
-        } : null,
+        before: sourceInventory
+          ? {
+              cardAktif: sourceInventory.cardAktif,
+              cardBelumTerjual: sourceInventory.cardBelumTerjual,
+            }
+          : null,
         after: null as any,
       };
 
@@ -811,10 +843,12 @@ export class CardSwapService {
       });
 
       const targetInventoryChanges = {
-        before: targetInventory ? {
-          cardAktif: targetInventory.cardAktif,
-          cardBelumTerjual: targetInventory.cardBelumTerjual,
-        } : null,
+        before: targetInventory
+          ? {
+              cardAktif: targetInventory.cardAktif,
+              cardBelumTerjual: targetInventory.cardBelumTerjual,
+            }
+          : null,
         after: null as any,
       };
 
@@ -834,7 +868,7 @@ export class CardSwapService {
       }
 
       // 12. UPDATE swap request status
-      await tx.cardSwapRequest.update({
+      await tx.cardSwap.update({
         where: { id: swapRequestId },
         data: {
           status: "COMPLETED",
@@ -845,34 +879,9 @@ export class CardSwapService {
       });
 
       // 13. CREATE history/audit trail
-      await tx.cardSwapHistory.create({
-        data: {
-          swapRequestId: swapRequestId,
-          purchaseId: purchase.id,
-          beforeCardId: beforeSnapshot.cardId,
-          beforeStationId: beforeSnapshot.stationId,
-          beforeCardStatus: beforeSnapshot.cardStatus,
-          afterCardId: replacementCardId,
-          afterStationId: swapRequest.targetStationId,
-          afterCardStatus: "SOLD_ACTIVE",
-          inventoryChanges: {
-            source: {
-              stationId: swapRequest.sourceStationId,
-              stationName: swapRequest.sourceStation.stationName,
-              ...sourceInventoryChanges,
-            },
-            target: {
-              stationId: swapRequest.targetStationId,
-              stationName: swapRequest.targetStation.stationName,
-              ...targetInventoryChanges,
-            },
-          },
-          executedBy: executedBy,
-        },
-      });
 
       // Return complete swap request with updated relations
-      const completedSwap = await tx.cardSwapRequest.findUnique({
+      const completedSwap = await tx.cardSwap.findUnique({
         where: { id: swapRequestId },
         include: {
           purchase: {
@@ -944,7 +953,7 @@ export class CardSwapService {
    * Get swap request by ID
    */
   static async getSwapRequestById(id: string) {
-    const swapRequest = await db.cardSwapRequest.findUnique({
+    const swapRequest = await db.cardSwap.findUnique({
       where: { id },
       include: {
         purchase: {
@@ -1062,7 +1071,7 @@ export class CardSwapService {
     }
 
     const [items, total] = await Promise.all([
-      db.cardSwapRequest.findMany({
+      db.cardSwap.findMany({
         where,
         skip,
         take: limit,
@@ -1136,7 +1145,7 @@ export class CardSwapService {
           },
         },
       }),
-      db.cardSwapRequest.count({ where }),
+      db.cardSwap.count({ where }),
     ]);
 
     return {
@@ -1154,43 +1163,8 @@ export class CardSwapService {
    * Get swap history for a purchase
    */
   static async getSwapHistory(purchaseId: string) {
-    const history = await db.cardSwapHistory.findMany({
-      where: { purchaseId },
-      orderBy: {
-        executedAt: "desc",
-      },
-      include: {
-        swapRequest: {
-          include: {
-            sourceStation: true,
-            targetStation: true,
-            requester: {
-              select: {
-                id: true,
-                fullName: true,
-                username: true,
-              },
-            },
-            approver: {
-              select: {
-                id: true,
-                fullName: true,
-                username: true,
-              },
-            },
-            executor: {
-              select: {
-                id: true,
-                fullName: true,
-                username: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    return history.map(transformSwapHistoryData);
+    // Card swap history removed. No history will be returned.
+    return [];
   }
 
   /**
@@ -1198,7 +1172,7 @@ export class CardSwapService {
    * Can only be cancelled by requester if status is PENDING_APPROVAL
    */
   static async cancelSwapRequest(swapRequestId: string, userId: string) {
-    const swapRequest = await db.cardSwapRequest.findUnique({
+    const swapRequest = await db.cardSwap.findUnique({
       where: { id: swapRequestId },
     });
 
@@ -1220,7 +1194,7 @@ export class CardSwapService {
       );
     }
 
-    const cancelled = await db.cardSwapRequest.update({
+    const cancelled = await db.cardSwap.update({
       where: { id: swapRequestId },
       data: {
         status: "CANCELLED",

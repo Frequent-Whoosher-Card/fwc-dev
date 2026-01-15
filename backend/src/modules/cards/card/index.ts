@@ -40,6 +40,8 @@ const baseRoutes = new Elysia()
           typeId: query.typeId as string | undefined,
           categoryName: query.categoryName as string | undefined,
           typeName: query.typeName as string | undefined,
+          stationId: query.stationId as string | undefined,
+          stationName: query.stationName as string | undefined,
           page,
           limit,
         });

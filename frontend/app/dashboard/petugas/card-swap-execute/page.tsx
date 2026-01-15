@@ -34,8 +34,10 @@ export default function CardSwapExecutePage() {
       // Get current user to know their station
       const response = await axios.get("/auth/me");
       const user = response.data.data;
-      if (user.stationId) {
-        setUserStationId(user.stationId);
+      // Check both stationId and station.id for backwards compatibility
+      const stationId = user.stationId || user.station?.id;
+      if (stationId) {
+        setUserStationId(stationId);
       }
     } catch (error) {
       console.error("Error loading user station:", error);
@@ -71,7 +73,7 @@ export default function CardSwapExecutePage() {
           limit: 100,
         },
       });
-      setAvailableCards(response.data.data || []);
+      setAvailableCards(response.data.data?.items || []);
     } catch (error) {
       console.error("Error loading available cards:", error);
       alert("Gagal memuat kartu yang tersedia");
@@ -221,8 +223,8 @@ export default function CardSwapExecutePage() {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm">
-                    {swap.expectedProduct.category.categoryName} -{" "}
-                    {swap.expectedProduct.type.typeName}
+                    {swap.expectedProduct?.category?.categoryName || "N/A"} -{" "}
+                    {swap.expectedProduct?.type?.typeName || "N/A"}
                   </td>
                   <td
                     className="px-6 py-4 text-sm max-w-xs truncate"
@@ -275,8 +277,9 @@ export default function CardSwapExecutePage() {
               <div className="flex justify-between">
                 <span className="text-gray-600">Produk Diharapkan:</span>
                 <span className="font-semibold">
-                  {selectedSwap.expectedProduct.category.categoryName} -{" "}
-                  {selectedSwap.expectedProduct.type.typeName}
+                  {selectedSwap.expectedProduct?.category?.categoryName ||
+                    "N/A"}{" "}
+                  - {selectedSwap.expectedProduct?.type?.typeName || "N/A"}
                 </span>
               </div>
               <div className="flex justify-between">

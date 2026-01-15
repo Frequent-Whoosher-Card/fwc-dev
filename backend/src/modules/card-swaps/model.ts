@@ -33,7 +33,7 @@ export namespace CardSwapModel {
       stationId: t.String({ format: "uuid" }),
       edcReferenceNumber: t.String(),
       purchaseDate: t.String({ format: "date-time" }),
-      price: t.Union([t.Number(), t.String()]),
+      price: t.Number(),
       notes: t.Union([t.String(), t.Null()]),
       createdAt: t.Union([t.String({ format: "date-time" }), t.Null()]),
       updatedAt: t.Union([t.String({ format: "date-time" }), t.Null()]),
@@ -54,7 +54,7 @@ export namespace CardSwapModel {
             id: t.String({ format: "uuid" }),
             totalQuota: t.Number(),
             masaBerlaku: t.Number(),
-            price: t.Union([t.Number(), t.String()]),
+            price: t.Number(),
             category: t.Union([
               t.Object({
                 id: t.String({ format: "uuid" }),
@@ -86,7 +86,7 @@ export namespace CardSwapModel {
             id: t.String({ format: "uuid" }),
             totalQuota: t.Number(),
             masaBerlaku: t.Number(),
-            price: t.Union([t.Number(), t.String()]),
+            price: t.Number(),
             category: t.Union([
               t.Object({
                 id: t.String({ format: "uuid" }),
@@ -119,7 +119,7 @@ export namespace CardSwapModel {
             id: t.String({ format: "uuid" }),
             totalQuota: t.Number(),
             masaBerlaku: t.Number(),
-            price: t.Union([t.Number(), t.String()]),
+            price: t.Number(),
             category: t.Union([
               t.Object({
                 id: t.String({ format: "uuid" }),
@@ -157,7 +157,7 @@ export namespace CardSwapModel {
         id: t.String({ format: "uuid" }),
         totalQuota: t.Number(),
         masaBerlaku: t.Number(),
-        price: t.Union([t.Number(), t.String()]),
+        price: t.Number(),
         category: t.Union([
           t.Object({
             id: t.String({ format: "uuid" }),
@@ -238,7 +238,9 @@ export namespace CardSwapModel {
       t.String({
         maxLength: 1000,
         description: "Catatan tambahan (opsional)",
-        examples: ["Customer akan mengambil kartu pengganti di Stasiun Karawang"],
+        examples: [
+          "Customer akan mengambil kartu pengganti di Stasiun Karawang",
+        ],
       })
     ),
   });
@@ -333,53 +335,6 @@ export namespace CardSwapModel {
         totalPages: t.Number(),
       }),
     }),
-  });
-
-  export const swapHistoryData = t.Object({
-    id: t.String({ format: "uuid" }),
-    swapRequestId: t.String({ format: "uuid" }),
-    purchaseId: t.String({ format: "uuid" }),
-    beforeCardId: t.String({ format: "uuid" }),
-    beforeStationId: t.String({ format: "uuid" }),
-    beforeCardStatus: t.String(),
-    afterCardId: t.String({ format: "uuid" }),
-    afterStationId: t.String({ format: "uuid" }),
-    afterCardStatus: t.String(),
-    inventoryChanges: t.Any(),
-    executedAt: t.String({ format: "date-time" }),
-    swapRequest: t.Object({
-      sourceStation: t.Object({
-        id: t.String({ format: "uuid" }),
-        stationName: t.String(),
-      }),
-      targetStation: t.Object({
-        id: t.String({ format: "uuid" }),
-        stationName: t.String(),
-      }),
-      requester: t.Object({
-        id: t.String({ format: "uuid" }),
-        fullName: t.String(),
-      }),
-      approver: t.Union([
-        t.Object({
-          id: t.String({ format: "uuid" }),
-          fullName: t.String(),
-        }),
-        t.Null(),
-      ]),
-      executor: t.Union([
-        t.Object({
-          id: t.String({ format: "uuid" }),
-          fullName: t.String(),
-        }),
-        t.Null(),
-      ]),
-    }),
-  });
-
-  export const swapHistoryResponse = t.Object({
-    success: t.Boolean(),
-    data: t.Array(swapHistoryData),
   });
 
   export const errorResponse = t.Object({

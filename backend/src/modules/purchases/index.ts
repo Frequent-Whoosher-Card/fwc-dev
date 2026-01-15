@@ -23,6 +23,54 @@ type AuthContextUser = {
 const baseRoutes = new Elysia()
   .use(rbacMiddleware(["petugas", "supervisor", "admin", "superadmin"]))
   .get(
+    "/serial/:serialNumber",
+    async (context) => {
+      const { params, set } = context;
+      try {
+        const result = await PurchaseService.getByCardSerial(
+          params.serialNumber
+        );
+        return {
+          success: true,
+          data: result,
+          message: "Purchase retrieved successfully",
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      params: t.Object({
+        serialNumber: t.String(),
+      }),
+      response: {
+        200: PurchaseModel.getDetailPurchaseResponse,
+        401: PurchaseModel.errorResponse,
+        403: PurchaseModel.errorResponse,
+        404: PurchaseModel.errorResponse,
+        500: PurchaseModel.errorResponse,
+      },
+      detail: {
+        tags: ["Purchases"],
+        summary: "Get purchase by Card Serial Number",
+        description: `Search for a purchase transaction by its Card Serial Number.
+
+**Use Case:**
+Used for Card Swap feature - find the original purchase to create a swap request.
+
+**Search:**
+Case-insensitive exact match on card.serialNumber field.
+
+**Response:**
+Returns full purchase details including card, member, operator, and station information.`,
+      },
+    }
+  )
+  .get(
     "/",
     async (context) => {
       const { query, set, user } = context as typeof context & AuthContextUser;

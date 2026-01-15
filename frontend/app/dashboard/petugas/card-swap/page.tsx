@@ -16,6 +16,30 @@ interface CardProduct {
   type: { typeName: string };
 }
 
+interface PurchaseData {
+  id: string;
+  edcReferenceNumber: string;
+  purchaseDate: string;
+  price: number;
+  card: {
+    id: string;
+    serialNumber: string;
+    status: string;
+    cardProduct: {
+      category: { categoryName: string };
+      type: { typeName: string };
+    };
+  };
+  member: {
+    name: string;
+    identityNumber: string;
+  } | null;
+  station: {
+    stationCode: string;
+    stationName: string;
+  };
+}
+
 export default function CardSwapPage() {
   const [swapRequests, setSwapRequests] = useState<SwapRequest[]>([]);
   const [loading, setLoading] = useState(false);
@@ -24,12 +48,13 @@ export default function CardSwapPage() {
   const [products, setProducts] = useState<CardProduct[]>([]);
 
   // Form state
-  const [edcReference, setEdcReference] = useState("");
+  const [serialNumber, setSerialNumber] = useState("");
   const [targetStationId, setTargetStationId] = useState("");
   const [expectedProductId, setExpectedProductId] = useState("");
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
   const [purchaseId, setPurchaseId] = useState("");
+  const [purchaseData, setPurchaseData] = useState<PurchaseData | null>(null);
 
   useEffect(() => {
     loadSwapRequests();
@@ -55,8 +80,8 @@ export default function CardSwapPage() {
 
   const loadStations = async () => {
     try {
-      const response = await axios.get("/stations");
-      setStations(response.data.data || []);
+      const response = await axios.get("/station");
+      setStations(response.data.data?.items || []);
     } catch (error) {
       console.error("Error loading stations:", error);
     }
@@ -64,32 +89,37 @@ export default function CardSwapPage() {
 
   const loadProducts = async () => {
     try {
-      const response = await axios.get("/card-product");
-      setProducts(response.data.data || []);
+      const response = await axios.get("/card/product");
+      // Backend returns { success: true, data: [...] } directly
+      setProducts(Array.isArray(response.data.data) ? response.data.data : []);
     } catch (error) {
       console.error("Error loading products:", error);
     }
   };
 
   const searchPurchase = async () => {
-    if (!edcReference) {
-      alert("Masukkan nomor referensi EDC");
+    if (!serialNumber) {
+      alert("Masukkan serial number kartu");
       return;
     }
 
     try {
-      const response = await axios.get(`/card-purchases/edc/${edcReference}`);
+      const response = await axios.get(
+        `/purchases/serial/${encodeURIComponent(serialNumber)}`
+      );
       const purchase = response.data.data;
 
       if (purchase) {
         setPurchaseId(purchase.id);
-        alert(`Purchase ditemukan: ${purchase.card.serialNumber}`);
+        setPurchaseData(purchase);
       } else {
         alert("Purchase tidak ditemukan");
+        setPurchaseData(null);
       }
     } catch (error: any) {
       console.error("Error searching purchase:", error);
       alert(error.response?.data?.error?.message || "Gagal mencari purchase");
+      setPurchaseData(null);
     }
   };
 
@@ -141,12 +171,13 @@ export default function CardSwapPage() {
   };
 
   const resetForm = () => {
-    setEdcReference("");
+    setSerialNumber("");
     setTargetStationId("");
     setExpectedProductId("");
     setReason("");
     setNotes("");
     setPurchaseId("");
+    setPurchaseData(null);
   };
 
   const getStatusBadge = (status: string) => {
@@ -237,8 +268,8 @@ export default function CardSwapPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm">
-                    {swap.expectedProduct.category.categoryName} -{" "}
-                    {swap.expectedProduct.type.typeName}
+                    {swap.expectedProduct?.category?.categoryName || "N/A"} -{" "}
+                    {swap.expectedProduct?.type?.typeName || "N/A"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
@@ -279,15 +310,15 @@ export default function CardSwapPage() {
               {/* Search Purchase */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Cari Purchase (EDC Reference)
+                  Cari Purchase (Serial Number Kartu)
                 </label>
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    value={edcReference}
-                    onChange={(e) => setEdcReference(e.target.value)}
+                    value={serialNumber}
+                    onChange={(e) => setSerialNumber(e.target.value)}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
-                    placeholder="Masukkan nomor referensi EDC"
+                    placeholder="Masukkan serial number kartu (misal: 01122600003)"
                   />
                   <button
                     type="button"
@@ -297,10 +328,39 @@ export default function CardSwapPage() {
                     Cari
                   </button>
                 </div>
-                {purchaseId && (
-                  <p className="text-xs text-green-600 mt-1">
-                    ✓ Purchase ditemukan
-                  </p>
+                {purchaseData && (
+                  <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
+                    <p className="font-semibold text-green-800 mb-2">
+                      ✓ Purchase ditemukan
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 text-gray-700">
+                      <div>
+                        <span className="text-gray-500">Serial Number:</span>
+                        <p className="font-medium">
+                          {purchaseData.card.serialNumber}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Produk Saat Ini:</span>
+                        <p className="font-medium">
+                          {purchaseData.card.cardProduct.category.categoryName}{" "}
+                          - {purchaseData.card.cardProduct.type.typeName}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Member:</span>
+                        <p className="font-medium">
+                          {purchaseData.member?.name || "N/A"}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Stasiun Asal:</span>
+                        <p className="font-medium">
+                          {purchaseData.station.stationName}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
 

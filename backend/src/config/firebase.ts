@@ -1,4 +1,4 @@
-import admin from 'firebase-admin';
+import admin from "firebase-admin";
 
 let firebaseAppInitialized = false;
 
@@ -8,12 +8,12 @@ export function initializeFirebaseAdmin() {
   }
 
   const projectId = process.env.FIREBASE_PROJECT_ID;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
 
   if (!projectId || !privateKey || !clientEmail) {
     console.warn(
-      'Firebase App Check: Missing configuration. App Check verification will be disabled.'
+      "Firebase App Check: Missing configuration. App Check verification will be disabled."
     );
     return;
   }
@@ -31,7 +31,7 @@ export function initializeFirebaseAdmin() {
       firebaseAppInitialized = true;
     }
   } catch (error) {
-    console.error('Firebase Admin initialization error:', error);
+    console.error("Firebase Admin initialization error:", error);
   }
 }
 

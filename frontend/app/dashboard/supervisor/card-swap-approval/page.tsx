@@ -187,8 +187,8 @@ export default function CardSwapApprovalPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm">
-                    {swap.expectedProduct.category.categoryName} -{" "}
-                    {swap.expectedProduct.type.typeName}
+                    {swap.expectedProduct?.category?.categoryName || "N/A"} -{" "}
+                    {swap.expectedProduct?.type?.typeName || "N/A"}
                   </td>
                   <td
                     className="px-6 py-4 text-sm max-w-xs truncate"
@@ -265,8 +265,9 @@ export default function CardSwapApprovalPage() {
               <div className="flex justify-between">
                 <span className="text-gray-600">Produk:</span>
                 <span className="font-semibold">
-                  {selectedSwap.expectedProduct.category.categoryName} -{" "}
-                  {selectedSwap.expectedProduct.type.typeName}
+                  {selectedSwap.expectedProduct?.category?.categoryName ||
+                    "N/A"}{" "}
+                  - {selectedSwap.expectedProduct?.type?.typeName || "N/A"}
                 </span>
               </div>
               <div>

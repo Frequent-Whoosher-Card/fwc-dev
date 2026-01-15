@@ -1,28 +1,52 @@
-'use client';
+"use client";
 
-import type React from 'react';
-import { createContext } from 'react';
-import { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import Link from 'next/link';
-import Image from 'next/image';
+import type React from "react";
+import { createContext } from "react";
+import { useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
 
-import toast from 'react-hot-toast';
-import ClientOnly from '@/components/ui/client-only';
+import toast from "react-hot-toast";
+import ClientOnly from "@/components/ui/client-only";
 
-import { LayoutDashboard, CreditCard, UserPlus, Receipt, Users, Menu, X, User, LogOut, IdCard, ArrowDownToLine, ArrowUpNarrowWide, ChevronDown, FolderKanban, Inbox } from 'lucide-react';
+import {
+  LayoutDashboard,
+  CreditCard,
+  UserPlus,
+  Receipt,
+  Users,
+  Menu,
+  X,
+  User,
+  LogOut,
+  IdCard,
+  ArrowDownToLine,
+  ArrowUpNarrowWide,
+  ChevronDown,
+  FolderKanban,
+  Inbox,
+  ArrowLeftRight,
+} from "lucide-react";
 
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-import { API_BASE_URL } from '@/lib/apiConfig';
+import { API_BASE_URL } from "@/lib/apiConfig";
 
 /* =========================
    ROLE TYPE
 ========================= */
-type Role = 'superadmin' | 'admin' | 'petugas' | 'supervisor';
+type Role = "superadmin" | "admin" | "petugas" | "supervisor";
 
 /* =========================
    USER CONTEXT (SINGLE SOURCE)
@@ -38,52 +62,122 @@ export const UserContext = createContext<{
 
 /* SUPERADMIN */
 const superadminMenuItems = [
-  { title: 'Dashboard', icon: LayoutDashboard, href: '/dashboard/superadmin/dashboard' },
-  { title: 'Redeem Kuota', icon: IdCard, href: '/dashboard/superadmin/redeemkuota' },
   {
-    title: 'Stock Kartu',
+    title: "Dashboard",
+    icon: LayoutDashboard,
+    href: "/dashboard/superadmin/dashboard",
+  },
+  {
+    title: "Redeem Kuota",
+    icon: IdCard,
+    href: "/dashboard/superadmin/redeemkuota",
+  },
+  {
+    title: "Stock Kartu",
     icon: CreditCard,
-    href: '/dashboard/superadmin/stock',
+    href: "/dashboard/superadmin/stock",
     children: [
-      { title: 'Stock In', href: '/dashboard/superadmin/stock/in', icon: ArrowDownToLine },
-      { title: 'Stock Out', href: '/dashboard/superadmin/stock/out', icon: ArrowUpNarrowWide },
+      {
+        title: "Stock In",
+        href: "/dashboard/superadmin/stock/in",
+        icon: ArrowDownToLine,
+      },
+      {
+        title: "Stock Out",
+        href: "/dashboard/superadmin/stock/out",
+        icon: ArrowUpNarrowWide,
+      },
     ],
   },
-  { title: 'Generate Number', icon: FolderKanban, href: '/dashboard/superadmin/generatenumber' },
-  { title: 'Inbox', icon: Inbox, href: '/dashboard/superadmin/inbox' },
-  { title: 'Membership', icon: UserPlus, href: '/dashboard/superadmin/membership' },
-  { title: 'Transaksi', icon: Receipt, href: '/dashboard/superadmin/transaksi' },
-  { title: 'User', icon: Users, href: '/dashboard/superadmin/user' },
+  {
+    title: "Generate Number",
+    icon: FolderKanban,
+    href: "/dashboard/superadmin/generatenumber",
+  },
+  { title: "Inbox", icon: Inbox, href: "/dashboard/superadmin/inbox" },
+  {
+    title: "Membership",
+    icon: UserPlus,
+    href: "/dashboard/superadmin/membership",
+  },
+  {
+    title: "Transaksi",
+    icon: Receipt,
+    href: "/dashboard/superadmin/transaksi",
+  },
+  { title: "User", icon: Users, href: "/dashboard/superadmin/user" },
 ];
 
 /* ADMIN */
 const adminMenuItems = [
-  { title: 'Dashboard', icon: LayoutDashboard, href: '/dashboard/admin' },
+  { title: "Dashboard", icon: LayoutDashboard, href: "/dashboard/admin" },
   {
-    title: 'Stock Kartu',
+    title: "Stock Kartu",
     icon: CreditCard,
-    href: '/dashboard/admin/stock',
+    href: "/dashboard/admin/stock",
     children: [
-      { title: 'Stock In', href: '/dashboard/admin/stock/in', icon: ArrowDownToLine },
-      { title: 'Stock Out', href: '/dashboard/admin/stock/out', icon: ArrowUpNarrowWide },
+      {
+        title: "Stock In",
+        href: "/dashboard/admin/stock/in",
+        icon: ArrowDownToLine,
+      },
+      {
+        title: "Stock Out",
+        href: "/dashboard/admin/stock/out",
+        icon: ArrowUpNarrowWide,
+      },
     ],
   },
-  { title: 'Membership', icon: UserPlus, href: '/dashboard/admin/membership' },
-  { title: 'Transaksi', icon: Receipt, href: '/dashboard/admin/transaksi' },
+  { title: "Membership", icon: UserPlus, href: "/dashboard/admin/membership" },
+  { title: "Transaksi", icon: Receipt, href: "/dashboard/admin/transaksi" },
 ];
 
 /* PETUGAS */
 const petugasMenuItems = [
-  { title: 'Membership', icon: UserPlus, href: '/dashboard/petugas/membership' },
-  { title: 'Stock', icon: CreditCard, href: '/dashboard/petugas/stock' },
-  { title: 'Redeem Kuota', icon: IdCard, href: '/dashboard/petugas/redeemkuota' },
-  { title: 'Transaksi', icon: Receipt, href: '/dashboard/petugas/transaksi' },
+  {
+    title: "Membership",
+    icon: UserPlus,
+    href: "/dashboard/petugas/membership",
+  },
+  { title: "Stock", icon: CreditCard, href: "/dashboard/petugas/stock" },
+  {
+    title: "Redeem Kuota",
+    icon: IdCard,
+    href: "/dashboard/petugas/redeemkuota",
+  },
+  { title: "Transaksi", icon: Receipt, href: "/dashboard/petugas/transaksi" },
+  {
+    title: "Card Swap",
+    icon: ArrowLeftRight,
+    href: "/dashboard/petugas/card-swap",
+    children: [
+      {
+        title: "Buat Request",
+        href: "/dashboard/petugas/card-swap",
+        icon: ArrowLeftRight,
+      },
+      {
+        title: "Eksekusi Swap",
+        href: "/dashboard/petugas/card-swap-execute",
+        icon: ArrowLeftRight,
+      },
+    ],
+  },
 ];
 
 /* SUPERVISOR */
 const supervisorMenuItems = [
-  { title: 'Membership', icon: UserPlus, href: '/dashboard/supervisor/membership' },
-  { title: 'Noted', icon: Inbox, href: '/dashboard/supervisor/noted' },
+  {
+    title: "Membership",
+    icon: UserPlus,
+    href: "/dashboard/supervisor/membership",
+  },
+  { title: "Noted", icon: Inbox, href: "/dashboard/supervisor/noted" },
+  {
+    title: "Card Swap Approval",
+    icon: ArrowLeftRight,
+    href: "/dashboard/supervisor/card-swap-approval",
+  },
 ];
 
 const menuByRole: Record<Role, any[]> = {
@@ -96,7 +190,11 @@ const menuByRole: Record<Role, any[]> = {
 /* =========================
    DASHBOARD LAYOUT
 ========================= */
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -104,17 +202,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   const [role, setRole] = useState<Role | null>(null);
-  const [userName, setUserName] = useState('User');
+  const [userName, setUserName] = useState("User");
   const [loading, setLoading] = useState(true);
 
   /* =========================
      AUTH VIA TOKEN + /auth/me
   ========================= */
   useEffect(() => {
-    const token = localStorage.getItem('fwc_token');
+    const token = localStorage.getItem("fwc_token");
 
     if (!token) {
-      router.replace('/');
+      router.replace("/");
       return;
     }
 
@@ -127,7 +225,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         });
 
         if (!res.ok) {
-          throw new Error('Unauthorized');
+          throw new Error("Unauthorized");
         }
 
         const json = await res.json();
@@ -136,12 +234,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         const rawRole = user.role.roleCode.toUpperCase();
 
         const roleMap: Record<string, Role> = {
-          SUPERADMIN: 'superadmin',
-          ADMIN: 'admin',
-          PETUGAS: 'petugas',
-          OFFICER: 'petugas',
-          SUPERVISOR: 'supervisor',
-          SPV: 'supervisor',
+          SUPERADMIN: "superadmin",
+          ADMIN: "admin",
+          PETUGAS: "petugas",
+          OFFICER: "petugas",
+          SUPERVISOR: "supervisor",
+          SPV: "supervisor",
         };
 
         const mappedRole = roleMap[rawRole];
@@ -157,9 +255,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           router.replace(basePath);
         }
       } catch (err) {
-        console.error('auth/me error:', err);
-        localStorage.removeItem('fwc_token');
-        router.replace('/');
+        console.error("auth/me error:", err);
+        localStorage.removeItem("fwc_token");
+        router.replace("/");
       } finally {
         setLoading(false);
       }
@@ -178,25 +276,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
      LOGOUT
   ========================= */
   const handleLogout = () => {
-    toast.success('Logout berhasil');
+    toast.success("Logout berhasil");
 
     setTimeout(() => {
-      localStorage.removeItem('fwc_token');
-      router.replace('/');
+      localStorage.removeItem("fwc_token");
+      router.replace("/");
     }, 300);
   };
 
   return (
     <div className="min-h-screen bg-background">
       {/* SIDEBAR OVERLAY */}
-      {sidebarOpen && <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
       {/* SIDEBAR */}
-      <aside className={cn('fixed left-0 top-0 z-50 h-full w-64 bg-[#8D1231] transition-transform lg:translate-x-0', sidebarOpen ? 'translate-x-0' : '-translate-x-full')}>
+      <aside
+        className={cn(
+          "fixed left-0 top-0 z-50 h-full w-64 bg-[#8D1231] transition-transform lg:translate-x-0",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
         <div className="flex h-full flex-col">
           <div className="flex h-16 items-center px-6 border-b border-white/10">
             <Image src="/logo-putih.svg" alt="logo" width={160} height={40} />
-            <Button variant="ghost" size="icon" className="ml-auto lg:hidden text-white" onClick={() => setSidebarOpen(false)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="ml-auto lg:hidden text-white"
+              onClick={() => setSidebarOpen(false)}
+            >
               <X className="h-5 w-5" />
             </Button>
           </div>
@@ -204,14 +317,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <nav className="flex-1 space-y-1 p-4">
             {menuItems.map((item) => {
               const hasChildren = !!item.children;
-              const isParentActive = pathname === item.href || item.children?.some((child: any) => pathname.startsWith(child.href));
+              const isParentActive =
+                pathname === item.href ||
+                item.children?.some((child: any) =>
+                  pathname.startsWith(child.href)
+                );
 
-              const isOpen = openMenu === item.title || item.children?.some((child: any) => pathname.startsWith(child.href));
+              const isOpen =
+                openMenu === item.title ||
+                item.children?.some((child: any) =>
+                  pathname.startsWith(child.href)
+                );
 
               return (
                 <div key={item.title}>
-                  <div className={cn('flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium', isParentActive ? 'bg-white/20 text-white' : 'text-white hover:bg-white/10')}>
-                    <Link href={item.href} onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 flex-1">
+                  <div
+                    className={cn(
+                      "flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium",
+                      isParentActive
+                        ? "bg-white/20 text-white"
+                        : "text-white hover:bg-white/10"
+                    )}
+                  >
+                    <Link
+                      href={item.href}
+                      onClick={() => setSidebarOpen(false)}
+                      className="flex items-center gap-3 flex-1"
+                    >
                       <item.icon className="h-5 w-5" />
                       {item.title}
                     </Link>
@@ -226,7 +358,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         }}
                         className="ml-2 rounded p-1 hover:bg-white/20"
                       >
-                        <ChevronDown className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-180')} />
+                        <ChevronDown
+                          className={cn(
+                            "h-4 w-4 transition-transform",
+                            isOpen && "rotate-180"
+                          )}
+                        />
                       </button>
                     )}
                   </div>
@@ -240,7 +377,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             key={child.href}
                             href={child.href}
                             onClick={() => setSidebarOpen(false)}
-                            className={cn('flex items-center gap-3 rounded-lg px-3 py-2 text-sm', isActive ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/10')}
+                            className={cn(
+                              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm",
+                              isActive
+                                ? "bg-white/20 text-white"
+                                : "text-white/80 hover:bg-white/10"
+                            )}
                           >
                             <child.icon className="h-4 w-4" />
                             {child.title}
@@ -259,11 +401,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* CONTENT */}
       <div className="lg:pl-64">
         <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-6">
-          <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden"
+            onClick={() => setSidebarOpen(true)}
+          >
             <Menu className="h-5 w-5" />
           </Button>
 
-          <h1 className="flex-1 text-lg font-semibold">Frequent Whoosher Card</h1>
+          <h1 className="flex-1 text-lg font-semibold">
+            Frequent Whoosher Card
+          </h1>
 
           <ClientOnly>
             <DropdownMenu>
@@ -277,7 +426,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <DropdownMenuContent align="end" className="w-40">
                 <DropdownMenuLabel>Akun</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-red-600 cursor-pointer">
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="text-red-600 cursor-pointer"
+                >
                   <LogOut className="mr-2 h-4 w-4" />
                   Logout
                 </DropdownMenuItem>

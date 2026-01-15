@@ -1,3 +1,17 @@
+
+model LogActivity {
+  id          String   @id @default(uuid()) @map("log_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  action      String   // e.g. CREATE_SWAP, APPROVE_SWAP, REJECT_SWAP, EXECUTE_SWAP, LOGIN, etc
+  targetType  String   // e.g. CardSwap, Card, User, etc
+  targetId    String?  // id dari entitas yang diubah (nullable)
+  details     String?  // JSON string detail perubahan/aksi
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@map("log_activity")
+}
 generator client {
   provider = "prisma-client"
   output   = "generated/client"
@@ -27,62 +41,56 @@ model Role {
   updatedBy   String?   @map("updated_by") @db.Uuid
   deletedAt   DateTime? @map("deleted_at")
   deletedBy   String?   @map("deleted_by") @db.Uuid
-
-  // Relasi
-  users User[]
+  users       User[]
 
   @@map("roles")
 }
 
 model User {
-  id           String    @id @default(uuid()) @map("user_id") @db.Uuid
-  fullName     String    @map("full_name")
-  nip          String?   @unique
-  username     String    @unique
-  passwordHash String    @map("password_hash")
-  email        String?
-  phone        String?
-  roleId       String    @map("role_id") @db.Uuid
-  stationId    String?   @map("station_id") @db.Uuid
-  isActive     Boolean   @default(true) @map("is_active")
-  lastLogin    DateTime? @map("last_login")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  createdBy    String?   @map("created_by") @db.Uuid
-  updatedAt    DateTime  @default(now()) @map("updated_at")
-  updatedBy    String?   @map("updated_by") @db.Uuid
-  deletedAt    DateTime? @map("deleted_at")
-  deletedBy    String?   @map("deleted_by") @db.Uuid
-
-  // Relasi
-  passwordResetTokens      PasswordResetToken[]
-  redeems                  Redeem[]
-  purchases                CardPurchase[]       @relation("PurchaseOperator")
-  role                     Role                 @relation(fields: [roleId], references: [id])
-  station                  Station?             @relation(fields: [stationId], references: [id])
-  receivedInboxes          Inbox[]              @relation("ReceivedInboxes")
-  sentInboxes              Inbox[]              @relation("SentInboxes")
-  cards                    Card[]
-  requestedSwaps           CardSwapRequest[]    @relation("SwapRequester")
-  approvedSwaps            CardSwapRequest[]    @relation("SwapApprover")
-  executedSwaps            CardSwapRequest[]    @relation("SwapExecutor")
-  rejectedSwaps            CardSwapRequest[]    @relation("SwapRejecter")
+  id                  String               @id @default(uuid()) @map("user_id") @db.Uuid
+  fullName            String               @map("full_name")
+  nip                 String?              @unique
+  username            String               @unique
+  passwordHash        String               @map("password_hash")
+  email               String?
+  phone               String?
+  roleId              String               @map("role_id") @db.Uuid
+  isActive            Boolean              @default(true) @map("is_active")
+  lastLogin           DateTime?            @map("last_login")
+  createdAt           DateTime             @default(now()) @map("created_at")
+  createdBy           String?              @map("created_by") @db.Uuid
+  updatedAt           DateTime             @default(now()) @map("updated_at")
+  updatedBy           String?              @map("updated_by") @db.Uuid
+  deletedAt           DateTime?            @map("deleted_at")
+  deletedBy           String?              @map("deleted_by") @db.Uuid
+  stationId           String?              @map("station_id") @db.Uuid
+  purchases            CardPurchase[]       @relation("PurchaseOperator")
+  redeems              Redeem[]
+  cards                Card[]
+  sentInboxes          Inbox[]              @relation("SentInboxes")
+  receivedInboxes      Inbox[]              @relation("ReceivedInboxes")
+  passwordResetTokens  PasswordResetToken[]
+  requestedSwaps       CardSwap[]    @relation("SwapRequester")
+  approvedSwaps        CardSwap[]    @relation("SwapApprover")
+  executedSwaps        CardSwap[]    @relation("SwapExecutor")
+  rejectedSwaps        CardSwap[]    @relation("SwapRejecter")
+  role                 Role                 @relation(fields: [roleId], references: [id])
+  station              Station?             @relation(fields: [stationId], references: [id])
 
   @@map("users")
 }
 
 model CardCategory {
-  id           String    @id @default(uuid()) @map("category_id") @db.Uuid
-  categoryCode String    @unique @map("category_code")
-  categoryName String    @map("category_name")
-  description  String?
-  createdAt    DateTime  @default(now()) @map("created_at")
-  createdBy    String?   @map("created_by") @db.Uuid
-  updatedAt    DateTime  @default(now()) @map("updated_at")
-  updatedBy    String?   @map("updated_by") @db.Uuid
-  deletedAt    DateTime? @map("deleted_at")
-  deletedBy    String?   @map("deleted_by") @db.Uuid
-
-  // Relasi
+  id                 String              @id @default(uuid()) @map("category_id") @db.Uuid
+  categoryCode       String              @unique @map("category_code")
+  categoryName       String              @map("category_name")
+  description        String?
+  createdAt          DateTime            @default(now()) @map("created_at")
+  createdBy          String?             @map("created_by") @db.Uuid
+  updatedAt          DateTime            @default(now()) @map("updated_at")
+  updatedBy          String?             @map("updated_by") @db.Uuid
+  deletedAt          DateTime?           @map("deleted_at")
+  deletedBy          String?             @map("deleted_by") @db.Uuid
   cardInventories    CardInventory[]
   cardProducts       CardProduct[]
   cardStockMovements CardStockMovement[]
@@ -91,73 +99,66 @@ model CardCategory {
 }
 
 model CardType {
-  id               String    @id @default(uuid()) @map("type_id") @db.Uuid
-  typeCode         String    @unique @map("type_code")
-  typeName         String    @map("type_name")
-  routeDescription String?   @map("route_description")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  createdBy        String?   @map("created_by") @db.Uuid
-  updatedAt        DateTime  @default(now()) @map("updated_at")
-  updatedBy        String?   @map("updated_by") @db.Uuid
-  deletedAt        DateTime? @map("deleted_at")
-  deletedBy        String?   @map("deleted_by") @db.Uuid
-
-  // Relasi
-  cardInventories CardInventory[]
-  cardProducts    CardProduct[]
-
+  id                 String              @id @default(uuid()) @map("type_id") @db.Uuid
+  typeCode           String              @unique @map("type_code")
+  typeName           String              @map("type_name")
+  routeDescription   String?             @map("route_description")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  createdBy          String?             @map("created_by") @db.Uuid
+  updatedAt          DateTime            @default(now()) @map("updated_at")
+  updatedBy          String?             @map("updated_by") @db.Uuid
+  deletedAt          DateTime?           @map("deleted_at")
+  deletedBy          String?             @map("deleted_by") @db.Uuid
+  cardInventories    CardInventory[]
+  cardProducts       CardProduct[]
   cardStockMovements CardStockMovement[]
 
   @@map("card_types")
 }
 
 model Station {
-  id          String    @id @default(uuid()) @map("station_id") @db.Uuid
-  stationCode String    @unique @map("station_code")
-  stationName String    @map("station_name")
-  location    String?
-  createdAt   DateTime  @default(now()) @map("created_at")
-  createdBy   String?   @map("created_by") @db.Uuid
-  updatedAt   DateTime  @default(now()) @map("updated_at")
-  updatedBy   String?   @map("updated_by") @db.Uuid
-  deletedAt   DateTime? @map("deleted_at")
-  deletedBy   String?   @map("deleted_by") @db.Uuid
-
-  // Relasi
+  id                 String              @id @default(uuid()) @map("station_id") @db.Uuid
+  stationCode        String              @unique @map("station_code")
+  stationName        String              @map("station_name")
+  location           String?
+  createdAt          DateTime            @default(now()) @map("created_at")
+  createdBy          String?             @map("created_by") @db.Uuid
+  updatedAt          DateTime            @default(now()) @map("updated_at")
+  updatedBy          String?             @map("updated_by") @db.Uuid
+  deletedAt          DateTime?           @map("deleted_at")
+  deletedBy          String?             @map("deleted_by") @db.Uuid
   cardInventories    CardInventory[]
-  redeems            Redeem[]
   purchases          CardPurchase[]
+  redeems            Redeem[]
   cardStockMovements CardStockMovement[]
-  users              User[]
-  inboxes            Inbox[]
   cards              Card[]
-  sourceSwaps        CardSwapRequest[]   @relation("SourceStation")
-  targetSwaps        CardSwapRequest[]   @relation("TargetStation")
+  inboxes            Inbox[]
+  users              User[]
+  sourceSwaps        CardSwap[]   @relation("SourceStation")
+  targetSwaps        CardSwap[]   @relation("TargetStation")
 
   @@map("stations")
 }
 
 model CardProduct {
-  id             String    @id @default(uuid()) @map("card_product_id") @db.Uuid
-  categoryId     String    @map("category_id") @db.Uuid
-  typeId         String    @map("type_id") @db.Uuid
-  serialTemplate String    @map("serial_template")
-  totalQuota     Int       @map("total_quota")
-  masaBerlaku    Int       @map("masa_berlaku")
-  price          Decimal   @map("price") @db.Decimal(15, 2)
-  isActive       Boolean   @default(true) @map("is_active")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  createdBy      String?   @map("created_by") @db.Uuid
-  updatedAt      DateTime  @default(now()) @map("updated_at")
-  updatedBy      String?   @map("updated_by") @db.Uuid
-  deletedAt      DateTime? @map("deleted_at")
-  deletedBy      String?   @map("deleted_by") @db.Uuid
-
-  // Relasi
-  category CardCategory @relation(fields: [categoryId], references: [id])
-  type     CardType     @relation(fields: [typeId], references: [id])
-  cards    Card[]
-  swapRequests CardSwapRequest[] @relation("ExpectedProduct")
+  id             String       @id @default(uuid()) @map("card_product_id") @db.Uuid
+  categoryId     String       @map("category_id") @db.Uuid
+  typeId         String       @map("type_id") @db.Uuid
+  totalQuota     Int          @map("total_quota")
+  masaBerlaku    Int          @map("masa_berlaku")
+  price          Decimal      @map("price") @db.Decimal(15, 2)
+  isActive       Boolean      @default(true) @map("is_active")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  createdBy      String?      @map("created_by") @db.Uuid
+  updatedAt      DateTime     @default(now()) @map("updated_at")
+  updatedBy      String?      @map("updated_by") @db.Uuid
+  deletedAt      DateTime?    @map("deleted_at")
+  deletedBy      String?      @map("deleted_by") @db.Uuid
+  serialTemplate String            @unique @map("serial_template")
+  category       CardCategory      @relation(fields: [categoryId], references: [id])
+  type           CardType          @relation(fields: [typeId], references: [id])
+  cards          Card[]
+  swapRequests   CardSwap[] @relation("ExpectedProduct")
 
   @@unique([categoryId, typeId], name: "unique_category_type")
   @@index([categoryId, typeId], map: "index_category_type")
@@ -165,62 +166,59 @@ model CardProduct {
 }
 
 model Card {
-  id            String     @id @default(uuid()) @map("card_id") @db.Uuid
-  serialNumber  String     @unique @map("serial_number")
-  fileObjectId  String?    @map("file_object_id") @db.Uuid
-  memberId      String?    @map("member_id") @db.Uuid
-  userId        String?    @map("user_id") @db.Uuid
-  cardProductId String     @map("card_product_id") @db.Uuid
-  stationId     String?    @map("station_id") @db.Uuid
-  quotaTicket   Int        @default(0) @map("quota_ticket")
-  purchaseDate  DateTime?  @map("purchase_date")
-  expiredDate   DateTime?  @map("expired_date")
-  status        CardStatus @default(IN_OFFICE) @map("status_card")
-  notes         String?
-  createdAt     DateTime   @default(now()) @map("created_at")
-  createdBy     String?    @map("created_by") @db.Uuid
-  updatedAt     DateTime   @default(now()) @map("updated_at")
-  updatedBy     String?    @map("updated_by") @db.Uuid
-  deletedAt     DateTime?  @map("deleted_at")
-  deletedBy     String?    @map("deleted_by") @db.Uuid
-
-  // Relasi
-  cardUsageLogs      CardUsageLog[]
-  cardProduct        CardProduct          @relation(fields: [cardProductId], references: [id])
-  member             Member?              @relation(fields: [memberId], references: [id], onDelete: Restrict)
-  user               User?                @relation(fields: [userId], references: [id], onDelete: Restrict)
-  fileObject         FileObject?          @relation(fields: [fileObjectId], references: [id])
-  station            Station?             @relation(fields: [stationId], references: [id])
-  redeems            Redeem[]
-  purchases          CardPurchase[]
-  originalSwaps      CardSwapRequest[]    @relation("OriginalCard")
-  replacementSwaps   CardSwapRequest[]    @relation("ReplacementCard")
+  id                     String         @id @default(uuid()) @map("card_id") @db.Uuid
+  serialNumber           String         @unique @map("serial_number")
+  memberId               String?        @map("member_id") @db.Uuid
+  cardProductId          String         @map("card_product_id") @db.Uuid
+  quotaTicket            Int            @default(0) @map("quota_ticket")
+  purchaseDate           DateTime?      @map("purchase_date")
+  expiredDate            DateTime?      @map("expired_date")
+  status                 CardStatus     @default(IN_OFFICE) @map("status_card")
+  createdAt              DateTime       @default(now()) @map("created_at")
+  createdBy              String?        @map("created_by") @db.Uuid
+  updatedAt              DateTime       @default(now()) @map("updated_at")
+  updatedBy              String?        @map("updated_by") @db.Uuid
+  deletedAt              DateTime?      @map("deleted_at")
+  deletedBy              String?        @map("deleted_by") @db.Uuid
+  userId                 String?        @map("user_id") @db.Uuid
+  fileObjectId           String?        @map("file_object_id") @db.Uuid
+  stationId              String?        @map("station_id") @db.Uuid
+  notes                  String?
+  assigned_serial_number String?
+  purchases              CardPurchase[]
+  redeems                Redeem[]
+  cardUsageLogs          CardUsageLog[]
+  cardProduct            CardProduct    @relation(fields: [cardProductId], references: [id])
+  fileObject             FileObject?    @relation(fields: [fileObjectId], references: [id])
+  member                 Member?           @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  station                Station?          @relation(fields: [stationId], references: [id])
+  user                   User?             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  originalSwaps          CardSwap[] @relation("OriginalCard")
+  replacementSwaps       CardSwap[] @relation("ReplacementCard")
 
   @@index([cardProductId, serialNumber])
   @@map("cards")
 }
 
 model CardInventory {
-  id               String    @id @default(uuid()) @map("inventory_id") @db.Uuid
-  categoryId       String    @map("category_id") @db.Uuid
-  typeId           String    @map("type_id") @db.Uuid
-  stationId        String?   @map("station_id") @db.Uuid
-  cardBeredar      Int       @default(0) @map("card_beredar")
-  cardAktif        Int       @default(0) @map("card_terjual_aktif")
-  cardNonAktif     Int       @default(0) @map("card_terjual_nonaktif")
-  cardBelumTerjual Int       @default(0) @map("card_belum_terjual")
-  cardOffice       Int?      @default(0) @map("card_office")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  createdBy        String?   @map("created_by") @db.Uuid
-  updatedAt        DateTime  @default(now()) @map("updated_at")
-  updatedBy        String?   @map("updated_by") @db.Uuid
-  deletedAt        DateTime? @map("deleted_at")
-  deletedBy        String?   @map("deleted_by") @db.Uuid
-
-  // Relasi
-  category CardCategory @relation(fields: [categoryId], references: [id])
-  station  Station?     @relation(fields: [stationId], references: [id])
-  type     CardType     @relation(fields: [typeId], references: [id])
+  id               String       @id @default(uuid()) @map("inventory_id") @db.Uuid
+  categoryId       String       @map("category_id") @db.Uuid
+  typeId           String       @map("type_id") @db.Uuid
+  stationId        String?      @map("station_id") @db.Uuid
+  cardBeredar      Int          @default(0) @map("card_beredar")
+  cardAktif        Int          @default(0) @map("card_terjual_aktif")
+  cardNonAktif     Int          @default(0) @map("card_terjual_nonaktif")
+  cardBelumTerjual Int          @default(0) @map("card_belum_terjual")
+  cardOffice       Int?         @default(0) @map("card_office")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  createdBy        String?      @map("created_by") @db.Uuid
+  updatedAt        DateTime     @default(now()) @map("updated_at")
+  updatedBy        String?      @map("updated_by") @db.Uuid
+  deletedAt        DateTime?    @map("deleted_at")
+  deletedBy        String?      @map("deleted_by") @db.Uuid
+  category         CardCategory @relation(fields: [categoryId], references: [id])
+  station          Station?     @relation(fields: [stationId], references: [id])
+  type             CardType     @relation(fields: [typeId], references: [id])
 
   @@unique([categoryId, typeId, stationId], name: "unique_category_type_station")
   @@index([categoryId, typeId, stationId], map: "index_category_type_station")
@@ -228,74 +226,57 @@ model CardInventory {
 }
 
 model CardStockMovement {
-  id         String              @id @default(uuid()) @map("movement_id") @db.Uuid
-  movementAt DateTime            @map("movement_at")
-  type       StockMovementType   @map("movement_type")
-  status     StockMovementStatus @default(APPROVED) @map("status")
-
-  categoryId String  @map("category_id") @db.Uuid
-  typeId     String  @map("type_id") @db.Uuid
-  quantity   Int     @map("quantity")
-  note       String? @map("note")
-
-  // untuk OUT: stationId tujuan wajib; untuk IN: nullable (karena office)
-  stationId String? @map("station_id") @db.Uuid
-
-  // NEW: payload serial yang dikirim (untuk OUT)
-  sentSerialNumbers     String[] @default([]) @map("sent_serial_numbers") @db.Text
-  // NEW: hasil validasi
-  receivedSerialNumbers String[] @default([]) @map("received_serial_numbers") @db.Text
-  lostSerialNumbers     String[] @default([]) @map("lost_serial_numbers") @db.Text
-  damagedSerialNumbers  String[] @default([]) @map("damaged_serial_numbers") @db.Text
-
-  // Optional tapi sangat disarankan (audit)
-  validatedBy String?   @db.Uuid
-  validatedAt DateTime?
-
-  createdAt DateTime  @default(now()) @map("created_at")
-  createdBy String?   @map("created_by") @db.Uuid
-  updatedAt DateTime  @default(now()) @map("updated_at")
-  updatedBy String?   @map("updated_by") @db.Uuid
-  deletedAt DateTime? @map("deleted_at")
-  deletedBy String?   @map("deleted_by") @db.Uuid
-
-  // Relasi
-  category CardCategory @relation(fields: [categoryId], references: [id])
-  cardType CardType     @relation(fields: [typeId], references: [id])
-  station  Station?     @relation(fields: [stationId], references: [id])
+  id                    String              @id @default(uuid()) @map("movement_id") @db.Uuid
+  movementAt            DateTime            @map("movement_at")
+  type                  StockMovementType   @map("movement_type")
+  status                StockMovementStatus @default(APPROVED) @map("status")
+  categoryId            String              @map("category_id") @db.Uuid
+  typeId                String              @map("type_id") @db.Uuid
+  stationId             String?             @map("station_id") @db.Uuid
+  quantity              Int                 @map("quantity")
+  note                  String?             @map("note")
+  createdAt             DateTime            @default(now()) @map("created_at")
+  createdBy             String?             @map("created_by") @db.Uuid
+  lostSerialNumbers     String[]            @default([]) @map("lost_serial_numbers")
+  receivedSerialNumbers String[]            @default([]) @map("received_serial_numbers")
+  sentSerialNumbers     String[]            @default([]) @map("sent_serial_numbers")
+  validatedAt           DateTime?
+  validatedBy           String?             @db.Uuid
+  updatedAt             DateTime            @default(now()) @map("updated_at")
+  updatedBy             String?             @map("updated_by") @db.Uuid
+  deletedAt             DateTime?           @map("deleted_at")
+  deletedBy             String?             @map("deleted_by") @db.Uuid
+  damagedSerialNumbers  String[]            @default([]) @map("damaged_serial_numbers")
+  batch_id              String?
+  category              CardCategory        @relation(fields: [categoryId], references: [id])
+  station               Station?            @relation(fields: [stationId], references: [id])
+  cardType              CardType            @relation(fields: [typeId], references: [id])
 
   @@index([type, status, movementAt])
   @@map("card_stock_movements")
 }
 
 model Inbox {
-  id String @id @default(uuid()) @map("inbox_id") @db.Uuid
-
-  title   String    @map("title")
-  message String    @map("message")
-  isRead  Boolean   @default(false) @map("is_read")
-  readAt  DateTime? @map("read_at")
-
-  sentAt DateTime @default(now()) @map("sent_at")
-  sentTo String?  @map("sent_to") @db.Uuid
-  sentBy String?  @map("sent_by") @db.Uuid
-
-  stationId String? @map("station_id") @db.Uuid
-
-  type    String? @map("type")
-  payload Json?   @map("payload")
-
+  id        String    @id @default(uuid()) @map("inbox_id") @db.Uuid
+  title     String    @map("title")
+  message   String    @map("message")
+  isRead    Boolean   @default(false) @map("is_read")
+  readAt    DateTime? @map("read_at")
+  sentAt    DateTime  @default(now()) @map("sent_at")
+  sentTo    String?   @map("sent_to") @db.Uuid
+  sentBy    String?   @map("sent_by") @db.Uuid
+  stationId String?   @map("station_id") @db.Uuid
+  type      String?   @map("type")
+  payload   Json?     @map("payload")
   createdAt DateTime  @default(now()) @map("created_at")
   createdBy String?   @map("created_by") @db.Uuid
   updatedAt DateTime  @default(now()) @map("updated_at")
   updatedBy String?   @map("updated_by") @db.Uuid
   deletedAt DateTime? @map("deleted_at")
   deletedBy String?   @map("deleted_by") @db.Uuid
-
-  // Relasi
-  recipient User?    @relation("ReceivedInboxes", fields: [sentTo], references: [id])
-  sender    User?    @relation("SentInboxes", fields: [sentBy], references: [id])
-  station   Station? @relation(fields: [stationId], references: [id])
+  sender    User?     @relation("SentInboxes", fields: [sentBy], references: [id])
+  recipient User?     @relation("ReceivedInboxes", fields: [sentTo], references: [id])
+  station   Station?  @relation(fields: [stationId], references: [id])
 
   @@index([sentTo, isRead, createdAt], map: "idx_inbox_sent_to_read_created")
   @@index([sentTo, type, createdAt], map: "idx_inbox_sent_to_type_created")
@@ -303,26 +284,24 @@ model Inbox {
 }
 
 model Member {
-  id             String    @id @default(uuid()) @map("member_id") @db.Uuid
-  name           String    @map("member_name")
-  identityNumber String    @unique @map("identity_number")
-  nationality    String    @default("INDONESIA")
+  id             String         @id @default(uuid()) @map("member_id") @db.Uuid
+  name           String         @map("member_name")
+  identityNumber String         @unique @map("identity_number")
+  nationality    String         @default("INDONESIA")
   email          String?
   phone          String?
-  nippKai        String?   @map("nipp_kai")
+  nippKai        String?        @map("nipp_kai")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  createdBy      String?        @map("created_by") @db.Uuid
+  updatedAt      DateTime       @default(now()) @map("updated_at")
+  updatedBy      String?        @map("updated_by") @db.Uuid
+  deletedAt      DateTime?      @map("deleted_at")
+  deletedBy      String?        @map("deleted_by") @db.Uuid
   gender         Gender?
   alamat         String?
   notes          String?
-  createdAt      DateTime  @default(now()) @map("created_at")
-  createdBy      String?   @map("created_by") @db.Uuid
-  updatedAt      DateTime  @default(now()) @map("updated_at")
-  updatedBy      String?   @map("updated_by") @db.Uuid
-  deletedAt      DateTime? @map("deleted_at")
-  deletedBy      String?   @map("deleted_by") @db.Uuid
-
-  // Relasi
-  cards     Card[]
-  purchases CardPurchase[]
+  purchases      CardPurchase[]
+  cards          Card[]
 
   @@map("members")
 }
@@ -336,48 +315,51 @@ model Redeem {
   shiftDate         DateTime          @map("shift_date")
   status            TransactionStatus @default(Success) @map("transaction_status")
   notes             String?
+  createdAt         DateTime          @default(now()) @map("created_at")
+  createdBy         String?           @map("created_by") @db.Uuid
+  updatedAt         DateTime          @default(now()) @map("updated_at")
+  updatedBy         String?           @map("updated_by") @db.Uuid
+  deletedAt         DateTime?         @map("deleted_at")
+  deletedBy         String?           @map("deleted_by") @db.Uuid
   fileObjectId      String?           @map("file_object_id") @db.Uuid
-
-  createdAt DateTime  @default(now()) @map("created_at")
-  createdBy String?   @map("created_by") @db.Uuid
-  updatedAt DateTime  @default(now()) @map("updated_at")
-  updatedBy String?   @map("updated_by") @db.Uuid
-  deletedAt DateTime? @map("deleted_at")
-  deletedBy String?   @map("deleted_by") @db.Uuid
-
-  // Relasi
-  card       Card        @relation(fields: [cardId], references: [id])
-  operator   User        @relation(fields: [operatorId], references: [id])
-  station    Station     @relation(fields: [stationId], references: [id])
-  fileObject FileObject? @relation(fields: [fileObjectId], references: [id])
+  prev_quota        Int
+  quota_used        Int
+  redeem_type       RedeemType
+  remain_quota      Int
+  card              Card              @relation(fields: [cardId], references: [id])
+  fileObject        FileObject?       @relation(fields: [fileObjectId], references: [id])
+  operator          User              @relation(fields: [operatorId], references: [id])
+  station           Station           @relation(fields: [stationId], references: [id])
 
   @@index([transactionNumber], map: "idx_redeem_transaction_number")
   @@map("card_redeem")
 }
 
 model CardPurchase {
-  id                 String    @id @default(uuid()) @map("purchase_id") @db.Uuid
-  cardId             String    @map("card_id") @db.Uuid
-  memberId           String?   @map("member_id") @db.Uuid
-  operatorId         String    @map("operator_id") @db.Uuid
-  stationId          String    @map("station_id") @db.Uuid
-  edcReferenceNumber String    @unique @map("edc_reference_number")
-  purchaseDate       DateTime  @map("purchase_date")
-  price              Decimal   @map("price") @db.Decimal(15, 2)
-  notes              String?
-  createdAt          DateTime  @default(now()) @map("created_at")
-  createdBy          String?   @map("created_by") @db.Uuid
-  updatedAt          DateTime  @default(now()) @map("updated_at")
-  updatedBy          String?   @map("updated_by") @db.Uuid
-  deletedAt          DateTime? @map("deleted_at")
-  deletedBy          String?   @map("deleted_by") @db.Uuid
-
-  // Relasi
-  card         Card              @relation(fields: [cardId], references: [id], onDelete: Restrict)
-  member       Member?           @relation(fields: [memberId], references: [id], onDelete: Restrict)
-  operator     User              @relation("PurchaseOperator", fields: [operatorId], references: [id])
-  station      Station           @relation(fields: [stationId], references: [id])
-  swapRequests CardSwapRequest[]
+  id                          String                   @id @default(uuid()) @map("purchase_id") @db.Uuid
+  cardId                      String                   @map("card_id") @db.Uuid
+  memberId                    String?                  @map("member_id") @db.Uuid
+  operatorId                  String                   @map("operator_id") @db.Uuid
+  stationId                   String                   @map("station_id") @db.Uuid
+  edcReferenceNumber          String                   @unique @map("edc_reference_number")
+  purchaseDate                DateTime                 @map("purchase_date")
+  price                       Decimal                  @map("price") @db.Decimal(15, 2)
+  notes                       String?
+  createdAt                   DateTime                 @default(now()) @map("created_at")
+  createdBy                   String?                  @map("created_by") @db.Uuid
+  updatedAt                   DateTime                 @default(now()) @map("updated_at")
+  updatedBy                   String?                  @map("updated_by") @db.Uuid
+  deletedAt                   DateTime?                @map("deleted_at")
+  deletedBy                   String?                  @map("deleted_by") @db.Uuid
+  activated_at                DateTime?
+  activated_by                String?                  @db.Uuid
+  activation_status           PurchaseActivationStatus @default(PENDING)
+  physical_card_serial_number String?
+  card                        Card                     @relation(fields: [cardId], references: [id])
+  member                      Member?                  @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  operator                    User                     @relation("PurchaseOperator", fields: [operatorId], references: [id])
+  station                     Station                  @relation(fields: [stationId], references: [id])
+  swapRequests                CardSwap[]
 
   @@index([purchaseDate])
   @@index([stationId, purchaseDate])
@@ -403,28 +385,22 @@ model CardUsageLog {
 }
 
 model FileObject {
-  id String @id @default(uuid()) @map("file_id") @db.Uuid
-
-  originalName String  @map("original_name") @db.Text
-  storedName   String? @map("stored_name") @db.Text // nama internal (opsional)
-
-  relativePath   String  @unique @map("relative_path") @db.Text
-  mimeType       String  @map("mime_type") @db.Text
-  sizeBytes      Int?    @map("size_bytes")
-  checksumSha256 String? @map("checksum_sha256") @db.Text
-
-  purpose FilePurpose @default(GENERAL) @map("purpose")
-
-  createdAt DateTime  @default(now()) @map("created_at")
-  createdBy String?   @map("created_by") @db.Uuid
-  updatedAt DateTime  @default(now()) @map("updated_at")
-  updatedBy String?   @map("updated_by") @db.Uuid
-  deletedAt DateTime? @map("deleted_at")
-  deletedBy String?   @map("deleted_by") @db.Uuid
-
-  // Relasi
-  redeems Redeem[]
-  cards   Card[]
+  id             String      @id @default(uuid()) @map("file_id") @db.Uuid
+  originalName   String      @map("original_name")
+  storedName     String?     @map("stored_name")
+  relativePath   String      @unique @map("relative_path")
+  mimeType       String      @map("mime_type")
+  sizeBytes      Int?        @map("size_bytes")
+  checksumSha256 String?     @map("checksum_sha256")
+  purpose        FilePurpose @default(GENERAL) @map("purpose")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  createdBy      String?     @map("created_by") @db.Uuid
+  updatedAt      DateTime    @default(now()) @map("updated_at")
+  updatedBy      String?     @map("updated_by") @db.Uuid
+  deletedAt      DateTime?   @map("deleted_at")
+  deletedBy      String?     @map("deleted_by") @db.Uuid
+  redeems        Redeem[]
+  cards          Card[]
 
   @@map("file_object")
 }
@@ -441,73 +417,10 @@ model PasswordResetToken {
   updatedBy String?   @map("updated_by") @db.Uuid
   deletedAt DateTime? @map("deleted_at")
   deletedBy String?   @map("deleted_by") @db.Uuid
+  notes     String?
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("password_reset_tokens")
-}
-
-model CardSwapRequest {
-  id                String            @id @default(uuid()) @map("swap_request_id") @db.Uuid
-  purchaseId        String            @map("purchase_id") @db.Uuid
-  originalCardId    String            @map("original_card_id") @db.Uuid
-  replacementCardId String?           @map("replacement_card_id") @db.Uuid
-  sourceStationId   String            @map("source_station_id") @db.Uuid
-  targetStationId   String            @map("target_station_id") @db.Uuid
-  expectedProductId String            @map("expected_product_id") @db.Uuid
-  status            SwapRequestStatus @default(PENDING_APPROVAL)
-  reason            String            @map("reason") @db.Text
-  notes             String?           @map("notes") @db.Text
-  rejectionReason   String?           @map("rejection_reason") @db.Text
-  requestedBy       String            @map("requested_by") @db.Uuid
-  requestedAt       DateTime          @default(now()) @map("requested_at")
-  approvedBy        String?           @map("approved_by") @db.Uuid
-  approvedAt        DateTime?         @map("approved_at")
-  executedBy        String?           @map("executed_by") @db.Uuid
-  executedAt        DateTime?         @map("executed_at")
-  rejectedBy        String?           @map("rejected_by") @db.Uuid
-  rejectedAt        DateTime?         @map("rejected_at")
-  createdAt         DateTime          @default(now()) @map("created_at")
-  updatedAt         DateTime          @updatedAt @map("updated_at")
-
-  // Relasi
-  purchase        CardPurchase @relation(fields: [purchaseId], references: [id])
-  originalCard    Card         @relation("OriginalCard", fields: [originalCardId], references: [id])
-  replacementCard Card?        @relation("ReplacementCard", fields: [replacementCardId], references: [id])
-  sourceStation   Station      @relation("SourceStation", fields: [sourceStationId], references: [id])
-  targetStation   Station      @relation("TargetStation", fields: [targetStationId], references: [id])
-  expectedProduct CardProduct  @relation("ExpectedProduct", fields: [expectedProductId], references: [id])
-  requester       User         @relation("SwapRequester", fields: [requestedBy], references: [id])
-  approver        User?        @relation("SwapApprover", fields: [approvedBy], references: [id])
-  executor        User?        @relation("SwapExecutor", fields: [executedBy], references: [id])
-  rejecter        User?        @relation("SwapRejecter", fields: [rejectedBy], references: [id])
-  history         CardSwapHistory[]
-
-  @@index([purchaseId], map: "idx_swap_purchase")
-  @@index([status, targetStationId], map: "idx_swap_status_target")
-  @@index([sourceStationId, status], map: "idx_swap_source_status")
-  @@map("card_swap_requests")
-}
-
-model CardSwapHistory {
-  id               String   @id @default(uuid()) @map("history_id") @db.Uuid
-  swapRequestId    String   @map("swap_request_id") @db.Uuid
-  purchaseId       String   @map("purchase_id") @db.Uuid
-  beforeCardId     String   @map("before_card_id") @db.Uuid
-  beforeStationId  String   @map("before_station_id") @db.Uuid
-  beforeCardStatus String   @map("before_card_status")
-  afterCardId      String   @map("after_card_id") @db.Uuid
-  afterStationId   String   @map("after_station_id") @db.Uuid
-  afterCardStatus  String   @map("after_card_status")
-  inventoryChanges Json     @map("inventory_changes")
-  executedBy       String   @map("executed_by") @db.Uuid
-  executedAt       DateTime @default(now()) @map("executed_at")
-
-  // Relasi
-  swapRequest CardSwapRequest @relation(fields: [swapRequestId], references: [id])
-
-  @@index([swapRequestId], map: "idx_swap_history_request")
-  @@index([purchaseId], map: "idx_swap_history_purchase")
-  @@map("card_swap_history")
 }
 
 enum CardStatus {
@@ -519,6 +432,7 @@ enum CardStatus {
   DAMAGED
   SOLD_ACTIVE
   SOLD_INACTIVE
+  ASSIGNED
 }
 
 enum TransactionStatus {
@@ -550,6 +464,17 @@ enum Gender {
   P
 }
 
+enum PurchaseActivationStatus {
+  PENDING
+  ACTIVATED
+  CANCELLED
+}
+
+enum RedeemType {
+  SINGLE
+  ROUNDTRIP
+}
+
 enum SwapRequestStatus {
   PENDING_APPROVAL
   APPROVED
@@ -557,3 +482,43 @@ enum SwapRequestStatus {
   REJECTED
   CANCELLED
 }
+
+
+model CardSwap {
+  id                 String            @id @default(uuid()) @map("swap_request_id") @db.Uuid
+  purchaseId         String            @map("purchase_id") @db.Uuid
+  originalCardId     String            @map("original_card_id") @db.Uuid
+  replacementCardId  String?           @map("replacement_card_id") @db.Uuid
+  sourceStationId    String            @map("source_station_id") @db.Uuid
+  targetStationId    String            @map("target_station_id") @db.Uuid
+  expectedProductId  String            @map("expected_product_id") @db.Uuid
+  status             SwapRequestStatus @default(PENDING_APPROVAL)
+  reason             String
+  notes              String?
+  requestedBy        String            @map("requested_by") @db.Uuid
+  requestedAt        DateTime          @default(now()) @map("requested_at")
+  approvedBy         String?           @map("approved_by") @db.Uuid
+  approvedAt         DateTime?         @map("approved_at")
+  executedBy         String?           @map("executed_by") @db.Uuid
+  executedAt         DateTime?         @map("executed_at")
+  rejectedBy         String?           @map("rejected_by") @db.Uuid
+  rejectedAt         DateTime?         @map("rejected_at")
+  rejectionReason    String?           @map("rejection_reason")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @default(now()) @updatedAt @map("updated_at")
+
+  purchase           CardPurchase      @relation(fields: [purchaseId], references: [id])
+  originalCard       Card              @relation("OriginalCard", fields: [originalCardId], references: [id])
+  replacementCard    Card?             @relation("ReplacementCard", fields: [replacementCardId], references: [id])
+  sourceStation      Station           @relation("SourceStation", fields: [sourceStationId], references: [id])
+  targetStation      Station           @relation("TargetStation", fields: [targetStationId], references: [id])
+  expectedProduct    CardProduct       @relation("ExpectedProduct", fields: [expectedProductId], references: [id])
+  requester          User              @relation("SwapRequester", fields: [requestedBy], references: [id])
+  approver           User?             @relation("SwapApprover", fields: [approvedBy], references: [id])
+  executor           User?             @relation("SwapExecutor", fields: [executedBy], references: [id])
+  rejecter           User?             @relation("SwapRejecter", fields: [rejectedBy], references: [id])
+
+  @@map("card_swap")
+}
+
+

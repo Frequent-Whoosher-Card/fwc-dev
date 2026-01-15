@@ -294,6 +294,13 @@ export class CardService {
             mimeType: true,
           },
         },
+        station: {
+          select: {
+            id: true,
+            stationName: true,
+            stationCode: true,
+          },
+        },
       },
     });
 
@@ -301,7 +308,7 @@ export class CardService {
       throw new ValidationError("Card not found");
     }
 
-    // Convert Date objects to ISO strings
+    // Convert Date objects to ISO strings and ensure station is formatted as required
     return {
       ...card,
       createdAt: card.createdAt.toISOString(),
@@ -309,6 +316,13 @@ export class CardService {
       purchaseDate: card.purchaseDate?.toISOString() || null,
       expiredDate: card.expiredDate?.toISOString() || null,
       member: card.member || null, // Ensure member is always present (can be null)
+      station: card.station
+        ? {
+            id: card.station.id,
+            stationName: card.station.stationName,
+            stationCode: card.station.stationCode,
+          }
+        : null,
     };
   }
 

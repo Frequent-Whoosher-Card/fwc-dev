@@ -529,12 +529,6 @@ export class PurchaseService {
       purchaseDate: purchase.purchaseDate.toISOString(),
       price: Number(purchase.price),
       notes: purchase.notes,
-      activationStatus: purchase.activationStatus,
-      activatedAt: purchase.activatedAt
-        ? purchase.activatedAt.toISOString()
-        : null,
-      activatedBy: purchase.activatedBy,
-      physicalCardSerialNumber: purchase.physicalCardSerialNumber,
       createdAt: purchase.createdAt.toISOString(),
       updatedAt: purchase.updatedAt.toISOString(),
       createdByName: creator?.fullName || null,
@@ -549,6 +543,122 @@ export class PurchaseService {
           totalQuota: purchase.card.cardProduct.totalQuota,
           masaBerlaku: purchase.card.cardProduct.masaBerlaku,
         },
+      },
+      member: purchase.member,
+      operator: purchase.operator,
+      station: purchase.station,
+    };
+  }
+
+  /**
+   * Get purchase by Card Serial Number
+   */
+  static async getByCardSerial(serialNumber: string) {
+    const purchase = await db.cardPurchase.findFirst({
+      where: {
+        card: {
+          serialNumber: {
+            equals: serialNumber,
+            mode: "insensitive",
+          },
+        },
+        deletedAt: null,
+      },
+      include: {
+        card: {
+          select: {
+            id: true,
+            serialNumber: true,
+            status: true,
+            expiredDate: true,
+            quotaTicket: true,
+            cardProduct: {
+              select: {
+                id: true,
+                totalQuota: true,
+                masaBerlaku: true,
+                category: {
+                  select: {
+                    id: true,
+                    categoryCode: true,
+                    categoryName: true,
+                  },
+                },
+                type: {
+                  select: {
+                    id: true,
+                    typeCode: true,
+                    typeName: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        member: {
+          select: {
+            id: true,
+            name: true,
+            identityNumber: true,
+          },
+        },
+        operator: {
+          select: {
+            id: true,
+            fullName: true,
+            username: true,
+          },
+        },
+        station: {
+          select: {
+            id: true,
+            stationCode: true,
+            stationName: true,
+          },
+        },
+      },
+    });
+
+    if (!purchase) {
+      throw new NotFoundError(
+        `Transaksi dengan Serial Number '${serialNumber}' tidak ditemukan`
+      );
+    }
+
+    const [creator, updater] = await Promise.all([
+      purchase.createdBy
+        ? db.user.findUnique({
+            where: { id: purchase.createdBy },
+            select: { fullName: true },
+          })
+        : null,
+      purchase.updatedBy
+        ? db.user.findUnique({
+            where: { id: purchase.updatedBy },
+            select: { fullName: true },
+          })
+        : null,
+    ]);
+
+    return {
+      id: purchase.id,
+      cardId: purchase.cardId,
+      memberId: purchase.memberId,
+      operatorId: purchase.operatorId,
+      stationId: purchase.stationId,
+      edcReferenceNumber: purchase.edcReferenceNumber,
+      purchaseDate: purchase.purchaseDate.toISOString(),
+      price: Number(purchase.price),
+      notes: purchase.notes,
+      createdAt: purchase.createdAt.toISOString(),
+      updatedAt: purchase.updatedAt.toISOString(),
+      createdByName: creator?.fullName || null,
+      updatedByName: updater?.fullName || null,
+      card: {
+        ...purchase.card,
+        expiredDate: purchase.card.expiredDate
+          ? purchase.card.expiredDate.toISOString()
+          : null,
       },
       member: purchase.member,
       operator: purchase.operator,

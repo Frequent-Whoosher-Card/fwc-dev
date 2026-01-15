@@ -27,14 +27,11 @@ const requestRoutes = new Elysia()
     async (context) => {
       const { body, set, user } = context as typeof context & AuthContextUser;
       try {
-        const result = await CardSwapService.createSwapRequest(
-          body,
-          user.id
-        );
+        const data = await CardSwapService.createSwapRequest(body, user.id);
         return {
           success: true,
           message: "Swap request berhasil dibuat",
-          data: result,
+          data,
         };
       } catch (error) {
         set.status =
@@ -82,9 +79,9 @@ Endpoint untuk membuat request swap kartu antar stasiun. Digunakan ketika petuga
   .get(
     "/",
     async (context) => {
-      const { query, set, user } = context as typeof context & AuthContextUser;
+      const { query, set } = context as typeof context & AuthContextUser;
       try {
-        const result = await CardSwapService.getSwapRequests({
+        const data = await CardSwapService.getSwapRequests({
           status: query.status,
           sourceStationId: query.sourceStationId,
           targetStationId: query.targetStationId,
@@ -94,7 +91,7 @@ Endpoint untuk membuat request swap kartu antar stasiun. Digunakan ketika petuga
         });
         return {
           success: true,
-          data: result,
+          data,
         };
       } catch (error) {
         set.status = 500;
@@ -137,11 +134,11 @@ Endpoint untuk mengambil daftar swap requests dengan berbagai filter.
     async (context) => {
       const { params, set } = context;
       try {
-        const result = await CardSwapService.getSwapRequestById(params.id);
+        const data = await CardSwapService.getSwapRequestById(params.id);
         return {
           success: true,
           message: "Swap request retrieved successfully",
-          data: result,
+          data,
         };
       } catch (error) {
         set.status =
@@ -187,14 +184,14 @@ Endpoint untuk mengambil detail lengkap swap request beserta semua relasi.
     async (context) => {
       const { params, set, user } = context as typeof context & AuthContextUser;
       try {
-        const result = await CardSwapService.cancelSwapRequest(
+        const data = await CardSwapService.cancelSwapRequest(
           params.id,
           user.id
         );
         return {
           success: true,
           message: "Swap request berhasil dibatalkan",
-          data: result,
+          data,
         };
       } catch (error) {
         set.status =
@@ -246,14 +243,14 @@ const approvalRoutes = new Elysia()
     async (context) => {
       const { params, set, user } = context as typeof context & AuthContextUser;
       try {
-        const result = await CardSwapService.approveSwapRequest(
+        const data = await CardSwapService.approveSwapRequest(
           params.id,
           user.id
         );
         return {
           success: true,
           message: "Swap request berhasil di-approve",
-          data: result,
+          data,
         };
       } catch (error) {
         set.status =
@@ -303,7 +300,7 @@ Endpoint untuk approve swap request. Hanya bisa dilakukan oleh HO/Supervisor.
       const { params, body, set, user } = context as typeof context &
         AuthContextUser;
       try {
-        const result = await CardSwapService.rejectSwapRequest(
+        const data = await CardSwapService.rejectSwapRequest(
           params.id,
           user.id,
           body.rejectionReason
@@ -311,7 +308,7 @@ Endpoint untuk approve swap request. Hanya bisa dilakukan oleh HO/Supervisor.
         return {
           success: true,
           message: "Swap request berhasil di-reject",
-          data: result,
+          data,
         };
       } catch (error) {
         set.status =
@@ -370,7 +367,7 @@ const executionRoutes = new Elysia()
       const { params, body, set, user } = context as typeof context &
         AuthContextUser;
       try {
-        const result = await CardSwapService.executeSwap(
+        const data = await CardSwapService.executeSwap(
           params.id,
           body.replacementCardId,
           user.id
@@ -378,7 +375,7 @@ const executionRoutes = new Elysia()
         return {
           success: true,
           message: "Swap berhasil dieksekusi",
-          data: result,
+          data,
         };
       } catch (error) {
         set.status =
@@ -413,81 +410,24 @@ Endpoint untuk eksekusi swap kartu. Dilakukan oleh petugas di target station set
 1. **Restore original card:**
    - Status: SOLD_ACTIVE → IN_STATION
    - Clear member, purchase date, expired date
-   - Reset quota to 0
 
-2. **Update purchase:**
-   - Point to new cardId
-   - Update stationId to target station
-   - Add swap note to purchase notes
-
-3. **Activate replacement card:**
+2. **Assign replacement card:**
    - Status: IN_STATION → SOLD_ACTIVE
-   - Set member, purchase date, expired date
-   - Initialize quota from product
+   - Link to member and purchase
+   - Set purchase date and expired date
 
-4. **Update inventories:**
-   - Source station: cardAktif -1, cardBelumTerjual +1
-   - Target station: cardBelumTerjual -1, cardAktif +1
-
-5. **Create audit trail:**
-   - Record complete history in card_swap_history
-   - Store inventory changes snapshot
+3. **Update swap request:**
+   - Status: APPROVED → COMPLETED
+   - Record replacement card and executor
+   - Record execution timestamp
 
 **Validation:**
 - Status harus APPROVED
-- Replacement card harus IN_STATION
+- Replacement card harus IN_STATION di target station
 - Replacement card product harus sesuai dengan expected product
+- Executor harus dari target station
 
-**Access:** petugas, supervisor, admin, superadmin`,
-      },
-    }
-  )
-  .get(
-    "/purchase/:purchaseId/history",
-    async (context) => {
-      const { params, set } = context;
-      try {
-        const result = await CardSwapService.getSwapHistory(params.purchaseId);
-        return {
-          success: true,
-          data: result,
-        };
-      } catch (error) {
-        set.status = 500;
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      params: t.Object({
-        purchaseId: t.String({ format: "uuid", description: "Purchase ID" }),
-      }),
-      response: {
-        200: CardSwapModel.swapHistoryResponse,
-        401: CardSwapModel.errorResponse,
-        403: CardSwapModel.errorResponse,
-        500: CardSwapModel.errorResponse,
-      },
-      detail: {
-        tags: ["Card Swaps - Execution"],
-        summary: "Get swap history for purchase",
-        description: `**Get Swap History**
-
-Endpoint untuk mengambil history swap untuk suatu purchase.
-
-**Returns:**
-- Chronological list of all swaps for this purchase
-- Before/after snapshots (card, station, status)
-- Inventory changes details
-- Requester, approver, executor info
-- Execution timestamps
-
-**Use Cases:**
-- Audit trail
-- Forensic analysis
-- Customer support
-- Compliance reporting
-
-**Access:** petugas, supervisor, admin, superadmin`,
+**Access:** petugas, supervisor, admin, superadmin (target station only)`,
       },
     }
   );

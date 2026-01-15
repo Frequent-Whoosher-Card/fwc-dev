@@ -279,17 +279,19 @@ export class UserService {
       email: user.email,
       phone: user.phone,
       nip: user.nip,
+      stationId: user.stationId ?? null,
       role: {
         id: user.role.id,
         roleCode: user.role.roleCode,
         roleName: user.role.roleName,
       },
-      station: user.station ? {
-        id: user.station.id,
-        stationCode: user.station.stationCode,
-        stationName: user.station.stationName,
-        location: user.station.location,
-      } : null,
+      station: user.station
+        ? {
+            id: user.station.id,
+            stationCode: user.station.stationCode,
+            stationName: user.station.stationName,
+          }
+        : null,
       isActive: user.isActive,
       lastLogin: user.lastLogin?.toISOString() || null,
       createdAt: user.createdAt.toISOString(),
@@ -565,17 +567,19 @@ export class UserService {
       email: updatedUser.email,
       phone: updatedUser.phone,
       nip: updatedUser.nip,
+      stationId: updatedUser.stationId ?? null,
       role: {
         id: updatedUser.role.id,
         roleCode: updatedUser.role.roleCode,
         roleName: updatedUser.role.roleName,
       },
-      station: updatedUser.station ? {
-        id: updatedUser.station.id,
-        stationCode: updatedUser.station.stationCode,
-        stationName: updatedUser.station.stationName,
-        location: updatedUser.station.location,
-      } : null,
+      station: updatedUser.station
+        ? {
+            id: updatedUser.station.id,
+            stationCode: updatedUser.station.stationCode,
+            stationName: updatedUser.station.stationName,
+          }
+        : null,
       isActive: updatedUser.isActive,
       lastLogin: updatedUser.lastLogin?.toISOString() || null,
       createdAt: updatedUser.createdAt.toISOString(),
