@@ -42,6 +42,20 @@ export const transfers = new Elysia({ prefix: "/transfers" })
     },
     {
       body: TransferModel.createTransferBody,
+      response: {
+        200: TransferModel.createTransferResponse,
+        400: TransferModel.errorResponse,
+        401: TransferModel.errorResponse,
+        403: TransferModel.errorResponse,
+        422: TransferModel.errorResponse,
+        500: TransferModel.errorResponse,
+      },
+      detail: {
+        tags: ["Transfer"],
+        summary: "Create Card Transfer",
+        description:
+          "Initiate a transfer of cards from one station to another.",
+      },
     }
   )
 
@@ -71,6 +85,18 @@ export const transfers = new Elysia({ prefix: "/transfers" })
     },
     {
       query: TransferModel.getTransfersQuery,
+      response: {
+        200: TransferModel.getTransfersResponse,
+        400: TransferModel.errorResponse,
+        401: TransferModel.errorResponse,
+        500: TransferModel.errorResponse,
+      },
+      detail: {
+        tags: ["Transfer"],
+        summary: "Get Transfers",
+        description:
+          "Retrieve a list of card transfers with optional filtering by station and status.",
+      },
     }
   )
 
@@ -86,8 +112,11 @@ export const transfers = new Elysia({ prefix: "/transfers" })
           set.status = 404;
           return {
             success: false,
-            message: "Transfer not found",
-            data: null,
+            error: {
+              message: "Transfer not found",
+              code: "NOT_FOUND",
+              statusCode: 404,
+            },
           };
         }
         return {
@@ -105,6 +134,18 @@ export const transfers = new Elysia({ prefix: "/transfers" })
     },
     {
       params: TransferModel.transferParams,
+      response: {
+        200: TransferModel.getTransferByIdResponse,
+        404: TransferModel.errorResponse,
+        400: TransferModel.errorResponse,
+        401: TransferModel.errorResponse,
+        500: TransferModel.errorResponse,
+      },
+      detail: {
+        tags: ["Transfer"],
+        summary: "Get Transfer By ID",
+        description: "Get detailed information about a specific transfer.",
+      },
     }
   )
 
@@ -132,5 +173,18 @@ export const transfers = new Elysia({ prefix: "/transfers" })
     },
     {
       params: TransferModel.transferParams,
+      response: {
+        200: TransferModel.receiveTransferResponse,
+        400: TransferModel.errorResponse,
+        401: TransferModel.errorResponse,
+        404: TransferModel.errorResponse,
+        500: TransferModel.errorResponse,
+      },
+      detail: {
+        tags: ["Transfer"],
+        summary: "Receive Transfer",
+        description:
+          "Accept and finalize an incoming card transfer at the destination station.",
+      },
     }
   );
