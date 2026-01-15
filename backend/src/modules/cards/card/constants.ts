@@ -9,7 +9,8 @@ export const CARD_STATUS_MAPPING: Record<CardStatus, string> = {
   [CardStatus.DAMAGED]: "Rusak",
   [CardStatus.SOLD_ACTIVE]: "Aktif",
   [CardStatus.SOLD_INACTIVE]: "Non-Aktif",
-  [CardStatus.ASSIGNED]: "Ditugaskan",
+  [CardStatus.BLOCKED]: "Diblokir",
+  [CardStatus.DELETED]: "Dihapus",
 };
 
 export const REVERSE_CARD_STATUS_MAPPING: Record<string, CardStatus> =

@@ -8,6 +8,7 @@ import { cardCategory } from "./modules/cards/category";
 import { cardTypes } from "./modules/cards/type";
 import { cardProducts } from "./modules/cards/product";
 import { cards } from "./modules/cards/card";
+import { transfers } from "./modules/cards/transfer";
 import { cardGenerateRoutes } from "./modules/cards/generate";
 import { sales } from "./modules/sales";
 import { metrics } from "./modules/metrics";
@@ -38,6 +39,7 @@ const app = new Elysia()
   .use(cardTypes)
   .use(cardProducts)
   .use(cards)
+  .use(transfers)
   .use(cardGenerateRoutes)
   .use(station)
   .use(cardInventory)

@@ -160,6 +160,13 @@ export class CardService {
               stationCode: true,
             },
           },
+          previousStation: {
+            select: {
+              id: true,
+              stationName: true,
+              stationCode: true,
+            },
+          },
           notes: true,
         },
       }),

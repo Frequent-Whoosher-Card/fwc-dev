@@ -39,6 +39,14 @@ export namespace CardModel {
       }),
       t.Null(),
     ]),
+    previousStation: t.Union([
+      t.Object({
+        id: t.String({ format: "uuid" }),
+        stationName: t.String(),
+        stationCode: t.String(),
+      }),
+      t.Null(),
+    ]),
     notes: t.Union([t.String(), t.Null()]),
   });
 
@@ -146,6 +154,14 @@ export namespace CardModel {
           originalName: t.String(),
           relativePath: t.String(),
           mimeType: t.String(),
+        }),
+        t.Null(),
+      ]),
+      previousStation: t.Union([
+        t.Object({
+          id: t.String({ format: "uuid" }),
+          stationName: t.String(),
+          stationCode: t.String(),
         }),
         t.Null(),
       ]),
