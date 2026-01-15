@@ -13,7 +13,7 @@ export const transfers = new Elysia({ prefix: "/transfers" })
     async (context) => {
       const { body, user, set } = context;
       try {
-        const { stationId, toStationId, categoryId, typeId, quantity, note } =
+        const { stationId, toStationId, categoryId, typeId, cardIds, note } =
           body;
         const userId = user.id;
 
@@ -22,7 +22,7 @@ export const transfers = new Elysia({ prefix: "/transfers" })
           toStationId,
           categoryId,
           typeId,
-          quantity,
+          cardIds,
           note,
           userId,
         });
@@ -65,15 +65,18 @@ export const transfers = new Elysia({ prefix: "/transfers" })
     async (context) => {
       const { query, set } = context;
       try {
-        const { stationId, status } = query;
-        const transfers = await TransferService.getTransfers({
+        const { stationId, status, search, page = "1", limit = "10" } = query;
+        const result = await TransferService.getTransfers({
           stationId,
           status: status as any,
+          search,
+          page: parseInt(page),
+          limit: parseInt(limit),
         });
         return {
           success: true,
           message: "Transfers retrieved",
-          data: transfers,
+          data: result,
         };
       } catch (error) {
         set.status =

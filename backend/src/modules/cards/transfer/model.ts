@@ -7,7 +7,7 @@ export namespace TransferModel {
     toStationId: t.String({ format: "uuid" }),
     categoryId: t.String({ format: "uuid" }),
     typeId: t.String({ format: "uuid" }),
-    quantity: t.Number({ minimum: 1 }),
+    cardIds: t.Array(t.String({ format: "uuid" }), { minItems: 1 }),
     note: t.Optional(t.String()),
   });
 
@@ -15,6 +15,9 @@ export namespace TransferModel {
   export const getTransfersQuery = t.Object({
     stationId: t.Optional(t.String({ format: "uuid" })),
     status: t.Optional(t.String()),
+    search: t.Optional(t.String()),
+    page: t.Optional(t.String()), // Receive as string from query
+    limit: t.Optional(t.String()), // Receive as string from query
   });
 
   // Path Params
@@ -66,7 +69,15 @@ export namespace TransferModel {
   export const getTransfersResponse = t.Object({
     success: t.Boolean(),
     message: t.String(),
-    data: t.Array(transferData),
+    data: t.Object({
+      items: t.Array(transferData),
+      pagination: t.Object({
+        total: t.Number(),
+        page: t.Number(),
+        limit: t.Number(),
+        totalPages: t.Number(),
+      }),
+    }),
   });
 
   export const getTransferByIdResponse = t.Object({

@@ -6,29 +6,31 @@ import {
 } from "@prisma/client";
 import { AppError } from "../../../utils/errors";
 
-export const TransferService = {
+export class TransferService {
   // 1. Create Transfer (Send Cards)
-  createTransfer: async (payload: {
+  static async createTransfer(payload: {
     stationId: string; // From Station
     toStationId: string; // To Station
     categoryId: string;
     typeId: string;
-    quantity: number;
+    cardIds: string[]; // Specific cards to transfer
     note?: string;
     userId: string;
-  }) => {
+  }) {
     const {
       stationId,
       toStationId,
       categoryId,
       typeId,
-      quantity,
+      cardIds,
       note,
       userId,
     } = payload;
 
     return await db.$transaction(async (tx) => {
-      // 1. Validate Source Inventory
+      const quantity = cardIds.length;
+
+      // 1. Validate Source Inventory exists
       const fromInventory = await tx.cardInventory.findUnique({
         where: {
           unique_category_type_station: {
@@ -39,35 +41,41 @@ export const TransferService = {
         },
       });
 
-      if (!fromInventory || fromInventory.cardBelumTerjual < quantity) {
-        throw new AppError("Insufficient stock at source station", 400);
+      if (!fromInventory) {
+        throw new AppError("Inventory record not found at source station", 404);
       }
 
-      // 2. Find Available Cards (FIFO to pick cards to transfer)
-      // We need to pick specific cards to mark them as IN_TRANSIT
-      const cardsToTransfer = await tx.card.findMany({
+      // 2. Validate Specific Cards
+      // Must exist, be at stationId, be IN_STATION, match category/type
+      const cards = await tx.card.findMany({
         where: {
+          id: { in: cardIds },
           stationId,
           cardProduct: {
             categoryId,
             typeId,
           },
-          status: CardStatus.IN_STATION, // Assuming available stock is IN_STATION
+          status: CardStatus.IN_STATION,
         },
-        take: quantity,
-        orderBy: {
-          serialNumber: "asc", // FIFOish
+        select: {
+          id: true,
+          serialNumber: true,
         },
       });
 
-      if (cardsToTransfer.length < quantity) {
+      if (cards.length !== quantity) {
+        // Find which ones are missing or invalid
+        const foundIds = cards.map((c) => c.id);
+        const invalidIds = cardIds.filter((id) => !foundIds.includes(id));
         throw new AppError(
-          `Not enough active cards found. Inventory says ${fromInventory.cardBelumTerjual} but found ${cardsToTransfer.length} items.`,
-          409
+          `Some cards are invalid or not available for transfer: ${invalidIds.join(
+            ", "
+          )}`,
+          400
         );
       }
 
-      const serialNumbers = cardsToTransfer.map((c) => c.serialNumber);
+      const serialNumbers = cards.map((c) => c.serialNumber);
 
       // 3. Create Movement (TRANSFER, PENDING)
       const movement = await tx.cardStockMovement.create({
@@ -89,7 +97,7 @@ export const TransferService = {
       // 4. Update Cards -> IN_TRANSIT, stationId = null, previousStationId = stationId
       await tx.card.updateMany({
         where: {
-          serialNumber: { in: serialNumbers },
+          id: { in: cardIds },
         },
         data: {
           status: CardStatus.IN_TRANSIT,
@@ -111,19 +119,25 @@ export const TransferService = {
         },
         data: {
           cardBelumTerjual: { decrement: quantity },
-          // cardBeredar not modified - cards are IN_TRANSIT (floating stock)
+          cardBeredar: { decrement: quantity }, // Decrement total circulating stock at source
         },
       });
 
       return movement;
     });
-  },
+  }
 
   // 2. See Pending Transfers (Incoming/Outgoing)
-  getTransfers: async (params: {
+  static async getTransfers(params: {
     stationId?: string;
     status?: StockMovementStatus;
-  }) => {
+    search?: string;
+    page: number;
+    limit: number;
+  }) {
+    const { page, limit } = params;
+    const skip = (page - 1) * limit;
+
     const where: any = { type: StockMovementType.TRANSFER };
 
     if (params.stationId) {
@@ -137,19 +151,63 @@ export const TransferService = {
       where.status = params.status;
     }
 
-    return await db.cardStockMovement.findMany({
-      where,
-      include: {
-        category: true,
-        cardType: true,
-        station: { select: { stationName: true } }, // From
-        toStation: { select: { stationName: true } }, // To
-      },
-      orderBy: { movementAt: "desc" },
-    });
-  },
+    if (params.search) {
+      const search = params.search;
+      const searchCondition = [
+        { note: { contains: search, mode: "insensitive" } },
+        { station: { stationName: { contains: search, mode: "insensitive" } } },
+        {
+          toStation: {
+            stationName: { contains: search, mode: "insensitive" },
+          },
+        },
+        {
+          category: {
+            categoryName: { contains: search, mode: "insensitive" },
+          },
+        },
+        {
+          cardType: { typeName: { contains: search, mode: "insensitive" } },
+        },
+      ];
 
-  getTransferById: async (id: string) => {
+      // Combine with existing OR if stationId is present (stationId AND search)
+      if (where.OR) {
+        where.AND = [{ OR: where.OR }, { OR: searchCondition }];
+        delete where.OR; // Move stationId check into AND group
+      } else {
+        where.OR = searchCondition;
+      }
+    }
+
+    const [items, total] = await Promise.all([
+      db.cardStockMovement.findMany({
+        where,
+        include: {
+          category: true,
+          cardType: true,
+          station: { select: { stationName: true } }, // From
+          toStation: { select: { stationName: true } }, // To
+        },
+        orderBy: { movementAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      db.cardStockMovement.count({ where }),
+    ]);
+
+    return {
+      items,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  static async getTransferById(id: string) {
     return await db.cardStockMovement.findUnique({
       where: { id },
       include: {
@@ -159,10 +217,10 @@ export const TransferService = {
         toStation: true,
       },
     });
-  },
+  }
 
   // 3. Receive Transfer (Generic Accept)
-  receiveTransfer: async (movementId: string, userId: string) => {
+  static async receiveTransfer(movementId: string, userId: string) {
     return await db.$transaction(async (tx) => {
       const movement = await tx.cardStockMovement.findUnique({
         where: { id: movementId },
@@ -218,6 +276,7 @@ export const TransferService = {
           where: { id: existingInv.id },
           data: {
             cardBelumTerjual: { increment: movement.quantity },
+            cardBeredar: { increment: movement.quantity }, // Increment total circulating stock
           },
         });
       } else {
@@ -227,7 +286,7 @@ export const TransferService = {
             typeId: movement.typeId,
             stationId: movement.toStationId,
             cardBelumTerjual: movement.quantity,
-            cardBeredar: 0,
+            cardBeredar: movement.quantity, // New stock
             cardAktif: 0,
             cardNonAktif: 0,
           },
@@ -236,5 +295,5 @@ export const TransferService = {
 
       return updatedMovement;
     });
-  },
-};
+  }
+}
