@@ -215,7 +215,7 @@ export default function CreateUserPage() {
                 className="h-11 w-full rounded-md border px-4 text-sm"
               />
               <p className="mt-1 text-xs text-gray-400">
-                6–20 digit, hanya angka
+                5 digit maksimal, hanya angka
               </p>
             </div>
 
@@ -280,7 +280,7 @@ export default function CreateUserPage() {
               />
 
               <p className="mt-1 text-xs text-gray-400">
-                Gunakan format internasional (+kode negara)
+                Masukkan nomor telepon yang valid
               </p>
             </div>
 
