@@ -437,7 +437,7 @@ enum FilePurpose {
 
 enum Gender {
   L
-  P
+    P
 }
 
 enum PurchaseActivationStatus {
@@ -449,4 +449,47 @@ enum PurchaseActivationStatus {
 enum RedeemType {
   SINGLE
   ROUNDTRIP
+}
+
+model ReconciliationBatch {
+  id            String                   @id @default(uuid()) @map("batch_id") @db.Uuid
+  fileName      String                   @map("file_name")
+  totalRows     Int                      @default(0) @map("total_rows")
+  matchedRows   Int                      @default(0) @map("matched_rows")
+  unmatchedRows Int                      @default(0) @map("unmatched_rows")
+  status        ReconciliationStatus     @default(PENDING) @map("status")
+  csvPath       String?                  @map("csv_path")
+  createdAt     DateTime                 @default(now()) @map("created_at")
+  createdBy     String?                  @map("created_by") @db.Uuid
+  matchedAt     DateTime?                @map("matched_at")
+  matchedBy     String?                  @map("matched_by") @db.Uuid
+  records       TempFwcReconciliation[]
+
+  @@map("reconciliation_batches")
+}
+
+model TempFwcReconciliation {
+  id              String               @id @default(uuid()) @map("record_id") @db.Uuid
+  batchId         String               @map("batch_id") @db.Uuid
+  serialNumber    String?              @map("serial_number")
+  nikClean        String               @map("nik_clean")
+  ticketingDate   DateTime             @map("ticketing_date") @db.Date
+  isMatched       Boolean              @default(false) @map("is_matched")
+  matchedCardId   String?              @map("matched_card_id") @db.Uuid
+  matchedRedeemId String?              @map("matched_redeem_id") @db.Uuid
+  createdAt       DateTime             @default(now()) @map("created_at")
+  batch           ReconciliationBatch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId])
+  @@index([serialNumber])
+  @@index([nikClean, ticketingDate])
+  @@index([isMatched])
+  @@map("temp_fwc_reconciliation")
+}
+
+enum ReconciliationStatus {
+  PENDING
+  MATCHING
+  COMPLETED
+  FAILED
 }
