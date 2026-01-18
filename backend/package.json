@@ -5,7 +5,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "bun run --watch src/index.ts",
     "db:update": "bunx prisma migrate deploy && bunx prisma generate",
-"db:backup:server": "bash scripts/backup-database-server.sh"
+    "db:backup:server": "bash scripts/backup-database-server.sh"
   },
   "dependencies": {
     "@elysiajs/cookie": "^0.8.0",
@@ -19,6 +19,7 @@
     "bwip-js": "^4.8.0",
     "canvas": "^3.2.0",
     "elysia": "latest",
+    "exceljs": "^4.4.0",
     "firebase-admin": "^13.6.0",
     "jsbarcode": "^3.12.1",
     "nodemailer": "^7.0.12",

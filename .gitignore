@@ -67,6 +67,9 @@ package-lock.json
 # Prisma
 backend/prisma/generated/*
 
+# Storage (temp files, uploads)
+backend/storage/
+
 # Python virtual environments
 backend/scripts/ocr/venv/
 **/venv/

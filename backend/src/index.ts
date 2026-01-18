@@ -20,6 +20,7 @@ import { AuthenticationError, AuthorizationError } from "./utils/errors";
 import { inbox } from "./modules/inbox";
 import { redeem } from "./modules/redeem";
 import { cardSwaps } from "./modules/card-swaps";
+import { reconciliation } from "./modules/reconciliation";
 
 const app = new Elysia()
   .use(docsConfig)
@@ -46,6 +47,7 @@ const app = new Elysia()
   .use(metrics)
   .use(inbox)
   .use(redeem)
+  .use(reconciliation)
   // .use(superset)
 
   .onError(({ code, error, set }) => {
