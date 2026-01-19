@@ -10,7 +10,7 @@ import { ChevronLeft, ChevronRight, Eye, Calendar, FileDown, Plus, Pencil } from
    TYPES
 ====================== */
 
-type CardStatus = 'IN_OFFICE' | 'IN_TRANSIT' | 'IN_STATION' | 'LOST' | 'DAMAGED' | 'SOLD_ACTIVE' | 'SOLD_INACTIVE';
+type CardStatus = 'ON_REQUEST' | 'IN_OFFICE' | 'IN_TRANSIT' | 'IN_STATION' | 'LOST' | 'DAMAGED' | 'SOLD_ACTIVE' | 'SOLD_INACTIVE' | 'ASSIGNED';
 
 interface AllCardItem {
   id: string;
@@ -163,6 +163,30 @@ export default function AllCardPage() {
     toast('Export PDF (coming soon)');
   };
 
+  const CARD_STATUS_LABEL: Record<CardStatus, string> = {
+    ON_REQUEST: 'Sedang Diajukan',
+    IN_OFFICE: 'Office',
+    IN_TRANSIT: 'Dalam Pengiriman',
+    IN_STATION: 'Stasiun',
+    LOST: 'Hilang',
+    DAMAGED: 'Rusak',
+    SOLD_ACTIVE: 'Aktif',
+    SOLD_INACTIVE: 'Non-Aktif',
+    ASSIGNED: 'Ditugaskan',
+  };
+
+  const STATUS_BADGE_STYLE: Record<CardStatus, string> = {
+    ON_REQUEST: 'bg-yellow-100 text-yellow-700',
+    IN_OFFICE: 'bg-blue-100 text-blue-700',
+    IN_TRANSIT: 'bg-orange-100 text-orange-700',
+    IN_STATION: 'bg-green-100 text-green-700',
+    LOST: 'bg-red-100 text-red-700',
+    DAMAGED: 'bg-red-200 text-red-800',
+    SOLD_ACTIVE: 'bg-emerald-100 text-emerald-700',
+    SOLD_INACTIVE: 'bg-gray-200 text-gray-600',
+    ASSIGNED: 'bg-purple-100 text-purple-700',
+  };
+
   /* ======================
       RENDER
   ====================== */
@@ -305,14 +329,41 @@ export default function AllCardPage() {
                 data.map((row, index) => (
                   <tr key={row.id} className="border-b hover:bg-gray-50">
                     <td className="px-3 py-2 text-center">{(pagination.page - 1) * pagination.limit + index + 1}</td>
-                    <td className="px-3 py-2 text-center">{new Date(row.date).toLocaleDateString('id-ID').replace(/\//g, '-')}</td>
+                    <td className="px-3 py-2 text-center">{new Date(row.date).toLocaleDateString('id-ID')}</td>
                     <td className="px-3 py-2 text-center">{row.serialNumber}</td>
                     <td className="px-3 py-2 text-center">{row.cardCategoryName}</td>
                     <td className="px-3 py-2 text-center">{row.cardTypeName}</td>
                     <td className="px-3 py-2 text-center">{row.stationName}</td>
                     <td className="px-3 py-2 text-center">
-                      <span className="rounded-full bg-gray-100 px-3 py-1 text-xs">{row.status.replace(/_/g, ' ')}</span>
+                      <span
+                        className={`inline-block rounded-full px-3 py-1 text-xs font-medium
+      ${
+        row.status === 'IN_STATION'
+          ? 'bg-green-100 text-green-700'
+          : row.status === 'IN_OFFICE'
+          ? 'bg-blue-100 text-blue-700'
+          : row.status === 'IN_TRANSIT'
+          ? 'bg-orange-100 text-orange-700'
+          : row.status === 'ON_REQUEST'
+          ? 'bg-yellow-100 text-yellow-700'
+          : row.status === 'LOST'
+          ? 'bg-red-100 text-red-700'
+          : row.status === 'DAMAGED'
+          ? 'bg-red-200 text-red-800'
+          : row.status === 'SOLD_ACTIVE'
+          ? 'bg-emerald-100 text-emerald-700'
+          : row.status === 'SOLD_INACTIVE'
+          ? 'bg-gray-200 text-gray-600'
+          : row.status === 'ASSIGNED'
+          ? 'bg-purple-100 text-purple-700'
+          : 'bg-gray-100 text-gray-600'
+      }
+    `}
+                      >
+                        {CARD_STATUS_LABEL[row.status] ?? row.status}
+                      </span>
                     </td>
+
                     <td className="px-3 py-2 text-center">{row.note}</td>
                     <td className="px-3 py-2 text-center">
                       <div className="flex justify-center gap-2">
