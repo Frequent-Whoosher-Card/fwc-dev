@@ -4,10 +4,10 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import axiosInstance from '@/lib/axios';
-import { ChevronLeft, ChevronRight, Eye, Calendar, FileDown, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, Calendar, FileDown, Plus, Pencil } from 'lucide-react';
 
 /* ======================
-   TYPES (SESUI DOC API)
+   TYPES
 ====================== */
 
 type CardStatus = 'IN_OFFICE' | 'IN_TRANSIT' | 'IN_STATION' | 'LOST' | 'DAMAGED' | 'SOLD_ACTIVE' | 'SOLD_INACTIVE';
@@ -17,11 +17,9 @@ interface AllCardItem {
   serialNumber: string;
   status: CardStatus;
   date: string;
-
   cardCategoryName: string;
   cardTypeName: string;
   stationName: string;
-
   note: string;
 }
 
@@ -31,12 +29,6 @@ interface PaginationMeta {
   limit: number;
   totalPages: number;
 }
-
-/* ======================
-   CONSTANT
-====================== */
-
-const STATUS_OPTIONS: CardStatus[] = ['IN_OFFICE', 'IN_TRANSIT', 'IN_STATION', 'LOST', 'DAMAGED', 'SOLD_ACTIVE', 'SOLD_INACTIVE'];
 
 /* ======================
    PAGE
@@ -61,6 +53,7 @@ export default function AllCardPage() {
 
   // FILTER
   const [status, setStatus] = useState<'all' | CardStatus>('all');
+  const [statusOptions, setStatusOptions] = useState<CardStatus[]>([]);
   const [category, setCategory] = useState('');
   const [type, setType] = useState('');
   const [search, setSearch] = useState('');
@@ -71,19 +64,16 @@ export default function AllCardPage() {
   const endDateRef = useRef<HTMLInputElement>(null);
 
   /* ======================
-      FETCH DATA
+      FETCH ALL CARD
   ====================== */
 
   const fetchAllCard = useCallback(async () => {
     setLoading(true);
-
     try {
       const res = await axiosInstance.get('/cards', {
         params: {
           page: pagination.page,
           limit: pagination.limit,
-
-          // 🔥 FILTER SESUAI DOC
           status: status === 'all' ? undefined : status,
           categoryName: category || undefined,
           typeName: type || undefined,
@@ -100,13 +90,9 @@ export default function AllCardPage() {
         serialNumber: item.serialNumber,
         status: item.status,
         date: item.purchaseDate || item.createdAt,
-
         cardCategoryName: item.cardProduct?.category?.categoryName ?? '-',
-
         cardTypeName: item.cardProduct?.type?.typeName ?? '-',
-
         stationName: item.station?.stationName ?? '-',
-
         note: item.notes ?? '-',
       }));
 
@@ -125,12 +111,36 @@ export default function AllCardPage() {
   }, [fetchAllCard]);
 
   /* ======================
+      FETCH ALL STATUS
+      (AGAR FILTER TIDAK
+       TERGANTUNG PAGE)
+  ====================== */
+
+  useEffect(() => {
+    const fetchAllStatus = async () => {
+      try {
+        const res = await axiosInstance.get('/cards', {
+          params: { page: 1, limit: 100000 },
+        });
+
+        const items = res.data?.data?.items ?? [];
+        const uniqueStatus = Array.from(new Set(items.map((i: any) => i.status as CardStatus)));
+
+        setStatusOptions(uniqueStatus);
+      } catch (err) {
+        console.error('Failed fetch all status', err);
+      }
+    };
+
+    fetchAllStatus();
+  }, []);
+
+  /* ======================
       PAGINATION HELPER
   ====================== */
 
   const getPaginationRange = (current: number, total: number, delta = 2): (number | '...')[] => {
     const range: (number | '...')[] = [];
-
     const left = Math.max(2, current - delta);
     const right = Math.min(total - 1, current + delta);
 
@@ -174,7 +184,7 @@ export default function AllCardPage() {
             className="rounded-md border px-3 py-2 text-sm"
           >
             <option value="all">All Status</option>
-            {STATUS_OPTIONS.map((st) => (
+            {statusOptions.map((st) => (
               <option key={st} value={st}>
                 {st.replace(/_/g, ' ')}
               </option>
@@ -260,7 +270,7 @@ export default function AllCardPage() {
         </div>
       </div>
 
-      {/* DESKTOP TABLE */}
+      {/* TABLE */}
       <div className="hidden sm:block rounded-lg border bg-white overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1100px] text-sm">
@@ -295,7 +305,7 @@ export default function AllCardPage() {
                 data.map((row, index) => (
                   <tr key={row.id} className="border-b hover:bg-gray-50">
                     <td className="px-3 py-2 text-center">{(pagination.page - 1) * pagination.limit + index + 1}</td>
-                    <td className="px-3 py-2 text-center">{new Date(row.date).toLocaleDateString('id-ID')}</td>
+                    <td className="px-3 py-2 text-center">{new Date(row.date).toLocaleDateString('id-ID').replace(/\//g, '-')}</td>
                     <td className="px-3 py-2 text-center">{row.serialNumber}</td>
                     <td className="px-3 py-2 text-center">{row.cardCategoryName}</td>
                     <td className="px-3 py-2 text-center">{row.cardTypeName}</td>
@@ -305,9 +315,36 @@ export default function AllCardPage() {
                     </td>
                     <td className="px-3 py-2 text-center">{row.note}</td>
                     <td className="px-3 py-2 text-center">
-                      <button onClick={() => router.push(`/dashboard/superadmin/stock/allcard/${row.id}`)} className="mx-auto flex h-8 w-8 items-center justify-center rounded-md border hover:bg-gray-100">
-                        <Eye size={16} />
-                      </button>
+                      <div className="flex justify-center gap-2">
+                        {/* VIEW */}
+                        <button
+                          onClick={() => router.push(`/dashboard/superadmin/stock/allcard/${row.id}`)}
+                          className="
+        flex h-8 w-8 items-center justify-center
+        rounded-md border
+        text-gray-500
+        hover:bg-gray-100
+      "
+                          title="View"
+                        >
+                          <Eye size={16} />
+                        </button>
+
+                        {/* EDIT */}
+                        <button
+                          onClick={() => router.push(`/dashboard/superadmin/stock/allcard/${row.id}/edit`)}
+                          className="
+        flex h-8 w-8 items-center justify-center
+        rounded-md border
+        text-gray-500
+        hover:bg-[#8D1231] hover:text-white
+        transition-colors
+      "
+                          title="Edit"
+                        >
+                          <Pencil size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

@@ -13,6 +13,18 @@ import autoTable from 'jspdf-autotable';
    TYPES
 ===================== */
 
+interface Category {
+  id: string;
+  categoryCode: string;
+  categoryName: string;
+}
+
+interface TypeItem {
+  id: string;
+  typeCode: string;
+  typeName: string;
+}
+
 interface StockInItem {
   id: string;
   tanggal: string;
@@ -61,6 +73,9 @@ export default function StockInPage() {
 
   const fromDateRef = useRef<HTMLInputElement>(null);
   const toDateRef = useRef<HTMLInputElement>(null);
+
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [types, setTypes] = useState<TypeItem[]>([]);
 
   /* =====================
      FETCH DATA (SAMA SEPERTI STOCK OUT)
@@ -126,6 +141,26 @@ export default function StockInPage() {
       return categoryMatch && typeMatch;
     });
   }, [data, category, type]);
+
+  /* =====================
+   FETCH CATEGORY & TYPE
+===================== */
+  useEffect(() => {
+    const fetchCategoryAndType = async () => {
+      try {
+        const [catRes, typeRes] = await Promise.all([axios.get('/card/category'), axios.get('/card/types')]);
+
+        setCategories(Array.isArray(catRes.data?.data) ? catRes.data.data : []);
+        setTypes(Array.isArray(typeRes.data?.data) ? typeRes.data.data : []);
+      } catch (err) {
+        console.error('Failed fetch category/type', err);
+        setCategories([]);
+        setTypes([]);
+      }
+    };
+
+    fetchCategoryAndType();
+  }, []);
 
   /* =====================
      DELETE
@@ -228,7 +263,7 @@ export default function StockInPage() {
               setCategory(e.target.value);
               setPagination((p) => ({ ...p, page: 1 }));
             }}
-            className="  rounded-md border border-gray-300
+            className="rounded-md border border-gray-300
     bg-white text-black
     px-3 py-2 text-sm
     focus:bg-[#8D1231] focus:text-white
@@ -236,9 +271,9 @@ export default function StockInPage() {
     transition-colors"
           >
             <option value="all">All Category</option>
-            {[...new Set(data.map((d) => d.category))].map((name) => (
-              <option key={name} value={name}>
-                {name}
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.categoryName}>
+                {cat.categoryName}
               </option>
             ))}
           </select>
@@ -250,7 +285,7 @@ export default function StockInPage() {
               setType(e.target.value);
               setPagination((p) => ({ ...p, page: 1 }));
             }}
-            className="  rounded-md border border-gray-300
+            className="rounded-md border border-gray-300
     bg-white text-black
     px-3 py-2 text-sm
     focus:bg-[#8D1231] focus:text-white
@@ -258,9 +293,9 @@ export default function StockInPage() {
     transition-colors"
           >
             <option value="all">All Type</option>
-            {[...new Set(data.map((d) => d.type))].map((name) => (
-              <option key={name} value={name}>
-                {name}
+            {types.map((t) => (
+              <option key={t.id} value={t.typeName}>
+                {t.typeName}
               </option>
             ))}
           </select>
