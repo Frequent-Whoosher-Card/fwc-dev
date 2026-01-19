@@ -3,15 +3,21 @@ import path from "path";
 import db from "../src/config/db";
 
 /**
- * Test Data Scenarios:
- * 1. 10 data sama serial number dan NIK (MATCH)
- * 2. 3 data serial number sama tapi NIK beda (PARTIAL - Serial match)
- * 3. 3 data serial number beda tapi NIK sama (PARTIAL - NIK match)
- * 4. 2 data baru di Whoosh saja (tidak ada di FWC)
- * 5. 2 data baru di FWC saja (tidak ada di Whoosh)
+ * Test Data Scenarios (Updated with FWC-Only Records feature):
+ * 1. 10 data sama serial number + NIK + date (FULL MATCH)
+ * 2. 3 data serial number sama tapi NIK beda (PARTIAL - Serial match only)
+ * 3. 3 data serial number beda tapi NIK sama (PARTIAL - NIK match only)
+ * 4. 2 data baru di Whoosh saja, tidak ada di FWC (UNMATCHED - Whoosh Only)
+ * 5. 3 data baru di FWC saja, tidak ada di Whoosh (FWC ONLY - displayed with blue background)
  *
  * Total Excel: 10 + 3 + 3 + 2 = 18 rows
- * Total FWC: 10 + 3 + 3 + 2 = 18 redeems
+ * Total FWC: 10 + 3 + 3 + 3 = 19 redeems (18 matched attempts + 3 FWC-only)
+ *
+ * Expected UI Display:
+ * - Matched: 10 (green)
+ * - Partial: 6 (3 serial match + 3 NIK match) (amber)
+ * - Unmatched: 2 (Whoosh only) (red)
+ * - FWC Only: 3 (shown at bottom with blue background)
  */
 
 const TEST_DATE = "2026-01-17";
@@ -184,20 +190,28 @@ async function createTestData() {
       expected: "❌ NOT FOUND - Hanya ada di Whoosh",
     },
 
-    // ========== GROUP 5: 2 DATA BARU DI FWC SAJA (tidak akan muncul di Excel) ==========
+    // ========== GROUP 5: 3 DATA BARU DI FWC SAJA (akan tampil dengan background biru) ==========
+    // Data ini akan muncul di bagian bawah tabel dengan label "FWC Only"
     {
       nik: "3205050505050001",
-      name: "FWC Only A",
+      name: "FWC Only User A",
       serialNumber: "01260500001",
       onlyInFwc: true,
-      expected: "📦 FWC ONLY - Tidak ada di Whoosh",
+      expected: "📦 FWC ONLY - Tidak ada di Whoosh (tampil dengan background biru)",
     },
     {
       nik: "3205050505050002",
-      name: "FWC Only B",
+      name: "FWC Only User B",
       serialNumber: "01260500002",
       onlyInFwc: true,
-      expected: "📦 FWC ONLY - Tidak ada di Whoosh",
+      expected: "📦 FWC ONLY - Tidak ada di Whoosh (tampil dengan background biru)",
+    },
+    {
+      nik: "3205050505050003",
+      name: "FWC Only User C",
+      serialNumber: "01260500003",
+      onlyInFwc: true,
+      expected: "📦 FWC ONLY - Tidak ada di Whoosh (tampil dengan background biru)",
     },
   ];
 
@@ -382,25 +396,32 @@ async function createTestData() {
   console.log("=".repeat(60));
 
   console.log("\n📊 EXCEL (WHOOSH) - 18 rows:");
-  console.log("   • 10 rows: Match semua (Serial + NIK + Date sama)");
-  console.log("   • 3 rows: Serial sama, NIK beda");
-  console.log("   • 3 rows: NIK sama, Serial beda");
-  console.log("   • 2 rows: Hanya di Whoosh (tidak ada di FWC)");
+  console.log("   • 10 rows: Match semua (Serial + NIK + Date sama) ✅");
+  console.log("   • 3 rows: Serial sama, NIK beda ⚠️");
+  console.log("   • 3 rows: NIK sama, Serial beda ⚠️");
+  console.log("   • 2 rows: Hanya di Whoosh (tidak ada di FWC) ❌");
 
-  console.log("\n🗃️ DATABASE (FWC) - 18 redeems:");
-  console.log("   • 10 redeems: Match semua");
+  console.log("\n🗃️ DATABASE (FWC) - 19 redeems:");
+  console.log("   • 10 redeems: Match semua ✅");
   console.log(
-    "   • 3 redeems: Serial sama, NIK beda (untuk test Serial Match)"
+    "   • 3 redeems: Serial sama, NIK beda (untuk test Serial Match) ⚠️"
   );
-  console.log("   • 3 redeems: NIK sama, Serial beda (untuk test NIK Match)");
-  console.log("   • 2 redeems: Hanya di FWC (tidak ada di Whoosh)");
+  console.log("   • 3 redeems: NIK sama, Serial beda (untuk test NIK Match) ⚠️");
+  console.log("   • 3 redeems: Hanya di FWC (tidak ada di Whoosh) 📦");
 
-  console.log("\n📈 EXPECTED RESULTS:");
-  console.log("   ✅ MATCHED: 10");
-  console.log("   ⚠️ PARTIAL (Serial match): 3");
-  console.log("   ⚠️ PARTIAL (NIK match): 3");
-  console.log("   ❌ NOT MATCHED: 2 (Whoosh only)");
-  console.log("   📦 FWC ONLY: 2 (tidak tampil di reconciliation)");
+  console.log("\n📈 EXPECTED RESULTS IN UI:");
+  console.log("   ✅ MATCHED (green): 10");
+  console.log("   ⚠️ PARTIAL (amber):");
+  console.log("      - Serial match only: 3");
+  console.log("      - NIK match only: 3");
+  console.log("   ❌ UNMATCHED (red): 2 (Whoosh only)");
+  console.log("   📦 FWC ONLY (blue background): 3");
+
+  console.log("\n💡 FWC ONLY RECORDS:");
+  console.log("   • Ditampilkan di bagian bawah tabel");
+  console.log("   • Background biru untuk membedakan dari records lain");
+  console.log("   • Kolom Whoosh menunjukkan 'Tidak ada di Whoosh'");
+  console.log("   • Muncul dalam stats card 'FWC Only': 3");
 
   console.log("\n" + "=".repeat(60));
 

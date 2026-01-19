@@ -136,6 +136,20 @@ export const ReconciliationModel = {
           matchedRedeemId: t.Nullable(t.String()),
         })
       ),
+      fwcOnlyRecords: t.Array(
+        t.Object({
+          fwc: t.Object({
+            cardId: t.String(),
+            serialNumber: t.Nullable(t.String()),
+            memberName: t.Nullable(t.String()),
+            memberNik: t.Nullable(t.String()),
+            redeemId: t.Nullable(t.String()),
+            redeemDate: t.Nullable(t.String()),
+            redeemStation: t.Nullable(t.String()),
+            redeemType: t.Nullable(t.String()),
+          }),
+        })
+      ),
       pagination: t.Object({
         total: t.Number(),
         page: t.Number(),

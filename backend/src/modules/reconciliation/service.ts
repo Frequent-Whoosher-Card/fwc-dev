@@ -684,6 +684,77 @@ export class ReconciliationService {
     const cardBySerialMap = new Map(cardsBySerial.map((c) => [c.serialNumber, c]));
     const memberByNikMap = new Map(membersByNik.map((m) => [m.identityNumber, m]));
 
+    // Find FWC-only records (records in FWC database but not in Whoosh Excel)
+    // Only query if status is COMPLETED and we want to show all records
+    const fwcOnlyRecords: any[] = [];
+    if (batch.status === "COMPLETED" && params.isMatched === undefined) {
+      // Get date range from uploaded records
+      const dateRange = await db.tempFwcReconciliation.aggregate({
+        where: { batchId },
+        _min: { ticketingDate: true },
+        _max: { ticketingDate: true },
+      });
+
+      if (dateRange._min.ticketingDate && dateRange._max.ticketingDate) {
+        const minDate = dateRange._min.ticketingDate;
+        const maxDate = dateRange._max.ticketingDate;
+
+        // Get matched card IDs
+        const matchedCardIds = records
+          .filter((r) => r.isMatched && r.matchedCardId)
+          .map((r) => r.matchedCardId!);
+
+        // Find redeems in date range that weren't matched
+        const unmatchedRedeems = await db.redeem.findMany({
+          where: {
+            shiftDate: {
+              gte: minDate,
+              lte: maxDate,
+            },
+            cardId: {
+              notIn: matchedCardIds.length > 0 ? matchedCardIds : ['no-match'],
+            },
+          },
+          include: {
+            card: {
+              include: {
+                member: {
+                  select: {
+                    id: true,
+                    name: true,
+                    identityNumber: true,
+                  },
+                },
+              },
+            },
+            station: {
+              select: {
+                id: true,
+                stationName: true,
+              },
+            },
+          },
+          orderBy: { shiftDate: "asc" },
+          take: 100, // Limit to prevent too many records
+        });
+
+        fwcOnlyRecords.push(
+          ...unmatchedRedeems.map((r) => ({
+            fwc: {
+              cardId: r.card.id,
+              serialNumber: r.card.serialNumber,
+              memberName: r.card.member?.name || null,
+              memberNik: r.card.member?.identityNumber || null,
+              redeemId: r.id,
+              redeemDate: r.shiftDate.toISOString().split("T")[0],
+              redeemStation: r.station?.stationName || null,
+              redeemType: r.redeem_type || null,
+            },
+          }))
+        );
+      }
+    }
+
     return {
       batch: {
         id: batch.id,
@@ -804,6 +875,7 @@ export class ReconciliationService {
           matchedRedeemId: r.matchedRedeemId,
         };
       }),
+      fwcOnlyRecords,
       pagination: {
         total,
         page,
