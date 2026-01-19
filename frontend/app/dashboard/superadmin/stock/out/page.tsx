@@ -15,6 +15,18 @@ import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 
 // import { StockSummary } from '@/app/dashboard/superadmin/stock/components/StockSummary';
 
+interface Category {
+  id: string;
+  categoryCode: string;
+  categoryName: string;
+}
+
+interface TypeItem {
+  id: string;
+  typeCode: string;
+  typeName: string;
+}
+
 /* ======================
     TYPES
   ====================== */
@@ -77,6 +89,9 @@ export default function StockOutPage() {
   const [openDelete, setOpenDelete] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedSerial, setSelectedSerial] = useState<string | null>(null);
+
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [types, setTypes] = useState<TypeItem[]>([]);
 
   /* ======================
       FETCH DATA
@@ -163,6 +178,26 @@ export default function StockOutPage() {
       toast.error(message);
     }
   };
+
+  /* ======================
+   FETCH CATEGORY & TYPE
+====================== */
+  useEffect(() => {
+    const fetchCategoryAndType = async () => {
+      try {
+        const [catRes, typeRes] = await Promise.all([axiosInstance.get('/card/category'), axiosInstance.get('/card/types')]);
+
+        setCategories(Array.isArray(catRes.data?.data) ? catRes.data.data : []);
+        setTypes(Array.isArray(typeRes.data?.data) ? typeRes.data.data : []);
+      } catch (err) {
+        console.error('Failed fetch category/type', err);
+        setCategories([]);
+        setTypes([]);
+      }
+    };
+
+    fetchCategoryAndType();
+  }, []);
 
   /* ======================
       EXPORT PDF
@@ -266,14 +301,11 @@ export default function StockOutPage() {
   "
           >
             <option value="all">All Category</option>
-
-            {Array.from(new Set(data.map((d) => d.cardCategory.name)))
-              .filter(Boolean)
-              .map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.categoryName}>
+                {cat.categoryName}
+              </option>
+            ))}
           </select>
 
           {/* TYPE */}
@@ -293,10 +325,9 @@ export default function StockOutPage() {
   "
           >
             <option value="all">All Type</option>
-
-            {[...new Set(data.map((item) => item.cardType.name))].filter(Boolean).map((typeName) => (
-              <option key={typeName} value={typeName}>
-                {typeName}
+            {types.map((t) => (
+              <option key={t.id} value={t.typeName}>
+                {t.typeName}
               </option>
             ))}
           </select>

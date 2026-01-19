@@ -22,6 +22,9 @@ interface BatchData {
   serials: SerialItem[];
 }
 
+// ✅ SESUAI PERMINTAAN
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+
 export default function ViewGeneratedPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -29,10 +32,8 @@ export default function ViewGeneratedPage() {
   const [batch, setBatch] = useState<BatchData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const BACKEND_URL = 'http://localhost:3001';
-
   // =========================
-  // FETCH DETAIL FROM BACKEND
+  // FETCH DETAIL
   // =========================
   useEffect(() => {
     axios
@@ -58,7 +59,7 @@ export default function ViewGeneratedPage() {
 
         setBatch({
           id: movement.id,
-          date: new Date(movement.movementAt).toLocaleDateString(),
+          date: new Date(movement.movementAt).toLocaleDateString('id-ID').replace(/\//g, '-'),
           productLabel: `${movement.category.name} - ${movement.type.name}`,
           start: movement.serialNumbers[0],
           end: movement.serialNumbers[movement.serialNumbers.length - 1],
@@ -70,7 +71,7 @@ export default function ViewGeneratedPage() {
   }, [id]);
 
   // =========================
-  // EXPORT ZIP (FIXED)
+  // EXPORT ZIP
   // =========================
   const handleExportZip = async () => {
     if (!batch || !batch.serials.length) {
@@ -78,9 +79,7 @@ export default function ViewGeneratedPage() {
       return;
     }
 
-    // aman: hanya dipakai saat batch sudah ada
     const safeLabel = batch.productLabel.replace(/\s+/g, '');
-
     const zip = new JSZip();
     const folder = zip.folder(`barcode-${safeLabel}`);
 
@@ -88,24 +87,16 @@ export default function ViewGeneratedPage() {
       if (!item.barcodeUrl) continue;
 
       try {
-        const res = await fetch(`${BACKEND_URL}${item.barcodeUrl}`, {
+        const res = await fetch(`${API_BASE_URL}${item.barcodeUrl}`, {
           credentials: 'include',
         });
 
-        if (!res.ok) {
-          console.error('Gagal fetch barcode:', item.barcodeUrl);
-          continue;
-        }
+        if (!res.ok) continue;
 
         const blob = await res.blob();
-
-        if (!blob.type.startsWith('image/')) {
-          console.error('Bukan image:', blob.type);
-          continue;
-        }
+        if (!blob.type.startsWith('image/')) continue;
 
         const cleanSerial = item.serial.replace(/^_+/, '');
-
         folder?.file(`${safeLabel}-${cleanSerial}.png`, blob);
       } catch (err) {
         console.error('Error fetch barcode:', err);
@@ -113,11 +104,9 @@ export default function ViewGeneratedPage() {
     }
 
     const zipBlob = await zip.generateAsync({ type: 'blob' });
-
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
 
     saveAs(zipBlob, `barcode-${safeLabel}-${timestamp}.zip`);
-
     toast.success('Export ZIP berhasil');
   };
 
@@ -140,7 +129,7 @@ export default function ViewGeneratedPage() {
   }
 
   // =========================
-  // RENDER (UI TIDAK DIUBAH)
+  // RENDER
   // =========================
   return (
     <div className="space-y-6 px-6">
@@ -189,7 +178,7 @@ export default function ViewGeneratedPage() {
               <tr key={item.serial} className="border-b">
                 <td className="px-4 py-2 text-center">{index + 1}</td>
                 <td className="px-4 py-2 font-mono">{item.serial}</td>
-                <td className="px-4 py-2">{item.barcodeUrl ? <img src={`${BACKEND_URL}${item.barcodeUrl}`} alt={item.serial} className="h-12" /> : <span className="text-gray-400 text-xs">Barcode tidak tersedia</span>}</td>
+                <td className="px-4 py-2">{item.barcodeUrl ? <img src={`${API_BASE_URL}${item.barcodeUrl}`} alt={item.serial} className="h-12" /> : <span className="text-gray-400 text-xs">Barcode tidak tersedia</span>}</td>
               </tr>
             ))}
           </tbody>
