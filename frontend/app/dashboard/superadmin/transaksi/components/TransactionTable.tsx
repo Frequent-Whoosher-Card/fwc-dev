@@ -1,56 +1,35 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { 
-  getPurchases
-} from '@/lib/services/purchase.service';
-import { 
-  ChevronLeft, 
-  ChevronRight
-} from 'lucide-react';
-import { toast } from 'sonner';
+import { useState } from "react";
+import ConfirmDeleteModal from "./ui/ConfirmDeleteModal";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
-
-
-
+/* ======================
+   TYPES
+====================== */
 interface Purchase {
   id: string;
   purchaseDate: string;
+  shiftDate?: string | null;
   price: number;
   edcReferenceNumber: string;
   card: {
-    id: string;
     serialNumber: string;
     status: string;
     expiredDate: string | null;
     quotaTicket: number;
     cardProduct: {
-      id: string;
       totalQuota: number;
-      masaBerlaku: number;
-      category: {
-        id: string;
-        categoryName: string;
-      };
-      type: {
-        id: string;
-        typeName: string;
-      };
+      category: { categoryName: string };
+      type: { typeName: string };
     };
   };
   member: {
-    id: string;
     name: string;
     identityNumber: string;
   } | null;
-  operator: {
-    id: string;
-    fullName: string;
-  };
-  station: {
-    id: string;
-    stationName: string;
-  };
+  operator: { fullName: string };
+  station: { stationName: string };
 }
 
 interface Pagination {
@@ -60,176 +39,213 @@ interface Pagination {
   total: number;
 }
 
-const formatDate = (iso?: string | null) => {
-  if (!iso) return '-';
-  const d = new Date(iso);
-  return d.toLocaleDateString('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-};
+interface Props {
+  data: Purchase[];
+  loading: boolean;
+  pagination: Pagination;
+  type: "ALL" | "KAI";
+  onPageChange: (page: number) => void;
+}
 
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
+/* ======================
+   HELPERS
+====================== */
+const formatDate = (iso?: string | null) =>
+  iso
+    ? new Date(iso).toLocaleDateString("id-ID", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+    : "-";
+
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
     minimumFractionDigits: 0,
   }).format(amount);
+
+const formatNIK = (nik?: string | null) => {
+  if (!nik) return "-";
+  return `FWC${nik}`;
 };
 
-export default function TransactionTable() {
-  const [data, setData] = useState<Purchase[]>([]);
-  const [pagination, setPagination] = useState<Pagination>({
-    page: 1,
-    limit: 10,
-    totalPages: 1,
-    total: 0,
-  });
-  const [loading, setLoading] = useState(true);
+const formatEDC = (edc?: string | null) => {
+  if (!edc) return "-";
+  return `EDC${edc}`;
+};
 
-
-
-  const fetchPurchases = async (page: number = 1) => {
-    try {
-      setLoading(true);
-      const res = await getPurchases({ page, limit: 10 });
-      
-      if (res.success && res.data) {
-        setData(res.data.items || []);
-        setPagination(res.data.pagination || pagination);
-      }
-    } catch (err) {
-      console.error('Error fetching purchases:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchPurchases(pagination.page);
-  }, [pagination.page]);
-
-
+/* ======================
+   COMPONENT
+====================== */
+export default function TransactionTable({
+  data,
+  loading,
+  pagination,
+  onPageChange,
+}: Props) {
+  /* ======================
+     DELETE STATE
+  ====================== */
+  const [openDelete, setOpenDelete] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const pageNumbers = Array.from(
     { length: pagination.totalPages },
     (_, i) => i + 1
-  ).slice(
-    Math.max(0, pagination.page - 3),
-    pagination.page + 2
-  );
+  ).slice(Math.max(0, pagination.page - 3), pagination.page + 2);
+
+  /* ======================
+     DELETE HANDLER
+  ====================== */
+  const handleOpenDelete = (id: string) => {
+    setSelectedId(id);
+    setOpenDelete(true);
+  };
+
+  const handleCloseDelete = () => {
+    if (deleteLoading) return;
+    setOpenDelete(false);
+    setSelectedId(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedId) return;
+
+    try {
+      setDeleteLoading(true);
+
+      // 🔴 SESUAIKAN URL API DELETE
+      await fetch(`/api/purchases/${selectedId}`, {
+        method: "DELETE",
+      });
+
+      setOpenDelete(false);
+      setSelectedId(null);
+
+      // refresh current page
+      onPageChange(pagination.page);
+    } catch (error) {
+      console.error("Delete failed:", error);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
-      <div className="overflow-x-auto rounded-md border bg-white">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50">
-          <tr>
-              <th className="px-3 py-2 text-left whitespace-nowrap">Purchase Date</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">Masa Berlaku</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">Expired Date</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">Status Card</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">Card Category</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">Card Type</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">Total Quota</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">Remaining Quota</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">Serial Number</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">No. Reference EDC</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">FWC Price</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">Shift Date</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">Operator Name</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">Stasiun</th>
-          </tr>
-        </thead>
+      {/* TABLE */}
+      <div className="overflow-x-auto rounded-lg border bg-white">
+        <table className="w-full text-sm border-collapse">
+          <thead className="bg-gray-50">
+            <tr className="text-xs font-semibold text-gray-700">
+              <th className="px-4 py-3 text-left">Customer Name</th>
+              <th className="px-4 py-3 text-left">NIK</th>
+              <th className="px-4 py-3 text-left">Card Category</th>
+              <th className="px-4 py-3 text-left">Card Type</th>
+              <th className="px-4 py-3 text-left">Serial Number</th>
+              <th className="px-4 py-3 text-left">Reference EDC</th>
+              <th className="px-4 py-3 text-right">FWC Price</th>
+              <th className="px-4 py-3 text-center">Purchase Date</th>
+              <th className="px-4 py-3 text-center">Shift Date</th>
+              <th className="px-4 py-3 text-left">Operator Name</th>
+              <th className="px-4 py-3 text-left">Station</th>
+              <th className="px-4 py-3 text-center">Aksi</th>
+            </tr>
+          </thead>
 
-        <tbody>
+          <tbody className="text-gray-700">
             {loading ? (
               <tr>
-                <td colSpan={16} className="px-3 py-6 text-center text-gray-400">
+                <td colSpan={12} className="py-10 text-center text-gray-400">
                   Loading...
                 </td>
               </tr>
             ) : data.length === 0 ? (
-          <tr>
-                <td colSpan={15} className="px-3 py-6 text-center text-gray-400">
-              No data
-            </td>
-          </tr>
+              <tr>
+                <td colSpan={12} className="py-10 text-center text-gray-400">
+                  No data
+                </td>
+              </tr>
             ) : (
               data.map((item) => (
-                <tr key={item.id} className="border-t hover:bg-gray-50">
-                  <td className="px-3 py-2 whitespace-nowrap">
-                    {formatDate(item.purchaseDate)}
+                <tr
+                  key={item.id}
+                  className="border-t hover:bg-gray-50 transition"
+                >
+                  <td className="px-4 py-3 truncate">
+                    {item.member?.name ?? "-"}
                   </td>
-                  <td className="px-3 py-2 whitespace-nowrap">
-                    {item.card.cardProduct.masaBerlaku} hari
+
+                  <td className="px-4 py-3 font-mono truncate">
+                    {formatNIK(item.member?.identityNumber)}
                   </td>
-                  <td className="px-3 py-2 whitespace-nowrap">
-                    {formatDate(item.card.expiredDate)}
-                  </td>
-                  <td className="px-3 py-2 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-1 rounded text-xs ${
-                        item.card.status === 'SOLD_ACTIVE'
-                          ? 'bg-green-100 text-green-700'
-                          : item.card.status === 'EXPIRED'
-                          ? 'bg-red-100 text-red-700'
-                          : 'bg-gray-100 text-gray-700'
-                      }`}
-                    >
-                      {item.card.status}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2 whitespace-nowrap">
+
+                  <td className="px-4 py-3">
                     {item.card.cardProduct.category.categoryName}
                   </td>
-                  <td className="px-3 py-2 whitespace-nowrap">
+
+                  <td className="px-4 py-3">
                     {item.card.cardProduct.type.typeName}
                   </td>
-                  <td className="px-3 py-2 whitespace-nowrap text-center">
-                    {item.card.cardProduct.totalQuota}
-                  </td>
-                  <td className="px-3 py-2 whitespace-nowrap text-center">
-                    {item.card.quotaTicket}
-                  </td>
-                  <td className="px-3 py-2 whitespace-nowrap font-mono">
+
+                  <td className="px-4 py-3 font-mono truncate">
                     {item.card.serialNumber}
                   </td>
-                  <td className="px-3 py-2 whitespace-nowrap font-mono">
-                    {item.edcReferenceNumber}
+
+                  <td className="px-4 py-3 font-mono truncate">
+                    {formatEDC(item.edcReferenceNumber)}
                   </td>
-                  <td className="px-3 py-2 whitespace-nowrap">
+
+                  <td className="px-4 py-3 text-right text-[#8D1231] font-medium">
                     {formatCurrency(item.price)}
                   </td>
-                  <td className="px-3 py-2 whitespace-nowrap">
+
+                  <td className="px-4 py-3 text-center">
                     {formatDate(item.purchaseDate)}
                   </td>
-                  <td className="px-3 py-2 whitespace-nowrap">
+
+                  <td className="px-4 py-3 text-center">
+                    {formatDate(item.shiftDate)}
+                  </td>
+
+                  <td className="px-4 py-3 truncate">
                     {item.operator.fullName}
                   </td>
-                  <td className="px-3 py-2 whitespace-nowrap">
+
+                  <td className="px-4 py-3 truncate">
                     {item.station.stationName}
+                  </td>
+
+                  <td className="px-4 py-3">
+                    <div className="flex justify-center gap-2">
+                      <button className="px-3 py-1 text-xs rounded border border-gray-300 text-gray-700 hover:bg-gray-100">
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleOpenDelete(item.id)}
+                        className="px-3 py-1 text-xs rounded bg-[#8D1231] text-white hover:bg-[#741026] transition"
+                      >
+                        Hapus
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
             )}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
       </div>
 
       {/* PAGINATION */}
       {!loading && data.length > 0 && (
-        <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
+        <div className="flex items-center justify-center gap-3 text-sm text-gray-600">
           <button
             disabled={pagination.page === 1}
-            onClick={() =>
-              setPagination((p) => ({
-                ...p,
-                page: p.page - 1,
-              }))
-            }
-            className="px-2 disabled:opacity-40"
+            onClick={() => onPageChange(pagination.page - 1)}
+            className="disabled:opacity-40"
           >
             <ChevronLeft size={18} />
           </button>
@@ -237,16 +253,11 @@ export default function TransactionTable() {
           {pageNumbers.map((p) => (
             <button
               key={p}
-              onClick={() =>
-                setPagination((pg) => ({
-                  ...pg,
-                  page: p,
-                }))
-              }
-              className={`px-3 py-1 ${
+              onClick={() => onPageChange(p)}
+              className={`px-2 ${
                 p === pagination.page
-                  ? 'font-semibold underline'
-                  : ''
+                  ? "font-semibold underline text-gray-900"
+                  : "hover:text-gray-900"
               }`}
             >
               {p}
@@ -255,20 +266,22 @@ export default function TransactionTable() {
 
           <button
             disabled={pagination.page === pagination.totalPages}
-            onClick={() =>
-              setPagination((p) => ({
-                ...p,
-                page: p.page + 1,
-              }))
-            }
-            className="px-2 disabled:opacity-40"
+            onClick={() => onPageChange(pagination.page + 1)}
+            className="disabled:opacity-40"
           >
             <ChevronRight size={18} />
           </button>
         </div>
       )}
 
-
+      {/* DELETE MODAL */}
+      <ConfirmDeleteModal
+        open={openDelete}
+        title="Delete Purchase"
+        description="Are you sure want to delete this purchase data? This action cannot be undone."
+        onCancel={handleCloseDelete}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }
