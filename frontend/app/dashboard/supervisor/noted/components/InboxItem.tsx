@@ -2,6 +2,7 @@
 
 import { InboxItemModel } from "@/lib/services/inbox";
 import StatusBadge from "./StatusBadge";
+import { mapInboxStatus } from "@/lib/services/inbox";
 
 export default function InboxItem({
   item,
@@ -13,10 +14,12 @@ export default function InboxItem({
   const avatarLetter = item.sender.fullName?.charAt(0).toUpperCase() || "?";
 
   // =====================
-  // STATUS CHECK
+  // STATUS MAPPING (FROM BACKEND)
   // =====================
-  const isIssue = item.status === "ISSUE";
-  const isPending = item.status === "PENDING";
+  const status = mapInboxStatus(item);
+
+  const isIssue = status === "ISSUE";
+  const isPending = status === "PENDING";
 
   return (
     <div
@@ -52,8 +55,8 @@ export default function InboxItem({
           {item.sender.fullName || "-"}
         </span>
 
-        {/* Card Condition from backend */}
-        <StatusBadge status={item.status} />
+        {/* ✅ STATUS FROM MAPPER */}
+        <StatusBadge status={status} />
       </div>
 
       {/* MIDDLE : TITLE + MESSAGE */}

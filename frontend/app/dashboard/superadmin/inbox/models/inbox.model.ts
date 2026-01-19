@@ -1,10 +1,12 @@
 //API Contract
 
-export type InboxStatus =
-  | "ACCEPTED"
-  | "CARD_MISSING"
-  | "CARD_DAMAGED"
-  | "UNKNOWN";
+export type InboxType =
+  | "STOCK_ISSUE_APPROVAL"
+  | "STOCK_OUT_REPORT"
+  | "PENDING"
+  | "LOW_STOCK";
+
+export type InboxStatus = "PENDING" | "ISSUE" | "COMPLETED";
 
 export interface Sender {
   fullName: string;

@@ -3,11 +3,17 @@
 import { useState } from "react";
 import { Filter, RotateCcw, Calendar } from "lucide-react";
 
+/* ================= TYPES ================= */
+
+export type InboxStatus = "PENDING" | "ISSUE" | "COMPLETED";
+
 export interface InboxFilters {
-  status?: string;
+  status?: InboxStatus;
   startDate?: string;
   endDate?: string;
 }
+
+/* ================= COMPONENT ================= */
 
 export default function InboxFilter({
   onFilter,
@@ -17,7 +23,7 @@ export default function InboxFilter({
   // =========================
   // STATE FILTER (LOCAL UI)
   // =========================
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState<InboxStatus | "">("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
@@ -27,8 +33,13 @@ export default function InboxFilter({
     setEndDate("");
     onFilter({});
   };
+
   const applyFilters = () => {
-    onFilter({ status, startDate, endDate });
+    onFilter({
+      status: status || undefined,
+      startDate,
+      endDate,
+    });
   };
 
   return (
@@ -40,19 +51,19 @@ export default function InboxFilter({
         <span className="text-sm font-medium">Status</span>
         <select
           value={status}
-          onChange={(e) => setStatus(e.target.value)}
+          onChange={(e) => setStatus(e.target.value as InboxStatus)}
           className="h-9 w-[160px] rounded-md border px-3 text-sm"
         >
           <option value="">Semua Status</option>
-          <option value="ACCEPTED">Accepted</option>
-          <option value="CARD_MISSING">Missing</option>
-          <option value="CARD_DAMAGED">Damaged</option>
+          <option value="PENDING">Pending</option>
+          <option value="ISSUE">Issue</option>
+          <option value="COMPLETED">Completed</option>
         </select>
       </div>
 
       <div className="ml-auto flex gap-2">
         <button
-          onClick={() => onFilter({ status, startDate, endDate })}
+          onClick={applyFilters}
           className="bg-red-600 text-white px-8 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2"
         >
           Filter <Filter size={16} />
@@ -68,6 +79,8 @@ export default function InboxFilter({
     </div>
   );
 }
+
+/* ================= SUB COMPONENT ================= */
 
 function DateInput({
   label,

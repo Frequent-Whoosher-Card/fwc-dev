@@ -3,15 +3,13 @@
 import { InboxItemModel } from "@/lib/services/inbox";
 import InboxItem from "./InboxItem";
 
-export default function InboxList({
-  items,
-  loading,
-  onClickItem,
-}: {
+interface Props {
   items: InboxItemModel[];
   loading: boolean;
   onClickItem: (item: InboxItemModel) => void;
-}) {
+}
+
+export default function InboxList({ items, loading, onClickItem }: Props) {
   if (loading) {
     return (
       <div className="p-20 text-center text-gray-400 animate-pulse">

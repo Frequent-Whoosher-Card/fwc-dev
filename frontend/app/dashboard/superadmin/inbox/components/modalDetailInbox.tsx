@@ -49,14 +49,14 @@ export default function ModalDetailInbox({
   const [detail, setDetail] = useState<InboxDetail | null>(null);
   const [stockDetail, setStockDetail] = useState<StockDetail | null>(null);
 
-  // 👉 single source of truth untuk render
   const viewData = detail ?? data;
 
   const avatarLetter =
     viewData.sender?.fullName?.charAt(0).toUpperCase() ?? "?";
 
-  const isSerialCase =
-    viewData.status === "CARD_DAMAGED" || viewData.status === "CARD_MISSING";
+  const hasSerials =
+    (viewData.payload?.damagedSerials?.length ?? 0) > 0 ||
+    (viewData.payload?.missingSerials?.length ?? 0) > 0;
 
   /* ================= FETCH DETAIL ================= */
 
@@ -74,13 +74,22 @@ export default function ModalDetailInbox({
         const item = inboxRes.data.data;
         const sentDate = new Date(item.sentAt);
 
-        // ✅ mapping status aman
-        const mappedStatus: InboxStatus =
-          item.payload?.damagedSerials?.length > 0
-            ? "CARD_DAMAGED"
-            : item.payload?.missingSerials?.length > 0
-            ? "CARD_MISSING"
-            : "ACCEPTED";
+        /**
+         * TEMP WORKAROUND
+         * Backend belum expose approval status.
+         * isRead sementara dianggap sebagai sudah diproses.
+         */
+        const isValidated = item.isRead === true;
+
+        const hasIssue =
+          (item.payload?.damagedSerials?.length ?? 0) > 0 ||
+          (item.payload?.missingSerials?.length ?? 0) > 0;
+
+        let mappedStatus: InboxStatus = "PENDING";
+
+        if (isValidated) {
+          mappedStatus = hasIssue ? "ISSUE" : "COMPLETED";
+        }
 
         const inboxPayload: InboxPayload = {
           stockOutId: item.payload?.stockOutId,
@@ -114,13 +123,9 @@ export default function ModalDetailInbox({
          * 2️⃣ FETCH STOCK OUT DETAIL
          * ==========================
          */
-        if (!inboxPayload.stockOutId) {
-          console.warn("stockOutId not found in inbox payload");
-          return;
-        }
+        if (!inboxPayload.stockOutId) return;
 
         const stockRes = await api.get(`/stock/out/${inboxPayload.stockOutId}`);
-
         if (!stockRes.data?.success) return;
 
         const s = stockRes.data.data;
@@ -183,7 +188,7 @@ export default function ModalDetailInbox({
             <StatusBadge status={viewData.status} />
           </div>
 
-          {isSerialCase &&
+          {hasSerials &&
             [
               ...(viewData.payload?.damagedSerials ?? []),
               ...(viewData.payload?.missingSerials ?? []),

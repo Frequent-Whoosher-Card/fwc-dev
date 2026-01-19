@@ -6,38 +6,45 @@ import { API_BASE_URL } from "@/lib/apiConfig";
 import InboxFilter from "./components/InboxFilter";
 import InboxList from "./components/InboxList";
 
+/* ================= TYPES ================= */
+
+type InboxStatus = "PENDING" | "ISSUE" | "COMPLETED";
+
 interface InboxFilters {
-  status?: string;
+  status?: InboxStatus;
   startDate?: string;
   endDate?: string;
 }
 
+/* ================= STATUS MAPPER ================= */
+
 /**
- * Derive card condition from backend message
- * (temporary until backend provides explicit field)
+ * TEMP WORKAROUND
+ * Backend belum expose approval status.
+ * isRead dianggap sebagai sudah diproses.
  */
-function deriveCardCondition(message: string): string {
-  const msg = message.toLowerCase();
+function deriveInboxStatus(item: any): InboxStatus {
+  const isValidated = item.isRead === true;
 
-  if (msg.includes("diterima")) return "ACCEPTED";
-  if (msg.includes("hilang")) return "CARD_MISSING";
-  if (msg.includes("rusak")) return "CARD_DAMAGED";
+  const hasIssue =
+    (item.payload?.damagedSerials?.length ?? 0) > 0 ||
+    (item.payload?.missingSerials?.length ?? 0) > 0;
 
-  return "UNKNOWN";
+  if (!isValidated) return "PENDING";
+  if (hasIssue) return "ISSUE";
+  return "COMPLETED";
 }
 
+/* ================= PAGE ================= */
+
 export default function InboxPage() {
-  // =========================
-  // STATE DATA & LOADING
-  // =========================
   const router = useRouter();
 
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // =========================
-  // FETCH INBOX DATA
-  // =========================
+  /* ================= FETCH INBOX ================= */
+
   const fetchInbox = useCallback(
     async (filters: InboxFilters = {}) => {
       setLoading(true);
@@ -56,16 +63,12 @@ export default function InboxPage() {
         }
 
         /**
-         * Build query string dengan URLSearchParams
-         * Lebih aman & rapi dibanding string concat manual
+         * Build query string
          */
         const params = new URLSearchParams({ limit: "10" });
 
-        if (filters.status) params.append("status", filters.status);
-
         const url = `${API_BASE_URL}/inbox/?${params.toString()}`;
 
-        // Request ke backend
         const res = await fetch(url, {
           headers: {
             "Content-Type": "application/json",
@@ -74,8 +77,7 @@ export default function InboxPage() {
         });
 
         /**
-         * Jika token expired / unauthorized
-         * → clear localStorage & redirect
+         * Unauthorized
          */
         if (res.status === 401) {
           localStorage.removeItem("fwc_token");
@@ -85,8 +87,6 @@ export default function InboxPage() {
         }
 
         const result = await res.json();
-
-        // MAP DATA FROM BACKEND TO FRONTEND FORMAT
 
         if (result.success) {
           let mappedItems = result.data.items.map((item: any) => {
@@ -99,8 +99,9 @@ export default function InboxPage() {
               sender: item.sender,
               isRead: item.isRead,
               readAt: item.readAt,
+              payload: item.payload,
 
-              // 🔥 SIMPAN DATE ASLI UNTUK FILTER
+              // 🔥 Simpan Date asli untuk filtering
               sentAt: sentDate,
 
               dateLabel: sentDate.toLocaleDateString("id-ID", {
@@ -114,28 +115,30 @@ export default function InboxPage() {
                   minute: "2-digit",
                 }) + " WIB",
 
-              status: deriveCardCondition(item.message),
+              // ✅ STATUS BARU (SAMA DENGAN MODAL)
+              status: deriveInboxStatus(item),
             };
           });
 
           /**
-           * ✅ FILTER FRONTEND (INI KUNCINYA)
+           * ✅ FRONTEND FILTER
            */
           if (filters.status) {
             mappedItems = mappedItems.filter(
               (item) => item.status === filters.status
             );
           }
+
           if (filters.startDate) {
             const start = new Date(filters.startDate);
-            start.setHours(0, 0, 0, 0); // awal hari
+            start.setHours(0, 0, 0, 0);
 
             mappedItems = mappedItems.filter((item) => item.sentAt >= start);
           }
 
           if (filters.endDate) {
             const end = new Date(filters.endDate);
-            end.setHours(23, 59, 59, 999); // akhir hari
+            end.setHours(23, 59, 59, 999);
 
             mappedItems = mappedItems.filter((item) => item.sentAt <= end);
           }
@@ -151,10 +154,13 @@ export default function InboxPage() {
     [router]
   );
 
-  // INITIAL FETCH
+  /* ================= INITIAL FETCH ================= */
+
   useEffect(() => {
     fetchInbox();
   }, [fetchInbox]);
+
+  /* ================= RENDER ================= */
 
   return (
     <div className="space-y-6 h-full">

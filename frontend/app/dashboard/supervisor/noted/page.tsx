@@ -5,14 +5,15 @@ import { useRouter } from "next/navigation";
 import InboxFilter from "./components/InboxFilter";
 import InboxList from "./components/InboxList";
 import api from "@/lib/axios";
+import { InboxItemModel, InboxStatus } from "@/lib/services/inbox";
 
 export default function InboxPage() {
-  // =========================
-  // STATE DATA & LOADING
-  // =========================
   const router = useRouter();
 
-  const [items, setItems] = useState<any[]>([]);
+  // =========================
+  // STATE
+  // =========================
+  const [items, setItems] = useState<InboxItemModel[]>([]);
   const [loading, setLoading] = useState(true);
 
   /* =========================
@@ -22,7 +23,6 @@ export default function InboxPage() {
     try {
       setLoading(true);
 
-      // ⚠️ Jangan kirim filter param dulu supaya API aman
       const params = {
         page: 1,
         limit: 10,
@@ -33,62 +33,72 @@ export default function InboxPage() {
         validateStatus: (status) => status < 500, // allow 422
       });
 
-      // ✅ Aman untuk berbagai bentuk response
+      /**
+       * Backend kadang return:
+       *  - res.data.data
+       *  - res.data.found.data
+       *  - res.data
+       */
       const data = res.data?.found?.data ?? res.data?.data ?? res.data;
-
       const rawItems = Array.isArray(data?.items) ? data.items : [];
 
-      const mappedItems = rawItems.map((item: any) => {
+      const mappedItems: InboxItemModel[] = rawItems.map((item: any) => {
         const date = new Date(item.movementAt);
 
         // =====================
-        // STATUS MAPPING (BENAR)
+        // ✅ STATUS MAPPING FINAL
         // =====================
-        let status = "PENDING";
+        let status: InboxStatus = "PENDING";
 
-        // backend yang menentukan status validasi
-        if (item.validationStatus === "COMPLETED") status = "COMPLETED";
-        if (item.validationStatus === "ISSUE") status = "ISSUE";
+        const damagedCount = item.damagedSerialNumbers?.length ?? 0;
+        const lostCount = item.lostSerialNumbers?.length ?? 0;
+        const hasIssue = damagedCount > 0 || lostCount > 0;
 
-        // fallback: hitung dari data rusak / hilang
-        if (!item.validationStatus) {
-          const hasDamaged = item.damagedSerialNumbers?.length > 0;
-          const hasMissing = item.lostSerialNumbers?.length > 0;
-
-          if (hasDamaged || hasMissing) {
-            status = "ISSUE";
-          } else {
-            status = "COMPLETED";
-          }
+        /**
+         * PRIORITY:
+         * 1. Jika backend sudah kirim validationStatus → pakai itu
+         * 2. Jika belum ada → fallback dari data issue
+         */
+        if (item.validationStatus === "COMPLETED") {
+          status = hasIssue ? "ISSUE" : "COMPLETED";
+        } else if (item.validationStatus === "ISSUE") {
+          status = "ISSUE";
+        } else {
+          // belum divalidasi
+          status = "PENDING";
         }
 
         return {
           id: item.id,
+
           sender: {
             fullName: item.createdByName || "-",
           },
+
           status,
-          title: `Stock Out - ${item.stationName}`,
+
+          title: `Stock Out - ${item.stationName || "-"}`,
           message: item.note || "Menunggu validasi stock out",
+
           date_label: date.toLocaleDateString("id-ID", {
             day: "2-digit",
             month: "long",
             year: "numeric",
           }),
+
           time_label:
             date.toLocaleTimeString("id-ID", {
               hour: "2-digit",
               minute: "2-digit",
             }) + " WIB",
 
-          // simpan raw untuk halaman detail
           raw: item,
         };
       });
 
       setItems(mappedItems);
     } catch (error) {
-      console.error("Fetch stock out error >>>", error);
+      console.error("❌ Fetch stock out error:", error);
       setItems([]);
     } finally {
       setLoading(false);
@@ -109,12 +119,12 @@ export default function InboxPage() {
     router.push("/dashboard/supervisor/noted/formnoted");
   };
 
-  // ✅ CLICK ITEM → HALAMAN DETAIL / EDIT
-  const handleOpenDetail = (item: any) => {
+  const handleOpenDetail = (item: InboxItemModel) => {
     router.push(`/dashboard/supervisor/noted/formnoted?id=${item.id}`);
   };
+
   /* =========================
-     RENDER (SCROLL FIXED)
+     RENDER (UI TIDAK BERUBAH)
   ========================= */
   return (
     <div className="flex flex-col gap-4 min-h-screen p-3 sm:p-6">
@@ -132,7 +142,6 @@ export default function InboxPage() {
 
       {/* LIST */}
       <div className="rounded-xl border bg-white shadow-sm flex flex-col min-h-[420px] max-h-[70vh]">
-        {/* SCROLL AREA */}
         <div className="flex-1 overflow-y-auto">
           <InboxList
             items={items}
