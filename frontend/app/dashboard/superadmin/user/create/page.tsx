@@ -1,386 +1,389 @@
 "use client";
 
-import { ArrowLeft, Calendar, ChevronDown } from "lucide-react";
-import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
+
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Phone, Mail, ChevronDown } from "lucide-react";
+
+import SuccessModal from "../components/SuccesModal";
+// sesuaikan path aslinya
+
+import { createUser, getRoles, RoleItem } from "@/lib/services/user.service";
+import { getStations, StationItem } from "@/lib/services/station.service";
 
 /* ======================
-   CONFIG
+   TYPES
 ====================== */
-const API_BASE_URL = "http://localhost:3001";
-
-/* ======================
-   BASE INPUT STYLE
-====================== */
-const base =
-  "h-10 w-full rounded-md border border-gray-300 px-3 text-sm text-gray-700 focus:border-gray-400 focus:outline-none";
-
-/* ======================
-   DATE HELPER (LOCAL TODAY)
-====================== */
-const getTodayLocalDate = () => {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-};
-
-/* ======================
-   FIELD WRAPPER
-====================== */
-function Field({
-  label,
-  required,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs text-gray-500">
-        {label}
-        {required && <span className="ml-1 text-red-500">*</span>}
-      </label>
-      {children}
-    </div>
-  );
-}
-
-/* ======================
-   SECTION CARD
-====================== */
-function SectionCard({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-md border border-gray-200 p-4">
-      <h3 className="mb-4 text-sm font-semibold text-gray-700">{title}</h3>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{children}</div>
-    </div>
-  );
+interface UserForm {
+  name: string;
+  nip: string;
+  username: string;
+  email: string;
+  phone: string;
+  roleId: string;
+  stationId: string;
 }
 
 /* ======================
    PAGE
 ====================== */
-export default function AddPurchasePage() {
+
+export default function CreateUserPage() {
   const router = useRouter();
 
-  /* ======================
-     CUSTOMER
-  ====================== */
-  const [customerName, setCustomerName] = useState("");
-  const [nik, setNik] = useState("");
-  const [nip, setNip] = useState("");
-  const [memberId, setMemberId] = useState<string | null>(null);
+  const [form, setForm] = useState<UserForm>({
+    name: "",
+    nip: "",
+    username: "",
+    email: "",
+    phone: "",
+    roleId: "",
+    stationId: "",
+  });
+
+  const [roles, setRoles] = useState<RoleItem[]>([]);
+  const [stations, setStations] = useState<StationItem[]>([]);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmData, setConfirmData] = useState<Record<string, string>>({});
 
   /* ======================
-     CARD PRODUCT
+     HELPERS (BEST PRACTICE)
   ====================== */
-  const [cardProducts, setCardProducts] = useState<any[]>([]);
-  const [cardProductId, setCardProductId] = useState("");
-  const [price, setPrice] = useState("");
-  const [masaBerlaku, setMasaBerlaku] = useState(0);
+  const sanitizeNip = (value: string) => value.replace(/\D/g, "").slice(0, 20);
+
+  const sanitizeUsername = (value: string) =>
+    value.toLowerCase().replace(/[^a-z0-9_]/g, "");
+
+  const isValidEmail = (email: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   /* ======================
-     CARD (SERIAL)
-  ====================== */
-  const [cards, setCards] = useState<any[]>([]);
-  const [cardId, setCardId] = useState("");
-
-  /* ======================
-     STATION
-  ====================== */
-  const [stations, setStations] = useState<any[]>([]);
-  const [stationId, setStationId] = useState("");
-
-  /* ======================
-     PURCHASE (LOCKED DATE)
-  ====================== */
-  const [purchaseDate, setPurchaseDate] = useState("");
-  const [expiredDate, setExpiredDate] = useState("");
-  const [edcRef, setEdcRef] = useState("");
-
-  /* ======================
-     INIT LOAD
+     FETCH ROLES
   ====================== */
   useEffect(() => {
-    fetch(`${API_BASE_URL}/card-products`)
-      .then((r) => r.json())
-      .then((r) => setCardProducts(Array.isArray(r.data) ? r.data : []));
+    const fetchRoles = async () => {
+      try {
+        const res = await getRoles();
 
-    fetch(`${API_BASE_URL}/stations`)
-      .then((r) => r.json())
-      .then((r) => setStations(r?.data?.items ?? []));
+        const roleItems = Array.isArray(res.data)
+          ? res.data
+          : res.data?.items ?? [];
 
-    // ✅ SET PURCHASE DATE SEKALI (ANTI HYDRATION BUG)
-    setPurchaseDate(getTodayLocalDate());
+        setRoles(roleItems);
+      } catch (err) {
+        console.error("fetchRoles error:", err);
+        setRoles([]);
+      }
+    };
+
+    fetchRoles();
   }, []);
 
   /* ======================
-     EXPIRED DATE AUTO SYNC
-     (PURCHASE DATE + MASA BERLAKU)
-  ====================== */
+   FETCH STATIONS
+====================== */
   useEffect(() => {
-    if (!purchaseDate || !masaBerlaku) {
-      setExpiredDate("");
-      return;
-    }
+    const fetchStations = async () => {
+      try {
+        const res = await getStations();
+        setStations(res.data.items); // ⬅️ INI FIX FINAL
+      } catch (err) {
+        console.error(err);
+        setStations([]);
+      }
+    };
 
-    const d = new Date(purchaseDate);
-    d.setDate(d.getDate() + masaBerlaku);
-    setExpiredDate(d.toISOString().slice(0, 10));
-  }, [purchaseDate, masaBerlaku]);
-
-  /* ======================
-     MEMBER RESOLVE
-  ====================== */
-  async function resolveMember(): Promise<string> {
-    const res = await fetch(`${API_BASE_URL}/members?identityNumber=${nik}`);
-    const json = await res.json();
-
-    if (json?.data?.items?.length > 0) {
-      const m = json.data.items[0];
-      setMemberId(m.id);
-      setCustomerName(m.name);
-      setNip(m.nippKai || "");
-      return m.id;
-    }
-
-    const create = await fetch(`${API_BASE_URL}/members`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: customerName,
-        identityNumber: nik,
-        nippKai: nip || null,
-      }),
-    });
-
-    const created = await create.json();
-    setMemberId(created.data.id);
-    return created.data.id;
-  }
-
-  /* ======================
-     CARD PRODUCT CHANGE
-  ====================== */
-  async function handleProductChange(id: string) {
-    setCardProductId(id);
-    setCardId("");
-    setCards([]);
-
-    const product = cardProducts.find((p) => p.id === id);
-    if (!product) return;
-
-    setPrice(product.price);
-    setMasaBerlaku(product.masaBerlaku);
-
-    const res = await fetch(
-      `${API_BASE_URL}/cards?cardProductId=${id}&status=IN_STATION`,
-    );
-    const json = await res.json();
-    setCards(json?.data?.items ?? []);
-  }
+    fetchStations();
+  }, []);
 
   /* ======================
      SUBMIT
   ====================== */
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  const handleSubmit = async () => {
+    const newErrors: Record<string, string> = {};
 
-    const resolvedMemberId = memberId ?? (await resolveMember());
+    if (!form.name || form.name.length < 3)
+      newErrors.name = "Name must be at least 3 characters";
 
-    await fetch(`${API_BASE_URL}/purchases`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        memberId: resolvedMemberId,
-        cardId,
-        stationId,
-        purchaseDate,
-        edcReferenceNumber: edcRef,
-        price: Number(price),
-      }),
-    });
+    if (!form.nip) newErrors.nip = "NIP is required";
+    else if (form.nip.length < 6 || form.nip.length > 20)
+      newErrors.nip = "NIP must be 6–20 digits";
 
-    router.push("/dashboard/purchases");
-  }
+    if (!form.username) newErrors.username = "Username is required";
+    else if (form.username.length < 4)
+      newErrors.username = "Username must be at least 4 characters";
 
+    if (!form.email) newErrors.email = "Email is required";
+    else if (!isValidEmail(form.email))
+      newErrors.email = "Invalid email format";
+
+    if (!form.phone || form.phone.length < 10)
+      newErrors.phone = "Phone number is required";
+
+    if (!form.roleId) newErrors.roleId = "Role is required";
+    if (!form.stationId) newErrors.stationId = "Stasiun is required";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      toast.error("Please fix the form errors");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const payload = {
+        username: form.username,
+        password: "Default@123",
+        fullName: form.name,
+        email: form.email,
+        phone: form.phone,
+        nip: form.nip,
+        roleId: form.roleId,
+        stationId: form.stationId,
+        isActive: true,
+      };
+
+      console.log("CREATE USER PAYLOAD >>>", payload);
+
+      await createUser(payload);
+
+      // ✅ FEEDBACK SATU KALI AJA
+      toast.success("User successfully created");
+
+      // ✅ LANGSUNG KE LIST
+      router.push("/dashboard/superadmin/user");
+    } catch (err: any) {
+      console.error("CREATE USER ERROR FULL:", err);
+
+      toast.error(err?.response?.data?.message ?? "Failed to create user");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ======================
+     RENDER
+  ====================== */
   return (
-    <div className="space-y-6">
-      {/* HEADER */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => router.back()}
-          className="rounded p-1 hover:bg-gray-100"
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <h1 className="text-xl font-semibold">Purchased</h1>
+    <>
+      <div className="space-y-6">
+        <div className="rounded-lg border bg-white p-8">
+          {/* HEADER */}
+          <div className="mb-8 flex items-center gap-3">
+            <button
+              onClick={() => router.back()}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <h2 className="text-lg font-semibold">Add Users</h2>
+          </div>
+
+          {/* FORM */}
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            {/* NAME */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Name<span className="ml-1 text-red-500">*</span>
+              </label>
+              <input
+                placeholder="Full name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                className="h-11 w-full rounded-md border px-4 text-sm"
+              />
+              <p className="mt-1 text-xs text-gray-400">Minimal 3 karakter</p>
+            </div>
+
+            {/* NIP */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                NIP<span className="ml-1 text-red-500">*</span>
+              </label>
+              <input
+                placeholder="Angka saja"
+                value={form.nip}
+                inputMode="numeric"
+                onChange={(e) =>
+                  setForm({ ...form, nip: sanitizeNip(e.target.value) })
+                }
+                className="h-11 w-full rounded-md border px-4 text-sm"
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                6–20 digit, hanya angka
+              </p>
+            </div>
+
+            {/* USERNAME */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Username<span className="ml-1 text-red-500">*</span>
+              </label>
+              <input
+                placeholder="username"
+                value={form.username}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    username: sanitizeUsername(e.target.value),
+                  })
+                }
+                className="h-11 w-full rounded-md border px-4 text-sm"
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                Huruf kecil, tanpa spasi
+              </p>
+            </div>
+
+            {/* ROLE */}
+            <div className="relative">
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Role<span className="ml-1 text-red-500">*</span>
+              </label>
+              <select
+                value={form.roleId}
+                onChange={(e) => setForm({ ...form, roleId: e.target.value })}
+                className="h-11 w-full appearance-none rounded-md border px-4 text-sm"
+              >
+                <option value="">Pilih role</option>
+                {roles.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.roleName}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-[55%] h-4 w-4 text-gray-400" />
+            </div>
+
+            {/* PHONE */}
+            <div className="relative md:col-span-2">
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Phone Number<span className="ml-1 text-red-500">*</span>
+              </label>
+              <input
+                placeholder="08xxxxxxxx"
+                value={form.phone}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    phone: e.target.value
+                      .replace(/[^\d+]/g, "") // hanya angka & +
+                      .slice(0, 16), // + + 15 digit
+                  })
+                }
+                className="h-11 w-full rounded-md border px-4 pr-10 text-sm"
+              />
+
+              <p className="mt-1 text-xs text-gray-400">
+                Gunakan format internasional (+kode negara)
+              </p>
+            </div>
+
+            {/* EMAIL */}
+            <div className="relative md:col-span-2">
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Email Address<span className="ml-1 text-red-500">*</span>
+              </label>
+              <input
+                placeholder="example@email.com"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                className="h-11 w-full rounded-md border px-4 pr-10 text-sm"
+              />
+              <Mail className="absolute right-3 top-[55%] h-4 w-4 text-gray-400" />
+              <p className="mt-1 text-xs text-gray-400">
+                Gunakan email yang valid
+              </p>
+            </div>
+
+            {/* STASIUN */}
+            <div className="relative md:col-span-2">
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Stasiun<span className="ml-1 text-red-500">*</span>
+              </label>
+              <select
+                value={form.stationId}
+                onChange={(e) =>
+                  setForm({ ...form, stationId: e.target.value })
+                }
+                className="h-11 w-full appearance-none rounded-md border px-4 text-sm"
+              >
+                <option value="">Pilih stasiun</option>
+                {Array.isArray(stations) &&
+                  stations.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.stationName}
+                    </option>
+                  ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-[55%] h-4 w-4 text-gray-400" />
+            </div>
+          </div>
+
+          {/* ACTION */}
+          <div className="mt-10 flex justify-end">
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => {
+                setConfirmData({
+                  Name: form.name || "-",
+                  NIP: form.nip || "-",
+                  Username: form.username || "-",
+                  Role:
+                    roles.find((r) => r.id === form.roleId)?.roleName || "-",
+                  "Phone Number": form.phone || "-",
+                  "Email Address": form.email || "-",
+                  Stasiun:
+                    stations.find((s) => s.id === form.stationId)
+                      ?.stationName || "-",
+                });
+
+                setShowConfirm(true); // ✅ buka modal SETELAH data disimpan
+              }}
+              className="h-11 rounded-md bg-[#7A0C2E] px-10 text-sm text-white disabled:opacity-50"
+            >
+              {loading ? "Saving..." : "Submit"}
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* FORM */}
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-4 rounded-lg border bg-white p-6"
-      >
-        <SectionCard title="Customer Information">
-          <div className="md:col-span-2">
-            <Field label="Customer Name" required>
-              <input
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                className={base}
-              />
-            </Field>
-          </div>
+      {/* ======================
+   SUCCESS MODAL
+====================== */}
 
-          <Field label="NIK" required>
-            <input
-              value={nik}
-              onChange={(e) =>
-                setNik(e.target.value.replace(/\D/g, "").slice(0, 20))
-              }
-              className={base}
-            />
-          </Field>
-
-          <Field label="NIP">
-            <input
-              value={nip}
-              onChange={(e) =>
-                setNip(e.target.value.replace(/\D/g, "").slice(0, 5))
-              }
-              className={base}
-            />
-          </Field>
-        </SectionCard>
-
-        <SectionCard title="Card Information">
-          <Field label="Card Product" required>
-            <select
-              className={`${base} appearance-none pr-10`}
-              value={cardProductId}
-              onChange={(e) => handleProductChange(e.target.value)}
-            >
-              <option value="">Select Card Product</option>
-              {cardProducts.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.category.categoryName} - {p.type.typeName}
-                </option>
-              ))}
-            </select>
-          </Field>
-
-          <Field label="Serial Number" required>
-            <select
-              className={`${base} appearance-none pr-10`}
-              disabled={!cardProductId}
-              value={cardId}
-              onChange={(e) => setCardId(e.target.value)}
-            >
-              <option value="">Pilih Serial Number</option>
-              {cards.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.serialNumber}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </SectionCard>
-
-        <SectionCard title="Purchase Information">
-          <Field label="Purchased Date" required>
-            <div className="relative">
-              <Calendar
-                size={16}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-              />
-
-              {/* INPUT TAMPILAN (TIDAK BISA APA-APA) */}
-              <input
-                type="date"
-                value={purchaseDate}
-                disabled
-                className={`${base} pr-10 bg-gray-50 cursor-not-allowed`}
-              />
-
-              {/* INPUT ASLI UNTUK SUBMIT */}
-              <input type="hidden" name="purchaseDate" value={purchaseDate} />
-            </div>
-          </Field>
-
-          <Field label="Expired Date" required>
-            <>
-              <input
-                type="date"
-                value={expiredDate}
-                disabled
-                className={`${base} bg-gray-50 cursor-not-allowed`}
-              />
-
-              <input type="hidden" name="expiredDate" value={expiredDate} />
-            </>
-          </Field>
-
-          <div className="md:col-span-2">
-            <Field label="FWC Price" required>
-              <input value={price} readOnly className={`${base} bg-gray-50`} />
-            </Field>
-          </div>
-        </SectionCard>
-
-        <SectionCard title="Operational Information">
-          <Field label="Stasiun" required>
-            <select
-              className={base}
-              value={stationId}
-              onChange={(e) => setStationId(e.target.value)}
-            >
-              <option value="">Select</option>
-              {stations.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.stationName}
-                </option>
-              ))}
-            </select>
-          </Field>
-
-          <Field label="Shift Date" required>
-            <input
-              type="date"
-              value={purchaseDate}
-              readOnly
-              className={`${base} bg-gray-50 cursor-not-allowed`}
-            />
-          </Field>
-        </SectionCard>
-
-        <Field label="No. Reference EDC" required>
-          <input
-            value={edcRef}
-            onChange={(e) => setEdcRef(e.target.value)}
-            className={base}
-          />
-        </Field>
-
-        <div className="flex justify-end pt-4">
-          <button
-            type="submit"
-            className="rounded-md bg-[#8B1538] px-8 py-2 text-sm font-medium text-white hover:bg-[#73122E]"
-          >
-            Save
-          </button>
-        </div>
-      </form>
-    </div>
+      {/* ======================
+   CONFIRM SAVE MODAL
+====================== */}
+      <SuccessModal
+        open={showConfirm}
+        title="Confirm Save"
+        message="Please review the user data before saving"
+        confirmText="Save"
+        data={{
+          Name: form.name || "-",
+          NIP: form.nip || "-",
+          Username: form.username || "-",
+          Role: roles.find((r) => r.id === form.roleId)?.roleName || "-",
+          "Phone Number": form.phone || "-",
+          "Email Address": form.email || "-",
+          Stasiun:
+            stations.find((s) => s.id === form.stationId)?.stationName || "-",
+        }}
+        onClose={() => {
+          setShowConfirm(false);
+        }}
+        onConfirm={async () => {
+          setShowConfirm(false);
+          await handleSubmit(); // ✅ API BENAR-BENAR KEKIRIM DI SINI
+        }}
+      />
+    </>
   );
 }
