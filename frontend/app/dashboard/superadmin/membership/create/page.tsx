@@ -18,12 +18,12 @@ import {
   CheckCircle,
   Search,
   Loader2,
-} from 'lucide-react';
-import toast from 'react-hot-toast';
-import { API_BASE_URL } from '@/lib/apiConfig';
-import { createMember } from '@/lib/services/membership.service';
-import { createPurchase } from '@/lib/services/purchase.service';
-import { KTPUploadDetect } from '@/components/ui/ktp-upload-detect';
+} from "lucide-react";
+import toast from "react-hot-toast";
+import { API_BASE_URL } from "@/lib/apiConfig";
+import { createMember } from "@/lib/services/membership.service";
+import { createPurchase } from "@/lib/services/purchase.service";
+import { KTPUploadDetect } from "@/components/ui/ktp-upload-detect";
 
 /* ======================
    BASE INPUT STYLE
@@ -165,7 +165,6 @@ const getTodayLocalDate = () => {
   return `${year}-${month}-${day}`;
 };
 
-
 export default function AddMemberPage() {
   const router = useRouter();
   const nippKaiRef = useRef<HTMLInputElement>(null);
@@ -179,7 +178,7 @@ export default function AddMemberPage() {
   const [operatorName, setOperatorName] = useState("");
   const [ktpImage, setKtpImage] = useState<File | null>(null);
   const [isExtractingOCR, setIsExtractingOCR] = useState(false);
-  const [ktpSessionId, setKtpSessionId] = useState<string>('');
+  const [ktpSessionId, setKtpSessionId] = useState<string>("");
   const countryOptions = useMemo(() => {
     return Object.entries(countries).map(([code, c]) => ({
       value: code,
@@ -250,8 +249,6 @@ export default function AddMemberPage() {
   // PHONE HELPER (WAJIB DI SINI)
   // ======================
   const getFullPhoneNumber = () => {
-
-    
     if (!form.nationality || !form.phone) return "";
 
     const country = countryOptions.find((c) => c.value === form.nationality);
@@ -263,7 +260,6 @@ export default function AddMemberPage() {
 
     return `+${country.phone}${local}`;
   };
-  
 
   // Load operator name and card categories/types
   useEffect(() => {
@@ -318,8 +314,6 @@ export default function AddMemberPage() {
     loadInitialData();
   }, []);
 
-
-  
   // Load available cards when card product is selected
   useEffect(() => {
     if (!selectedCardProductId) {
@@ -466,7 +460,10 @@ export default function AddMemberPage() {
     setKtpImage(file);
   };
 
-  const handleKTPDetectionComplete = (sessionId: string, croppedImageBase64: string) => {
+  const handleKTPDetectionComplete = (
+    sessionId: string,
+    croppedImageBase64: string
+  ) => {
     setKtpSessionId(sessionId);
     // Detection sudah selesai, user bisa klik "Ekstrak Data KTP" untuk OCR
   };
@@ -474,17 +471,17 @@ export default function AddMemberPage() {
   const handleExtractOCR = async (sessionId: string) => {
     setIsExtractingOCR(true);
     try {
-      const token = localStorage.getItem('fwc_token');
+      const token = localStorage.getItem("fwc_token");
       if (!token) {
-        throw new Error('Session expired. Silakan login kembali.');
+        throw new Error("Session expired. Silakan login kembali.");
       }
 
       const formData = new FormData();
-      formData.append('session_id', sessionId);
+      formData.append("session_id", sessionId);
 
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
       const response = await fetch(`${API_BASE_URL}/members/ocr-extract`, {
-        method: 'POST',
+        method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -494,28 +491,37 @@ export default function AddMemberPage() {
       const result = await response.json();
 
       if (!response.ok || !result.success) {
-        throw new Error(result.error?.message || result.error || 'Gagal mengekstrak data KTP');
+        throw new Error(
+          result.error?.message || result.error || "Gagal mengekstrak data KTP"
+        );
       }
 
       if (result.data) {
         const data = result.data;
-        
+
         // Auto-fill form dengan data dari OCR (NIK, Nama, Jenis Kelamin, dan Alamat)
         setForm((prev) => ({
           ...prev,
           nik: data.identityNumber || prev.nik,
           name: data.name || prev.name,
-          gender: data.gender === 'Laki-laki' || data.gender === 'L' ? 'L' : data.gender === 'Perempuan' || data.gender === 'P' ? 'P' : prev.gender,
+          gender:
+            data.gender === "Laki-laki" || data.gender === "L"
+              ? "L"
+              : data.gender === "Perempuan" || data.gender === "P"
+              ? "P"
+              : prev.gender,
           address: data.alamat || prev.address,
         }));
 
-        toast.success('Data KTP berhasil diekstrak!');
+        toast.success("Data KTP berhasil diekstrak!");
       } else {
-        toast.error('Gagal mengekstrak data KTP. Silakan isi manual.');
+        toast.error("Gagal mengekstrak data KTP. Silakan isi manual.");
       }
     } catch (error: any) {
-      console.error('OCR Error:', error);
-      toast.error(error.message || 'Gagal mengekstrak data KTP. Silakan isi manual.');
+      console.error("OCR Error:", error);
+      toast.error(
+        error.message || "Gagal mengekstrak data KTP. Silakan isi manual."
+      );
     } finally {
       setIsExtractingOCR(false);
     }
@@ -730,14 +736,14 @@ export default function AddMemberPage() {
       if (!meRes.ok) throw new Error("Gagal mengambil data user");
 
       const meData = await meRes.json();
-      if (!meData.data?.stationId) {
+      if (!meData.data?.station?.id) {
         toast.error(
           "User tidak memiliki stasiun. Silakan hubungi administrator.",
           { duration: 5000 }
         );
         return;
       }
-      const stationIdFromMe = meData.data.stationId;
+      const stationIdFromMe = meData.data.station.id;
 
       // 3. VALIDATION
       if (!selectedCardProductId) {

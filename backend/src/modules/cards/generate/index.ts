@@ -177,4 +177,37 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
           "Get detailed history of a specific card generation batch.",
       },
     }
+  )
+  .get(
+    "/history/:id/download-zip",
+    async (context) => {
+      const { params, set } = context;
+      try {
+        const result = await CardGenerateService.downloadZip(params.id);
+
+        return new Response(result.stream as any, {
+          headers: {
+            "Content-Type": "application/zip",
+            "Content-Disposition": `attachment; filename="${result.filename}"`,
+          },
+        });
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      params: t.Object({
+        id: t.String({ format: "uuid" }),
+      }),
+      detail: {
+        tags: ["Cards Generate"],
+        summary: "Download ZIP",
+        description:
+          "Download all generated barcodes in this batch as a ZIP file.",
+      },
+    }
   );

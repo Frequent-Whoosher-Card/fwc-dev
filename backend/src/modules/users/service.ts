@@ -279,6 +279,7 @@ export class UserService {
       email: user.email,
       phone: user.phone,
       nip: user.nip,
+      stationId: user.stationId,
       role: {
         id: user.role.id,
         roleCode: user.role.roleCode,
@@ -565,6 +566,7 @@ export class UserService {
       email: updatedUser.email,
       phone: updatedUser.phone,
       nip: updatedUser.nip,
+      stationId: updatedUser.stationId,
       role: {
         id: updatedUser.role.id,
         roleCode: updatedUser.role.roleCode,

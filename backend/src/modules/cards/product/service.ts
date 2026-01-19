@@ -120,6 +120,27 @@ export class CardProductService {
       },
     });
 
+    // Validate Serial Template Uniqueness
+    const existingTemplate = await db.cardProduct.findFirst({
+      where: {
+        serialTemplate: serialTemplate.toString(),
+      },
+    });
+
+    if (existingTemplate) {
+      // Allowed only if it belongs to the EXACT product we are about to restore (or if it's the same ID, which implies we are modifying the existing record)
+      // Since existingProduct matches Category+Type, if we find a template collision:
+      // 1. If existingProduct is null (creating new brand new product) -> COLLISION with existingTemplate (some other product)
+      // 2. If existingProduct exists (updating/restoring):
+      //    - If existingTemplate.id !== existingProduct.id -> COLLISION with different product
+      if (!existingProduct || existingTemplate.id !== existingProduct.id) {
+        throw new ValidationError(
+          "Serial Template sudah digunakan oleh produk lain.",
+          "SERIAL_TEMPLATE_ALREADY_EXISTS"
+        );
+      }
+    }
+
     if (existingProduct) {
       if (!existingProduct.deletedAt) {
         throw new ValidationError(
@@ -185,6 +206,23 @@ export class CardProductService {
     price: number,
     userId: string
   ) {
+    // Validate Serial Template Uniqueness (exclude current product)
+    const existingTemplate = await db.cardProduct.findFirst({
+      where: {
+        serialTemplate: serialTemplate.toString(),
+        id: {
+          not: id,
+        },
+      },
+    });
+
+    if (existingTemplate) {
+      throw new ValidationError(
+        "Serial Template sudah digunakan oleh produk lain.",
+        "SERIAL_TEMPLATE_ALREADY_EXISTS"
+      );
+    }
+
     const updateCardProduct = await db.cardProduct.update({
       where: {
         id,

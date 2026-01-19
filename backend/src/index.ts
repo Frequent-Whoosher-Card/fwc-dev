@@ -8,6 +8,7 @@ import { cardCategory } from "./modules/cards/category";
 import { cardTypes } from "./modules/cards/type";
 import { cardProducts } from "./modules/cards/product";
 import { cards } from "./modules/cards/card";
+import { transfers } from "./modules/cards/transfer";
 import { cardGenerateRoutes } from "./modules/cards/generate";
 import { sales } from "./modules/sales";
 import { metrics } from "./modules/metrics";
@@ -19,6 +20,7 @@ import { purchases } from "./modules/purchases";
 import { AuthenticationError, AuthorizationError } from "./utils/errors";
 import { inbox } from "./modules/inbox";
 import { redeem } from "./modules/redeem";
+import { cardSwaps } from "./modules/card-swaps";
 
 const app = new Elysia()
   .use(docsConfig)
@@ -32,10 +34,12 @@ const app = new Elysia()
   .use(users)
   .use(members)
   .use(purchases)
+  .use(cardSwaps)
   .use(cardCategory)
   .use(cardTypes)
   .use(cardProducts)
   .use(cards)
+  .use(transfers)
   .use(cardGenerateRoutes)
   .use(station)
   .use(cardInventory)
@@ -44,17 +48,42 @@ const app = new Elysia()
   .use(metrics)
   .use(inbox)
   .use(redeem)
+  // .use(superset)
 
   .onError(({ code, error, set }) => {
     // Global error handler
     if (code === "VALIDATION") {
-      set.status = 400;
+      set.status = 422;
+
+      // Extract validation details from TypeBox error
+      let message = "Validation error";
+      let details: any = null;
+
+      if (error && typeof error === "object") {
+        // Elysia wraps TypeBox errors
+        if ("all" in error && Array.isArray((error as any).all)) {
+          details = (error as any).all.map((e: any) => ({
+            path: e.path,
+            message: e.message,
+            value: e.value,
+          }));
+          message = details
+            .map((d: any) => `${d.path}: ${d.message}`)
+            .join("; ");
+        } else if (error.message) {
+          message = error.message;
+        }
+      }
+
+      console.error("[VALIDATION ERROR]", { message, details, raw: error });
+
       return {
         success: false,
         error: {
-          message: error.message,
+          message,
           code: "VALIDATION_ERROR",
-          statusCode: 400,
+          statusCode: 422,
+          details,
         },
       };
     }
@@ -122,17 +151,22 @@ console.log(
 );
 
 // Cleanup job for temporary storage (runs every 30 minutes)
-setInterval(async () => {
-  try {
-    const { tempStorage } = await import("./utils/temp_storage");
-    const cleanedCount = await tempStorage.cleanupExpired();
-    if (cleanedCount > 0) {
-      console.log(`[Cleanup] Removed ${cleanedCount} expired temporary file(s)`);
+setInterval(
+  async () => {
+    try {
+      const { tempStorage } = await import("./utils/temp_storage");
+      const cleanedCount = await tempStorage.cleanupExpired();
+      if (cleanedCount > 0) {
+        console.log(
+          `[Cleanup] Removed ${cleanedCount} expired temporary file(s)`
+        );
+      }
+    } catch (error) {
+      console.error("[Cleanup] Error cleaning up temporary files:", error);
     }
-  } catch (error) {
-    console.error("[Cleanup] Error cleaning up temporary files:", error);
-  }
-}, 30 * 60 * 1000); // 30 minutes
+  },
+  30 * 60 * 1000
+); // 30 minutes
 
 // Run cleanup immediately on startup
 (async () => {
@@ -140,10 +174,15 @@ setInterval(async () => {
     const { tempStorage } = await import("./utils/temp_storage");
     const cleanedCount = await tempStorage.cleanupExpired();
     if (cleanedCount > 0) {
-      console.log(`[Cleanup] Removed ${cleanedCount} expired temporary file(s) on startup`);
+      console.log(
+        `[Cleanup] Removed ${cleanedCount} expired temporary file(s) on startup`
+      );
     }
   } catch (error) {
-    console.error("[Cleanup] Error cleaning up temporary files on startup:", error);
+    console.error(
+      "[Cleanup] Error cleaning up temporary files on startup:",
+      error
+    );
   }
 })();
 
@@ -157,7 +196,8 @@ process.on("SIGTERM", async () => {
     // Ignore if OCR service not initialized
   }
   try {
-    const { ktpDetectionService } = await import("./services/ktp_detection_service");
+    const { ktpDetectionService } =
+      await import("./services/ktp_detection_service");
     await ktpDetectionService.shutdown();
   } catch (e) {
     // Ignore if detection service not initialized
@@ -174,7 +214,8 @@ process.on("SIGINT", async () => {
     // Ignore if OCR service not initialized
   }
   try {
-    const { ktpDetectionService } = await import("./services/ktp_detection_service");
+    const { ktpDetectionService } =
+      await import("./services/ktp_detection_service");
     await ktpDetectionService.shutdown();
   } catch (e) {
     // Ignore if detection service not initialized

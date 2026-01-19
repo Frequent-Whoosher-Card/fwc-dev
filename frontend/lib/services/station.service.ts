@@ -17,7 +17,14 @@ export interface StationItem {
 ========================= */
 
 /**
- * GET ALL STATIONS (pagination)
+ * GET ALL STATIONS (WITH PAGINATION)
+ * RETURN:
+ * {
+ *   data: {
+ *     items: StationItem[],
+ *     pagination
+ *   }
+ * }
  */
 export const getStations = async (params?: {
   page?: number;
@@ -32,24 +39,26 @@ export const getStations = async (params?: {
     method: "GET",
   });
 
-  const data = res?.data ?? {};
+  const rawData = res?.data ?? {};
+
+  const items: StationItem[] = Array.isArray(rawData.items)
+    ? rawData.items.map(
+        (item: any): StationItem => ({
+          id: String(item.id),
+          stationCode: item.stationCode ?? "",
+          stationName: item.stationName ?? "",
+          location: item.location ?? "",
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+        })
+      )
+    : [];
 
   return {
     ...res,
     data: {
-      items: Array.isArray(data.items)
-        ? data.items.map(
-            (item: any): StationItem => ({
-              id: String(item.id),
-              stationCode: item.stationCode ?? "",
-              stationName: item.stationName ?? "",
-              location: item.location ?? "",
-              createdAt: item.createdAt,
-              updatedAt: item.updatedAt,
-            })
-          )
-        : [],
-      pagination: data.pagination,
+      items,
+      pagination: rawData.pagination,
     },
   };
 };
@@ -58,7 +67,10 @@ export const getStations = async (params?: {
  * GET STATION BY ID
  */
 export const getStationById = async (id: string) => {
-  const res = await apiFetch(`/station/${id}`, { method: "GET" });
+  const res = await apiFetch(`/station/${id}`, {
+    method: "GET",
+  });
+
   const s = res?.data ?? {};
 
   return {

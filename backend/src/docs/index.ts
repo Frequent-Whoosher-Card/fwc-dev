@@ -36,7 +36,7 @@ if (serverUrl) {
 } else {
   // Use relative URL (empty string means same origin)
   servers.push({
-    url: "/api",
+    url: "/",
     description: "Current server",
   });
   // Add localhost as fallback for development

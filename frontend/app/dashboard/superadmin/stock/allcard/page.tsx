@@ -1,0 +1,432 @@
+'use client';
+
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
+import axiosInstance from '@/lib/axios';
+import { ChevronLeft, ChevronRight, Eye, Calendar, FileDown, Plus, Pencil } from 'lucide-react';
+
+/* ======================
+   TYPES
+====================== */
+
+type CardStatus = 'ON_REQUEST' | 'IN_OFFICE' | 'IN_TRANSIT' | 'IN_STATION' | 'LOST' | 'DAMAGED' | 'SOLD_ACTIVE' | 'SOLD_INACTIVE' | 'ASSIGNED';
+
+interface AllCardItem {
+  id: string;
+  serialNumber: string;
+  status: CardStatus;
+  date: string;
+  cardCategoryName: string;
+  cardTypeName: string;
+  stationName: string;
+  note: string;
+}
+
+interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+/* ======================
+   PAGE
+====================== */
+
+export default function AllCardPage() {
+  const router = useRouter();
+
+  /* ======================
+      STATE
+  ====================== */
+
+  const [data, setData] = useState<AllCardItem[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const [pagination, setPagination] = useState<PaginationMeta>({
+    total: 0,
+    page: 1,
+    limit: 10,
+    totalPages: 0,
+  });
+
+  // FILTER
+  const [status, setStatus] = useState<'all' | CardStatus>('all');
+  const [statusOptions, setStatusOptions] = useState<CardStatus[]>([]);
+  const [category, setCategory] = useState('');
+  const [type, setType] = useState('');
+  const [search, setSearch] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  const startDateRef = useRef<HTMLInputElement>(null);
+  const endDateRef = useRef<HTMLInputElement>(null);
+
+  /* ======================
+      FETCH ALL CARD
+  ====================== */
+
+  const fetchAllCard = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await axiosInstance.get('/cards', {
+        params: {
+          page: pagination.page,
+          limit: pagination.limit,
+          status: status === 'all' ? undefined : status,
+          categoryName: category || undefined,
+          typeName: type || undefined,
+          search: search || undefined,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
+        },
+      });
+
+      const { items, pagination: paging } = res.data.data;
+
+      const mapped: AllCardItem[] = items.map((item: any) => ({
+        id: item.id,
+        serialNumber: item.serialNumber,
+        status: item.status,
+        date: item.purchaseDate || item.createdAt,
+        cardCategoryName: item.cardProduct?.category?.categoryName ?? '-',
+        cardTypeName: item.cardProduct?.type?.typeName ?? '-',
+        stationName: item.station?.stationName ?? '-',
+        note: item.notes ?? '-',
+      }));
+
+      setData(mapped);
+      setPagination(paging);
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal mengambil data All Card');
+    } finally {
+      setLoading(false);
+    }
+  }, [pagination.page, pagination.limit, status, category, type, search, startDate, endDate]);
+
+  useEffect(() => {
+    fetchAllCard();
+  }, [fetchAllCard]);
+
+  /* ======================
+      FETCH ALL STATUS
+      (AGAR FILTER TIDAK
+       TERGANTUNG PAGE)
+  ====================== */
+
+  useEffect(() => {
+    const fetchAllStatus = async () => {
+      try {
+        const res = await axiosInstance.get('/cards', {
+          params: { page: 1, limit: 100000 },
+        });
+
+        const items = res.data?.data?.items ?? [];
+        const uniqueStatus = Array.from(new Set(items.map((i: any) => i.status as CardStatus)));
+
+        setStatusOptions(uniqueStatus);
+      } catch (err) {
+        console.error('Failed fetch all status', err);
+      }
+    };
+
+    fetchAllStatus();
+  }, []);
+
+  /* ======================
+      PAGINATION HELPER
+  ====================== */
+
+  const getPaginationRange = (current: number, total: number, delta = 2): (number | '...')[] => {
+    const range: (number | '...')[] = [];
+    const left = Math.max(2, current - delta);
+    const right = Math.min(total - 1, current + delta);
+
+    range.push(1);
+
+    if (left > 2) range.push('...');
+
+    for (let i = left; i <= right; i++) {
+      range.push(i);
+    }
+
+    if (right < total - 1) range.push('...');
+
+    if (total > 1) range.push(total);
+
+    return range;
+  };
+
+  const handleExportPDF = () => {
+    toast('Export PDF (coming soon)');
+  };
+
+  const CARD_STATUS_LABEL: Record<CardStatus, string> = {
+    ON_REQUEST: 'Sedang Diajukan',
+    IN_OFFICE: 'Office',
+    IN_TRANSIT: 'Dalam Pengiriman',
+    IN_STATION: 'Stasiun',
+    LOST: 'Hilang',
+    DAMAGED: 'Rusak',
+    SOLD_ACTIVE: 'Aktif',
+    SOLD_INACTIVE: 'Non-Aktif',
+    ASSIGNED: 'Ditugaskan',
+  };
+
+  const STATUS_BADGE_STYLE: Record<CardStatus, string> = {
+    ON_REQUEST: 'bg-yellow-100 text-yellow-700',
+    IN_OFFICE: 'bg-blue-100 text-blue-700',
+    IN_TRANSIT: 'bg-orange-100 text-orange-700',
+    IN_STATION: 'bg-green-100 text-green-700',
+    LOST: 'bg-red-100 text-red-700',
+    DAMAGED: 'bg-red-200 text-red-800',
+    SOLD_ACTIVE: 'bg-emerald-100 text-emerald-700',
+    SOLD_INACTIVE: 'bg-gray-200 text-gray-600',
+    ASSIGNED: 'bg-purple-100 text-purple-700',
+  };
+
+  /* ======================
+      RENDER
+  ====================== */
+
+  return (
+    <div className="space-y-6">
+      {/* HEADER */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <h2 className="text-lg font-semibold">All Card</h2>
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          {/* STATUS */}
+          <select
+            value={status}
+            onChange={(e) => {
+              setStatus(e.target.value as any);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            className="rounded-md border px-3 py-2 text-sm"
+          >
+            <option value="all">All Status</option>
+            {statusOptions.map((st) => (
+              <option key={st} value={st}>
+                {st.replace(/_/g, ' ')}
+              </option>
+            ))}
+          </select>
+
+          {/* CATEGORY */}
+          <input
+            placeholder="Category"
+            value={category}
+            onChange={(e) => {
+              setCategory(e.target.value);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            className="rounded-md border px-3 py-2 text-sm"
+          />
+
+          {/* TYPE */}
+          <input
+            placeholder="Type"
+            value={type}
+            onChange={(e) => {
+              setType(e.target.value);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            className="rounded-md border px-3 py-2 text-sm"
+          />
+
+          {/* SEARCH */}
+          <input
+            placeholder="Search serial / station"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            className="rounded-md border px-3 py-2 text-sm"
+          />
+
+          {/* START DATE */}
+          <div className="relative">
+            <input
+              ref={startDateRef}
+              type="date"
+              value={startDate}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                setPagination((p) => ({ ...p, page: 1 }));
+              }}
+              className="rounded-md border px-3 py-2 pr-9 text-sm"
+            />
+            <button type="button" onClick={() => startDateRef.current?.showPicker?.()} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8D1231]">
+              <Calendar size={16} />
+            </button>
+          </div>
+
+          {/* END DATE */}
+          <div className="relative">
+            <input
+              ref={endDateRef}
+              type="date"
+              value={endDate}
+              onChange={(e) => {
+                setEndDate(e.target.value);
+                setPagination((p) => ({ ...p, page: 1 }));
+              }}
+              className="rounded-md border px-3 py-2 pr-9 text-sm"
+            />
+            <button type="button" onClick={() => endDateRef.current?.showPicker?.()} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8D1231]">
+              <Calendar size={16} />
+            </button>
+          </div>
+
+          {/* PDF */}
+          <button onClick={handleExportPDF} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-gray-100">
+            <FileDown size={16} /> PDF
+          </button>
+
+          {/* ADD */}
+          <button onClick={() => router.push('/dashboard/superadmin/stock/allcard/add')} className="flex items-center gap-2 rounded-md bg-[#8D1231] px-4 py-2 text-sm text-white">
+            <Plus size={16} /> Tambah
+          </button>
+        </div>
+      </div>
+
+      {/* TABLE */}
+      <div className="hidden sm:block rounded-lg border bg-white overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1100px] text-sm">
+            <thead className="bg-gray-100 border-b">
+              <tr>
+                <th className="px-3 py-2 text-center">No</th>
+                <th className="px-3 py-2 text-center">Tanggal</th>
+                <th className="px-3 py-2 text-center">Serial</th>
+                <th className="px-3 py-2 text-center">Category</th>
+                <th className="px-3 py-2 text-center">Type</th>
+                <th className="px-3 py-2 text-center">Station</th>
+                <th className="px-3 py-2 text-center">Status</th>
+                <th className="px-3 py-2 text-center">Note</th>
+                <th className="px-3 py-2 text-center">Aksi</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={9} className="py-8 text-center text-gray-500">
+                    Loading...
+                  </td>
+                </tr>
+              ) : data.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="py-8 text-center text-gray-500">
+                    Tidak ada data
+                  </td>
+                </tr>
+              ) : (
+                data.map((row, index) => (
+                  <tr key={row.id} className="border-b hover:bg-gray-50">
+                    <td className="px-3 py-2 text-center">{(pagination.page - 1) * pagination.limit + index + 1}</td>
+                    <td className="px-3 py-2 text-center">{new Date(row.date).toLocaleDateString('id-ID')}</td>
+                    <td className="px-3 py-2 text-center">{row.serialNumber}</td>
+                    <td className="px-3 py-2 text-center">{row.cardCategoryName}</td>
+                    <td className="px-3 py-2 text-center">{row.cardTypeName}</td>
+                    <td className="px-3 py-2 text-center">{row.stationName}</td>
+                    <td className="px-3 py-2 text-center">
+                      <span
+                        className={`inline-block rounded-full px-3 py-1 text-xs font-medium
+      ${
+        row.status === 'IN_STATION'
+          ? 'bg-green-100 text-green-700'
+          : row.status === 'IN_OFFICE'
+          ? 'bg-blue-100 text-blue-700'
+          : row.status === 'IN_TRANSIT'
+          ? 'bg-orange-100 text-orange-700'
+          : row.status === 'ON_REQUEST'
+          ? 'bg-yellow-100 text-yellow-700'
+          : row.status === 'LOST'
+          ? 'bg-red-100 text-red-700'
+          : row.status === 'DAMAGED'
+          ? 'bg-red-200 text-red-800'
+          : row.status === 'SOLD_ACTIVE'
+          ? 'bg-emerald-100 text-emerald-700'
+          : row.status === 'SOLD_INACTIVE'
+          ? 'bg-gray-200 text-gray-600'
+          : row.status === 'ASSIGNED'
+          ? 'bg-purple-100 text-purple-700'
+          : 'bg-gray-100 text-gray-600'
+      }
+    `}
+                      >
+                        {CARD_STATUS_LABEL[row.status] ?? row.status}
+                      </span>
+                    </td>
+
+                    <td className="px-3 py-2 text-center">{row.note}</td>
+                    <td className="px-3 py-2 text-center">
+                      <div className="flex justify-center gap-2">
+                        {/* VIEW */}
+                        <button
+                          onClick={() => router.push(`/dashboard/superadmin/stock/allcard/${row.id}`)}
+                          className="
+        flex h-8 w-8 items-center justify-center
+        rounded-md border
+        text-gray-500
+        hover:bg-gray-100
+      "
+                          title="View"
+                        >
+                          <Eye size={16} />
+                        </button>
+
+                        {/* EDIT */}
+                        <button
+                          onClick={() => router.push(`/dashboard/superadmin/stock/allcard/${row.id}/edit`)}
+                          className="
+        flex h-8 w-8 items-center justify-center
+        rounded-md border
+        text-gray-500
+        hover:bg-[#8D1231] hover:text-white
+        transition-colors
+      "
+                          title="Edit"
+                        >
+                          <Pencil size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* PAGINATION */}
+      <div className="flex flex-wrap items-center justify-center gap-1 text-sm">
+        <button disabled={pagination.page === 1} onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))} className="px-2 py-1 disabled:opacity-40">
+          <ChevronLeft size={18} />
+        </button>
+
+        {getPaginationRange(pagination.page, pagination.totalPages).map((p, idx) =>
+          p === '...' ? (
+            <span key={`dots-${idx}`} className="px-2 text-gray-500">
+              …
+            </span>
+          ) : (
+            <button key={p} onClick={() => setPagination((pg) => ({ ...pg, page: p }))} className={`px-3 py-1 rounded ${p === pagination.page ? 'bg-[#8D1231] text-white font-semibold' : 'hover:bg-gray-100'}`}>
+              {p}
+            </button>
+          )
+        )}
+
+        <button disabled={pagination.page === pagination.totalPages} onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))} className="px-2 py-1 disabled:opacity-40">
+          <ChevronRight size={18} />
+        </button>
+      </div>
+    </div>
+  );
+}

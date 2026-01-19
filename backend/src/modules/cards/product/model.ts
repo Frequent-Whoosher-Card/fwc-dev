@@ -78,6 +78,8 @@ export namespace CardProductModel {
     }),
     serialTemplate: t.String({
       description: "Template serial untuk produk ini",
+      minLength: 4,
+      maxLength: 4,
     }),
     price: t.Number({
       description: "Harga",
@@ -127,6 +129,8 @@ export namespace CardProductModel {
     }),
     serialTemplate: t.String({
       description: "Template serial untuk produk ini",
+      minLength: 4,
+      maxLength: 4,
     }),
   });
 

@@ -39,6 +39,14 @@ export namespace CardModel {
       }),
       t.Null(),
     ]),
+    previousStation: t.Union([
+      t.Object({
+        id: t.String({ format: "uuid" }),
+        stationName: t.String(),
+        stationCode: t.String(),
+      }),
+      t.Null(),
+    ]),
     notes: t.Union([t.String(), t.Null()]),
   });
 
@@ -54,7 +62,7 @@ export namespace CardModel {
     status: t.Optional(
       t.String({
         description:
-          "Filter by card status. Valid values: IN_OFFICE, IN_TRANSIT, IN_STATION, LOST, DAMAGED, SOLD_ACTIVE, SOLD_INACTIVE",
+          "Filter by card status. Accepts both raw Enum (e.g., IN_OFFICE) and friendly names (e.g., Office, Stasiun, Hilang)",
       })
     ),
     search: t.Optional(
@@ -146,6 +154,14 @@ export namespace CardModel {
           originalName: t.String(),
           relativePath: t.String(),
           mimeType: t.String(),
+        }),
+        t.Null(),
+      ]),
+      previousStation: t.Union([
+        t.Object({
+          id: t.String({ format: "uuid" }),
+          stationName: t.String(),
+          stationCode: t.String(),
         }),
         t.Null(),
       ]),

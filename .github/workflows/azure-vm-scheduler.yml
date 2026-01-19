@@ -2,8 +2,8 @@ name: Azure VM Scheduler (Start & Stop)
 
 on:
   schedule:
-    # START VM - 10:00 WIB (03:00 UTC)
-    - cron: '10 00 * * *'
+    # START VM - 07:30 WIB (00:30 UTC)
+    - cron: '30 00 * * *'
     # STOP VM - 20:30 WIB (13:30 UTC)
     - cron: '30 13 * * *'
   workflow_dispatch:
@@ -11,6 +11,11 @@ on:
 env:
   RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
   VM_NAME: ${{ secrets.AZURE_VM_NAME }}
+  # Schedule times (UTC)
+  START_HOUR: '00'
+  START_MINUTE: '30'
+  STOP_HOUR: '13'
+  STOP_MINUTE: '30'
 
 jobs:
   vm-control:
@@ -76,8 +81,8 @@ jobs:
             exit 0
           fi
 
-          # START VM - 02:30 UTC
-          if [ "$HOUR" -eq 02 ] && [ "$MINUTE" -eq 30 ]; then
+          # START VM - within 10 minutes of scheduled time
+          if [ "$HOUR" -eq "$START_HOUR" ] && [ "$MINUTE" -ge "$START_MINUTE" ] && [ "$MINUTE" -le $((START_MINUTE + 10)) ]; then
             if [ "$VM_STATE" != "PowerState/running" ]; then
               echo "Weekday morning → starting VM"
               az vm start \
@@ -88,8 +93,8 @@ jobs:
             fi
           fi
 
-          # STOP VM - 13:30 UTC
-          if [ "$HOUR" -eq 13 ] && [ "$MINUTE" -eq 30 ]; then
+          # STOP VM - within 30 minutes of scheduled time
+          if [ "$HOUR" -eq "$STOP_HOUR" ] && [ "$MINUTE" -ge "$STOP_MINUTE" ] && [ "$MINUTE" -le $((STOP_MINUTE + 30)) ]; then
             if [ "$VM_STATE" = "PowerState/running" ]; then
               echo "Weekday evening → stopping VM"
               az vm stop \

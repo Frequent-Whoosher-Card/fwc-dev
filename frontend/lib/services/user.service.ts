@@ -194,6 +194,7 @@ export const createUser = (payload: {
   email?: string | null;
   phone?: string | null;
   roleId: string;
+  stationId?: string;
   password: string;
 }) => {
   return apiFetch("/users", {
@@ -204,12 +205,14 @@ export const createUser = (payload: {
       fullName: payload.fullName,
       email: payload.email ?? null,
       phone: payload.phone ?? null,
-      nip: payload.nip,
+      nip: payload.nip,              // ⬅️ INI NIH
       roleId: payload.roleId,
-      isActive: true,
+      stationId: payload.stationId ?? null,
+      isActive: true,                // ⬅️ DAN INI
     }),
   });
 };
+
 
 
 /**
