@@ -112,91 +112,112 @@ export default function TransactionPage() {
     router.push("/dashboard/superadmin/transaksi/create");
   };
 
-  const handleExportPDF = async () => {
-    try {
-      // 🔥 ambil data pakai filter yang sama (tanpa pagination kecil)
-      const res = await getPurchases({
-        search,
-        stationId,
-        startDate: purchasedDate,
-        endDate: shiftDate,
-        limit: 1000, // ambil banyak biar semua ke-export
-      });
+ const handleExportPDF = async () => {
+  try {
+    const res = await getPurchases({
+      search,
+      stationId,
+      startDate: purchasedDate,
+      endDate: shiftDate,
+      limit: 1000,
+    });
 
-      if (!res.success || !res.data?.items?.length) {
-        alert("Data kosong");
-        return;
-      }
-
-      const items = res.data.items;
-
-      const doc = new jsPDF({
-        orientation: "landscape",
-        unit: "mm",
-        format: "a4",
-      });
-
-      // ===== HEADER =====
-      doc.setFontSize(14);
-      doc.text("Transaction Report", 14, 15);
-
-      doc.setFontSize(10);
-      doc.text(`Generated: ${new Date().toLocaleString("id-ID")}`, 14, 22);
-
-      // ===== TABLE =====
-      autoTable(doc, {
-        startY: 28,
-        head: [
-          [
-            "Customer Name",
-            "NIK",
-            "Card Category",
-            "Card Type",
-            "Serial Number",
-            "Reference EDC",
-            "Price",
-            "Purchase Date",
-            "Shift Date",
-            "Station",
-          ],
-        ],
-        body: items.map((item: any) => [
-          item.member?.name ?? "-",
-          item.member?.identityNumber ?? "-",
-          item.card?.cardProduct?.category?.categoryName ?? "-",
-          item.card?.cardProduct?.type?.typeName ?? "-",
-          item.card?.serialNumber ?? "-",
-          item.edcReferenceNumber ?? "-",
-          `Rp ${item.price?.toLocaleString("id-ID") ?? "-"}`,
-          item.purchaseDate
-            ? new Date(item.purchaseDate).toLocaleDateString("id-ID")
-            : "-",
-          item.shiftDate
-            ? new Date(item.shiftDate).toLocaleDateString("id-ID")
-            : "-",
-          item.station?.stationName ?? "-",
-        ]),
-        styles: {
-          fontSize: 8,
-          cellPadding: 2,
-        },
-        headStyles: {
-          fillColor: [141, 18, 49], // maroon
-          textColor: 255,
-          halign: "center",
-        },
-        bodyStyles: {
-          valign: "middle",
-        },
-      });
-
-      // ===== SAVE =====
-      doc.save("transaction-report.pdf");
-    } catch (err) {
-      console.error(err);
-      alert("Gagal export PDF");
+    if (!res.success || !res.data?.items?.length) {
+      alert("Data kosong");
+      return;
     }
-  };
+
+    const items = res.data.items;
+
+    const doc = new jsPDF({
+      orientation: "landscape",
+      unit: "mm",
+      format: "a4",
+    });
+
+    /* ===== HEADER ===== */
+    doc.setFontSize(14);
+    doc.text("Transaction Report", 14, 15);
+
+    doc.setFontSize(10);
+    doc.text(
+      `Generated: ${new Date().toLocaleString("id-ID")}`,
+      14,
+      22
+    );
+
+    /* ===== TABLE (FIGMA BASED) ===== */
+    autoTable(doc, {
+      startY: 28,
+
+      head: [[
+        "Customer Name",
+        "NIK",
+        "Card Category",
+        "Card Type",
+        "Serial Number",
+        "Reference EDC",
+        "FWC Price",
+        "Purchase Date",
+        "Shift Date",
+        "Operator Name",
+        "Station",
+      ]],
+
+      body: items.map((item: any) => [
+        item.member?.name ?? "-",
+        item.member?.identityNumber ?? "-",
+        item.card?.cardProduct?.category?.categoryName ?? "-",
+        item.card?.cardProduct?.type?.typeName ?? "-",
+        item.card?.serialNumber ?? "-",
+        item.edcReferenceNumber ?? "-",
+        `Rp ${item.price?.toLocaleString("id-ID") ?? "-"}`,
+        item.purchaseDate
+          ? new Date(item.purchaseDate).toLocaleDateString("id-ID")
+          : "-",
+        item.shiftDate
+          ? new Date(item.shiftDate).toLocaleDateString("id-ID")
+          : "-",
+        item.operator?.fullName ?? "-",
+        item.station?.stationName ?? "-",
+      ]),
+
+      styles: {
+        fontSize: 7,
+        cellPadding: 1.5,
+        valign: "middle",
+      },
+
+      headStyles: {
+        fillColor: [141, 18, 49], // maroon figma
+        textColor: 255,
+        halign: "center",
+        fontStyle: "bold",
+        fontSize: 7,
+      },
+
+      columnStyles: {
+        0: { cellWidth: 26 }, // Customer
+        1: { cellWidth: 28 }, // NIK
+        2: { cellWidth: 20 }, // Category
+        3: { cellWidth: 18 }, // Type
+        4: { cellWidth: 22 }, // Serial
+        5: { cellWidth: 26 }, // EDC Ref
+        6: { cellWidth: 18 }, // Price
+        7: { cellWidth: 18 }, // Purchase Date
+        8: { cellWidth: 18 }, // Shift Date
+        9: { cellWidth: 22 }, // Operator
+        10:{ cellWidth: 20 }, // Station
+      },
+    });
+
+    doc.save("transaction-report.pdf");
+  } catch (err) {
+    console.error(err);
+    alert("Gagal export PDF");
+  }
+};
+
 
   /* =====================
      RENDER

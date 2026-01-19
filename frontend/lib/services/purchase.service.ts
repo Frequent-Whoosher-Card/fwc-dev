@@ -66,6 +66,12 @@ export interface PurchaseListItem {
 }
 
 /* =========================
+   BASE URL (FIX UTAMA)
+========================= */
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL!;
+
+/* =========================
    PURCHASE SERVICE
 ========================= */
 
@@ -80,7 +86,7 @@ export const createPurchase = (payload: CreatePurchasePayload) => {
 };
 
 /**
- * GET ALL PURCHASES
+ * GET ALL PURCHASES (LIST + FILTER + PAGINATION)
  */
 export const getPurchases = async (params?: {
   page?: number;
@@ -122,7 +128,6 @@ export const getPurchases = async (params?: {
   const res = await apiFetch(`/purchases?${query.toString()}`, {
     method: 'GET',
   });
-
   return res;
 };
 
