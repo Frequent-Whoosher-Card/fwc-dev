@@ -1,53 +1,33 @@
 'use client';
 
-import { useRouter, useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import axios from '@/lib/axios';
+import axiosInstance from '@/lib/axios';
 import toast from 'react-hot-toast';
 import { ArrowLeft } from 'lucide-react';
 
-/* =====================
-   TYPES
-===================== */
-
-type AllCardStatus = 'IN' | 'OUT' | 'TRANSFER' | 'USED' | 'DAMAGED';
+type AllCardStatus = string;
 
 interface CardDetailResponse {
   id: string;
-  status: AllCardStatus;
-  notes?: string;
-
   serialNumber: string;
-  purchaseDate?: string;
+  status: AllCardStatus;
+  notes?: string | null;
+  purchaseDate?: string | null;
   createdAt: string;
-
   cardProduct?: {
-    category?: {
-      categoryName: string;
-    };
-    type?: {
-      typeName: string;
-    };
+    category?: { categoryName: string };
+    type?: { typeName: string };
   };
-
-  station?: {
-    stationName: string;
-  };
+  station?: { stationName: string } | null;
 }
 
-/* =====================
-   COMPONENT
-===================== */
-
 export default function EditAllCardPage() {
-  const router = useRouter();
   const { id } = useParams<{ id: string }>();
-
-  /* =====================
-     STATE
-  ===================== */
+  const router = useRouter();
 
   const [loading, setLoading] = useState(false);
+  const [ready, setReady] = useState(false);
 
   const [form, setForm] = useState({
     tanggal: '',
@@ -55,14 +35,13 @@ export default function EditAllCardPage() {
     category: '',
     type: '',
     station: '',
-    status: 'IN' as AllCardStatus,
+    status: '',
     note: '',
   });
 
   /* =====================
      FETCH DETAIL
   ===================== */
-
   useEffect(() => {
     if (!id) return;
 
@@ -70,8 +49,8 @@ export default function EditAllCardPage() {
       try {
         setLoading(true);
 
-        const res = await axios.get(`/cards/${id}`);
-        const data: CardDetailResponse = res.data?.data;
+        const res = await axiosInstance.get(`/cards/${id}`);
+        const data: CardDetailResponse = res.data.data;
 
         setForm({
           tanggal: (data.purchaseDate || data.createdAt).split('T')[0],
@@ -79,9 +58,11 @@ export default function EditAllCardPage() {
           category: data.cardProduct?.category?.categoryName ?? '-',
           type: data.cardProduct?.type?.typeName ?? '-',
           station: data.station?.stationName ?? '-',
-          status: data.status,
+          status: data.status ?? '',
           note: data.notes ?? '',
         });
+
+        setReady(true);
       } catch (err) {
         console.error(err);
         toast.error('Gagal mengambil detail card');
@@ -96,100 +77,117 @@ export default function EditAllCardPage() {
   /* =====================
      SUBMIT (PATCH)
   ===================== */
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  const handleSubmit = async () => {
     try {
       setLoading(true);
 
-      await axios.patch(`/cards/${id}`, {
+      await axiosInstance.patch(`/cards/${id}`, {
         status: form.status,
         notes: form.note,
       });
 
-      toast.success('All Card berhasil diperbarui');
+      toast.success('Berhasil update card');
       router.push('/dashboard/superadmin/stock/allcard');
     } catch (err) {
       console.error(err);
-      toast.error('Gagal update All Card');
+      toast.error('Gagal update card');
     } finally {
       setLoading(false);
     }
   };
 
+  if (!ready) {
+    return <div className="p-6 text-sm text-gray-500">Loading data...</div>;
+  }
+
   /* =====================
      UI
   ===================== */
-
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 max-w-2xl">
       {/* HEADER */}
-      <div className="flex items-center gap-4 px-4 sm:px-6">
-        <button onClick={() => router.back()} className="rounded-lg border p-2 text-gray-600 hover:bg-gray-100">
-          <ArrowLeft size={18} />
+      <div className="flex items-center gap-3">
+        <button onClick={() => router.back()} className="rounded-md border p-2 hover:bg-gray-100">
+          <ArrowLeft size={16} />
         </button>
         <h2 className="text-lg font-semibold">Edit All Card</h2>
       </div>
 
-      <div className="w-full px-4 sm:px-6">
-        <div className="rounded-xl border bg-white p-6 sm:p-8 lg:p-10">
-          <div className="space-y-6">
-            {/* DATE */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Date</label>
-              <input type="date" className="w-full rounded-lg border px-4 py-3 text-sm bg-gray-100" value={form.tanggal} disabled />
-            </div>
-
-            {/* SERIAL */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Serial Number</label>
-              <input className="w-full rounded-lg border px-4 py-3 text-sm bg-gray-100" value={form.serialNumber} disabled />
-            </div>
-
-            {/* CATEGORY */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Category</label>
-              <input className="w-full rounded-lg border px-4 py-3 text-sm bg-gray-100" value={form.category} disabled />
-            </div>
-
-            {/* TYPE */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Type</label>
-              <input className="w-full rounded-lg border px-4 py-3 text-sm bg-gray-100" value={form.type} disabled />
-            </div>
-
-            {/* STATION */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Station</label>
-              <input className="w-full rounded-lg border px-4 py-3 text-sm bg-gray-100" value={form.station} disabled />
-            </div>
-
-            {/* STATUS (EDITABLE) */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Status</label>
-              <select className="w-full rounded-lg border px-4 py-3 text-sm" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as AllCardStatus })}>
-                <option value="IN">IN</option>
-                <option value="OUT">OUT</option>
-                <option value="TRANSFER">TRANSFER</option>
-                <option value="USED">USED</option>
-                <option value="DAMAGED">DAMAGED</option>
-              </select>
-            </div>
-
-            {/* NOTE (EDITABLE) */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Note</label>
-              <textarea rows={3} className="w-full rounded-lg border px-4 py-3 text-sm" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
-            </div>
-
-            {/* ACTION */}
-            <div className="flex justify-end pt-6">
-              <button onClick={handleSubmit} disabled={loading} className="rounded-lg bg-[#8D1231] px-8 py-3 text-sm font-medium text-white hover:bg-[#7a102a] disabled:opacity-60 w-full sm:w-auto">
-                {loading ? 'Saving...' : 'Update All Card'}
-              </button>
-            </div>
-          </div>
+      {/* FORM */}
+      <form onSubmit={handleSubmit} className="rounded-xl border bg-white p-6 space-y-5">
+        {/* DATE */}
+        <div>
+          <label className="block text-sm font-medium mb-1">Tanggal</label>
+          <input type="date" value={form.tanggal} disabled className="w-full rounded-md border px-3 py-2 text-sm bg-gray-100" />
         </div>
-      </div>
+
+        {/* SERIAL */}
+        <div>
+          <label className="block text-sm font-medium mb-1">Serial Number</label>
+          <input value={form.serialNumber} disabled className="w-full rounded-md border px-3 py-2 text-sm bg-gray-100" />
+        </div>
+
+        {/* CATEGORY */}
+        <div>
+          <label className="block text-sm font-medium mb-1">Category</label>
+          <input value={form.category} disabled className="w-full rounded-md border px-3 py-2 text-sm bg-gray-100" />
+        </div>
+
+        {/* TYPE */}
+        <div>
+          <label className="block text-sm font-medium mb-1">Type</label>
+          <input value={form.type} disabled className="w-full rounded-md border px-3 py-2 text-sm bg-gray-100" />
+        </div>
+
+        {/* STATION */}
+        <div>
+          <label className="block text-sm font-medium mb-1">Station</label>
+          <input value={form.station} disabled className="w-full rounded-md border px-3 py-2 text-sm bg-gray-100" />
+        </div>
+
+        {/* STATUS (EDITABLE) */}
+        <div>
+          <label className="block text-sm font-medium mb-1">Status</label>
+          <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} required className="w-full rounded-md border px-3 py-2 text-sm">
+            <option value="">Pilih Status</option>
+
+            {/* REQUEST */}
+            <option value="ON_REQUEST">Sedang Diajukan</option>
+
+            {/* INTERNAL */}
+            <option value="IN_OFFICE">Di Kantor</option>
+            <option value="IN_STATION">Di Stasiun</option>
+            <option value="IN_TRANSIT">Dalam Pengiriman</option>
+
+            {/* PROBLEM */}
+            <option value="DAMAGED">Rusak</option>
+            <option value="LOST">Hilang</option>
+            <option value="BLOCKED">Diblokir</option>
+
+            {/* SOLD */}
+            <option value="SOLD_ACTIVE">Terjual (Aktif)</option>
+            <option value="SOLD_INACTIVE">Terjual (Tidak Aktif)</option>
+
+            {/* SYSTEM */}
+            <option value="DELETED">Dihapus</option>
+          </select>
+        </div>
+
+        {/* NOTES (EDITABLE) */}
+        <div>
+          <label className="block text-sm font-medium mb-1">Catatan</label>
+          <textarea rows={4} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} className="w-full rounded-md border px-3 py-2 text-sm" placeholder="Tambahkan catatan (opsional)" />
+        </div>
+
+        {/* ACTION */}
+        <div className="flex justify-end pt-4">
+          <button type="submit" disabled={loading} className="rounded-md bg-[#8D1231] px-6 py-2 text-sm font-medium text-white hover:bg-[#7a102a] disabled:opacity-60">
+            {loading ? 'Saving...' : 'Update'}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
