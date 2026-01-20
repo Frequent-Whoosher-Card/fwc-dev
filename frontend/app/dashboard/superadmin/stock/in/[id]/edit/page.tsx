@@ -6,8 +6,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { ArrowLeft } from 'lucide-react';
 
-const API_BASE_URL = 'http://localhost:3001';
-
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 export default function EditStockInPage() {
   const router = useRouter();
   const params = useParams();

@@ -1,47 +1,21 @@
-"use client";
+'use client';
 
-import { getStations } from "@/lib/services/user.service";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
-import TransactionToolbar from "./components/TransactionToolbar";
-import TransactionFilter from "./components/TransactionFilter";
-import TransactionTable from "./components/TransactionTable";
-
-import { getPurchases } from "@/lib/services/purchase.service";
-// import { exportPurchasesPDF } from "@/lib/services/purchase.service";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-
-/* ======================
-   TYPES
-====================== */
-interface Purchase {
-  id: string;
-  purchaseDate: string;
-  price: number;
-  edcReferenceNumber: string;
-  card: any;
-  member: any;
-  operator: any;
-  station: any;
-}
-
-interface Pagination {
-  page: number;
-  limit: number;
-  totalPages: number;
-  total: number;
-}
+import TransactionToolbar from './components/TransactionToolbar';
+import TransactionFilter from './components/TransactionFilter';
+import TransactionTable from './components/TransactionTable';
 
 export default function TransactionPage() {
   const router = useRouter();
 
   /* =====================
-     FILTER STATE
+     STATE
   ===================== */
-  const [search, setSearch] = useState("");
-  const [type, setType] = useState<"ALL" | "KAI">("ALL");
+  const [search, setSearch] = useState('');
+
+  const [type, setType] = useState<'ALL' | 'KAI'>('ALL');
   const [stationId, setStationId] = useState<string | undefined>();
   const [purchasedDate, setPurchasedDate] = useState<string | undefined>();
   const [shiftDate, setShiftDate] = useState<string | undefined>();
@@ -110,11 +84,10 @@ export default function TransactionPage() {
      HANDLER
   ===================== */
   const handleResetFilter = () => {
-    setType("ALL");
+    setType('ALL');
     setStationId(undefined);
     setPurchasedDate(undefined);
     setShiftDate(undefined);
-    setPagination((p) => ({ ...p, page: 1 }));
   };
 
   const handleAddPurchased = () => {
@@ -233,10 +206,7 @@ export default function TransactionPage() {
       {/* HEADER */}
       <TransactionToolbar
         search={search}
-        onSearchChange={(v) => {
-          setSearch(v);
-          setPagination((p) => ({ ...p, page: 1 }));
-        }}
+        onSearchChange={setSearch}
         onAdd={handleAddPurchased}
       />
 
@@ -246,34 +216,20 @@ export default function TransactionPage() {
         stationId={stationId}
         purchasedDate={purchasedDate}
         shiftDate={shiftDate}
-        stations={stations} // ⬅️ TAMBAH DI SINI
-        onTypeChange={(v) => {
-          setType(v);
-          setPagination((p) => ({ ...p, page: 1 }));
-        }}
-        onStationChange={(v) => {
-          setStationId(v);
-          setPagination((p) => ({ ...p, page: 1 }));
-        }}
-        onPurchasedDateChange={(v) => {
-          setPurchasedDate(v);
-          setPagination((p) => ({ ...p, page: 1 }));
-        }}
-        onShiftDateChange={(v) => {
-          setShiftDate(v);
-          setPagination((p) => ({ ...p, page: 1 }));
-        }}
+        onTypeChange={setType}
+        onStationChange={setStationId}
+        onPurchasedDateChange={setPurchasedDate}
+        onShiftDateChange={setShiftDate}
         onReset={handleResetFilter}
-        onExportPDF={handleExportPDF} // 🔥 INI YANG HILANG
       />
 
       {/* TABLE */}
       <TransactionTable
-        data={data}
-        loading={loading}
-        pagination={pagination}
-        type={type} // ⬅️ TAMBAHKAN INI
-        onPageChange={(page) => setPagination((p) => ({ ...p, page }))}
+        data={[]}
+        loading={false}
+        onDelete={(id) => {
+          console.log('delete', id);
+        }}
       />
     </div>
   );
