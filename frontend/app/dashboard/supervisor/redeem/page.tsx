@@ -4,7 +4,7 @@ import { useEffect, useState, useContext } from 'react';
 import toast from 'react-hot-toast';
 import { redeemService, RedeemItem, RedeemFilterParams } from '@/lib/services/redeem/redeemService';
 import { useRedeemPermission } from '@/lib/hooks/useRedeemPermission';
-import { UserContext } from '@/app/dashboard/petugas/dashboard-layout';
+import { UserContext } from '@/app/dashboard/supervisor/dashboard-layout';
 import CreateRedeemModal from '@/components/redeem/CreateRedeemModal';
 import RedeemTable from '@/components/redeem/RedeemTable';
 import RedeemFilters from '@/components/redeem/RedeemFilters';
@@ -29,14 +29,14 @@ interface Station {
 }
 
 
-export default function PetugasRedeemPage() {
+export default function SupervisorRedeemPage() {
   // State for data
   const [redeems, setRedeems] = useState<RedeemItem[]>([]);
   const userCtx = useContext(UserContext);
   const currentRole = userCtx?.role;
   const [stations, setStations] = useState<Station[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [cardTypes, setCardTypes] = useState<any[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [cardTypes, setCardTypes] = useState<string[]>([]);
   const [isLoadingRedeems, setIsLoadingRedeems] = useState(false);
 
   // Filter state
@@ -117,15 +117,15 @@ export default function PetugasRedeemPage() {
     }
   };
 
-
   const loadStations = async () => {
     try {
-      const res = await getStations({ page: 1, limit: 1000 });
-      setStations(res?.data?.items || []);
+      const res = await getStations();
+      setStations(res?.data || []);
     } catch (error) {
       setStations([]);
     }
   };
+
 
   const loadCategories = async () => {
     try {
@@ -258,8 +258,6 @@ export default function PetugasRedeemPage() {
               cardTypes={cardTypes}
               stations={stations}
               isLoading={isLoadingRedeems}
-              categoryValueKey="categoryName"
-              cardTypeValueKey="typeName"
             />
           </div>
 

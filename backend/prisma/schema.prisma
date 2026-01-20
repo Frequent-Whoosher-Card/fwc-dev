@@ -93,14 +93,14 @@ enum ProgramType {
 // Model
 
 model Role {
-  id          String    @id @map("role_id") @db.Uuid
+  id          String    @id @default(uuid()) @map("role_id") @db.Uuid
   roleCode    String    @unique @map("role_code")
   roleName    String    @map("role_name")
   description String?
   isActive    Boolean   @map("is_active")
-  createdAt   DateTime  @map("created_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
   createdBy   String?   @map("created_by") @db.Uuid
-  updatedAt   DateTime  @map("updated_at")
+  updatedAt   DateTime  @default(now()) @map("updated_at")
   updatedBy   String?   @map("updated_by") @db.Uuid
   deletedAt   DateTime? @map("deleted_at")
   deletedBy   String?   @map("deleted_by") @db.Uuid
@@ -112,7 +112,7 @@ model Role {
 }
 
 model User {
-  id           String    @id @map("user_id") @db.Uuid
+  id           String    @id @default(uuid()) @map("user_id") @db.Uuid
   fullName     String    @map("full_name")
   nip          String?   @unique
   username     String    @unique
@@ -122,9 +122,9 @@ model User {
   roleId       String    @map("role_id") @db.Uuid
   isActive     Boolean   @map("is_active")
   lastLogin    DateTime? @map("last_login")
-  createdAt    DateTime  @map("created_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
   createdBy    String?   @map("created_by") @db.Uuid
-  updatedAt    DateTime  @map("updated_at")
+  updatedAt    DateTime  @default(now()) @map("updated_at")
   updatedBy    String?   @map("updated_by") @db.Uuid
   deletedAt    DateTime? @map("deleted_at")
   deletedBy    String?   @map("deleted_by") @db.Uuid
@@ -150,13 +150,13 @@ model User {
 }
 
 model CardCategory {
-  id           String    @id @map("category_id") @db.Uuid
+  id           String    @id @default(uuid()) @map("category_id") @db.Uuid
   categoryCode String    @unique @map("category_code")
   categoryName String    @map("category_name")
   description  String?
-  createdAt    DateTime  @map("created_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
   createdBy    String?   @map("created_by") @db.Uuid
-  updatedAt    DateTime  @map("updated_at")
+  updatedAt    DateTime  @default(now()) @map("updated_at")
   updatedBy    String?   @map("updated_by") @db.Uuid
   deletedAt    DateTime? @map("deleted_at")
   deletedBy    String?   @map("deleted_by") @db.Uuid
@@ -177,15 +177,15 @@ model CardCategory {
 ////////////////////////////////////////////////////
 
 model CardType {
-  id               String       @id @map("type_id") @db.Uuid
+  id               String       @id @default(uuid()) @map("type_id") @db.Uuid
   typeCode         String       @unique @map("type_code")
   typeName         String       @map("type_name")
   routeDescription String?      @map("route_description")
   classPrice       Decimal?     @map("class_price")
   programType      ProgramType? @map("program_type")
-  createdAt        DateTime     @map("created_at")
+  createdAt        DateTime     @default(now()) @map("created_at")
   createdBy        String?      @map("created_by") @db.Uuid
-  updatedAt        DateTime     @map("updated_at")
+  updatedAt        DateTime     @default(now()) @map("updated_at")
   updatedBy        String?      @map("updated_by") @db.Uuid
   deletedAt        DateTime?    @map("deleted_at")
   deletedBy        String?      @map("deleted_by") @db.Uuid
@@ -199,13 +199,13 @@ model CardType {
 }
 
 model Station {
-  id          String    @id @map("station_id") @db.Uuid
+  id          String    @id @default(uuid()) @map("station_id") @db.Uuid
   stationCode String    @unique @map("station_code")
   stationName String    @map("station_name")
   location    String?
-  createdAt   DateTime  @map("created_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
   createdBy   String?   @map("created_by") @db.Uuid
-  updatedAt   DateTime  @map("updated_at")
+  updatedAt   DateTime  @default(now()) @map("updated_at")
   updatedBy   String?   @map("updated_by") @db.Uuid
   deletedAt   DateTime? @map("deleted_at")
   deletedBy   String?   @map("deleted_by") @db.Uuid
@@ -239,7 +239,7 @@ model ProductDetail {
 }
 
 model CardProduct {
-  id              String       @id @map("card_product_id") @db.Uuid
+  id              String       @id @default(uuid()) @map("card_product_id") @db.Uuid
   categoryId      String       @map("category_id") @db.Uuid
   typeId          String       @map("type_id") @db.Uuid
   productDetailId Int?         @map("product_detail_id")
@@ -249,9 +249,9 @@ model CardProduct {
   isActive        Boolean      @map("is_active")
   serialTemplate  String       @unique @map("serial_template")
   programType     ProgramType? @map("program_type")
-  createdAt       DateTime     @map("created_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
   createdBy       String?      @map("created_by") @db.Uuid
-  updatedAt       DateTime     @map("updated_at")
+  updatedAt       DateTime     @default(now()) @map("updated_at")
   updatedBy       String?      @map("updated_by") @db.Uuid
   deletedAt       DateTime?    @map("deleted_at")
   deletedBy       String?      @map("deleted_by") @db.Uuid
@@ -270,8 +270,8 @@ model CardProduct {
 }
 
 model Member {
-  id             String    @id @map("member_id") @db.Uuid
-  memberName     String    @map("member_name")
+  id             String    @id @default(uuid()) @map("member_id") @db.Uuid
+  name           String    @map("member_name")
   identityNumber String    @unique @map("identity_number")
   nationality    String?
   email          String?
@@ -281,9 +281,9 @@ model Member {
   alamat         String?
   notes          String?
   companyName    String?   @map("company_name")
-  createdAt      DateTime  @map("created_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
   createdBy      String?   @map("created_by") @db.Uuid
-  updatedAt      DateTime  @map("updated_at")
+  updatedAt      DateTime  @default(now()) @map("updated_at")
   updatedBy      String?   @map("updated_by") @db.Uuid
   deletedAt      DateTime? @map("deleted_at")
   deletedBy      String?   @map("deleted_by") @db.Uuid
@@ -296,7 +296,7 @@ model Member {
 }
 
 model FileObject {
-  id             String      @id @map("file_id") @db.Uuid
+  id             String      @id @default(uuid()) @map("file_id") @db.Uuid
   originalName   String      @map("original_name")
   storedName     String?     @map("stored_name")
   relativePath   String      @unique @map("relative_path")
@@ -304,9 +304,9 @@ model FileObject {
   sizeBytes      Int?        @map("size_bytes")
   checksumSha256 String?     @map("checksum_sha256")
   purpose        FilePurpose
-  createdAt      DateTime    @map("created_at")
+  createdAt      DateTime    @default(now()) @map("created_at")
   createdBy      String?     @map("created_by") @db.Uuid
-  updatedAt      DateTime    @map("updated_at")
+  updatedAt      DateTime    @default(now()) @map("updated_at")
   updatedBy      String?     @map("updated_by") @db.Uuid
   deletedAt      DateTime?   @map("deleted_at")
   deletedBy      String?     @map("deleted_by") @db.Uuid
@@ -319,7 +319,7 @@ model FileObject {
 }
 
 model Card {
-  id                   String       @id @map("card_id") @db.Uuid
+  id                   String       @id @default(uuid()) @map("card_id") @db.Uuid
   serialNumber         String       @unique @map("serial_number")
   memberId             String?      @map("member_id") @db.Uuid
   cardProductId        String       @map("card_product_id") @db.Uuid
@@ -334,9 +334,9 @@ model Card {
   previousStationId    String?      @map("previous_station_id") @db.Uuid
   notes                String?
   assignedSerialNumber String?
-  createdAt            DateTime     @map("created_at")
+  createdAt            DateTime     @default(now()) @map("created_at")
   createdBy            String?      @map("created_by") @db.Uuid
-  updatedAt            DateTime     @map("updated_at")
+  updatedAt            DateTime     @default(now()) @map("updated_at")
   updatedBy            String?      @map("updated_by") @db.Uuid
   deletedAt            DateTime?    @map("deleted_at")
   deletedBy            String?      @map("deleted_by") @db.Uuid
@@ -360,7 +360,7 @@ model Card {
 }
 
 model CardInventory {
-  id                  String    @id @map("inventory_id") @db.Uuid
+  id                  String    @id @default(uuid()) @map("inventory_id") @db.Uuid
   categoryId          String    @map("category_id") @db.Uuid
   typeId              String    @map("type_id") @db.Uuid
   stationId           String?   @map("station_id") @db.Uuid
@@ -369,9 +369,9 @@ model CardInventory {
   cardTerjualNonAktif Int       @map("card_terjual_nonaktif")
   cardBelumTerjual    Int       @map("card_belum_terjual")
   cardOffice          Int?      @map("card_office")
-  createdAt           DateTime  @map("created_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
   createdBy           String?   @map("created_by") @db.Uuid
-  updatedAt           DateTime  @map("updated_at")
+  updatedAt           DateTime  @default(now()) @map("updated_at")
   updatedBy           String?   @map("updated_by") @db.Uuid
   deletedAt           DateTime? @map("deleted_at")
   deletedBy           String?   @map("deleted_by") @db.Uuid
@@ -387,7 +387,7 @@ model CardInventory {
 }
 
 model CardStockMovement {
-  id                    String              @id @map("movement_id") @db.Uuid
+  id                    String              @id @default(uuid()) @map("movement_id") @db.Uuid
   movementAt            DateTime            @map("movement_at")
   movementType          StockMovementType   @map("movement_type")
   status                StockMovementStatus @map("status")
@@ -402,11 +402,11 @@ model CardStockMovement {
   sentSerialNumbers     String[]            @map("sent_serial_numbers")
   damagedSerialNumbers  String[]            @map("damaged_serial_numbers")
   batchId               String?             @map("batch_id")
-  createdAt             DateTime            @map("created_at")
+  createdAt             DateTime            @default(now()) @map("created_at")
   createdBy             String?             @map("created_by")
   validatedAt           DateTime?
   validatedBy           String?
-  updatedAt             DateTime            @map("updated_at")
+  updatedAt             DateTime            @default(now()) @map("updated_at")
   updatedBy             String?             @map("updated_by")
   deletedAt             DateTime?           @map("deleted_at")
   deletedBy             String?             @map("deleted_by")
@@ -449,7 +449,7 @@ model Inbox {
 }
 
 model CardPurchase {
-  id                       String                   @id @map("purchase_id") @db.Uuid
+  id                       String                   @id @default(uuid()) @map("purchase_id") @db.Uuid
   cardId                   String                   @map("card_id") @db.Uuid
   memberId                 String?                  @map("member_id") @db.Uuid
   operatorId               String                   @map("operator_id") @db.Uuid
@@ -460,12 +460,12 @@ model CardPurchase {
   notes                    String?                  @map("notes")
   activatedAt              DateTime?                @map("activated_at")
   activatedBy              String?                  @map("activated_by")
-  activationStatus         PurchaseActivationStatus @map("activation_status")
+  activationStatus         PurchaseActivationStatus @default(PENDING) @map("activation_status")
   physicalCardSerialNumber String?                  @map("physical_card_serial_number")
   programType              ProgramType?             @map("program_type")
-  createdAt                DateTime                 @map("created_at")
+  createdAt                DateTime                 @default(now()) @map("created_at")
   createdBy                String?                  @map("created_by")
-  updatedAt                DateTime                 @map("updated_at")
+  updatedAt                DateTime                 @default(now()) @map("updated_at")
   updatedBy                String?                  @map("updated_by")
   deletedAt                DateTime?                @map("deleted_at")
   deletedBy                String?                  @map("deleted_by")
@@ -496,7 +496,7 @@ model Redeem {
   notes             String?
   createdAt         DateTime          @default(now()) @map("created_at")
   createdBy         String?           @map("created_by") @db.Uuid
-  updatedAt         DateTime          @default(now()) @map("updated_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
   updatedBy         String?           @map("updated_by") @db.Uuid
   deletedAt         DateTime?         @map("deleted_at")
   deletedBy         String?           @map("deleted_by") @db.Uuid
@@ -513,15 +513,15 @@ model Redeem {
 }
 
 model CardUsageLog {
-  id             String    @id @map("log_id") @db.Uuid
+  id             String    @id @default(uuid()) @map("log_id") @db.Uuid
   cardId         String    @map("card_id") @db.Uuid
   redeemId       String?   @map("redeem_id") @db.Uuid
   quotaUsed      Int       @map("quota_used")
   remainingQuota Int       @map("remaining_quota")
   usageDate      DateTime  @map("usage_date")
-  createdAt      DateTime  @map("created_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
   createdBy      String?   @map("created_by")
-  updatedAt      DateTime  @map("updated_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
   updatedBy      String?   @map("updated_by")
   deletedAt      DateTime? @map("deleted_at")
   deletedBy      String?   @map("deleted_by")
@@ -534,7 +534,7 @@ model CardUsageLog {
 }
 
 model CardSwapRequest {
-  id                String            @id @map("swap_request_id") @db.Uuid
+  id                String            @id @default(uuid()) @map("swap_request_id") @db.Uuid
   purchaseId        String            @map("purchase_id") @db.Uuid
   originalCardId    String            @map("original_card_id") @db.Uuid
   replacementCardId String?           @map("replacement_card_id") @db.Uuid
@@ -546,15 +546,15 @@ model CardSwapRequest {
   notes             String?           @map("notes")
   rejectionReason   String?           @map("rejection_reason")
   requestedBy       String            @map("requested_by") @db.Uuid
-  requestedAt       DateTime          @map("requested_at")
+  requestedAt       DateTime          @default(now()) @map("requested_at")
   approvedBy        String?           @map("approved_by") @db.Uuid
   approvedAt        DateTime?         @map("approved_at")
   executedBy        String?           @map("executed_by") @db.Uuid
   executedAt        DateTime?         @map("executed_at")
   rejectedBy        String?           @map("rejected_by") @db.Uuid
   rejectedAt        DateTime?         @map("rejected_at")
-  createdAt         DateTime          @map("created_at")
-  updatedAt         DateTime          @map("updated_at")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
 
   // Relasi
   purchase        CardPurchase      @relation(fields: [purchaseId], references: [id])
@@ -584,7 +584,7 @@ model CardSwapRequest {
 }
 
 model CardSwapHistory {
-  id               String   @id @map("history_id") @db.Uuid
+  id               String   @id @default(uuid()) @map("history_id") @db.Uuid
   swapRequestId    String   @map("swap_request_id") @db.Uuid
   purchaseId       String   @map("purchase_id") @db.Uuid
   beforeCardId     String   @map("before_card_id") @db.Uuid
@@ -595,7 +595,7 @@ model CardSwapHistory {
   afterCardStatus  String   @map("after_card_status")
   inventoryChanges Json     @map("inventory_changes")
   executedBy       String   @map("executed_by") @db.Uuid
-  executedAt       DateTime @map("executed_at")
+  executedAt       DateTime @default(now()) @map("executed_at")
 
   swapRequest CardSwapRequest @relation(fields: [swapRequestId], references: [id])
 
@@ -605,7 +605,7 @@ model CardSwapHistory {
 }
 
 model PasswordResetToken {
-  id        String    @id @map("token_id") @db.Uuid
+  id        String    @id @default(uuid()) @map("token_id") @db.Uuid
   userId    String    @map("user_id") @db.Uuid
   token     String    @unique
   expiresAt DateTime  @map("expires_at")
@@ -624,7 +624,7 @@ model PasswordResetToken {
 }
 
 model ActivityLog {
-  id          String    @id @map("log_id") @db.Uuid
+  id          String    @id @default(uuid()) @map("log_id") @db.Uuid
   userId      String    @map("user_id") @db.Uuid
   action      String    @map("action")
   description String?   @map("description")
@@ -641,7 +641,7 @@ model ActivityLog {
 }
 
 model reconciliation_batches {
-  batch_id       String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  batch_id       String               @id @default(uuid()) @db.Uuid
   file_name      String               @db.VarChar(255)
   total_rows     Int                  @default(0)
   matched_rows   Int                  @default(0)
@@ -659,7 +659,7 @@ model reconciliation_batches {
 }
 
 model temp_fwc_reconciliation {
-  record_id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  record_id         String   @id @default(uuid()) @db.Uuid
   batch_id          String   @db.Uuid
   serial_number     String?  @db.VarChar(50)
   nik_clean         String   @db.VarChar(50)
@@ -675,7 +675,7 @@ model temp_fwc_reconciliation {
 }
 
 model MenuAccess {
-  id          String @id @map("menu_access_id") @db.Uuid
+  id          String @id @default(uuid()) @map("menu_access_id") @db.Uuid
   codeSubmenu String @map("code_submenu")
   codeMenu    String @map("code_menu")
   description String
@@ -688,7 +688,7 @@ model MenuAccess {
 }
 
 model Permission {
-  id           String   @id @map("permission_id") @db.Uuid
+  id           String   @id @default(uuid()) @map("permission_id") @db.Uuid
   menuAccessId String   @map("menu_access_id") @db.Uuid
   codeModule   String   @map("code_module")
   role         String[]

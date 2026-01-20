@@ -4,7 +4,7 @@ import { useEffect, useState, useContext } from 'react';
 import toast from 'react-hot-toast';
 import { redeemService, RedeemItem, RedeemFilterParams } from '@/lib/services/redeem/redeemService';
 import { useRedeemPermission } from '@/lib/hooks/useRedeemPermission';
-import { UserContext } from '@/app/dashboard/petugas/dashboard-layout';
+import { UserContext } from '@/app/dashboard/admin/dashboard-layout';
 import CreateRedeemModal from '@/components/redeem/CreateRedeemModal';
 import RedeemTable from '@/components/redeem/RedeemTable';
 import RedeemFilters from '@/components/redeem/RedeemFilters';
@@ -12,9 +12,10 @@ import RedeemDetailModal from '@/components/redeem/RedeemDetailModal';
 import LastRedeemDocModal from '@/components/redeem/LastRedeemDocModal';
 import DeleteRedeemDialog from '@/components/redeem/DeleteRedeemDialog';
 import ExportRedeemModal from '@/components/redeem/ExportRedeemModal';
-import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getStations } from '@/lib/services/station.service';
 import { getCardCategories, getCardTypes } from '@/lib/services/cardcategory';
+
 
 interface User {
   id: string;
@@ -29,14 +30,14 @@ interface Station {
 }
 
 
-export default function PetugasRedeemPage() {
+export default function AdminRedeemPage() {
   // State for data
   const [redeems, setRedeems] = useState<RedeemItem[]>([]);
   const userCtx = useContext(UserContext);
   const currentRole = userCtx?.role;
   const [stations, setStations] = useState<Station[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [cardTypes, setCardTypes] = useState<any[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [cardTypes, setCardTypes] = useState<string[]>([]);
   const [isLoadingRedeems, setIsLoadingRedeems] = useState(false);
 
   // Filter state
@@ -117,11 +118,10 @@ export default function PetugasRedeemPage() {
     }
   };
 
-
   const loadStations = async () => {
     try {
-      const res = await getStations({ page: 1, limit: 1000 });
-      setStations(res?.data?.items || []);
+      const res = await getStations();
+      setStations(res?.data || []);
     } catch (error) {
       setStations([]);
     }
@@ -130,17 +130,7 @@ export default function PetugasRedeemPage() {
   const loadCategories = async () => {
     try {
       const res = await getCardCategories();
-      const data = res?.data;
-      let categoryNames: string[] = [];
-      if (Array.isArray(data)) {
-        categoryNames = data.map((cat: any) => cat.name || cat.categoryName || cat.category).filter(Boolean);
-      } else if (data && typeof data === 'object') {
-        const items = data.items || data.categories || [];
-        if (Array.isArray(items)) {
-          categoryNames = items.map((cat: any) => cat.name || cat.categoryName || cat.category).filter(Boolean);
-        }
-      }
-      setCategories([...new Set(categoryNames)]);
+      setCategories(res?.data || []);
     } catch (error) {
       setCategories([]);
     }
@@ -149,17 +139,7 @@ export default function PetugasRedeemPage() {
   const loadCardTypes = async () => {
     try {
       const res = await getCardTypes();
-      const data = res?.data;
-      let types: string[] = [];
-      if (Array.isArray(data)) {
-        types = data.map((t: any) => t.typeName || t.name).filter(Boolean);
-      } else if (data && typeof data === 'object') {
-        const items = data.items || data.types || [];
-        if (Array.isArray(items)) {
-          types = items.map((t: any) => t.typeName || t.name).filter(Boolean);
-        }
-      }
-      setCardTypes([...new Set(types)]);
+      setCardTypes(res?.data || []);
     } catch (error) {
       setCardTypes([]);
     }
@@ -258,8 +238,6 @@ export default function PetugasRedeemPage() {
               cardTypes={cardTypes}
               stations={stations}
               isLoading={isLoadingRedeems}
-              categoryValueKey="categoryName"
-              cardTypeValueKey="typeName"
             />
           </div>
 
