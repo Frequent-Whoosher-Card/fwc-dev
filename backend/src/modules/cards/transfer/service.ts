@@ -72,7 +72,7 @@ export class TransferService {
       // 3. Create Movement (TRANSFER, PENDING)
       const movement = await tx.cardStockMovement.create({
         data: {
-          type: StockMovementType.TRANSFER,
+          movementType: StockMovementType.TRANSFER,
           status: StockMovementStatus.PENDING,
           categoryId,
           typeId,
@@ -167,7 +167,7 @@ export class TransferService {
         where,
         include: {
           category: true,
-          cardType: true,
+          type: true,
           station: { select: { stationName: true } }, // From
           toStation: { select: { stationName: true } }, // To
         },
@@ -194,7 +194,7 @@ export class TransferService {
       where: { id },
       include: {
         category: true,
-        cardType: true,
+        type: true,
         station: true,
         toStation: true,
       },

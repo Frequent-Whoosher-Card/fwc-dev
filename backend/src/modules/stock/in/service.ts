@@ -144,7 +144,7 @@ export class StockInService {
       const movement = await tx.cardStockMovement.create({
         data: {
           movementAt: new Date(),
-          type: "IN",
+          movementType: "IN",
           status: "APPROVED",
           categoryId,
           typeId,
@@ -247,7 +247,7 @@ export class StockInService {
         orderBy: { movementAt: "desc" },
         include: {
           category: true,
-          cardType: true,
+          type: true,
         },
       }),
       db.cardStockMovement.count({ where }),
@@ -281,9 +281,9 @@ export class StockInService {
         code: item.category.categoryCode,
       },
       cardType: {
-        id: item.cardType.id,
-        name: item.cardType.typeName,
-        code: item.cardType.typeCode,
+        id: item.type.id,
+        name: item.type.typeName,
+        code: item.type.typeCode,
       },
       sentSerialNumbers: item.sentSerialNumbers,
     }));
@@ -307,7 +307,7 @@ export class StockInService {
       where: { id },
       include: {
         category: true,
-        cardType: true,
+        type: true,
       },
     });
 
@@ -315,7 +315,7 @@ export class StockInService {
       throw new ValidationError("Data tidak ditemukan");
     }
 
-    if (movement.type !== "IN") {
+    if (movement.movementType !== "IN") {
       throw new ValidationError("Bukan transaksi Stock In");
     }
 
@@ -344,9 +344,9 @@ export class StockInService {
           code: movement.category.categoryCode,
         },
         cardType: {
-          id: movement.cardType.id,
-          name: movement.cardType.typeName,
-          code: movement.cardType.typeCode,
+          id: movement.type.id,
+          name: movement.type.typeName,
+          code: movement.type.typeCode,
         },
         sentSerialNumbers: movement.sentSerialNumbers as string[], // Keep original array for reference
         items: await (async () => {
@@ -407,7 +407,7 @@ export class StockInService {
       if (!movement) {
         throw new ValidationError("Data tidak ditemukan");
       }
-      if (movement.type !== "IN") {
+      if (movement.movementType !== "IN") {
         throw new ValidationError("Bukan transaksi Stock In");
       }
 
@@ -609,7 +609,7 @@ export class StockInService {
       if (!movement) {
         throw new ValidationError("Data tidak ditemukan");
       }
-      if (movement.type !== "IN") {
+      if (movement.movementType !== "IN") {
         throw new ValidationError("Bukan transaksi Stock In");
       }
 
@@ -694,7 +694,7 @@ export class StockInService {
       });
 
       if (!movement) throw new ValidationError("Stock In record not found");
-      if (movement.type !== "IN")
+      if (movement.movementType !== "IN")
         throw new ValidationError("Not a Stock In record");
 
       const sentSerials = new Set(
@@ -898,7 +898,7 @@ export class StockInService {
         const movement = await tx.cardStockMovement.create({
           data: {
             movementAt: new Date(),
-            type: "OUT",
+            movementType: "OUT",
             status: "APPROVED",
             categoryId,
             typeId,
