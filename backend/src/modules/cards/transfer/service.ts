@@ -120,7 +120,7 @@ export class TransferService {
     const { page, limit } = params;
     const skip = (page - 1) * limit;
 
-    const where: any = { type: StockMovementType.TRANSFER };
+    const where: any = { movementType: StockMovementType.TRANSFER };
 
     if (params.stationId) {
       // Show transfers where station is either Sender OR Receiver
@@ -149,7 +149,7 @@ export class TransferService {
           },
         },
         {
-          cardType: { typeName: { contains: search, mode: "insensitive" } },
+          type: { typeName: { contains: search, mode: "insensitive" } },
         },
       ];
 
