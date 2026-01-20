@@ -20,7 +20,7 @@ export class PurchaseService {
     data: typeof PurchaseModel.createPurchaseBody.static,
     operatorId: string,
     stationId: string,
-    userId: string
+    userId: string,
   ) {
     // Use database transaction to ensure atomicity
     const result = await db.$transaction(async (tx) => {
@@ -48,7 +48,7 @@ export class PurchaseService {
       // 2. Validate card status - must be IN_STATION to be purchased
       if (card.status !== "IN_STATION") {
         throw new ValidationError(
-          `Kartu tidak dapat dibeli. Status kartu saat ini: ${card.status}. Kartu harus berstatus IN_STATION untuk dapat dibeli.`
+          `Kartu tidak dapat dibeli. Status kartu saat ini: ${card.status}. Kartu harus berstatus IN_STATION untuk dapat dibeli.`,
         );
       }
 
@@ -62,14 +62,14 @@ export class PurchaseService {
 
       if (existingPurchase) {
         throw new ValidationError(
-          "Kartu ini sudah pernah dibeli. Setiap kartu hanya dapat dibeli sekali."
+          "Kartu ini sudah pernah dibeli. Setiap kartu hanya dapat dibeli sekali.",
         );
       }
 
       // 4. Validate member (required)
       if (!data.memberId) {
         throw new ValidationError(
-          "Member ID wajib diisi. Setiap transaksi harus memiliki member."
+          "Member ID wajib diisi. Setiap transaksi harus memiliki member.",
         );
       }
 
@@ -113,7 +113,7 @@ export class PurchaseService {
 
       if (existingEdcRef) {
         throw new ValidationError(
-          `No. Reference EDC '${edcReferenceNumber}' sudah digunakan. Silakan gunakan nomor lain.`
+          `No. Reference EDC '${edcReferenceNumber}' sudah digunakan. Silakan gunakan nomor lain.`,
         );
       }
 
@@ -147,12 +147,11 @@ export class PurchaseService {
         },
       });
 
-      // 10. Update card: set status to ASSIGNED (two-step activation), assign serial number
+      // 10. Update card: set status to SOLD_ACTIVE
       await tx.card.update({
         where: { id: data.cardId },
         data: {
-          status: "ASSIGNED", // Step 1: Assign card to purchase, waiting for activation
-          assignedSerialNumber: card.serialNumber, // Store serial for validation
+          status: "SOLD_ACTIVE",
           purchaseDate: purchaseDate,
           memberId: data.memberId,
           expiredDate: expiredDate,
@@ -161,28 +160,11 @@ export class PurchaseService {
         },
       });
 
-      // 11. Update inventory: decrease cardBelumTerjual (card is now assigned, not available)
-      // Note: cardAktif will be incremented when purchase is activated
-      const inventory = await tx.cardInventory.findFirst({
-        where: {
-          categoryId: card.cardProduct.categoryId,
-          typeId: card.cardProduct.typeId,
-          stationId: stationId,
-        },
-      });
-
-      if (inventory) {
-        await tx.cardInventory.update({
-          where: { id: inventory.id },
-          data: {
-            cardBelumTerjual: {
-              decrement: 1,
-            },
-            // cardAktif will be incremented on activation, not here
-            updatedBy: userId,
-          },
-        });
-      }
+      // 11. Update inventory: REMOVED (Deprecated)
+      /*
+      const inventory = await tx.cardInventory.findFirst(...)
+      if (inventory) { ... }
+      */
 
       return purchase;
     });
@@ -324,7 +306,6 @@ export class PurchaseService {
             select: {
               id: true,
               serialNumber: true,
-              assignedSerialNumber: true,
               status: true,
               expiredDate: true,
               quotaTicket: true,
@@ -450,7 +431,6 @@ export class PurchaseService {
           select: {
             id: true,
             serialNumber: true,
-            assignedSerialNumber: true,
             status: true,
             expiredDate: true,
             quotaTicket: true,
@@ -530,12 +510,12 @@ export class PurchaseService {
       purchaseDate: purchase.purchaseDate.toISOString(),
       price: Number(purchase.price),
       notes: purchase.notes,
-      activationStatus: purchase.activationStatus,
-      activatedAt: purchase.activatedAt
-        ? purchase.activatedAt.toISOString()
+      activationStatus: purchase.activation_status,
+      activatedAt: purchase.activated_at
+        ? purchase.activated_at.toISOString()
         : null,
-      activatedBy: purchase.activatedBy,
-      physicalCardSerialNumber: purchase.physicalCardSerialNumber,
+      activatedBy: purchase.activated_by,
+      physicalCardSerialNumber: purchase.physical_card_serial_number,
       createdAt: purchase.createdAt.toISOString(),
       updatedAt: purchase.updatedAt.toISOString(),
       createdByName: creator?.fullName || null,

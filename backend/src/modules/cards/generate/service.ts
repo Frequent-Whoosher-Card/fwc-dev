@@ -5,6 +5,7 @@ import bwipjs from "bwip-js";
 import { createCanvas, loadImage, registerFont } from "canvas";
 import fs from "fs";
 import path from "path";
+import archiver from "archiver";
 
 // ====== FONT SETUP ======
 const FONT_PATH = path.resolve(process.cwd(), "assets/fonts/OCRB.ttf");
@@ -26,9 +27,9 @@ if (fs.existsSync(FONT_PATH)) {
 const TARGET_W = 552;
 const TARGET_H = 208;
 const M_LEFT = 10;
-const M_TOP = 10;
+const M_TOP = 0;
 const M_RIGHT = 10;
-const M_BOTTOM = 20;
+const M_BOTTOM = 0;
 
 const CONTENT_W = TARGET_W - M_LEFT - M_RIGHT; // 532
 const CONTENT_H = TARGET_H - M_TOP - M_BOTTOM; // 178
@@ -114,12 +115,12 @@ export class CardGenerateService {
     const startNum = parseSmartSerial(
       startSerial,
       product.serialTemplate,
-      yearSuffix
+      yearSuffix,
     );
     const endNum = parseSmartSerial(
       endSerial,
       product.serialTemplate,
-      yearSuffix
+      yearSuffix,
     );
 
     if (endNum < startNum) {
@@ -135,13 +136,48 @@ export class CardGenerateService {
     // Check Sequential (Read-Only)
     // Note: There is a small race condition here if someone generates exactly at the same time,
     // but the unique constraint on serialNumber will catch it safely.
-    const lastCard = await db.card.findFirst({
-      where: { cardProductId: product.id },
-      orderBy: { serialNumber: "desc" },
-    });
+    // Check Sequential (Read-Only)
+
+    // Check Sequential (Read-Only)
+    // Use Raw Query to bypass Prisma Adapter "Column Not Found" errors
+    let lastCard = null;
+    const prefix = `${product.serialTemplate}${yearSuffix}`;
+
+    try {
+      const result = await db.$queryRaw<Array<{ serial_number: string }>>`
+        SELECT serial_number 
+        FROM cards 
+        WHERE card_product_id = ${product.id}::uuid
+          AND serial_number LIKE ${prefix || ""} || '%'
+        ORDER BY serial_number DESC 
+        LIMIT 1
+      `;
+
+      if (result && result.length > 0) {
+        lastCard = { serialNumber: result[0].serial_number };
+      }
+    } catch (e) {
+      console.warn("Failed to check last card sequence (Raw)", e);
+    }
 
     let expectedStartNum = 1;
-    const prefix = `${product.serialTemplate}${yearSuffix}`;
+
+    // Fallback: If sorting/finding failed but data might exist, use COUNT
+    if (!lastCard) {
+      try {
+        const count = await db.card.count({
+          where: {
+            cardProductId: product.id,
+            serialNumber: { startsWith: prefix },
+          },
+        });
+        if (count > 0) {
+          expectedStartNum = count + 1;
+        }
+      } catch (e) {
+        console.warn("Count fallback also failed", e);
+      }
+    }
 
     if (lastCard && lastCard.serialNumber.startsWith(prefix)) {
       const lastSuffixStr = lastCard.serialNumber.slice(prefix.length);
@@ -156,8 +192,8 @@ export class CardGenerateService {
           lastCard ? lastCard.serialNumber : "Belum ada"
         }'. Harap mulai dari suffix '${String(expectedStartNum).padStart(
           5,
-          "0"
-        )}'`
+          "0",
+        )}'`,
       );
     }
 
@@ -177,7 +213,7 @@ export class CardGenerateService {
 
     if (existing) {
       throw new ValidationError(
-        `Serial ${existing.serialNumber} sudah ada. Generate gagal.`
+        `Serial ${existing.serialNumber} sudah ada. Generate gagal.`,
       );
     }
 
@@ -210,25 +246,21 @@ export class CardGenerateService {
       const textFormatted = sn.split("").join(" ");
 
       // BWIP-JS
+      // Config based on Mentor's CLI example
       const pngBuffer = await bwipjs.toBuffer({
         bcid: "code128",
         text: sn,
-        scale: 2,
-        scaleX: 2,
-        scaleY: 2,
-        includetext: false,
-        paddingwidth: 0,
-        paddingheight: 0,
+        textfont: "OCR-B",
+        width: 55, // REMOVED: Caused horizontal stretching ("gepeng")
+        height: 10, // Significantly reduced height to maximize "Wider" look
+        scale: 5,
+        textsize: 8, // Smaller text as requested
+        backgroundcolor: "FFFFFF",
+        textyoffset: -1,
+        includetext: true,
       });
 
       const barcodeImg = await loadImage(pngBuffer);
-      const barcodeWidth = barcodeImg.width;
-      const barcodeHeight = barcodeImg.height;
-
-      const targetBarcodeWidth = 530;
-      const targetBarcodeHeight = 130; // Fixed height to ensure space for text
-      const barcodeX = Math.round((TARGET_W - targetBarcodeWidth) / 2);
-      const barcodeY = 20;
 
       const canvas = createCanvas(TARGET_W, TARGET_H);
       const ctx = canvas.getContext("2d");
@@ -236,21 +268,25 @@ export class CardGenerateService {
       ctx.fillStyle = "#fff";
       ctx.fillRect(0, 0, TARGET_W, TARGET_H);
 
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(
-        barcodeImg,
-        barcodeX,
-        barcodeY,
-        targetBarcodeWidth,
-        targetBarcodeHeight
-      );
+      // Calculate scaling to FIT inside the canvas with margins
+      // Available space
+      const safeW = TARGET_W - 20; // 10px padding sides
+      const safeH = TARGET_H - 20; // 10px padding top/bottom
 
-      const textY = barcodeY + targetBarcodeHeight + 8;
-      ctx.fillStyle = "#000000";
-      ctx.font = `44px "${FONT_FAMILY}"`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "top";
-      ctx.fillText(sn, TARGET_W / 2, textY);
+      const scaleX = safeW / barcodeImg.width;
+      const scaleY = safeH / barcodeImg.height;
+      const finalScale = Math.min(scaleX, scaleY, 1); // Never scale UP, only down
+
+      const drawW = barcodeImg.width * finalScale;
+      const drawH = barcodeImg.height * finalScale;
+
+      // Center
+      const barcodeX = (TARGET_W - drawW) / 2;
+      const barcodeY = (TARGET_H - drawH) / 2;
+
+      ctx.drawImage(barcodeImg, barcodeX, barcodeY, drawW, drawH);
+
+      // Manual text drawing removed because 'includetext: true' handles it now
 
       const finalBuffer = canvas.toBuffer("image/png");
 
@@ -276,7 +312,7 @@ export class CardGenerateService {
       for (let i = 0; i < serialNumbers.length; i += BATCH_SIZE) {
         const batch = serialNumbers.slice(i, i + BATCH_SIZE);
         const results = await Promise.all(
-          batch.map((sn) => generateOneImage(sn))
+          batch.map((sn) => generateOneImage(sn)),
         );
 
         for (const res of results) {
@@ -291,14 +327,40 @@ export class CardGenerateService {
         // Double check collision (optional but safe) within transaction?
         // Not strictly necessary if we rely on unique constraint error handling.
 
-        // 1. Insert FileObjects
-        const createdFiles = await tx.fileObject.createManyAndReturn({
-          data: fileObjectsData,
-          select: { id: true, originalName: true },
+        // 1. Handle FileObjects (Create New or Reuse Existing)
+        const relativePaths = fileObjectsData.map((f) => f.relativePath);
+
+        // Find existing FileObjects to avoid unique constraint error
+        const existingFiles = await tx.fileObject.findMany({
+          where: { relativePath: { in: relativePaths } },
+          select: { id: true, relativePath: true, originalName: true },
         });
 
-        // Map Serial -> FileID
+        const existingPaths = new Set(existingFiles.map((f) => f.relativePath));
+        const newFilesData = fileObjectsData.filter(
+          (f) => !existingPaths.has(f.relativePath),
+        );
+
+        let createdFiles: { id: string; originalName: string }[] = [];
+
+        if (newFilesData.length > 0) {
+          createdFiles = await tx.fileObject.createManyAndReturn({
+            data: newFilesData,
+            select: { id: true, originalName: true },
+          });
+        }
+
+        // Map Serial -> FileID (Combine existing and new)
         const fileMap = new Map<string, string>();
+
+        // Add reused files to map
+        for (const f of existingFiles) {
+          const parts = f.originalName.replace(".png", "").split("-");
+          const serial = parts[parts.length - 1];
+          fileMap.set(serial, f.id);
+        }
+
+        // Add newly created files to map
         for (const f of createdFiles) {
           const parts = f.originalName.replace(".png", "").split("-");
           const serial = parts[parts.length - 1];
@@ -347,7 +409,7 @@ export class CardGenerateService {
         console.error("Error during generation. Cleaning up created files...");
         // Use map/promise.all for speed, suppress errors
         await Promise.allSettled(
-          generatedFiles.map((filePath) => fs.promises.unlink(filePath))
+          generatedFiles.map((filePath) => fs.promises.unlink(filePath)),
         );
       }
       throw error;
@@ -411,7 +473,7 @@ export class CardGenerateService {
     // I will include creator name finding.
     const userIds = [
       ...new Set(
-        items.map((i) => i.createdBy).filter((id): id is string => !!id)
+        items.map((i) => i.createdBy).filter((id): id is string => !!id),
       ),
     ];
     const users = await db.user.findMany({
@@ -569,13 +631,29 @@ export class CardGenerateService {
     const yearSuffix = new Date().getFullYear().toString().slice(-2);
     const prefix = `${product.serialTemplate}${yearSuffix}`;
 
-    const lastCard = await db.card.findFirst({
-      where: { cardProductId: product.id },
-      orderBy: { serialNumber: "desc" },
-    });
+    let lastCard = null;
+    try {
+      const result = await db.$queryRaw<Array<{ serial_number: string }>>`
+        SELECT serial_number 
+        FROM cards 
+        WHERE card_product_id = ${product.id}::uuid
+          AND serial_number LIKE ${prefix || ""} || '%'
+        ORDER BY serial_number DESC 
+        LIMIT 1
+      `;
+
+      if (result && result.length > 0) {
+        lastCard = { serialNumber: result[0].serial_number };
+      }
+    } catch (error) {
+      console.warn("Error finding last card (Raw)", error);
+    }
 
     let nextSuffix = 1;
     let lastSerial = null;
+
+    // Fallback if raw query returned nothing (possibly empty table) -> suffix 1
+    // (We removed the 'count' fallback because Raw Query is definitive)
 
     if (lastCard && lastCard.serialNumber.startsWith(prefix)) {
       lastSerial = lastCard.serialNumber;
@@ -588,10 +666,183 @@ export class CardGenerateService {
     const width = 5;
     const nextSerial = `${prefix}${String(nextSuffix).padStart(width, "0")}`;
 
+    // ... (previous code)
     return {
       nextSerial,
       prefix,
       lastSerial,
     };
+  }
+
+  static async downloadZip(batchId: string) {
+    const movement = await db.cardStockMovement.findUnique({
+      where: { id: batchId },
+      include: {
+        category: true,
+        cardType: true,
+      },
+    });
+
+    if (!movement) {
+      throw new ValidationError("Batch generation tidak ditemukan");
+    }
+
+    const serials = movement.receivedSerialNumbers || [];
+    if (serials.length === 0) {
+      throw new ValidationError("Batch ini tidak memiliki serial number");
+    }
+
+    // Fetch cards with file objects
+    const cards = await db.card.findMany({
+      where: { serialNumber: { in: serials } },
+      include: { fileObject: true },
+    });
+
+    const validCards = cards.filter(
+      (c) => c.fileObject && c.fileObject.relativePath,
+    );
+
+    if (validCards.length === 0) {
+      throw new ValidationError(
+        "Tidak ada file barcode yang ditemukan untuk batch ini",
+      );
+    }
+
+    // Setup Archive
+    const archive = archiver("zip", {
+      zlib: { level: 9 }, // Sets the compression level.
+    });
+
+    // Handle archive errors
+    archive.on("error", (err: any) => {
+      throw err;
+    });
+
+    // Append files
+    let addedCount = 0;
+    for (const card of validCards) {
+      if (card.fileObject?.relativePath) {
+        const absolutePath = path.join(
+          process.cwd(),
+          card.fileObject.relativePath,
+        );
+        if (fs.existsSync(absolutePath)) {
+          archive.file(absolutePath, { name: card.fileObject.originalName });
+          addedCount++;
+        }
+      }
+    }
+
+    if (addedCount === 0) {
+      throw new ValidationError("File fisik barcode tidak ditemukan di server");
+    }
+
+    await archive.finalize();
+
+    // Construct a friendly filename
+    // e.g., "Barcode_Batch_TYPE_CATEGORY_DATE.zip" or just Batch ID
+    const dateStr = movement.movementAt.toISOString().split("T")[0];
+    const categoryName =
+      movement.category?.categoryName?.replace(/\s+/g, "_") || "CAT";
+    const typeName =
+      movement.cardType?.typeName?.replace(/\s+/g, "_") || "TYPE";
+    const filename = `Barcode_${typeName}_${categoryName}_${dateStr}.zip`;
+
+    return {
+      stream: archive,
+      filename,
+    };
+  }
+
+  static async delete(id: string, userId: string) {
+    return await db.$transaction(async (tx) => {
+      // 1. Get Movement (Must be GENERATED type)
+      const movement = await tx.cardStockMovement.findUnique({
+        where: { id },
+      });
+
+      if (!movement) {
+        throw new ValidationError("Data history generation tidak ditemukan");
+      }
+      if (movement.type !== "GENERATED") {
+        throw new ValidationError("Bukan transaksi Generate Kartu");
+      }
+
+      const sentSerials = (movement.sentSerialNumbers as string[]) || [];
+      if (sentSerials.length === 0) {
+        // Just delete movement if no serials (unlikely but safe check)
+        await tx.cardStockMovement.delete({ where: { id } });
+        return { success: true, message: "History kosong dihapus." };
+      }
+
+      // 2. Status Check: All cards must be ON_REQUEST
+      // Fetch cards associated with these serials
+      const cards = await tx.card.findMany({
+        where: { serialNumber: { in: sentSerials } },
+        include: { fileObject: true },
+      });
+
+      // If cards exist, check status
+      // Note: If some cards are missing (already deleted?), we just proceed with what we have.
+      // But if any existing card is NOT ON_REQUEST, we block.
+      const invalidCards = cards.filter((c) => c.status !== "ON_REQUEST");
+
+      if (invalidCards.length > 0) {
+        throw new ValidationError(
+          `Gagal menghapus! Beberapa kartu sudah diproses (Status: ${invalidCards[0].status}). Harap batalkan Stock In terlebih dahulu.`,
+        );
+      }
+
+      // 3. File Cleanup
+      // We need to delete physical files and FileObject records.
+      // We can get file paths from the cards we fetched.
+      // Also, we might want to search for files even if cards are missing (orphaned files matching pattern).
+
+      const filesToDelete: { id: string; path: string }[] = [];
+
+      for (const card of cards) {
+        if (card.fileObject?.relativePath) {
+          filesToDelete.push({
+            id: card.fileObject.id,
+            path: path.join(process.cwd(), card.fileObject.relativePath),
+          });
+        }
+      }
+
+      // 4. Delete Physical Files (Async, non-blocking for DB but we wait here)
+      const deleteFilePromises = filesToDelete.map(async (f) => {
+        try {
+          if (fs.existsSync(f.path)) {
+            await fs.promises.unlink(f.path);
+          }
+        } catch (e) {
+          console.warn(`Failed to delete file ${f.path}`, e);
+        }
+      });
+      await Promise.all(deleteFilePromises);
+
+      // 5. Database Cleanup
+      // a. Delete Cards
+      await tx.card.deleteMany({
+        where: { serialNumber: { in: sentSerials } },
+      });
+
+      // b. Delete FileObjects
+      if (filesToDelete.length > 0) {
+        await tx.fileObject.deleteMany({
+          where: { id: { in: filesToDelete.map((f) => f.id) } },
+        });
+      }
+
+      // c. Delete Movement
+      await tx.cardStockMovement.delete({
+        where: { id },
+      });
+
+      return {
+        success: true,
+        message: `Berhasil menghapus batch kartu (${movement.quantity} kartu).`,
+      };
+    });
   }
 }
