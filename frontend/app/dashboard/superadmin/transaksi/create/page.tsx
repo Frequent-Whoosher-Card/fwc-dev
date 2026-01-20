@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import SuccessModal from "@/app/dashboard/superadmin/user/components/SuccesModal";
 
