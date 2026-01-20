@@ -4,15 +4,15 @@ import { useEffect, useState, useContext } from 'react';
 import toast from 'react-hot-toast';
 import { redeemService, RedeemItem, RedeemFilterParams } from '@/lib/services/redeem/redeemService';
 import { useRedeemPermission } from '@/lib/hooks/useRedeemPermission';
-import { UserContext } from '@/app/dashboard/petugas/dashboard-layout';
+import { UserContext } from '@/app/dashboard/superadmin/dashboard/dashboard-layout';
 import CreateRedeemModal from '@/components/redeem/CreateRedeemModal';
 import RedeemTable from '@/components/redeem/RedeemTable';
 import RedeemFilters from '@/components/redeem/RedeemFilters';
 import RedeemDetailModal from '@/components/redeem/RedeemDetailModal';
 import LastRedeemDocModal from '@/components/redeem/LastRedeemDocModal';
 import DeleteRedeemDialog from '@/components/redeem/DeleteRedeemDialog';
+import { Plus, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import ExportRedeemModal from '@/components/redeem/ExportRedeemModal';
-import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getStations } from '@/lib/services/station.service';
 import { getCardCategories, getCardTypes } from '@/lib/services/cardcategory';
 
@@ -28,18 +28,18 @@ interface Station {
   city?: string;
 }
 
-
-export default function PetugasRedeemPage() {
+export default function RedeemPage() {
   // State for data
   const [redeems, setRedeems] = useState<RedeemItem[]>([]);
+  // Ambil role user dari context yang sudah di-provide oleh dashboard-layout
   const userCtx = useContext(UserContext);
   const currentRole = userCtx?.role;
   const [stations, setStations] = useState<Station[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [cardTypes, setCardTypes] = useState<any[]>([]);
   const [isLoadingRedeems, setIsLoadingRedeems] = useState(false);
-
-  // Filter state
+  
+  // Filter state - sama seperti membership
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [category, setCategory] = useState('');
@@ -47,6 +47,8 @@ export default function PetugasRedeemPage() {
   const [redeemType, setRedeemType] = useState('');
   const [stationId, setStationId] = useState('');
   const [search, setSearch] = useState('');
+  
+  // State for filters
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState({
     total: 0,
@@ -73,7 +75,6 @@ export default function PetugasRedeemPage() {
     loadStations();
     loadCategories();
     loadCardTypes();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Fetch redeems ketika filter atau page berubah
@@ -93,7 +94,6 @@ export default function PetugasRedeemPage() {
       stationId: stationId || undefined,
       search: search || undefined,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startDate, endDate, category, cardType, redeemType, stationId, search, currentPage]);
 
   const loadRedeems = async (filters: RedeemFilterParams) => {
@@ -102,6 +102,7 @@ export default function PetugasRedeemPage() {
       const response = await redeemService.listRedeems(filters);
       const items = response.data || [];
       const paginationData = response.pagination || { page: 1, limit: 50, total: 0 };
+      
       setRedeems(items);
       setPagination({
         page: paginationData.page || 1,
@@ -117,12 +118,12 @@ export default function PetugasRedeemPage() {
     }
   };
 
-
   const loadStations = async () => {
     try {
       const res = await getStations({ page: 1, limit: 1000 });
       setStations(res?.data?.items || []);
     } catch (error) {
+      console.error('Failed to load stations:', error);
       setStations([]);
     }
   };
@@ -131,17 +132,22 @@ export default function PetugasRedeemPage() {
     try {
       const res = await getCardCategories();
       const data = res?.data;
+      
+      // Handle different response structures
       let categoryNames: string[] = [];
       if (Array.isArray(data)) {
         categoryNames = data.map((cat: any) => cat.name || cat.categoryName || cat.category).filter(Boolean);
       } else if (data && typeof data === 'object') {
+        // If it's an object with items property
         const items = data.items || data.categories || [];
         if (Array.isArray(items)) {
           categoryNames = items.map((cat: any) => cat.name || cat.categoryName || cat.category).filter(Boolean);
         }
       }
-      setCategories([...new Set(categoryNames)]);
+      
+      setCategories([...new Set(categoryNames)]); // Remove duplicates
     } catch (error) {
+      console.error('Failed to load categories:', error);
       setCategories([]);
     }
   };
@@ -150,6 +156,8 @@ export default function PetugasRedeemPage() {
     try {
       const res = await getCardTypes();
       const data = res?.data;
+      
+      // Extract types from the response
       let types: string[] = [];
       if (Array.isArray(data)) {
         types = data.map((t: any) => t.typeName || t.name).filter(Boolean);
@@ -159,10 +167,17 @@ export default function PetugasRedeemPage() {
           types = items.map((t: any) => t.typeName || t.name).filter(Boolean);
         }
       }
-      setCardTypes([...new Set(types)]);
+      
+      setCardTypes([...new Set(types)]); // Remove duplicates
     } catch (error) {
+      console.error('Failed to load card types:', error);
       setCardTypes([]);
     }
+  };
+
+
+  const handleToolbarSearch = (value: string) => {
+    setSearch(value);
   };
 
   const handleResetFilters = () => {
@@ -192,11 +207,40 @@ export default function PetugasRedeemPage() {
   };
 
   const handleCreateSuccess = () => {
+    loadRedeems({
+      page: 1,
+      limit: 50,
+      startDate: startDate ? new Date(startDate).toISOString() : undefined,
+      endDate: endDate ? (() => {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        return end.toISOString();
+      })() : undefined,
+      category: category || undefined,
+      cardType: cardType || undefined,
+      redeemType: redeemType ? (redeemType as 'SINGLE' | 'ROUNDTRIP') : undefined,
+      stationId: stationId || undefined,
+      search: search || undefined,
+    });
     setCurrentPage(1);
   };
 
   const handleDeleteSuccess = () => {
-    setCurrentPage(1);
+    loadRedeems({
+      page: currentPage,
+      limit: 50,
+      startDate: startDate ? new Date(startDate).toISOString() : undefined,
+      endDate: endDate ? (() => {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        return end.toISOString();
+      })() : undefined,
+      category: category || undefined,
+      cardType: cardType || undefined,
+      redeemType: redeemType ? (redeemType as 'SINGLE' | 'ROUNDTRIP') : undefined,
+      stationId: stationId || undefined,
+      search: search || undefined,
+    });
   };
 
   return (
@@ -211,7 +255,7 @@ export default function PetugasRedeemPage() {
                 type="text"
                 placeholder="Search"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => handleToolbarSearch(e.target.value)}
                 className="h-9 w-full sm:w-64 lg:w-80 xl:w-96 rounded-md border px-3 text-sm"
               />
               <div className="flex gap-2">
@@ -238,7 +282,7 @@ export default function PetugasRedeemPage() {
             </div>
           </div>
 
-          {/* Filters */}
+          {/* Filters - Responsive */}
           <div className="mb-6">
             <RedeemFilters
               startDate={startDate}
@@ -256,15 +300,15 @@ export default function PetugasRedeemPage() {
               onReset={handleResetFilters}
               categories={categories}
               cardTypes={cardTypes}
-              stations={stations}
-              isLoading={isLoadingRedeems}
               categoryValueKey="categoryName"
               cardTypeValueKey="typeName"
+              stations={stations}
+              isLoading={isLoadingRedeems}
             />
           </div>
 
           {/* Table */}
-          <div className="mb-4">
+          <div className="mb-4 overflow-x-auto">
             <RedeemTable
               data={redeems}
               onUploadLastDoc={handleUploadDoc}
@@ -275,25 +319,54 @@ export default function PetugasRedeemPage() {
           </div>
 
           {/* Pagination */}
-          <div className="flex justify-center items-center gap-2">
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="p-2 rounded-md border text-gray-500 hover:bg-gray-100 disabled:opacity-50"
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <span className="text-sm">
-              Page {currentPage} of {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="p-2 rounded-md border text-gray-500 hover:bg-gray-100 disabled:opacity-50"
-            >
-              <ChevronRight size={18} />
-            </button>
-          </div>
+          {(() => {
+            const pageNumbers = Array.from(
+              { length: totalPages },
+              (_, i) => i + 1
+            ).slice(Math.max(0, pagination.page - 3), pagination.page + 2);
+
+            return (
+              <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-600">
+                <button
+                  disabled={pagination.page === 1}
+                  onClick={() => {
+                    if (pagination.page > 1) {
+                      setCurrentPage(pagination.page - 1);
+                    }
+                  }}
+                  className="px-2 disabled:opacity-40"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+
+                {pageNumbers.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => {
+                      setCurrentPage(p);
+                    }}
+                    className={`px-3 py-1 ${
+                      p === pagination.page ? 'font-semibold underline' : ''
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+
+                <button
+                  disabled={pagination.page === totalPages}
+                  onClick={() => {
+                    if (pagination.page < totalPages) {
+                      setCurrentPage(pagination.page + 1);
+                    }
+                  }}
+                  className="px-2 disabled:opacity-40"
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            );
+          })()}
         </div>
       </div>
 

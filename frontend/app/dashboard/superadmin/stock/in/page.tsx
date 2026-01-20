@@ -406,11 +406,11 @@ export default function StockInPage() {
                       }}
                       className="
     rounded-md
-    border border-red-500
+    border border-[#8D1231]
     px-3 py-1
     text-xs font-medium
-    text-red-500
-    hover:bg-red-500
+    text-[#8D1231]
+    hover:bg-[#8D1231]
     hover:text-white
     transition-colors
   "
@@ -426,18 +426,23 @@ export default function StockInPage() {
       </div>
 
       {/* PAGINATION (SAMA STOCK OUT) */}
-      <div className="mt-4 flex items-center justify-center gap-2 text-sm">
-        <button disabled={pagination.page === 1} onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))}>
+      <div className="mt-4 flex justify-center gap-1 text-sm">
+        <button disabled={pagination.page === 1} onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))} className="px-2 py-1 rounded disabled:opacity-40">
           <ChevronLeft size={18} />
         </button>
 
         {pageNumbers.map((p) => (
-          <button key={p} onClick={() => setPagination((pg) => ({ ...pg, page: p }))} className={p === pagination.page ? 'font-semibold underline' : ''}>
+          <button
+            key={p}
+            onClick={() => setPagination((pg) => ({ ...pg, page: p }))}
+            className={`px-3 py-1 rounded transition
+        ${p === pagination.page ? 'bg-[#8D1231] text-white font-semibold' : 'hover:bg-gray-100'}`}
+          >
             {p}
           </button>
         ))}
 
-        <button disabled={pagination.page === pagination.totalPages} onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}>
+        <button disabled={pagination.page === pagination.totalPages} onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))} className="px-2 py-1 rounded disabled:opacity-40">
           <ChevronRight size={18} />
         </button>
       </div>
