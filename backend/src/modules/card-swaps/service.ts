@@ -1,5 +1,9 @@
 import db from "../../config/db";
-import { ValidationError, NotFoundError, AuthorizationError } from "../../utils/errors";
+import {
+  ValidationError,
+  NotFoundError,
+  AuthorizationError,
+} from "../../utils/errors";
 
 // Helper functions to transform database objects to API response format
 function transformSwapRequestData(swapRequest: any) {
@@ -29,21 +33,30 @@ function transformSwapRequestData(swapRequest: any) {
             ...swapRequest.purchase.card,
             createdAt: swapRequest.purchase.card.createdAt.toISOString(),
             updatedAt: swapRequest.purchase.card.updatedAt.toISOString(),
-            deletedAt: swapRequest.purchase.card.deletedAt?.toISOString() || null,
+            deletedAt:
+              swapRequest.purchase.card.deletedAt?.toISOString() || null,
             cardProduct: {
               ...swapRequest.purchase.card.cardProduct,
-              createdAt: swapRequest.purchase.card.cardProduct.createdAt.toISOString(),
-              updatedAt: swapRequest.purchase.card.cardProduct.updatedAt.toISOString(),
-              deletedAt: swapRequest.purchase.card.cardProduct.deletedAt?.toISOString() || null,
+              createdAt:
+                swapRequest.purchase.card.cardProduct.createdAt.toISOString(),
+              updatedAt:
+                swapRequest.purchase.card.cardProduct.updatedAt.toISOString(),
+              deletedAt:
+                swapRequest.purchase.card.cardProduct.deletedAt?.toISOString() ||
+                null,
               category: {
                 ...swapRequest.purchase.card.cardProduct.category,
-                createdAt: swapRequest.purchase.card.cardProduct.category.createdAt.toISOString(),
-                updatedAt: swapRequest.purchase.card.cardProduct.category.updatedAt.toISOString(),
+                createdAt:
+                  swapRequest.purchase.card.cardProduct.category.createdAt.toISOString(),
+                updatedAt:
+                  swapRequest.purchase.card.cardProduct.category.updatedAt.toISOString(),
               },
               type: {
                 ...swapRequest.purchase.card.cardProduct.type,
-                createdAt: swapRequest.purchase.card.cardProduct.type.createdAt.toISOString(),
-                updatedAt: swapRequest.purchase.card.cardProduct.type.updatedAt.toISOString(),
+                createdAt:
+                  swapRequest.purchase.card.cardProduct.type.createdAt.toISOString(),
+                updatedAt:
+                  swapRequest.purchase.card.cardProduct.type.updatedAt.toISOString(),
               },
             },
           },
@@ -57,18 +70,26 @@ function transformSwapRequestData(swapRequest: any) {
           deletedAt: swapRequest.originalCard.deletedAt?.toISOString() || null,
           cardProduct: {
             ...swapRequest.originalCard.cardProduct,
-            createdAt: swapRequest.originalCard.cardProduct.createdAt.toISOString(),
-            updatedAt: swapRequest.originalCard.cardProduct.updatedAt.toISOString(),
-            deletedAt: swapRequest.originalCard.cardProduct.deletedAt?.toISOString() || null,
+            createdAt:
+              swapRequest.originalCard.cardProduct.createdAt.toISOString(),
+            updatedAt:
+              swapRequest.originalCard.cardProduct.updatedAt.toISOString(),
+            deletedAt:
+              swapRequest.originalCard.cardProduct.deletedAt?.toISOString() ||
+              null,
             category: {
               ...swapRequest.originalCard.cardProduct.category,
-              createdAt: swapRequest.originalCard.cardProduct.category.createdAt.toISOString(),
-              updatedAt: swapRequest.originalCard.cardProduct.category.updatedAt.toISOString(),
+              createdAt:
+                swapRequest.originalCard.cardProduct.category.createdAt.toISOString(),
+              updatedAt:
+                swapRequest.originalCard.cardProduct.category.updatedAt.toISOString(),
             },
             type: {
               ...swapRequest.originalCard.cardProduct.type,
-              createdAt: swapRequest.originalCard.cardProduct.type.createdAt.toISOString(),
-              updatedAt: swapRequest.originalCard.cardProduct.type.updatedAt.toISOString(),
+              createdAt:
+                swapRequest.originalCard.cardProduct.type.createdAt.toISOString(),
+              updatedAt:
+                swapRequest.originalCard.cardProduct.type.updatedAt.toISOString(),
             },
           },
         }
@@ -78,21 +99,30 @@ function transformSwapRequestData(swapRequest: any) {
           ...swapRequest.replacementCard,
           createdAt: swapRequest.replacementCard.createdAt.toISOString(),
           updatedAt: swapRequest.replacementCard.updatedAt.toISOString(),
-          deletedAt: swapRequest.replacementCard.deletedAt?.toISOString() || null,
+          deletedAt:
+            swapRequest.replacementCard.deletedAt?.toISOString() || null,
           cardProduct: {
             ...swapRequest.replacementCard.cardProduct,
-            createdAt: swapRequest.replacementCard.cardProduct.createdAt.toISOString(),
-            updatedAt: swapRequest.replacementCard.cardProduct.updatedAt.toISOString(),
-            deletedAt: swapRequest.replacementCard.cardProduct.deletedAt?.toISOString() || null,
+            createdAt:
+              swapRequest.replacementCard.cardProduct.createdAt.toISOString(),
+            updatedAt:
+              swapRequest.replacementCard.cardProduct.updatedAt.toISOString(),
+            deletedAt:
+              swapRequest.replacementCard.cardProduct.deletedAt?.toISOString() ||
+              null,
             category: {
               ...swapRequest.replacementCard.cardProduct.category,
-              createdAt: swapRequest.replacementCard.cardProduct.category.createdAt.toISOString(),
-              updatedAt: swapRequest.replacementCard.cardProduct.category.updatedAt.toISOString(),
+              createdAt:
+                swapRequest.replacementCard.cardProduct.category.createdAt.toISOString(),
+              updatedAt:
+                swapRequest.replacementCard.cardProduct.category.updatedAt.toISOString(),
             },
             type: {
               ...swapRequest.replacementCard.cardProduct.type,
-              createdAt: swapRequest.replacementCard.cardProduct.type.createdAt.toISOString(),
-              updatedAt: swapRequest.replacementCard.cardProduct.type.updatedAt.toISOString(),
+              createdAt:
+                swapRequest.replacementCard.cardProduct.type.createdAt.toISOString(),
+              updatedAt:
+                swapRequest.replacementCard.cardProduct.type.updatedAt.toISOString(),
             },
           },
         }
@@ -118,11 +148,14 @@ function transformSwapRequestData(swapRequest: any) {
           ...swapRequest.expectedProduct,
           createdAt: swapRequest.expectedProduct.createdAt.toISOString(),
           updatedAt: swapRequest.expectedProduct.updatedAt.toISOString(),
-          deletedAt: swapRequest.expectedProduct.deletedAt?.toISOString() || null,
+          deletedAt:
+            swapRequest.expectedProduct.deletedAt?.toISOString() || null,
           category: {
             ...swapRequest.expectedProduct.category,
-            createdAt: swapRequest.expectedProduct.category.createdAt.toISOString(),
-            updatedAt: swapRequest.expectedProduct.category.updatedAt.toISOString(),
+            createdAt:
+              swapRequest.expectedProduct.category.createdAt.toISOString(),
+            updatedAt:
+              swapRequest.expectedProduct.category.updatedAt.toISOString(),
           },
           type: {
             ...swapRequest.expectedProduct.type,
@@ -181,28 +214,38 @@ function transformSwapHistoryData(history: any) {
           rejectedAt: history.swapRequest.rejectedAt?.toISOString() || null,
           sourceStation: {
             ...history.swapRequest.sourceStation,
-            createdAt: history.swapRequest.sourceStation.createdAt.toISOString(),
-            updatedAt: history.swapRequest.sourceStation.updatedAt.toISOString(),
-            deletedAt: history.swapRequest.sourceStation.deletedAt?.toISOString() || null,
+            createdAt:
+              history.swapRequest.sourceStation.createdAt.toISOString(),
+            updatedAt:
+              history.swapRequest.sourceStation.updatedAt.toISOString(),
+            deletedAt:
+              history.swapRequest.sourceStation.deletedAt?.toISOString() ||
+              null,
           },
           targetStation: {
             ...history.swapRequest.targetStation,
-            createdAt: history.swapRequest.targetStation.createdAt.toISOString(),
-            updatedAt: history.swapRequest.targetStation.updatedAt.toISOString(),
-            deletedAt: history.swapRequest.targetStation.deletedAt?.toISOString() || null,
+            createdAt:
+              history.swapRequest.targetStation.createdAt.toISOString(),
+            updatedAt:
+              history.swapRequest.targetStation.updatedAt.toISOString(),
+            deletedAt:
+              history.swapRequest.targetStation.deletedAt?.toISOString() ||
+              null,
           },
           requester: {
             ...history.swapRequest.requester,
             createdAt: history.swapRequest.requester.createdAt.toISOString(),
             updatedAt: history.swapRequest.requester.updatedAt.toISOString(),
-            lastLogin: history.swapRequest.requester.lastLogin?.toISOString() || null,
+            lastLogin:
+              history.swapRequest.requester.lastLogin?.toISOString() || null,
           },
           approver: history.swapRequest.approver
             ? {
                 ...history.swapRequest.approver,
                 createdAt: history.swapRequest.approver.createdAt.toISOString(),
                 updatedAt: history.swapRequest.approver.updatedAt.toISOString(),
-                lastLogin: history.swapRequest.approver.lastLogin?.toISOString() || null,
+                lastLogin:
+                  history.swapRequest.approver.lastLogin?.toISOString() || null,
               }
             : null,
           executor: history.swapRequest.executor
@@ -210,7 +253,8 @@ function transformSwapHistoryData(history: any) {
                 ...history.swapRequest.executor,
                 createdAt: history.swapRequest.executor.createdAt.toISOString(),
                 updatedAt: history.swapRequest.executor.updatedAt.toISOString(),
-                lastLogin: history.swapRequest.executor.lastLogin?.toISOString() || null,
+                lastLogin:
+                  history.swapRequest.executor.lastLogin?.toISOString() || null,
               }
             : null,
         }
@@ -231,7 +275,7 @@ export class CardSwapService {
       reason: string;
       notes?: string;
     },
-    requestedBy: string
+    requestedBy: string,
   ) {
     // 1. Get purchase with all related data
     const purchase = await db.cardPurchase.findUnique({
@@ -259,7 +303,7 @@ export class CardSwapService {
     // 2. Validate card status - must be SOLD_ACTIVE
     if (purchase.card.status !== "SOLD_ACTIVE") {
       throw new ValidationError(
-        `Kartu harus berstatus SOLD_ACTIVE untuk di-swap. Status saat ini: ${purchase.card.status}`
+        `Kartu harus berstatus SOLD_ACTIVE untuk di-swap. Status saat ini: ${purchase.card.status}`,
       );
     }
 
@@ -275,7 +319,7 @@ export class CardSwapService {
 
     if (existingSwap) {
       throw new ValidationError(
-        "Sudah ada swap request yang sedang diproses untuk purchase ini"
+        "Sudah ada swap request yang sedang diproses untuk purchase ini",
       );
     }
 
@@ -312,7 +356,7 @@ export class CardSwapService {
 
     if (availableCardsCount === 0) {
       throw new ValidationError(
-        `Tidak ada kartu tersedia di ${targetStation.stationName} untuk produk ${expectedProduct.category.categoryName} - ${expectedProduct.type.typeName}`
+        `Tidak ada kartu tersedia di ${targetStation.stationName} untuk produk ${expectedProduct.category.categoryName} - ${expectedProduct.type.typeName}`,
       );
     }
 
@@ -400,14 +444,14 @@ export class CardSwapService {
     // 2. Validate status
     if (swapRequest.status !== "PENDING_APPROVAL") {
       throw new ValidationError(
-        `Swap request tidak dalam status PENDING_APPROVAL. Status saat ini: ${swapRequest.status}`
+        `Swap request tidak dalam status PENDING_APPROVAL. Status saat ini: ${swapRequest.status}`,
       );
     }
 
     // 3. Validate card is still SOLD_ACTIVE
     if (swapRequest.purchase.card.status !== "SOLD_ACTIVE") {
       throw new ValidationError(
-        `Kartu tidak lagi berstatus SOLD_ACTIVE. Status: ${swapRequest.purchase.card.status}`
+        `Kartu tidak lagi berstatus SOLD_ACTIVE. Status: ${swapRequest.purchase.card.status}`,
       );
     }
 
@@ -422,7 +466,7 @@ export class CardSwapService {
 
     if (availableCards === 0) {
       throw new ValidationError(
-        `Tidak ada kartu tersedia di ${swapRequest.targetStation.stationName} untuk produk ${swapRequest.expectedProduct.category.categoryName} - ${swapRequest.expectedProduct.type.typeName}`
+        `Tidak ada kartu tersedia di ${swapRequest.targetStation.stationName} untuk produk ${swapRequest.expectedProduct.category.categoryName} - ${swapRequest.expectedProduct.type.typeName}`,
       );
     }
 
@@ -488,7 +532,7 @@ export class CardSwapService {
   static async rejectSwapRequest(
     swapRequestId: string,
     rejectedBy: string,
-    rejectionReason: string
+    rejectionReason: string,
   ) {
     // 1. Get swap request
     const swapRequest = await db.cardSwapRequest.findUnique({
@@ -502,7 +546,7 @@ export class CardSwapService {
     // 2. Validate status
     if (swapRequest.status !== "PENDING_APPROVAL") {
       throw new ValidationError(
-        `Swap request tidak dalam status PENDING_APPROVAL. Status saat ini: ${swapRequest.status}`
+        `Swap request tidak dalam status PENDING_APPROVAL. Status saat ini: ${swapRequest.status}`,
       );
     }
 
@@ -564,7 +608,7 @@ export class CardSwapService {
   static async executeSwap(
     swapRequestId: string,
     replacementCardId: string,
-    executedBy: string
+    executedBy: string,
   ) {
     return await db.$transaction(async (tx) => {
       // 1. Get swap request with all necessary data
@@ -614,7 +658,7 @@ export class CardSwapService {
       // 2. Validate swap request status
       if (swapRequest.status !== "APPROVED") {
         throw new ValidationError(
-          `Swap request harus di-approve terlebih dahulu. Status saat ini: ${swapRequest.status}`
+          `Swap request harus di-approve terlebih dahulu. Status saat ini: ${swapRequest.status}`,
         );
       }
 
@@ -638,14 +682,14 @@ export class CardSwapService {
       // 4. Validate replacement card status
       if (replacementCard.status !== "IN_STATION") {
         throw new ValidationError(
-          `Kartu pengganti harus berstatus IN_STATION. Status: ${replacementCard.status}`
+          `Kartu pengganti harus berstatus IN_STATION. Status: ${replacementCard.status}`,
         );
       }
 
       // 5. Validate replacement card product matches expected
       if (replacementCard.cardProductId !== swapRequest.expectedProductId) {
         throw new ValidationError(
-          `Produk kartu pengganti tidak sesuai. Diharapkan: ${swapRequest.expectedProduct.category.categoryName} - ${swapRequest.expectedProduct.type.typeName}, Diberikan: ${replacementCard.cardProduct.category.categoryName} - ${replacementCard.cardProduct.type.typeName}`
+          `Produk kartu pengganti tidak sesuai. Diharapkan: ${swapRequest.expectedProduct.category.categoryName} - ${swapRequest.expectedProduct.type.typeName}, Diberikan: ${replacementCard.cardProduct.category.categoryName} - ${replacementCard.cardProduct.type.typeName}`,
         );
       }
 
@@ -673,7 +717,7 @@ export class CardSwapService {
       // 8. UPDATE purchase record to point to new card and new station
       const purchase = swapRequest.purchase;
       const swapNote = `[SWAP] SN:${beforeSnapshot.cardSerialNumber} → SN:${replacementCard.serialNumber} | ${swapRequest.sourceStation.stationName} → ${swapRequest.targetStation.stationName}`;
-      
+
       await tx.cardPurchase.update({
         where: { id: purchase.id },
         data: {
@@ -687,7 +731,7 @@ export class CardSwapService {
       // 9. ACTIVATE replacement card
       const expiredDate = new Date();
       expiredDate.setDate(
-        expiredDate.getDate() + replacementCard.cardProduct.masaBerlaku
+        expiredDate.getDate() + replacementCard.cardProduct.masaBerlaku,
       );
 
       await tx.card.update({
@@ -702,69 +746,27 @@ export class CardSwapService {
         },
       });
 
-      // 10. UPDATE source station inventory (return original card)
-      const sourceInventory = await tx.cardInventory.findFirst({
-        where: {
-          categoryId: swapRequest.originalCard.cardProduct.categoryId,
-          typeId: swapRequest.originalCard.cardProduct.typeId,
-          stationId: swapRequest.sourceStationId,
-        },
-      });
+      // 10. UPDATE source station inventory: REMOVED (Deprecated)
+      /*
+      const sourceInventory = await tx.cardInventory.findFirst(...)
+      ...
+      */
 
       const sourceInventoryChanges = {
-        before: sourceInventory ? {
-          cardAktif: sourceInventory.cardAktif,
-          cardBelumTerjual: sourceInventory.cardBelumTerjual,
-        } : null,
-        after: null as any,
+        before: null,
+        after: null,
       };
 
-      if (sourceInventory) {
-        const updated = await tx.cardInventory.update({
-          where: { id: sourceInventory.id },
-          data: {
-            cardAktif: { decrement: 1 },
-            cardBelumTerjual: { increment: 1 },
-            updatedBy: executedBy,
-          },
-        });
-        sourceInventoryChanges.after = {
-          cardAktif: updated.cardAktif,
-          cardBelumTerjual: updated.cardBelumTerjual,
-        };
-      }
-
-      // 11. UPDATE target station inventory (issue replacement card)
-      const targetInventory = await tx.cardInventory.findFirst({
-        where: {
-          categoryId: replacementCard.cardProduct.categoryId,
-          typeId: replacementCard.cardProduct.typeId,
-          stationId: swapRequest.targetStationId,
-        },
-      });
+      // 11. UPDATE target station inventory: REMOVED (Deprecated)
+      /*
+      const targetInventory = await tx.cardInventory.findFirst(...)
+      ...
+      */
 
       const targetInventoryChanges = {
-        before: targetInventory ? {
-          cardAktif: targetInventory.cardAktif,
-          cardBelumTerjual: targetInventory.cardBelumTerjual,
-        } : null,
-        after: null as any,
+        before: null,
+        after: null,
       };
-
-      if (targetInventory) {
-        const updated = await tx.cardInventory.update({
-          where: { id: targetInventory.id },
-          data: {
-            cardBelumTerjual: { decrement: 1 },
-            cardAktif: { increment: 1 },
-            updatedBy: executedBy,
-          },
-        });
-        targetInventoryChanges.after = {
-          cardAktif: updated.cardAktif,
-          cardBelumTerjual: updated.cardBelumTerjual,
-        };
-      }
 
       // 12. UPDATE swap request status
       await tx.cardSwapRequest.update({
@@ -1142,14 +1144,14 @@ export class CardSwapService {
     // Validate requester
     if (swapRequest.requestedBy !== userId) {
       throw new AuthorizationError(
-        "Hanya pembuat request yang dapat membatalkan request"
+        "Hanya pembuat request yang dapat membatalkan request",
       );
     }
 
     // Validate status
     if (swapRequest.status !== "PENDING_APPROVAL") {
       throw new ValidationError(
-        "Hanya request dengan status PENDING_APPROVAL yang dapat dibatalkan"
+        "Hanya request dengan status PENDING_APPROVAL yang dapat dibatalkan",
       );
     }
 
