@@ -31,19 +31,11 @@ export class TransferService {
       const quantity = cardIds.length;
 
       // 1. Validate Source Inventory exists
-      const fromInventory = await tx.cardInventory.findUnique({
-        where: {
-          unique_category_type_station: {
-            categoryId,
-            typeId,
-            stationId,
-          },
-        },
-      });
-
-      if (!fromInventory) {
-        throw new AppError("Inventory record not found at source station", 404);
-      }
+      // 1. Validate Source Inventory: REMOVED (Deprecated)
+      /* 
+      const fromInventory = await tx.cardInventory.findUnique(...) 
+      if (!fromInventory) ...
+      */
 
       // 2. Validate Specific Cards
       // Must exist, be at stationId, be IN_STATION, match category/type
@@ -69,9 +61,9 @@ export class TransferService {
         const invalidIds = cardIds.filter((id) => !foundIds.includes(id));
         throw new AppError(
           `Some cards are invalid or not available for transfer: ${invalidIds.join(
-            ", "
+            ", ",
           )}`,
-          400
+          400,
         );
       }
 
@@ -108,20 +100,10 @@ export class TransferService {
         },
       });
 
-      // 5. Update Inventory (Source Station - Decrement)
-      await tx.cardInventory.update({
-        where: {
-          unique_category_type_station: {
-            categoryId,
-            typeId,
-            stationId,
-          },
-        },
-        data: {
-          cardBelumTerjual: { decrement: quantity },
-          cardBeredar: { decrement: quantity }, // Decrement total circulating stock at source
-        },
-      });
+      // 5. Update Inventory (Source Station): REMOVED (Deprecated)
+      /* 
+      await tx.cardInventory.update(...)
+      */
 
       return movement;
     });
@@ -259,39 +241,11 @@ export class TransferService {
         },
       });
 
-      // 3. Update Inventory (Destination Station + Increment)
-      // Upsert incase inventory record doesn't exist yet
-      const existingInv = await tx.cardInventory.findUnique({
-        where: {
-          unique_category_type_station: {
-            categoryId: movement.categoryId,
-            typeId: movement.typeId,
-            stationId: movement.toStationId,
-          },
-        },
-      });
-
-      if (existingInv) {
-        await tx.cardInventory.update({
-          where: { id: existingInv.id },
-          data: {
-            cardBelumTerjual: { increment: movement.quantity },
-            cardBeredar: { increment: movement.quantity }, // Increment total circulating stock
-          },
-        });
-      } else {
-        await tx.cardInventory.create({
-          data: {
-            categoryId: movement.categoryId,
-            typeId: movement.typeId,
-            stationId: movement.toStationId,
-            cardBelumTerjual: movement.quantity,
-            cardBeredar: movement.quantity, // New stock
-            cardAktif: 0,
-            cardNonAktif: 0,
-          },
-        });
-      }
+      // 3. Update Inventory (Destination Station): REMOVED (Deprecated)
+      /*
+      const existingInv = await tx.cardInventory.findUnique(...)
+      if (existingInv) ... else ...
+      */
 
       return updatedMovement;
     });
