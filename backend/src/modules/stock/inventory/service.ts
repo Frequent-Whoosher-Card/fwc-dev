@@ -656,17 +656,26 @@ export class CardInventoryService {
     // Menghitung total jumlah seluruh kartu dari tabel Card
     const [totalCards, totalLost, totalDamaged, totalIn, totalOut] =
       await Promise.all([
+        // Total All Active = (Office + Transit + Station + Sold)
         db.card.count({
           where: {
             status: {
-              in: ["IN_OFFICE", "IN_STATION"],
+              in: ["IN_OFFICE", "IN_STATION", "SOLD_ACTIVE", "SOLD_INACTIVE"],
             },
           },
         }),
         db.card.count({ where: { status: "LOST" } }),
         db.card.count({ where: { status: "DAMAGED" } }),
+        // Total In = Currently In Office
         db.card.count({ where: { status: "IN_OFFICE" } }),
-        db.card.count({ where: { status: "IN_STATION" } }),
+        // Total Out = Distributed (Station + Sold) - Exclude Transit
+        db.card.count({
+          where: {
+            status: {
+              in: ["IN_STATION", "SOLD_ACTIVE", "SOLD_INACTIVE"],
+            },
+          },
+        }),
       ]);
 
     return {
@@ -700,9 +709,7 @@ export class CardInventoryService {
     } = opts;
 
     const cardWhere: any = {
-      stationId: {
-        not: null,
-      },
+      // stationId: { not: null }, // Allow nulls to catch unassigned/orphaned cards (Sold but no station)
       status: { in: ["IN_STATION", "SOLD_ACTIVE", "SOLD_INACTIVE"] },
     };
 
@@ -762,8 +769,8 @@ export class CardInventoryService {
     const inventoryMap = new Map<string, any>();
 
     for (const item of grouped) {
-      if (!item.stationId) continue;
-      const key = `${item.stationId}_${item.cardProductId}`;
+      // Allow null stationId
+      const key = `${item.stationId ?? "null"}_${item.cardProductId}`;
 
       if (!inventoryMap.has(key)) {
         inventoryMap.set(key, {
@@ -789,7 +796,11 @@ export class CardInventoryService {
       ...new Set([...inventoryMap.values()].map((i) => i.cardProductId)),
     ];
     const stationIds = [
-      ...new Set([...inventoryMap.values()].map((i) => i.stationId)),
+      ...new Set(
+        [...inventoryMap.values()]
+          .map((i) => i.stationId)
+          .filter((id) => id !== null),
+      ),
     ];
 
     const [products, stations] = await Promise.all([
@@ -810,7 +821,11 @@ export class CardInventoryService {
         const product = productMap.get(inv.cardProductId);
         const station = stationMap.get(inv.stationId);
 
-        if (!product || !station) return null;
+        if (!product) return null;
+
+        const stationName = station
+          ? station.stationName
+          : "Stasiun Tidak Diketahui / Unassigned";
 
         const total = inv.aktif + inv.nonAktif; // Used to be cardAktif + cardNonAktif?
         // In monitor response:
@@ -820,7 +835,7 @@ export class CardInventoryService {
         const cardBeredar = inv.cardBelumTerjual + inv.aktif + inv.nonAktif;
 
         return {
-          stationName: station.stationName,
+          stationName: stationName,
           cardCategory: product.category.categoryName,
           cardType: product.type.typeName,
           cardBeredar: cardBeredar,
