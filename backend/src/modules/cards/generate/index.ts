@@ -63,7 +63,7 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
         summary: "Generate Cards",
         description: "Generate cards and barcode images.",
       },
-    }
+    },
   )
   .get(
     "/next-serial",
@@ -71,7 +71,7 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
       const { query, set } = context;
       try {
         const result = await CardGenerateService.getNextSerial(
-          query.cardProductId
+          query.cardProductId,
         );
         return {
           success: true,
@@ -100,7 +100,7 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
         description:
           "Get the next available serial number suffix for a product.",
       },
-    }
+    },
   )
   .get(
     "/history",
@@ -137,7 +137,7 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
         summary: "Get History",
         description: "Get history of card generation.",
       },
-    }
+    },
   )
   .get(
     "/history/:id",
@@ -176,7 +176,7 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
         description:
           "Get detailed history of a specific card generation batch.",
       },
-    }
+    },
   )
   .get(
     "/history/:id/download-zip",
@@ -209,5 +209,49 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
         description:
           "Download all generated barcodes in this batch as a ZIP file.",
       },
-    }
+    },
+  )
+  .delete(
+    "/history/:id",
+    async (context) => {
+      const { params, set, user } = context as typeof context & AuthContextUser;
+      try {
+        const result = await CardGenerateService.delete(params.id, user.id);
+        return {
+          status: "success",
+          message: result.message,
+          data: result,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      params: t.Object({
+        id: t.String({ format: "uuid" }),
+      }),
+      response: {
+        200: t.Object({
+          status: t.String(),
+          message: t.String(),
+          data: t.Object({
+            success: t.Boolean(),
+            message: t.String(),
+          }),
+        }),
+        400: CardGenerateModel.errorResponse,
+        404: CardGenerateModel.errorResponse,
+        500: CardGenerateModel.errorResponse,
+      },
+      detail: {
+        tags: ["Cards Generate"],
+        summary: "Delete Generated Batch",
+        description:
+          "Delete a generated batch. Allowed ONLY if cards are still ON_REQUEST (not stocked in).",
+      },
+    },
   );

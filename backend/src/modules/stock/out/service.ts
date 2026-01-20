@@ -7,7 +7,7 @@ import { LowStockService } from "src/services/lowStockService";
 
 function normalizeSerials(arr: string[]) {
   return Array.from(
-    new Set((arr ?? []).map((s) => (s ?? "").trim()).filter(Boolean))
+    new Set((arr ?? []).map((s) => (s ?? "").trim()).filter(Boolean)),
   );
 }
 
@@ -28,7 +28,7 @@ export class StockOutService {
     startSerial: string,
     endSerial: string,
     userId: string,
-    note?: string
+    note?: string,
   ) {
     // 1. Validate Input - Basic Regex Only
     if (!/^\d+$/.test(startSerial) || !/^\d+$/.test(endSerial)) {
@@ -36,7 +36,7 @@ export class StockOutService {
         throw new ValidationError("Input harus berupa angka.");
       }
       throw new ValidationError(
-        "startSerial dan endSerial harus berupa digit string"
+        "startSerial dan endSerial harus berupa digit string",
       );
     }
 
@@ -56,7 +56,7 @@ export class StockOutService {
 
     if (!cardProduct) {
       throw new ValidationError(
-        "Produk kartu untuk Kategori & Tipe ini belum terdaftar."
+        "Produk kartu untuk Kategori & Tipe ini belum terdaftar.",
       );
     }
 
@@ -70,14 +70,14 @@ export class StockOutService {
 
     if (endNum < startNum) {
       throw new ValidationError(
-        "endSerial harus lebih besar atau sama dengan startSerial"
+        "endSerial harus lebih besar atau sama dengan startSerial",
       );
     }
 
     const count = endNum - startNum + 1;
     if (count > 10000) {
       throw new ValidationError(
-        "Maksimal distribusi 10.000 kartu per transaksi"
+        "Maksimal distribusi 10.000 kartu per transaksi",
       );
     }
     // ---------------------
@@ -88,28 +88,8 @@ export class StockOutService {
       return `${serialTemplate}${yearSuffix}${sfx}`;
     });
 
-    // 1) Soft Validation: Cek ketersediaan Inventory Office
-    const officeInv = await db.cardInventory.findFirst({
-      where: {
-        categoryId,
-        typeId,
-        stationId: null, // Office
-      },
-      select: { id: true, cardOffice: true },
-    });
-
-    if (!officeInv) {
-      throw new ValidationError(
-        "Inventory OFFICE belum tersedia untuk kategori/tipe ini"
-      );
-    }
-
-    const currentStock = (officeInv as any).cardOffice || 0;
-    if (currentStock < sent.length) {
-      throw new ValidationError(
-        `Stok OFFICE tidak cukup. Tersedia: ${currentStock}, dibutuhkan: ${sent.length}`
-      );
-    }
+    // 1) Soft Validation: REMOVED (Deprecated CardInventory check)
+    // We rely on actual Card table verification below.
 
     // 2) Kumpulkan ID Kartu dari Serial Number
     // Use chunking if sent.length is very large to avoid "too many parameters" error,
@@ -138,7 +118,7 @@ export class StockOutService {
       });
 
       const statusMap = new Map(
-        invalidCards.map((c) => [c.serialNumber, c.status])
+        invalidCards.map((c) => [c.serialNumber, c.status]),
       );
 
       const alreadyDistributed = [];
@@ -186,24 +166,10 @@ export class StockOutService {
     // Increase timeout slightly for bulk updates
     const transaction = await db.$transaction(
       async (tx) => {
-        // 3) Atomic Inventory Update
-        const updateInvResult = await tx.cardInventory.updateMany({
-          where: {
-            id: officeInv.id,
-            cardOffice: { gte: sentCount },
-          },
-          data: {
-            cardOffice: { decrement: sentCount },
-            updatedAt: new Date(),
-            updatedBy: userId,
-          },
-        });
-
-        if (updateInvResult.count === 0) {
-          throw new ValidationError(
-            "Gagal memproses transaksi: Stok OFFICE berubah saat diproses (Insufficient Stock)"
-          );
-        }
+        // 3) Atomic Inventory Update: REMOVED (Deprecated)
+        /* 
+        const updateInvResult = await tx.cardInventory.updateMany(...)
+        */
 
         // 4) Atomic Card Status Update
         const updateCardResult = await tx.card.updateMany({
@@ -220,7 +186,7 @@ export class StockOutService {
 
         if (updateCardResult.count !== sentCount) {
           throw new ValidationError(
-            "Gagal memproses transaksi: Status beberapa kartu berubah saat diproses (Double Booking)"
+            "Gagal memproses transaksi: Status beberapa kartu berubah saat diproses (Double Booking)",
           );
         }
 
@@ -229,7 +195,7 @@ export class StockOutService {
           tx,
           categoryId,
           typeId,
-          stationId
+          stationId,
         );
 
         // 6) Create movement OUT PENDING
@@ -266,6 +232,7 @@ export class StockOutService {
               movementId: movement.id,
               cardProductId: cardProductId,
               quantity: sentCount,
+              status: "PENDING",
             },
             isRead: false,
             createdAt: new Date(),
@@ -284,7 +251,7 @@ export class StockOutService {
       {
         maxWait: 5000, // default: 2000
         timeout: 10000, // Increase timeout to 10s for safety
-      }
+      },
     );
 
     return transaction;
@@ -301,7 +268,7 @@ export class StockOutService {
     damagedSerialNumbers: string[] | undefined,
     validatorUserId: string,
     validatorStationId: string,
-    note?: string
+    note?: string,
   ) {
     const received = normalizeSerials(receivedSerialNumbers);
     const lost = normalizeSerials(lostSerialNumbers || []);
@@ -317,21 +284,21 @@ export class StockOutService {
     const overlapRL = received.find((s) => lostSet.has(s));
     if (overlapRL)
       throw new ValidationError(
-        `Serial tidak boleh overlap received & lost: ${overlapRL}`
+        `Serial tidak boleh overlap received & lost: ${overlapRL}`,
       );
 
     // 2. Received vs Damaged
     const overlapRD = received.find((s) => damagedSet.has(s));
     if (overlapRD)
       throw new ValidationError(
-        `Serial tidak boleh overlap received & damaged: ${overlapRD}`
+        `Serial tidak boleh overlap received & damaged: ${overlapRD}`,
       );
 
     // 3. Lost vs Damaged
     const overlapLD = lost.filter((s) => damagedSet.has(s));
     if (overlapLD.length)
       throw new ValidationError(
-        `Serial tidak boleh overlap lost & damaged: ${overlapLD.join(", ")}`
+        `Serial tidak boleh overlap lost & damaged: ${overlapLD.join(", ")}`,
       );
 
     // --- PRE-TRANSACTION (READS & VALIDATION) ---
@@ -351,7 +318,7 @@ export class StockOutService {
     // 2) Petugas hanya boleh validasi stasiunnya sendiri
     if (movement.stationId !== validatorStationId) {
       throw new ValidationError(
-        "Petugas tidak berhak memvalidasi distribusi untuk stasiun lain"
+        "Petugas tidak berhak memvalidasi distribusi untuk stasiun lain",
       );
     }
 
@@ -402,13 +369,13 @@ export class StockOutService {
       const invalidLost = finalLost.filter((s) => !sentSet.has(s));
       if (invalidLost.length)
         throw new ValidationError(
-          `Lost serial invalid (tidak ada di pengiriman): ${invalidLost.join(", ")}`
+          `Lost serial invalid (tidak ada di pengiriman): ${invalidLost.join(", ")}`,
         );
 
       const invalidDamaged = finalDamaged.filter((s) => !sentSet.has(s));
       if (invalidDamaged.length)
         throw new ValidationError(
-          `Damaged serial invalid (tidak ada di pengiriman): ${invalidDamaged.join(", ")}`
+          `Damaged serial invalid (tidak ada di pengiriman): ${invalidDamaged.join(", ")}`,
         );
 
       const exceptions = new Set([...finalLost, ...finalDamaged]);
@@ -421,7 +388,7 @@ export class StockOutService {
 
       if (invalidReceived.length)
         throw new ValidationError(
-          `Received serial invalid (tidak ada di pengiriman): ${invalidReceived.join(", ")}`
+          `Received serial invalid (tidak ada di pengiriman): ${invalidReceived.join(", ")}`,
         );
     }
     // --- SMART FILL LOGIC END ---
@@ -432,11 +399,11 @@ export class StockOutService {
 
     if (invalidLost.length)
       throw new ValidationError(
-        `Lost serial invalid (tidak ada di pengiriman): ${invalidLost.join(", ")}`
+        `Lost serial invalid (tidak ada di pengiriman): ${invalidLost.join(", ")}`,
       );
     if (invalidDamaged.length)
       throw new ValidationError(
-        `Damaged serial invalid (tidak ada di pengiriman): ${invalidDamaged.join(", ")}`
+        `Damaged serial invalid (tidak ada di pengiriman): ${invalidDamaged.join(", ")}`,
       );
 
     // jumlah harus pas
@@ -444,7 +411,7 @@ export class StockOutService {
       finalReceived.length + finalLost.length + finalDamaged.length;
     if (totalInput !== sent.length || totalInput !== movement.quantity) {
       throw new ValidationError(
-        `Jumlah serial tidak cocok. shipment=${movement.quantity}, input=${totalInput} (received=${finalReceived.length}, lost=${finalLost.length}, damaged=${finalDamaged.length})`
+        `Jumlah serial tidak cocok. shipment=${movement.quantity}, input=${totalInput} (received=${finalReceived.length}, lost=${finalLost.length}, damaged=${finalDamaged.length})`,
       );
     }
 
@@ -463,7 +430,7 @@ export class StockOutService {
       const found = new Set(cards.map((c) => c.serialNumber));
       const missing = sent.filter((s) => !found.has(s));
       throw new ValidationError(
-        `Sebagian kartu tidak berstatus IN_TRANSIT (Mungkin sudah divalidasi): ${missing.join(", ")}`
+        `Sebagian kartu tidak berstatus IN_TRANSIT (Mungkin sudah divalidasi): ${missing.join(", ")}`,
       );
     }
 
@@ -523,7 +490,7 @@ export class StockOutService {
 
         if (!currentMovement || currentMovement.status !== "PENDING") {
           throw new ValidationError(
-            "Transaksi ini sudah divalidasi atau tidak valid."
+            "Transaksi ini sudah divalidasi atau tidak valid.",
           );
         }
 
@@ -549,33 +516,20 @@ export class StockOutService {
         if (receivedCount > 0) {
           const stationId = movement.stationId!;
 
-          const updatedInv = await tx.cardInventory.upsert({
+          // 6) Update inventory stasiun: REMOVED (Deprecated)
+          /* 
+          const updatedInv = await tx.cardInventory.upsert(...)
+          */
+
+          // Calculate Real-time Stock for Low Stock Alert
+          const currentStock = await tx.card.count({
             where: {
-              unique_category_type_station: {
+              stationId: stationId,
+              status: "IN_STATION",
+              cardProduct: {
                 categoryId: movement.categoryId,
                 typeId: movement.typeId,
-                stationId: stationId,
               },
-            },
-            create: {
-              categoryId: movement.categoryId,
-              typeId: movement.typeId,
-              stationId: stationId,
-              cardBelumTerjual: receivedCount,
-              cardOffice: 0,
-              cardBeredar: receivedCount,
-              cardAktif: 0,
-              cardNonAktif: 0,
-              createdAt: new Date(),
-              createdBy: validatorUserId,
-              updatedAt: new Date(),
-              updatedBy: validatorUserId,
-            },
-            update: {
-              cardBeredar: { increment: receivedCount },
-              cardBelumTerjual: { increment: receivedCount },
-              updatedAt: new Date(),
-              updatedBy: validatorUserId,
             },
           });
 
@@ -584,8 +538,8 @@ export class StockOutService {
             movement.categoryId,
             movement.typeId,
             stationId,
-            updatedInv.cardBelumTerjual,
-            tx
+            currentStock,
+            tx,
           );
           // ------------------------------------------------------------
         }
@@ -603,6 +557,45 @@ export class StockOutService {
             note: note ?? movement.note ?? null,
           } as any,
         });
+
+        // 8) UPDATE SUPERVISOR INBOX (Mark as COMPLETED)
+        // Find the inbox item for this supervisor and movement
+        const supervisorInbox = await tx.inbox.findFirst({
+          where: {
+            sentTo: validatorUserId,
+            type: "STOCK_DISTRIBUTION",
+            // We can't query JSON fields easily in all Prisma versions/DBs with exact match,
+            // but finding by user + type + approximate time is usually safe.
+            // Ideally we store inboxId in a better way, but for now we search.
+            // Or we check payload path if supported.
+            payload: {
+              path: ["movementId"],
+              equals: movementId,
+            },
+          },
+        });
+
+        if (supervisorInbox) {
+          const oldPayload = (supervisorInbox.payload as any) || {};
+          await tx.inbox.update({
+            where: { id: supervisorInbox.id },
+            data: {
+              isRead: true,
+              readAt: new Date(),
+              title: `[SELESAI] ${supervisorInbox.title.replace("[SELESAI] ", "")}`,
+              payload: {
+                ...oldPayload,
+                status: "COMPLETED",
+                validationResult: {
+                  received: finalReceived.length,
+                  lost: finalLost.length,
+                  damaged: finalDamaged.length,
+                  validatedAt: new Date(),
+                },
+              },
+            },
+          });
+        }
 
         // 8) SEND NOTIFICATION (INBOX)
         if (admins.length > 0) {
@@ -631,7 +624,7 @@ export class StockOutService {
       {
         maxWait: 5000,
         timeout: 10000,
-      }
+      },
     );
 
     return transaction;
@@ -823,7 +816,7 @@ export class StockOutService {
     let validatedByName: string | null = null;
 
     const userIds = [movement.createdBy, movement.validatedBy].filter(
-      Boolean
+      Boolean,
     ) as string[];
 
     if (userIds.length > 0) {
@@ -888,7 +881,7 @@ export class StockOutService {
       startSerial?: string;
       endSerial?: string;
     },
-    userId: string
+    userId: string,
   ) {
     const movement = await db.cardStockMovement.findUnique({
       where: { id },
@@ -920,7 +913,7 @@ export class StockOutService {
         if (movement.status !== "PENDING") {
           throw new ValidationError(
             "Tidak dapat mengubah tujuan stasiun karena status sudah " +
-              movement.status
+              movement.status,
           );
         }
         dataToUpdate.stationId = body.stationId;
@@ -930,13 +923,13 @@ export class StockOutService {
       if (body.startSerial && body.endSerial) {
         if (movement.status !== "PENDING") {
           throw new ValidationError(
-            "Tidak dapat mengubah stock karena status sudah " + movement.status
+            "Tidak dapat mengubah stock karena status sudah " + movement.status,
           );
         }
 
         // 1. REVERT EXISTING STOCK (Logic mirip delete pending)
         const oldSent = normalizeSerials(
-          (movement as any).sentSerialNumbers ?? []
+          (movement as any).sentSerialNumbers ?? [],
         );
         if (oldSent.length > 0) {
           // Revert Cards -> IN_OFFICE
@@ -976,7 +969,7 @@ export class StockOutService {
             throw new ValidationError("Input harus berupa angka.");
           }
           throw new ValidationError(
-            "startSerial dan endSerial harus berupa digit string"
+            "startSerial dan endSerial harus berupa digit string",
           );
         }
 
@@ -997,12 +990,12 @@ export class StockOutService {
         const startNum = parseSmartSerial(
           startSerial,
           cardProduct.serialTemplate,
-          yearSuffix
+          yearSuffix,
         );
         const endNum = parseSmartSerial(
           endSerial,
           cardProduct.serialTemplate,
-          yearSuffix
+          yearSuffix,
         );
         // ---------------------
 
@@ -1034,7 +1027,7 @@ export class StockOutService {
         const currentStock = (officeInv as any).cardOffice || 0;
         if (currentStock < count) {
           throw new ValidationError(
-            `Stok OFFICE tidak cukup untuk update ini. Tersedia: ${currentStock}, Butuh: ${count}`
+            `Stok OFFICE tidak cukup untuk update ini. Tersedia: ${currentStock}, Butuh: ${count}`,
           );
         }
 
@@ -1057,7 +1050,7 @@ export class StockOutService {
           });
 
           const statusMap = new Map(
-            invalidCards.map((c) => [c.serialNumber, c.status])
+            invalidCards.map((c) => [c.serialNumber, c.status]),
           );
 
           const alreadyDistributed = [];
@@ -1142,7 +1135,7 @@ export class StockOutService {
         // --- CANCEL PENDING SHIPMENT ---
         // Cards should be IN_TRANSIT
         const sent = normalizeSerials(
-          (movement as any).sentSerialNumbers ?? []
+          (movement as any).sentSerialNumbers ?? [],
         );
         if (sent.length === 0) {
           // Empty? Just delete
@@ -1166,7 +1159,7 @@ export class StockOutService {
             `Gagal batal! Beberapa kartu tidak status IN_TRANSIT: ${notInTransit
               .slice(0, 3)
               .map((c) => c.serialNumber)
-              .join(", ")}`
+              .join(", ")}`,
           );
         }
 
@@ -1181,25 +1174,7 @@ export class StockOutService {
 
         // Revert Inventory (Office + sent.length)
         // Find office inventory
-        const officeInv = await tx.cardInventory.findFirst({
-          where: {
-            categoryId: movement.categoryId,
-            typeId: movement.typeId,
-            stationId: null,
-          },
-          select: { id: true },
-        });
-
-        if (officeInv) {
-          await tx.cardInventory.update({
-            where: { id: officeInv.id },
-            data: {
-              cardOffice: { increment: sent.length },
-              updatedAt: new Date(),
-              updatedBy: userId,
-            },
-          });
-        }
+        // Revert Inventory (Office): REMOVED (Deprecated)
 
         // Delete Movement
         await tx.cardStockMovement.delete({ where: { id } });
@@ -1215,10 +1190,10 @@ export class StockOutService {
         // WE MUST ENSURE NONE ARE SOLD!
 
         const received = normalizeSerials(
-          (movement as any).receivedSerialNumbers ?? []
+          (movement as any).receivedSerialNumbers ?? [],
         );
         const lost = normalizeSerials(
-          (movement as any).lostSerialNumbers ?? []
+          (movement as any).lostSerialNumbers ?? [],
         );
         const total = received.length + lost.length;
 
@@ -1234,14 +1209,14 @@ export class StockOutService {
           });
 
           const notInStation = cardsRec.filter(
-            (c) => c.status !== "IN_STATION"
+            (c) => c.status !== "IN_STATION",
           );
           if (notInStation.length > 0) {
             throw new ValidationError(
               `Gagal undo! Kartu barang diterima sudah tidak IN_STATION (Mungkin sudah terjual?): ${notInStation
                 .slice(0, 3)
                 .map((c) => c.serialNumber)
-                .join(", ")}`
+                .join(", ")}`,
             );
           }
         }
@@ -1259,7 +1234,7 @@ export class StockOutService {
               `Gagal undo! Kartu hilang statusnya bukan LOST: ${notLost
                 .slice(0, 3)
                 .map((c) => c.serialNumber)
-                .join(", ")}`
+                .join(", ")}`,
             );
           }
         }
@@ -1280,27 +1255,7 @@ export class StockOutService {
 
         // 3. Revert Inventory Station (Station - received)
         if (movement.stationId && received.length > 0) {
-          const stationInv = await tx.cardInventory.findFirst({
-            where: {
-              categoryId: movement.categoryId,
-              typeId: movement.typeId,
-              stationId: movement.stationId,
-            },
-            select: { id: true },
-          });
-
-          if (stationInv) {
-            await tx.cardInventory.update({
-              where: { id: stationInv.id },
-              data: {
-                // Yang masuk stasiun cuma received
-                cardBeredar: { decrement: received.length },
-                cardBelumTerjual: { decrement: received.length },
-                updatedAt: new Date(),
-                updatedBy: userId,
-              },
-            });
-          }
+          /* REMOVED: CardInventory update (Deprecated) */
         }
 
         // 4. Revert Inventory Office (Office + total [received+lost])
@@ -1310,25 +1265,7 @@ export class StockOutService {
         // Jadi balikinnya full amount yang ada di movement (quantity / sent length)
         const sentQty = movement.quantity; // Gunakan quantity asli movement
 
-        const officeInv = await tx.cardInventory.findFirst({
-          where: {
-            categoryId: movement.categoryId,
-            typeId: movement.typeId,
-            stationId: null,
-          },
-          select: { id: true },
-        });
-
-        if (officeInv) {
-          await tx.cardInventory.update({
-            where: { id: officeInv.id },
-            data: {
-              cardOffice: { increment: sentQty },
-              updatedAt: new Date(),
-              updatedBy: userId,
-            },
-          });
-        }
+        /* REMOVED: CardInventory update (Deprecated) */
 
         // 5. Delete Movement
         await tx.cardStockMovement.delete({ where: { id } });
@@ -1339,7 +1276,7 @@ export class StockOutService {
         };
       } else {
         throw new ValidationError(
-          `Tidak dapat menghapus transaksi dengan status ${movement.status}`
+          `Tidak dapat menghapus transaksi dengan status ${movement.status}`,
         );
       }
     });
