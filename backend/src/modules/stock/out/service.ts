@@ -660,7 +660,7 @@ export class StockOutService {
     const skip = (page - 1) * limit;
 
     const where: any = {
-      type: "OUT",
+      movementType: "OUT",
     };
 
     // --- CASE INSENSITIVE SEARCH LOGIC ---
@@ -701,8 +701,8 @@ export class StockOutService {
     }
 
     if (typeName) {
-      where.cardType = {
-        ...where.cardType,
+      where.type = {
+        ...where.type,
         typeName: { contains: typeName, mode: "insensitive" },
       };
     }

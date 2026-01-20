@@ -195,7 +195,7 @@ export class StockInService {
     const skip = (page - 1) * limit;
 
     const where: any = {
-      type: "IN",
+      movementType: "IN",
     };
 
     if (startDate && endDate) {
@@ -231,7 +231,7 @@ export class StockInService {
     }
 
     if (params.typeName) {
-      where.cardType = {
+      where.type = {
         typeName: {
           contains: params.typeName,
           mode: "insensitive",
@@ -268,7 +268,7 @@ export class StockInService {
     const mappedItems = items.map((item) => ({
       id: item.id,
       movementAt: item.movementAt.toISOString(),
-      movementType: item.type,
+      movementType: item.movementType,
       quantity: item.quantity,
       status: item.status,
       note: item.note,
