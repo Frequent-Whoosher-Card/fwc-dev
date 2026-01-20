@@ -7,7 +7,7 @@ import { rbacMiddleware } from "src/middleware/rbac";
 
 const redeemRoutes = new Elysia()
   .use(authMiddleware)
-  .use(rbacMiddleware(["superadmin", "supervisor", "petugas"]))
+  .use(rbacMiddleware(["superadmin", "admin", "supervisor", "petugas"]))
   .get(
     "/check/:serialNumber",
     async ({ params: { serialNumber }, set }) => {
@@ -43,7 +43,7 @@ const redeemRoutes = new Elysia()
   )
   .post(
     "/",
-    async ({ body: { serialNumber, quotaUsed, notes }, user, set }) => {
+    async ({ body: { serialNumber, redeemType, notes }, user, set }) => {
       try {
         if (!user?.stationId) {
           set.status = 400;
@@ -52,7 +52,7 @@ const redeemRoutes = new Elysia()
 
         const result = await RedeemService.redeemCard(
           serialNumber,
-          quotaUsed,
+          redeemType,
           user.id,
           user.stationId,
           notes
@@ -76,14 +76,14 @@ const redeemRoutes = new Elysia()
       detail: {
         summary: "Redeem Card Ticket",
         tags: ["Redeem"],
-        description: "Redeem a ticket from the card, reducing quota",
+        description: "Redeem a ticket from the card. Type: SINGLE (1) or ROUNDTRIP (2)",
       },
     }
   );
 
 const listRedeemRoutes = new Elysia()
   .use(authMiddleware)
-  .use(rbacMiddleware(["superadmin", "admin", "supervisor"]))
+  .use(rbacMiddleware(["superadmin", "admin", "supervisor", "petugas"]))
   // List Redeems
   .get(
     "/",
@@ -99,6 +99,9 @@ const listRedeemRoutes = new Elysia()
           endDate: query.endDate,
           stationId: query.stationId,
           search: query.search,
+          category: query.category,
+          cardType: query.cardType,
+          redeemType: query.redeemType,
         });
 
         return {
@@ -193,6 +196,106 @@ const listRedeemRoutes = new Elysia()
     }
   );
 
+// Delete route (soft delete + restore quota). Not allowed for role 'petugas'.
+const deleteRedeemRoutes = new Elysia()
+  .use(authMiddleware)
+  .use(rbacMiddleware(["superadmin", "admin", "supervisor"]))
+  .delete(
+    "/:id",
+    async ({ params: { id }, user, set }) => {
+      try {
+        const result = await RedeemService.deleteRedeem(id, user?.id);
+        return {
+          success: true,
+          message: "Redeem transaction deleted and quota restored",
+          data: result,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      detail: {
+        summary: "Delete Redeem (restore quota)",
+        tags: ["Redeem"],
+        description: "Soft delete redeem and restore consumed quota to card",
+      },
+    }
+  );
+
+
+// Export route (all roles). Export daily report in CSV/XLSX
+const exportRedeemRoutes = new Elysia()
+  .use(authMiddleware)
+  .use(rbacMiddleware(["superadmin", "admin", "supervisor", "petugas"]))
+  .get(
+    "/export",
+    async ({ query, user, set }) => {
+      try {
+        const date = (query as any)?.date as string | undefined; // YYYY-MM-DD
+        const format = ((((query as any)?.format as string | undefined) || "csv") as "csv" | "xlsx" | "pdf" | "jpg"); // csv|xlsx|pdf|jpg
+        const { buffer, contentType, filename } = await RedeemService.exportDailyReport({
+          date,
+          userId: user!.id,
+          stationId: user!.stationId!,
+          format,
+        });
+        set.headers["Content-Type"] = contentType;
+        set.headers["Content-Disposition"] = `attachment; filename=${filename}`;
+        const body = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+        return new Response(body as any);
+      } catch (error) {
+        set.status = 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      detail: {
+        summary: "Export daily redeem report",
+        tags: ["Redeem"],
+        description: "Export today's redeem transactions for operator (CSV/XLSX/PDF/JPG)",
+      },
+    }
+  );
+
+
+// Upload last redeem documentation (role: petugas)
+const lastDocRoutes = new Elysia()
+  .use(authMiddleware)
+  .use(rbacMiddleware(["petugas"]))
+  .post(
+    "/:id/last-doc",
+    async ({ params: { id }, body, user, set }) => {
+      try {
+        const { imageBase64, mimeType } = body as any;
+        const result = await RedeemService.uploadLastRedeemDoc(id, imageBase64, mimeType, user!.id);
+        return {
+          success: true,
+          message: "Last redeem documentation uploaded",
+          data: result,
+        };
+      } catch (error) {
+        set.status = 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      body: RedeemModel.lastDocBody,
+      detail: {
+        summary: "Upload last redeem documentation",
+        tags: ["Redeem"],
+        description: "Upload a photo when performing the last redeem (prev quota 1 or 2)",
+      },
+    }
+  );
+
 export const redeem = new Elysia({ prefix: "/redeem" })
   .use(redeemRoutes)
-  .use(listRedeemRoutes);
+  .use(listRedeemRoutes)
+  .use(deleteRedeemRoutes)
+  .use(exportRedeemRoutes)
+  .use(lastDocRoutes);
