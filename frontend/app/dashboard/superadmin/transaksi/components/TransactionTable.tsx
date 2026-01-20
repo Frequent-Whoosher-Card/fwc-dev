@@ -45,6 +45,7 @@ interface Props {
   pagination: Pagination;
   type: "ALL" | "KAI";
   onPageChange: (page: number) => void;
+  onEdit?: (id: string) => void;
 }
 
 /* ======================
@@ -84,6 +85,7 @@ export default function TransactionTable({
   loading,
   pagination,
   onPageChange,
+  onEdit,
 }: Props) {
   /* ======================
      DELETE STATE
@@ -94,7 +96,7 @@ export default function TransactionTable({
 
   const pageNumbers = Array.from(
     { length: pagination.totalPages },
-    (_, i) => i + 1
+    (_, i) => i + 1,
   ).slice(Math.max(0, pagination.page - 3), pagination.page + 2);
 
   /* ======================
@@ -221,9 +223,13 @@ export default function TransactionTable({
 
                   <td className="px-4 py-3">
                     <div className="flex justify-center gap-2">
-                      <button className="px-3 py-1 text-xs rounded border border-gray-300 text-gray-700 hover:bg-gray-100">
+                      <button
+                        onClick={() => onEdit?.(item.id)}
+                        className="px-3 py-1 text-xs rounded border border-gray-300 text-gray-700 hover:bg-gray-100"
+                      >
                         Edit
                       </button>
+
                       <button
                         onClick={() => handleOpenDelete(item.id)}
                         className="px-3 py-1 text-xs rounded bg-[#8D1231] text-white hover:bg-[#741026] transition"
