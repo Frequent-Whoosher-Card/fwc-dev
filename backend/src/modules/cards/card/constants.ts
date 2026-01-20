@@ -19,7 +19,7 @@ export const REVERSE_CARD_STATUS_MAPPING: Record<string, CardStatus> =
       acc[value] = key as CardStatus;
       return acc;
     },
-    {} as Record<string, CardStatus>
+    {} as Record<string, CardStatus>,
   );
 
 export const getFriendlyStatus = (status: string | CardStatus): string => {
@@ -27,7 +27,7 @@ export const getFriendlyStatus = (status: string | CardStatus): string => {
 };
 
 export const getEnumStatus = (
-  friendlyStatus: string
+  friendlyStatus: string,
 ): CardStatus | undefined => {
   return REVERSE_CARD_STATUS_MAPPING[friendlyStatus];
 };

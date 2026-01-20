@@ -3,6 +3,7 @@
   "version": "1.0.50",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "test:e2e": "bun test --env-file .env scripts/e2e_full_flow.test.ts",
     "dev": "bun run --watch src/index.ts",
     "db:update": "bunx prisma migrate deploy && bunx prisma generate",
     "db:backup:server": "bash scripts/backup-database-server.sh"
