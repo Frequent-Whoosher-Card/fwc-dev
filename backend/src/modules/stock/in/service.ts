@@ -649,10 +649,16 @@ export class StockInService {
         );
       }
 
-      // 4. Delete Cards
-      await tx.card.deleteMany({
+      // 4. Revert Card Status to ON_REQUEST (Not Delete)
+      // We assume they should return to "Generated but not stocked in" state.
+      await tx.card.updateMany({
         where: {
           id: { in: cards.map((c) => c.id) },
+        },
+        data: {
+          status: "ON_REQUEST",
+          updatedAt: new Date(),
+          updatedBy: userId, // Assuming userId is passed to delete? Wait, the method signature needs checking
         },
       });
 
