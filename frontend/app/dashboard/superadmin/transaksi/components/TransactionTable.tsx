@@ -43,9 +43,10 @@ interface Props {
   data: Purchase[];
   loading: boolean;
   pagination: Pagination;
-  type: "ALL" | "KAI";
   onPageChange: (page: number) => void;
   onEdit?: (id: string) => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 /* ======================
@@ -86,6 +87,8 @@ export default function TransactionTable({
   pagination,
   onPageChange,
   onEdit,
+  canEdit = false,
+  canDelete = false,
 }: Props) {
   /* ======================
      DELETE STATE
@@ -119,7 +122,6 @@ export default function TransactionTable({
     try {
       setDeleteLoading(true);
 
-      // 🔴 SESUAIKAN URL API DELETE
       await fetch(`/api/purchases/${selectedId}`, {
         method: "DELETE",
       });
@@ -223,19 +225,23 @@ export default function TransactionTable({
 
                   <td className="px-4 py-3">
                     <div className="flex justify-center gap-2">
-                      <button
-                        onClick={() => onEdit?.(item.id)}
-                        className="px-3 py-1 text-xs rounded border border-gray-300 text-gray-700 hover:bg-gray-100"
-                      >
-                        Edit
-                      </button>
+                      {canEdit && (
+                        <button
+                          onClick={() => onEdit?.(item.id)}
+                          className="px-3 py-1 text-xs rounded border border-gray-300 text-gray-700 hover:bg-gray-100"
+                        >
+                          Edit
+                        </button>
+                      )}
 
-                      <button
-                        onClick={() => handleOpenDelete(item.id)}
-                        className="px-3 py-1 text-xs rounded bg-[#8D1231] text-white hover:bg-[#741026] transition"
-                      >
-                        Hapus
-                      </button>
+                      {canDelete && (
+                        <button
+                          onClick={() => handleOpenDelete(item.id)}
+                          className="px-3 py-1 text-xs rounded bg-[#8D1231] text-white hover:bg-[#741026]"
+                        >
+                          Hapus
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

@@ -1,15 +1,14 @@
 "use client";
 
-import { getStations } from "@/lib/services/user.service";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
+import { getPurchases } from "@/lib/services/purchase.service";
 
 import TransactionToolbar from "./components/TransactionToolbar";
 import TransactionFilter from "./components/TransactionFilter";
 import TransactionTable from "./components/TransactionTable";
 
-import { getPurchases } from "@/lib/services/purchase.service";
-// import { exportPurchasesPDF } from "@/lib/services/purchase.service";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -19,6 +18,7 @@ import autoTable from "jspdf-autotable";
 interface Purchase {
   id: string;
   purchaseDate: string;
+  shiftDate?: string | null;
   price: number;
   edcReferenceNumber: string;
   card: any;
@@ -34,6 +34,14 @@ interface Pagination {
   total: number;
 }
 
+/* ======================
+   HELPERS
+====================== */
+const formatDateID = (date?: string) => {
+  if (!date) return "-";
+  return new Date(date).toLocaleDateString("id-ID");
+};
+
 export default function TransactionPage() {
   const router = useRouter();
 
@@ -41,14 +49,11 @@ export default function TransactionPage() {
      FILTER STATE
   ===================== */
   const [search, setSearch] = useState("");
-  const [type, setType] = useState<"ALL" | "KAI">("ALL");
   const [stationId, setStationId] = useState<string | undefined>();
   const [purchasedDate, setPurchasedDate] = useState<string | undefined>();
   const [shiftDate, setShiftDate] = useState<string | undefined>();
-  const [stations, setStations] = useState([]);
-  useEffect(() => {
-    getStations().then((res) => setStations(res.data));
-  }, []);
+  const [cardCategoryId, setCardCategoryId] = useState<string | undefined>();
+  const [cardTypeId, setCardTypeId] = useState<string | undefined>();
 
   /* =====================
      DATA STATE
@@ -63,21 +68,24 @@ export default function TransactionPage() {
   });
 
   /* =====================
-     FETCH
+     FETCH PURCHASES
   ===================== */
   const fetchPurchases = async () => {
     setLoading(true);
 
-    const res = await getPurchases({
+    const params: any = {
       page: pagination.page,
       limit: pagination.limit,
       search,
-      stationId,
+    };
 
-      // 🔥 FIX: mapping UI → API
-      startDate: purchasedDate,
-      endDate: shiftDate,
-    });
+    if (stationId) params.stationId = stationId;
+    if (purchasedDate) params.startDate = purchasedDate;
+    if (shiftDate) params.endDate = shiftDate;
+    if (cardCategoryId) params.categoryId = cardCategoryId;
+    if (cardTypeId) params.typeId = cardTypeId;
+
+    const res = await getPurchases(params);
 
     if (res.success && res.data) {
       setData(res.data.items);
@@ -87,33 +95,38 @@ export default function TransactionPage() {
     setLoading(false);
   };
 
-  // 🔥 RESET FILTER SAAT MASUK HALAMAN TRANSAKSI
+  /* =====================
+     INIT
+  ===================== */
   useEffect(() => {
-    setSearch("");
-    setStationId(undefined);
-    setPurchasedDate(undefined);
-    setShiftDate(undefined);
-
-    setPagination((p) => ({ ...p, page: 1 }));
-
     fetchPurchases();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* =====================
-     EFFECT
+     AUTO FETCH
   ===================== */
   useEffect(() => {
     fetchPurchases();
-  }, [search, type, stationId, purchasedDate, shiftDate, pagination.page]);
+  }, [
+    search,
+    stationId,
+    purchasedDate,
+    shiftDate,
+    cardCategoryId,
+    cardTypeId,
+    pagination.page,
+  ]);
 
   /* =====================
-     HANDLER
+     HANDLERS
   ===================== */
   const handleResetFilter = () => {
-    setType("ALL");
     setStationId(undefined);
     setPurchasedDate(undefined);
     setShiftDate(undefined);
+    setCardCategoryId(undefined);
+    setCardTypeId(undefined);
     setPagination((p) => ({ ...p, page: 1 }));
   };
 
@@ -121,109 +134,136 @@ export default function TransactionPage() {
     router.push("/dashboard/superadmin/transaksi/create");
   };
 
+  /* =====================
+     EXPORT PDF (FINAL)
+  ===================== */
   const handleExportPDF = async () => {
-    try {
-      const res = await getPurchases({
-        search,
-        stationId,
-        startDate: purchasedDate,
-        endDate: shiftDate,
-        limit: 1000,
-      });
+    const res = await getPurchases({
+      search,
+      stationId,
+      startDate: purchasedDate,
+      endDate: shiftDate,
+      categoryId: cardCategoryId,
+      typeId: cardTypeId,
+      limit: 1000,
+    });
 
-      if (!res.success || !res.data?.items?.length) {
-        alert("Data kosong");
-        return;
-      }
-
-      const items = res.data.items;
-
-      const doc = new jsPDF({
-        orientation: "landscape",
-        unit: "mm",
-        format: "a4",
-      });
-
-      /* ===== HEADER ===== */
-      doc.setFontSize(14);
-      doc.text("Transaction Report", 14, 15);
-
-      doc.setFontSize(10);
-      doc.text(`Generated: ${new Date().toLocaleString("id-ID")}`, 14, 22);
-
-      /* ===== TABLE (FIGMA BASED) ===== */
-      autoTable(doc, {
-        startY: 28,
-
-        head: [
-          [
-            "Customer Name",
-            "NIK",
-            "Card Category",
-            "Card Type",
-            "Serial Number",
-            "Reference EDC",
-            "FWC Price",
-            "Purchase Date",
-            "Shift Date",
-            "Operator Name",
-            "Station",
-          ],
-        ],
-
-        body: items.map((item: any) => [
-          item.member?.name ?? "-", // ✅
-          item.member?.identityNumber ?? "-", // ✅
-          item.card?.cardProduct?.category?.categoryName ?? "-",
-          item.card?.cardProduct?.type?.typeName ?? "-",
-          item.card?.serialNumber ?? "-",
-          item.edcReferenceNumber ?? "-",
-          `Rp ${item.price?.toLocaleString("id-ID") ?? "-"}`,
-          item.purchaseDate
-            ? new Date(item.purchaseDate).toLocaleDateString("id-ID")
-            : "-",
-          (item.shiftDate ?? item.purchaseDate)
-            ? new Date(item.shiftDate ?? item.purchaseDate).toLocaleDateString(
-                "id-ID",
-              )
-            : "-",
-          item.operator?.fullName ?? "-",
-          item.station?.stationName ?? "-",
-        ]),
-        styles: {
-          fontSize: 7,
-          cellPadding: 1.5,
-          valign: "middle",
-        },
-
-        headStyles: {
-          fillColor: [141, 18, 49], // maroon figma
-          textColor: 255,
-          halign: "center",
-          fontStyle: "bold",
-          fontSize: 7,
-        },
-
-        columnStyles: {
-          0: { cellWidth: 26 }, // Customer
-          1: { cellWidth: 28 }, // NIK
-          2: { cellWidth: 20 }, // Category
-          3: { cellWidth: 18 }, // Type
-          4: { cellWidth: 22 }, // Serial
-          5: { cellWidth: 26 }, // EDC Ref
-          6: { cellWidth: 18 }, // Price
-          7: { cellWidth: 18 }, // Purchase Date
-          8: { cellWidth: 18 }, // Shift Date
-          9: { cellWidth: 22 }, // Operator
-          10: { cellWidth: 20 }, // Station
-        },
-      });
-
-      doc.save("transaction-report.pdf");
-    } catch (err) {
-      console.error(err);
-      alert("Gagal export PDF");
+    if (!res.success || !res.data?.items?.length) {
+      alert("Data kosong");
+      return;
     }
+
+    const items = res.data.items;
+    const firstItem = items[0];
+
+    /* ===== REPORT INFO ===== */
+    const reportInfo = {
+      station: stationId
+        ? firstItem?.station?.stationName ?? "-"
+        : "All Station",
+      category: cardCategoryId
+        ? firstItem?.card?.cardProduct?.category?.categoryName ?? "-"
+        : "All Category",
+      type: cardTypeId
+        ? firstItem?.card?.cardProduct?.type?.typeName ?? "-"
+        : "All Type",
+      dateRange:
+        purchasedDate || shiftDate
+          ? `${formatDateID(purchasedDate)} s/d ${formatDateID(shiftDate)}`
+          : "All Dates",
+    };
+
+    const doc = new jsPDF({
+      orientation: "landscape",
+      unit: "mm",
+      format: "a4",
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    /* ===== HEADER ===== */
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text("Transaction Report", pageWidth / 2, 16, { align: "center" });
+
+    /* ===== REPORT INFORMATION ===== */
+    doc.setFontSize(11);
+    doc.text("Report Information", 14, 26);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+
+    const reportDate = new Date().toLocaleString("id-ID", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    const infoY = 32;
+    const gap = 5;
+
+    doc.text(`Report Date   : ${reportDate} WIB`, 14, infoY);
+    doc.text(`Date Period   : ${reportInfo.dateRange}`, 14, infoY + gap);
+    doc.text(`Station       : ${reportInfo.station}`, 14, infoY + gap * 2);
+    doc.text(`Card Category : ${reportInfo.category}`, 14, infoY + gap * 3);
+    doc.text(`Card Type     : ${reportInfo.type}`, 14, infoY + gap * 4);
+
+    // divider maroon
+    doc.setDrawColor(141, 18, 49);
+    doc.line(14, infoY + gap * 5 + 2, pageWidth - 14, infoY + gap * 5 + 2);
+
+    /* ===== TABLE ===== */
+    autoTable(doc, {
+      startY: infoY + gap * 6 + 4,
+      head: [[
+        "Customer Name",
+        "NIK",
+        "Card Category",
+        "Card Type",
+        "Serial Number",
+        "Reference EDC",
+        "FWC Price",
+        "Purchase Date",
+        "Shift Date",
+        "Operator Name",
+        "Station",
+      ]],
+      body: items.map((item: any) => [
+        item.member?.name ?? "-",
+        item.member?.identityNumber ?? "-",
+        item.card?.cardProduct?.category?.categoryName ?? "-",
+        item.card?.cardProduct?.type?.typeName ?? "-",
+        item.card?.serialNumber ?? "-",
+        item.edcReferenceNumber ?? "-",
+        `Rp ${item.price?.toLocaleString("id-ID") ?? "-"}`,
+        formatDateID(item.purchaseDate),
+        formatDateID(item.shiftDate ?? undefined),
+        item.operator?.fullName ?? "-",
+        item.station?.stationName ?? "-",
+      ]),
+      styles: {
+        font: "helvetica",
+        fontSize: 8,
+        cellPadding: 3,
+        valign: "middle",
+      },
+      headStyles: {
+        fillColor: [141, 18, 49], // MAROON
+        textColor: 255,
+        fontStyle: "bold",
+        halign: "center",
+      },
+      columnStyles: {
+        6: { halign: "right" }, // price right align
+      },
+      alternateRowStyles: {
+        fillColor: [245, 245, 245],
+      },
+    });
+
+    doc.save("transaction-report.pdf");
   };
 
   /* =====================
@@ -231,7 +271,6 @@ export default function TransactionPage() {
   ===================== */
   return (
     <div className="space-y-6">
-      {/* HEADER */}
       <TransactionToolbar
         search={search}
         onSearchChange={(v) => {
@@ -241,17 +280,12 @@ export default function TransactionPage() {
         onAdd={handleAddPurchased}
       />
 
-      {/* FILTER */}
       <TransactionFilter
-        type={type}
         stationId={stationId}
         purchasedDate={purchasedDate}
         shiftDate={shiftDate}
-        stations={stations} // ⬅️ TAMBAH DI SINI
-        onTypeChange={(v) => {
-          setType(v);
-          setPagination((p) => ({ ...p, page: 1 }));
-        }}
+        cardCategoryId={cardCategoryId}
+        cardTypeId={cardTypeId}
         onStationChange={(v) => {
           setStationId(v);
           setPagination((p) => ({ ...p, page: 1 }));
@@ -264,17 +298,31 @@ export default function TransactionPage() {
           setShiftDate(v);
           setPagination((p) => ({ ...p, page: 1 }));
         }}
+        onCardCategoryChange={(v) => {
+          setCardCategoryId(v);
+          setCardTypeId(undefined);
+          setPagination((p) => ({ ...p, page: 1 }));
+        }}
+        onCardTypeChange={(v) => {
+          setCardTypeId(v);
+          setPagination((p) => ({ ...p, page: 1 }));
+        }}
         onReset={handleResetFilter}
-        onExportPDF={handleExportPDF} // 🔥 INI YANG HILANG
+        onExportPDF={handleExportPDF}
       />
 
-      {/* TABLE */}
       <TransactionTable
         data={data}
         loading={loading}
         pagination={pagination}
-        type={type} // ⬅️ TAMBAHKAN INI
-        onPageChange={(page) => setPagination((p) => ({ ...p, page }))}
+        onPageChange={(page) =>
+          setPagination((p) => ({ ...p, page }))
+        }
+        onEdit={(id) =>
+          router.push(`/dashboard/superadmin/transaksi/${id}/edit`)
+        }
+        canEdit
+        canDelete
       />
     </div>
   );
