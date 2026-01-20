@@ -55,7 +55,7 @@ export class StockService {
       if (
         (Object.values(StockMovementType) as string[]).includes(normalizedType)
       ) {
-        where.type = normalizedType as StockMovementType;
+        where.movementType = normalizedType as StockMovementType;
       }
     }
 
@@ -64,7 +64,7 @@ export class StockService {
       const normalizedStatus = status.toUpperCase();
       if (
         (Object.values(StockMovementStatus) as string[]).includes(
-          normalizedStatus
+          normalizedStatus,
         )
       ) {
         where.status = normalizedStatus as StockMovementStatus;
@@ -82,7 +82,7 @@ export class StockService {
 
     // Filter by Card Type Name
     if (cardType) {
-      where.cardType = {
+      where.type = {
         typeName: { contains: cardType, mode: "insensitive" },
       };
     } else if (cardTypeId) {
@@ -96,7 +96,7 @@ export class StockService {
         {
           category: { categoryName: { contains: search, mode: "insensitive" } },
         },
-        { cardType: { typeName: { contains: search, mode: "insensitive" } } },
+        { type: { typeName: { contains: search, mode: "insensitive" } } },
         { station: { stationName: { contains: search, mode: "insensitive" } } },
         { note: { contains: search, mode: "insensitive" } },
       ];
@@ -109,7 +109,7 @@ export class StockService {
         take: limit,
         include: {
           category: true,
-          cardType: true,
+          type: true,
           station: true,
         },
         orderBy: {
@@ -140,7 +140,7 @@ export class StockService {
       where: { id },
       include: {
         category: true,
-        cardType: true,
+        type: true,
         station: true,
       },
     });

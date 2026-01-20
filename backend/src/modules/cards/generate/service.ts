@@ -390,6 +390,8 @@ export class CardGenerateService {
             note: `Generated Batch ${serialNumbers[0]} - ${serialNumbers[serialNumbers.length - 1]}`,
             sentSerialNumbers: serialNumbers,
             receivedSerialNumbers: serialNumbers,
+            lostSerialNumbers: [],
+            damagedSerialNumbers: [],
             createdBy: userId,
             movementAt: new Date(),
           },
