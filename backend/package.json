@@ -19,6 +19,7 @@
     "axios": "^1.13.2",
     "bwip-js": "^4.8.0",
     "canvas": "^3.2.0",
+    "pdfkit": "^0.16.0",
     "elysia": "latest",
     "firebase-admin": "^13.6.0",
     "jsbarcode": "^3.12.1",

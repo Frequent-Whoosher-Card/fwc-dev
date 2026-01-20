@@ -4,6 +4,7 @@ import { createContext } from 'react';
 
 export interface UserContextType {
   userName?: string;
+  role?: 'superadmin' | 'admin' | 'supervisor' | 'petugas';
 }
 
 export const UserContext =
