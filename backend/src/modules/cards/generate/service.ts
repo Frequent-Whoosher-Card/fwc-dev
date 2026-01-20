@@ -382,7 +382,7 @@ export class CardGenerateService {
         // 3. Log History
         return await tx.cardStockMovement.create({
           data: {
-            type: "GENERATED",
+            movementType: "GENERATED",
             status: "APPROVED",
             categoryId: product.categoryId,
             typeId: product.typeId,
@@ -438,7 +438,7 @@ export class CardGenerateService {
     const skip = (pageNum - 1) * limitNum;
 
     const where: any = {
-      type: "GENERATED",
+      movementType: "GENERATED",
     };
 
     if (startDate && endDate) {
@@ -460,7 +460,7 @@ export class CardGenerateService {
         orderBy: { movementAt: "desc" },
         include: {
           category: { select: { id: true, categoryName: true } },
-          cardType: { select: { id: true, typeName: true } },
+          type: { select: { id: true, typeName: true } },
         },
       }),
       db.cardStockMovement.count({ where }),
@@ -513,12 +513,12 @@ export class CardGenerateService {
           ? userMap.get(item.createdBy) || null
           : null,
         category: {
-          id: item.category.id,
+          id: item.categoryId,
           name: item.category.categoryName,
         },
         type: {
-          id: item.cardType.id,
-          name: item.cardType.typeName,
+          id: item.typeId,
+          name: item.type.typeName,
         },
         serialNumbers: serials,
         cards: itemCards.map((c: any) => ({
@@ -548,7 +548,7 @@ export class CardGenerateService {
       where: { id },
       include: {
         category: { select: { id: true, categoryName: true } },
-        cardType: { select: { id: true, typeName: true } },
+        type: { select: { id: true, typeName: true } },
       },
     });
 
@@ -600,8 +600,8 @@ export class CardGenerateService {
           name: movement.category.categoryName,
         },
         type: {
-          id: movement.cardType.id,
-          name: movement.cardType.typeName,
+          id: movement.type.id,
+          name: movement.type.typeName,
         },
         serialNumbers: serials,
       },
@@ -679,7 +679,7 @@ export class CardGenerateService {
       where: { id: batchId },
       include: {
         category: true,
-        cardType: true,
+        type: true,
       },
     });
 
@@ -744,8 +744,7 @@ export class CardGenerateService {
     const dateStr = movement.movementAt.toISOString().split("T")[0];
     const categoryName =
       movement.category?.categoryName?.replace(/\s+/g, "_") || "CAT";
-    const typeName =
-      movement.cardType?.typeName?.replace(/\s+/g, "_") || "TYPE";
+    const typeName = movement.type?.typeName?.replace(/\s+/g, "_") || "TYPE";
     const filename = `Barcode_${typeName}_${categoryName}_${dateStr}.zip`;
 
     return {
@@ -764,7 +763,7 @@ export class CardGenerateService {
       if (!movement) {
         throw new ValidationError("Data history generation tidak ditemukan");
       }
-      if (movement.type !== "GENERATED") {
+      if (movement.movementType !== "GENERATED") {
         throw new ValidationError("Bukan transaksi Generate Kartu");
       }
 

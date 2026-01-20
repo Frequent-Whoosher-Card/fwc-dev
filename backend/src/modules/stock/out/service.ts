@@ -202,7 +202,7 @@ export class StockOutService {
         const movement = await tx.cardStockMovement.create({
           data: {
             movementAt,
-            type: "OUT",
+            movementType: "OUT",
             status: "PENDING",
             categoryId,
             typeId,
@@ -308,7 +308,7 @@ export class StockOutService {
     });
 
     if (!movement) throw new ValidationError("Movement tidak ditemukan");
-    if (movement.type !== "OUT")
+    if (movement.movementType !== "OUT")
       throw new ValidationError("Movement bukan tipe OUT");
     if (movement.status !== "PENDING")
       throw new ValidationError("Movement bukan status PENDING");
@@ -739,7 +739,7 @@ export class StockOutService {
         orderBy: { movementAt: "desc" },
         include: {
           category: true,
-          cardType: true,
+          type: true,
           station: true,
         },
       }),
@@ -770,9 +770,9 @@ export class StockOutService {
         code: item.category.categoryCode,
       },
       cardType: {
-        id: item.cardType.id,
-        name: item.cardType.typeName,
-        code: item.cardType.typeCode,
+        id: item.type.id,
+        name: item.type.typeName,
+        code: item.type.typeCode,
       },
       sentSerialNumbers: item.sentSerialNumbers,
       receivedSerialNumbers: item.receivedSerialNumbers,
@@ -799,7 +799,7 @@ export class StockOutService {
       where: { id },
       include: {
         category: true,
-        cardType: true,
+        type: true,
         station: true,
       },
     });
@@ -808,7 +808,7 @@ export class StockOutService {
       throw new ValidationError("Data tidak ditemukan");
     }
 
-    if (movement.type !== "OUT") {
+    if (movement.movementType !== "OUT") {
       throw new ValidationError("Bukan transaksi Stock Out");
     }
 
@@ -858,9 +858,9 @@ export class StockOutService {
           code: movement.category.categoryCode,
         },
         cardType: {
-          id: movement.cardType.id,
-          name: movement.cardType.typeName,
-          code: movement.cardType.typeCode,
+          id: movement.type.id,
+          name: movement.type.typeName,
+          code: movement.type.typeCode,
         },
         sentSerialNumbers: movement.sentSerialNumbers,
         receivedSerialNumbers: movement.receivedSerialNumbers,
@@ -891,7 +891,7 @@ export class StockOutService {
       throw new ValidationError("Data tidak ditemukan");
     }
 
-    if (movement.type !== "OUT") {
+    if (movement.movementType !== "OUT") {
       throw new ValidationError("Bukan transaksi Stock Out");
     }
 
@@ -1126,7 +1126,7 @@ export class StockOutService {
       if (!movement) {
         throw new ValidationError("Data tidak ditemukan");
       }
-      if (movement.type !== "OUT") {
+      if (movement.movementType !== "OUT") {
         throw new ValidationError("Bukan transaksi Stock Out");
       }
 
