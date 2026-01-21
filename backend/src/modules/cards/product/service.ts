@@ -4,10 +4,17 @@ import { ActivityLogService } from "../../activity-log/service";
 
 export class CardProductService {
   // Get All Card Product
-  static async getCardProducts(search?: string) {
+  static async getCardProducts(
+    search?: string,
+    programType?: "FWC" | "VOUCHER",
+  ) {
     const where: any = {
       deletedAt: null,
     };
+
+    if (programType) {
+      where.programType = programType;
+    }
 
     if (search) {
       where.OR = [
@@ -83,6 +90,7 @@ export class CardProductService {
   static async createCardProduct(
     categoryId: string,
     typeId: string,
+    programType: "FWC" | "VOUCHER",
     totalQuota: number,
     masaBerlaku: number,
     serialTemplate: string,
@@ -118,6 +126,14 @@ export class CardProductService {
       throw new ValidationError(
         "Program Type tidak cocok antara Kategori dan Tipe.",
         "PROGRAM_TYPE_MISMATCH",
+      );
+    }
+
+    // Validate Input Program Type matches Category/Type
+    if (programType !== cardCategory.programType) {
+      throw new ValidationError(
+        `Program Type input (${programType}) tidak sesuai dengan Kategori/Tipe (${cardCategory.programType}).`,
+        "PROGRAM_TYPE_INPUT_MISMATCH",
       );
     }
 
@@ -169,7 +185,7 @@ export class CardProductService {
           masaBerlaku,
           price,
           serialTemplate: generatedSerialTemplate.toString(),
-          programType: cardCategory.programType || "FWC", // Default to FWC if null, though shouldn't be
+          programType: programType,
           updatedAt: new Date(),
           updatedBy: userId,
         },
@@ -195,6 +211,7 @@ export class CardProductService {
         masaBerlaku,
         price,
         serialTemplate: generatedSerialTemplate.toString(),
+        programType: programType,
         isActive: true,
         createdAt: new Date(),
         createdBy: userId,
@@ -220,6 +237,7 @@ export class CardProductService {
     id: string,
     categoryId: string,
     typeId: string,
+    programType: "FWC" | "VOUCHER",
     totalQuota: number,
     masaBerlaku: number,
     serialTemplate: string,
@@ -258,6 +276,14 @@ export class CardProductService {
       );
     }
 
+    // Validate Input Program Type matches Category/Type
+    if (programType !== cardCategory.programType) {
+      throw new ValidationError(
+        `Program Type input (${programType}) tidak sesuai dengan Kategori/Tipe (${cardCategory.programType}).`,
+        "PROGRAM_TYPE_INPUT_MISMATCH",
+      );
+    }
+
     // Generate Serial Template: Program Code (from serialTemplate arg) + Category Code + Type Code
     const generatedSerialTemplate = `${serialTemplate}${cardCategory.categoryCode}${cardType.typeCode}`;
 
@@ -289,7 +315,7 @@ export class CardProductService {
         masaBerlaku,
         price,
         serialTemplate: generatedSerialTemplate.toString(),
-        programType: cardCategory.programType || "FWC",
+        programType: programType,
         updatedAt: new Date(),
         updatedBy: userId,
       },
