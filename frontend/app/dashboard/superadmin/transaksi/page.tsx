@@ -7,7 +7,8 @@ import { getPurchases } from "@/lib/services/purchase.service";
 
 import TransactionToolbar from "./components/TransactionToolbar";
 import TransactionFilter from "./components/TransactionFilter";
-import TransactionTable from "./components/TransactionTable";
+import TransactionTableFWC from "./components/TransactionTableFWC";
+import TransactionTableVoucher from "./components/TransactionTableVoucher";
 
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -15,7 +16,7 @@ import autoTable from "jspdf-autotable";
 /* ======================
    TYPES
 ====================== */
-interface Purchase {
+interface FWCPurchase {
   id: string;
   purchaseDate: string;
   shiftDate?: string | null;
@@ -34,6 +35,8 @@ interface Pagination {
   total: number;
 }
 
+type TabType = "fwc" | "voucher";
+
 /* ======================
    HELPERS
 ====================== */
@@ -46,6 +49,11 @@ export default function TransactionPage() {
   const router = useRouter();
 
   /* =====================
+     TAB STATE
+  ===================== */
+  const [activeTab, setActiveTab] = useState<TabType>("fwc");
+
+  /* =====================
      FILTER STATE
   ===================== */
   const [search, setSearch] = useState("");
@@ -56,9 +64,11 @@ export default function TransactionPage() {
   const [cardTypeId, setCardTypeId] = useState<string | undefined>();
 
   /* =====================
-     DATA STATE
+     DATA STATE (DIPISAH!)
   ===================== */
-  const [data, setData] = useState<Purchase[]>([]);
+  const [fwcData, setFWCData] = useState<FWCPurchase[]>([]);
+  const [voucherData, setVoucherData] = useState<any[]>([]); // dummy dulu
+
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
@@ -68,47 +78,65 @@ export default function TransactionPage() {
   });
 
   /* =====================
-     FETCH PURCHASES
+     RESET FILTER
   ===================== */
-  const fetchPurchases = async () => {
-    setLoading(true);
-
-    const params: any = {
-      page: pagination.page,
-      limit: pagination.limit,
-      search,
-    };
-
-    if (stationId) params.stationId = stationId;
-    if (purchasedDate) params.startDate = purchasedDate;
-    if (shiftDate) params.endDate = shiftDate;
-    if (cardCategoryId) params.categoryId = cardCategoryId;
-    if (cardTypeId) params.typeId = cardTypeId;
-
-    const res = await getPurchases(params);
-
-    if (res.success && res.data) {
-      setData(res.data.items);
-      setPagination(res.data.pagination);
-    }
-
-    setLoading(false);
+  const resetFilter = () => {
+    setStationId(undefined);
+    setPurchasedDate(undefined);
+    setShiftDate(undefined);
+    setCardCategoryId(undefined);
+    setCardTypeId(undefined);
+    setPagination((p) => ({ ...p, page: 1 }));
   };
 
   /* =====================
-     INIT
+     FETCH DATA (CORE)
   ===================== */
-  useEffect(() => {
-    fetchPurchases();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const fetchData = async () => {
+    setLoading(true);
+
+    const params = {
+      page: pagination.page,
+      limit: pagination.limit,
+      search,
+      stationId,
+      startDate: purchasedDate,
+      endDate: shiftDate,
+      categoryId: cardCategoryId,
+      typeId: cardTypeId,
+    };
+
+    try {
+      if (activeTab === "fwc") {
+        const res = await getPurchases(params);
+        if (res.success && res.data) {
+          setFWCData(res.data.items);
+          setPagination(res.data.pagination);
+        }
+      }
+
+      if (activeTab === "voucher") {
+        // 🔥 DUMMY (endpoint belum ada)
+        setVoucherData([]);
+        setPagination((p) => ({
+          ...p,
+          totalPages: 1,
+          total: 0,
+        }));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   /* =====================
-     AUTO FETCH
+     EFFECT
   ===================== */
   useEffect(() => {
-    fetchPurchases();
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    activeTab,
     search,
     stationId,
     purchasedDate,
@@ -121,23 +149,20 @@ export default function TransactionPage() {
   /* =====================
      HANDLERS
   ===================== */
-  const handleResetFilter = () => {
-    setStationId(undefined);
-    setPurchasedDate(undefined);
-    setShiftDate(undefined);
-    setCardCategoryId(undefined);
-    setCardTypeId(undefined);
-    setPagination((p) => ({ ...p, page: 1 }));
-  };
-
   const handleAddPurchased = () => {
-    router.push("/dashboard/superadmin/transaksi/create");
+    if (activeTab === "voucher") {
+      router.push("/dashboard/superadmin/transaksi/voucher/create");  
+    } else {
+      router.push("/dashboard/superadmin/transaksi/create");
+    }
   };
 
-  /* =====================
-     EXPORT PDF (FINAL)
-  ===================== */
   const handleExportPDF = async () => {
+    if (activeTab === "voucher") {
+      alert("Export voucher belum tersedia");
+      return;
+    }
+
     const res = await getPurchases({
       search,
       stationId,
@@ -154,24 +179,6 @@ export default function TransactionPage() {
     }
 
     const items = res.data.items;
-    const firstItem = items[0];
-
-    /* ===== REPORT INFO ===== */
-    const reportInfo = {
-      station: stationId
-        ? (firstItem?.station?.stationName ?? "-")
-        : "All Station",
-      category: cardCategoryId
-        ? (firstItem?.card?.cardProduct?.category?.categoryName ?? "-")
-        : "All Category",
-      type: cardTypeId
-        ? (firstItem?.card?.cardProduct?.type?.typeName ?? "-")
-        : "All Type",
-      dateRange:
-        purchasedDate || shiftDate
-          ? `${formatDateID(purchasedDate)} s/d ${formatDateID(shiftDate)}`
-          : "All Dates",
-    };
 
     const doc = new jsPDF({
       orientation: "landscape",
@@ -179,56 +186,19 @@ export default function TransactionPage() {
       format: "a4",
     });
 
-    const pageWidth = doc.internal.pageSize.getWidth();
-
-    /* ===== HEADER ===== */
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.text("Transaction Report", pageWidth / 2, 16, { align: "center" });
-
-    /* ===== REPORT INFORMATION ===== */
-    doc.setFontSize(11);
-    doc.text("Report Information", 14, 26);
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-
-    const reportDate = new Date().toLocaleString("id-ID", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-
-    const infoY = 32;
-    const gap = 5;
-
-    doc.text(`Report Date   : ${reportDate} WIB`, 14, infoY);
-    doc.text(`Date Period   : ${reportInfo.dateRange}`, 14, infoY + gap);
-    doc.text(`Station       : ${reportInfo.station}`, 14, infoY + gap * 2);
-    doc.text(`Card Category : ${reportInfo.category}`, 14, infoY + gap * 3);
-    doc.text(`Card Type     : ${reportInfo.type}`, 14, infoY + gap * 4);
-
-    // divider maroon
-    doc.setDrawColor(141, 18, 49);
-    doc.line(14, infoY + gap * 5 + 2, pageWidth - 14, infoY + gap * 5 + 2);
-
-    /* ===== TABLE ===== */
     autoTable(doc, {
-      startY: infoY + gap * 6 + 4,
       head: [
         [
           "Customer Name",
-          "NIK",
+          "Identity Number",
           "Card Category",
           "Card Type",
           "Serial Number",
           "Reference EDC",
-          "FWC Price",
+          "Price",
           "Purchase Date",
           "Shift Date",
-          "Operator Name",
+          "Operator",
           "Station",
         ],
       ],
@@ -241,31 +211,17 @@ export default function TransactionPage() {
         item.edcReferenceNumber ?? "-",
         `Rp ${item.price?.toLocaleString("id-ID") ?? "-"}`,
         formatDateID(item.purchaseDate),
-        formatDateID(item.shiftDate ?? undefined),
+        formatDateID(item.shiftDate),
         item.operator?.fullName ?? "-",
         item.station?.stationName ?? "-",
       ]),
-      styles: {
-        font: "helvetica",
-        fontSize: 8,
-        cellPadding: 3,
-        valign: "middle",
-      },
       headStyles: {
-        fillColor: [141, 18, 49], // MAROON
+        fillColor: [141, 18, 49],
         textColor: 255,
-        fontStyle: "bold",
-        halign: "center",
-      },
-      columnStyles: {
-        6: { halign: "right" }, // price right align
-      },
-      alternateRowStyles: {
-        fillColor: [245, 245, 245],
       },
     });
 
-    doc.save("transaction-report.pdf");
+    doc.save("transaction-fwc.pdf");
   };
 
   /* =====================
@@ -283,6 +239,11 @@ export default function TransactionPage() {
       />
 
       <TransactionFilter
+        activeTab={activeTab}
+        onTabChange={(tab) => {
+          setActiveTab(tab);
+          resetFilter();
+        }}
         stationId={stationId}
         purchasedDate={purchasedDate}
         shiftDate={shiftDate}
@@ -309,21 +270,30 @@ export default function TransactionPage() {
           setCardTypeId(v);
           setPagination((p) => ({ ...p, page: 1 }));
         }}
-        onReset={handleResetFilter}
+        onReset={resetFilter}
         onExportPDF={handleExportPDF}
       />
 
-      <TransactionTable
-        data={data}
-        loading={loading}
-        pagination={pagination}
-        onPageChange={(page) => setPagination((p) => ({ ...p, page }))}
-        onEdit={(id) =>
-          router.push(`/dashboard/superadmin/transaksi/edit/${id}`)
-        }
-        canEdit
-        canDelete
-      />
+      {activeTab === "fwc" ? (
+        <TransactionTableFWC
+          data={fwcData}
+          loading={loading}
+          pagination={pagination}
+          onPageChange={(page) => setPagination((p) => ({ ...p, page }))}
+          onEdit={(id) =>
+            router.push(`/dashboard/superadmin/transaksi/edit/${id}`)
+          }
+          canEdit
+          canDelete
+        />
+      ) : (
+        <TransactionTableVoucher
+          data={voucherData}
+          loading={loading}
+          pagination={pagination}
+          onPageChange={(page) => setPagination((p) => ({ ...p, page }))}
+        />
+      )}
     </div>
   );
 }
