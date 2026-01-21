@@ -332,7 +332,7 @@ export class StockInService {
       movement: {
         id: movement.id,
         movementAt: movement.movementAt.toISOString(),
-        movementType: movement.type,
+        movementType: movement.movementType,
         quantity: movement.quantity,
         status: movement.status,
         note: movement.note,

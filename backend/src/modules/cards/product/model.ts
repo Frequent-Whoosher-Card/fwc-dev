@@ -29,7 +29,7 @@ export namespace CardProductModel {
           id: t.String(),
           typeName: t.String(),
         }),
-      })
+      }),
     ),
   });
 
@@ -77,9 +77,9 @@ export namespace CardProductModel {
       description: "Masa berlaku",
     }),
     serialTemplate: t.String({
-      description: "Template serial untuk produk ini",
-      minLength: 4,
-      maxLength: 4,
+      description: "Kode Program (2 digit awal serial number)",
+      minLength: 2,
+      maxLength: 2,
     }),
     price: t.Number({
       description: "Harga",
@@ -128,9 +128,9 @@ export namespace CardProductModel {
       description: "Harga",
     }),
     serialTemplate: t.String({
-      description: "Template serial untuk produk ini",
-      minLength: 4,
-      maxLength: 4,
+      description: "Kode Program (2 digit awal serial number)",
+      minLength: 2,
+      maxLength: 2,
     }),
   });
 
