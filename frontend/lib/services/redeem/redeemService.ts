@@ -11,6 +11,9 @@ export interface RedeemCheckResponse {
   purchaseDate: string | null;
   expiredDate: string | null;
   route?: { origin: string; destination: string } | null;
+  cardProduct?: {
+    totalQuota?: number;
+  };
 }
 
 export interface RedeemCreateRequest {
@@ -83,7 +86,9 @@ export interface RedeemFilterParams {
   search?: string;
   category?: string;
   cardType?: string;
-  redeemType?: 'SINGLE' | 'ROUNDTRIP';
+  // redeemType removed
+    // redeemType removed
+  product?: 'FWC' | 'VOUCHER';
 }
 
 export interface LastDocUploadRequest {
@@ -95,9 +100,12 @@ export const redeemService = {
   /**
    * Check card details by serial number
    */
-  checkSerial: async (serialNumber: string): Promise<RedeemCheckResponse> => {
+  checkSerial: async (serialNumber: string, product?: 'FWC' | 'VOUCHER'): Promise<RedeemCheckResponse> => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('fwc_token') : null;
-    const response = await fetch(`${API_BASE_URL}/redeem/check/${serialNumber}`, {
+    const url = product
+      ? `${API_BASE_URL}/redeem/check/${serialNumber}?product=${product}`
+      : `${API_BASE_URL}/redeem/check/${serialNumber}`;
+    const response = await fetch(url, {
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
@@ -163,6 +171,8 @@ export const redeemService = {
     if (params.category) queryParams.append('category', params.category);
     if (params.cardType) queryParams.append('cardType', params.cardType);
     if (params.redeemType) queryParams.append('redeemType', params.redeemType);
+    if (params.product) queryParams.append('product', params.product);
+
 
     const token = typeof window !== 'undefined' ? localStorage.getItem('fwc_token') : null;
     const response = await fetch(`${API_BASE_URL}/redeem?${queryParams.toString()}`, {

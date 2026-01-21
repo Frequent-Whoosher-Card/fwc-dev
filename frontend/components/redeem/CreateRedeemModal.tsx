@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from "react";
 import toast from 'react-hot-toast';
 import { redeemService, RedeemCheckResponse } from '@/lib/services/redeem/redeemService';
 
@@ -8,18 +8,34 @@ interface CreateRedeemModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  product?: 'FWC' | 'VOUCHER';
 }
 
 export default function CreateRedeemModal({
   isOpen,
   onClose,
   onSuccess,
+  product = 'FWC',
 }: CreateRedeemModalProps) {
   const [serialNumber, setSerialNumber] = useState('');
   const [cardData, setCardData] = useState<RedeemCheckResponse | null>(null);
   const [redeemType, setRedeemType] = useState<'SINGLE' | 'ROUNDTRIP'>('SINGLE');
   const [notes, setNotes] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [userInfo, setUserInfo] = useState<any>(null);
+
+  // Fetch user info for operatorId and stationId
+  useEffect(() => {
+    async function fetchUser() {
+      try {
+        const user = await import('@/lib/services/auth.service').then(m => m.getAuthMe());
+        setUserInfo(user);
+      } catch (err) {
+        setUserInfo(null);
+      }
+    }
+    fetchUser();
+  }, []);
 
   const handleCheckSerial = async () => {
     if (!serialNumber.trim()) {
@@ -29,7 +45,7 @@ export default function CreateRedeemModal({
 
     setIsLoading(true);
     try {
-      const data = await redeemService.checkSerial(serialNumber);
+      const data = await redeemService.checkSerial(serialNumber, product);
       // Validasi status kartu - HARUS dicek SEBELUM set cardData
       if (data.statusActive !== 'ACTIVE') {
         toast.error('Kartu tidak aktif. Silakan gunakan kartu yang aktif.');
@@ -46,7 +62,9 @@ export default function CreateRedeemModal({
     } catch (error: any) {
       let errorMessage = 'Terjadi kesalahan saat mengambil data kartu';
       // Handle specific error messages
-      if (error.message.includes('not found') || error.message.includes('Not found')) {
+      if (error.message.includes('bukan produk yang sesuai')) {
+        errorMessage = 'Kartu ini bukan produk yang sesuai. Silakan gunakan kartu dengan produk yang benar.';
+      } else if (error.message.includes('not found') || error.message.includes('Not found')) {
         errorMessage = 'Data kartu tidak ditemukan. Periksa kembali nomor seri kartu.';
       } else if (error.message.includes('inactive') || error.message.includes('not active')) {
         errorMessage = 'Kartu tidak aktif. Silakan gunakan kartu yang aktif.';
@@ -72,11 +90,19 @@ export default function CreateRedeemModal({
 
     setIsLoading(true);
     try {
-      const result = await redeemService.createRedeem({
+      if (!userInfo) {
+        toast.error('User info tidak ditemukan. Silakan login ulang.');
+        return;
+      }
+      const payload = {
         serialNumber,
         redeemType,
+        operatorId: userInfo.id || userInfo.operatorId || userInfo.userId,
+        stationId: userInfo.stationId || userInfo.station?.id,
+        product,
         notes: notes.trim() || undefined,
-      });
+      };
+      const result = await redeemService.createRedeem(payload);
       // Show result summary
       toast.custom(
         (t) => (
@@ -133,6 +159,10 @@ export default function CreateRedeemModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-semibold mb-4">Tambah Redeem Kuota</h2>
+        <div className="mb-2">
+          <span className="text-xs text-gray-500 mr-2">Produk:</span>
+          <span className="px-2 py-1 rounded bg-red-50 text-[#8D1231] font-semibold border border-[#8D1231] text-xs">{product}</span>
+        </div>
 
         {/* Step 1: Check Serial */}
         {!cardData ? (
@@ -168,6 +198,8 @@ export default function CreateRedeemModal({
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
               <h3 className="font-semibold text-blue-900">Data Kartu</h3>
 
+
+
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <p className="text-gray-600">NIK</p>
@@ -188,6 +220,20 @@ export default function CreateRedeemModal({
                 <div>
                   <p className="text-gray-600">No. Seri</p>
                   <p className="font-medium">{cardData.serialNumber}</p>
+                </div>
+                {/* Kuota Awal */}
+                <div>
+                  <p className="text-gray-600">Kuota Awal</p>
+                  <p className="font-medium text-lg">{cardData.cardProduct?.totalQuota ?? '-'}</p>
+                </div>
+                {/* Kuota Terpakai */}
+                <div>
+                  <p className="text-gray-600">Kuota Terpakai</p>
+                  <p className="font-medium text-lg">
+                    {cardData.cardProduct?.totalQuota != null && cardData.quotaRemaining != null
+                      ? cardData.cardProduct.totalQuota - cardData.quotaRemaining
+                      : '-'}
+                  </p>
                 </div>
                 <div>
                   <p className="text-gray-600">Sisa Kuota</p>

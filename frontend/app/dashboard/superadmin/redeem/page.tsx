@@ -1,3 +1,7 @@
+  // const [redeemType, setRedeemType] = useState('');
+  // setRedeemType('');
+  // redeemType removed
+  // redeemType removed
 'use client';
 
 import { useEffect, useState, useContext } from 'react';
@@ -29,25 +33,44 @@ interface Station {
 }
 
 export default function RedeemPage() {
+  // Load stations for dropdown
+  const loadStations = async () => {
+    try {
+      const res = await getStations();
+      const data = res?.data || [];
+      // Map to { id, name, city }
+      const mapped = data.map((s: any) => ({
+        id: s.id,
+        name: s.stationName || s.name,
+        city: s.city || '',
+      }));
+      setStations(mapped);
+    } catch (error) {
+      setStations([]);
+    }
+  };
+
   // State for data
+  const [product, setProduct] = useState<'FWC' | 'VOUCHER' | ''>('');
   const [redeems, setRedeems] = useState<RedeemItem[]>([]);
-  // Ambil role user dari context yang sudah di-provide oleh dashboard-layout
-  const userCtx = useContext(UserContext);
-  const currentRole = userCtx?.role;
   const [stations, setStations] = useState<Station[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [cardTypes, setCardTypes] = useState<any[]>([]);
   const [isLoadingRedeems, setIsLoadingRedeems] = useState(false);
-  
-  // Filter state - sama seperti membership
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  // Filter state
+  // Helper to get today in YYYY-MM-DD
+  const getToday = () => {
+    const d = new Date();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${month}-${day}`;
+  };
+  const [startDate, setStartDate] = useState(getToday());
+  const [endDate, setEndDate] = useState(getToday());
   const [category, setCategory] = useState('');
   const [cardType, setCardType] = useState('');
-  const [redeemType, setRedeemType] = useState('');
   const [stationId, setStationId] = useState('');
   const [search, setSearch] = useState('');
-  
   // State for filters
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState({
@@ -55,7 +78,6 @@ export default function RedeemPage() {
     page: 1,
     limit: 50,
   });
-
   // State for modals
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -63,47 +85,47 @@ export default function RedeemPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [selectedRedeem, setSelectedRedeem] = useState<RedeemItem | null>(null);
+  // Helper: apakah produk sudah dipilih
+  const isProductSelected = product === 'FWC' || product === 'VOUCHER';
 
-  // Get permission hook dari role context
-  const permission = useRedeemPermission(currentRole);
-  const { canDelete, canExport, canCreate } = permission;
-
-  const totalPages = Math.ceil(pagination.total / pagination.limit);
-
-  // Load initial data
+  // Load data on first mount and whenever product, startDate, or endDate changes
   useEffect(() => {
-    loadStations();
-    loadCategories();
-    loadCardTypes();
-  }, []);
+    if (isProductSelected && startDate && endDate) {
+      loadRedeems({
+        page: 1,
+        limit: 50,
+        startDate: new Date(startDate).toISOString(),
+        endDate: (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })(),
+        category: category || undefined,
+        cardType: cardType || undefined,
+        stationId: stationId || undefined,
+        search: search || undefined,
+        ...(product === 'FWC' || product === 'VOUCHER' ? { product } : {})
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product, startDate, endDate]);
 
-  // Fetch redeems ketika filter atau page berubah
-  useEffect(() => {
-    loadRedeems({
-      page: currentPage,
-      limit: 50,
-      startDate: startDate ? new Date(startDate).toISOString() : undefined,
-      endDate: endDate ? (() => {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        return end.toISOString();
-      })() : undefined,
-      category: category || undefined,
-      cardType: cardType || undefined,
-      redeemType: redeemType ? (redeemType as 'SINGLE' | 'ROUNDTRIP') : undefined,
-      stationId: stationId || undefined,
-      search: search || undefined,
-    });
-  }, [startDate, endDate, category, cardType, redeemType, stationId, search, currentPage]);
+  const loadCategories = async () => {
+    try {
+      const res = await getCardCategories();
+      setCategories(res?.data || []);
+    } catch (error) {
+      setCategories([]);
+    }
+  };
 
   const loadRedeems = async (filters: RedeemFilterParams) => {
     setIsLoadingRedeems(true);
+    const mergedFilters = {
+      ...filters,
+      ...(product === 'FWC' || product === 'VOUCHER' ? { product } : {})
+    };
     try {
-      const response = await redeemService.listRedeems(filters);
+      const response = await redeemService.listRedeems(mergedFilters);
       const items = response.data || [];
       const paginationData = response.pagination || { page: 1, limit: 50, total: 0 };
-      
-      setRedeems(items);
+      setRedeems(Array.isArray(items) ? items : []);
       setPagination({
         page: paginationData.page || 1,
         limit: paginationData.limit || 50,
@@ -118,39 +140,41 @@ export default function RedeemPage() {
     }
   };
 
-  const loadStations = async () => {
-    try {
-      const res = await getStations({ page: 1, limit: 1000 });
-      setStations(res?.data?.items || []);
-    } catch (error) {
-      console.error('Failed to load stations:', error);
-      setStations([]);
-    }
-  };
+  // Trigger loadRedeems setiap filter berubah
+  useEffect(() => {
+    if (!isProductSelected) return;
+    loadRedeems({
+      page: 1,
+      limit: 50,
+      startDate: startDate ? new Date(startDate).toISOString() : undefined,
+      endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
+      category: category || undefined,
+      cardType: cardType || undefined,
+      stationId: stationId || undefined,
+      search: search || undefined,
+      ...(product === 'FWC' || product === 'VOUCHER' ? { product } : {})
+    });
+    setCurrentPage(1);
+  }, [startDate, endDate, category, cardType, stationId, search, product]);
+  // Ambil role user dari context yang sudah di-provide oleh dashboard-layout
+  const userCtx = useContext(UserContext);
+  const currentRole = userCtx?.role;
 
-  const loadCategories = async () => {
-    try {
-      const res = await getCardCategories();
-      const data = res?.data;
-      
-      // Handle different response structures
-      let categoryNames: string[] = [];
-      if (Array.isArray(data)) {
-        categoryNames = data.map((cat: any) => cat.name || cat.categoryName || cat.category).filter(Boolean);
-      } else if (data && typeof data === 'object') {
-        // If it's an object with items property
-        const items = data.items || data.categories || [];
-        if (Array.isArray(items)) {
-          categoryNames = items.map((cat: any) => cat.name || cat.categoryName || cat.category).filter(Boolean);
-        }
-      }
-      
-      setCategories([...new Set(categoryNames)]); // Remove duplicates
-    } catch (error) {
-      console.error('Failed to load categories:', error);
-      setCategories([]);
+  // Get permission hook dari role context
+  const permission = useRedeemPermission(currentRole);
+  const { canDelete, canExport, canCreate } = permission;
+
+  const totalPages = Math.ceil(pagination.total / pagination.limit);
+
+  // Load initial data and redeem data when product is selected
+  useEffect(() => {
+    if (product === 'FWC' || product === 'VOUCHER') {
+      loadStations();
+      loadCategories();
+      loadCardTypes();
+      loadRedeems({ page: 1, limit: 50 });
     }
-  };
+  }, [product]);
 
   const loadCardTypes = async () => {
     try {
@@ -167,7 +191,6 @@ export default function RedeemPage() {
           types = items.map((t: any) => t.typeName || t.name).filter(Boolean);
         }
       }
-      
       setCardTypes([...new Set(types)]); // Remove duplicates
     } catch (error) {
       console.error('Failed to load card types:', error);
@@ -185,7 +208,6 @@ export default function RedeemPage() {
     setEndDate('');
     setCategory('');
     setCardType('');
-    setRedeemType('');
     setStationId('');
     setSearch('');
     setCurrentPage(1);
@@ -205,22 +227,17 @@ export default function RedeemPage() {
     setSelectedRedeem(item);
     setDeleteDialogOpen(true);
   };
-
   const handleCreateSuccess = () => {
     loadRedeems({
       page: 1,
       limit: 50,
       startDate: startDate ? new Date(startDate).toISOString() : undefined,
-      endDate: endDate ? (() => {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        return end.toISOString();
-      })() : undefined,
+      endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
       category: category || undefined,
       cardType: cardType || undefined,
-      redeemType: redeemType ? (redeemType as 'SINGLE' | 'ROUNDTRIP') : undefined,
       stationId: stationId || undefined,
       search: search || undefined,
+      ...(product === 'FWC' || product === 'VOUCHER' ? { product } : {})
     });
     setCurrentPage(1);
   };
@@ -230,102 +247,118 @@ export default function RedeemPage() {
       page: currentPage,
       limit: 50,
       startDate: startDate ? new Date(startDate).toISOString() : undefined,
-      endDate: endDate ? (() => {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        return end.toISOString();
-      })() : undefined,
+      endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
       category: category || undefined,
       cardType: cardType || undefined,
-      redeemType: redeemType ? (redeemType as 'SINGLE' | 'ROUNDTRIP') : undefined,
       stationId: stationId || undefined,
       search: search || undefined,
+      ...(product === 'FWC' || product === 'VOUCHER' ? { product } : {})
     });
   };
 
+  // Pagination numbers
+  const pageNumbers = Array.from(
+    { length: totalPages },
+    (_, i) => i + 1
+  ).slice(Math.max(0, pagination.page - 3), pagination.page + 2);
+
   return (
-    <div className="min-h-screen bg-gray-50 p-2 sm:p-4 lg:p-6">
+    <div className="min-h-screen space-y-6 p-2 sm:p-4 lg:p-6">
       <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 lg:p-8">
-          {/* Toolbar/Header - Responsive */}
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+        <div className="rounded-xl border border-gray-200 p-4 sm:p-6 lg:p-8">
+          {/* Header: 1 baris, kanan: dropdown + tombol (jika produk dipilih) */}
+          <div className="flex flex-row items-center justify-between gap-4 mb-6">
             <h1 className="text-lg sm:text-xl font-semibold">Redeem Kuota</h1>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-              <input
-                type="text"
-                placeholder="Search"
-                value={search}
-                onChange={(e) => handleToolbarSearch(e.target.value)}
-                className="h-9 w-full sm:w-64 lg:w-80 xl:w-96 rounded-md border px-3 text-sm"
-              />
-              <div className="flex gap-2">
-                {canCreate && (
-                  <button
-                    onClick={() => setCreateModalOpen(true)}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-md bg-[#8D1231] px-4 py-2 text-sm text-white hover:bg-[#73122E] transition whitespace-nowrap"
-                  >
-                    <Plus size={16} />
-                    <span className="hidden sm:inline">Tambah Redeem</span>
-                    <span className="sm:hidden">Tambah</span>
-                  </button>
-                )}
-                {canExport && (
-                  <button
-                    onClick={() => setExportModalOpen(true)}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 whitespace-nowrap"
-                  >
-                    <span className="hidden sm:inline">Export Report</span>
-                    <span className="sm:hidden">Export</span>
-                  </button>
-                )}
-              </div>
+            <div className="flex flex-row items-center gap-2 sm:gap-3">
+              <span className="text-sm font-medium text-gray-700 hidden sm:inline">Pilih Jenis Produk:</span>
+              <select
+                value={product}
+                onChange={e => {
+                  const val = e.target.value as 'FWC' | 'VOUCHER' | '';
+                  setProduct(val);
+                  setStartDate('');
+                  setEndDate('');
+                  setCategory('');
+                  setCardType('');
+                  setStationId('');
+                  setSearch('');
+                  setCurrentPage(1);
+                  setRedeems([]);
+                  setPagination({ total: 0, page: 1, limit: 50 });
+                }}
+                className="h-9 w-36 sm:w-44 rounded-md border px-3 text-sm font-semibold text-[#8D1231] bg-red-50 border-[#8D1231] focus:outline-none focus:ring-2 focus:ring-[#8D1231]"
+              >
+                <option value="">Pilih Produk</option>
+                <option value="FWC">FWC</option>
+                <option value="VOUCHER">VOUCHER</option>
+              </select>
+              {isProductSelected && (
+                <>
+                  {canCreate && (
+                    <button
+                      onClick={() => setCreateModalOpen(true)}
+                      className="flex items-center justify-center gap-2 rounded-md bg-[#8D1231] px-4 py-2 text-sm text-white hover:bg-[#73122E] transition whitespace-nowrap"
+                    >
+                      <Plus size={16} />
+                      <span className="hidden sm:inline">Tambah Redeem</span>
+                      <span className="sm:hidden">Tambah</span>
+                    </button>
+                  )}
+                  {canExport && (
+                    <button
+                      onClick={() => setExportModalOpen(true)}
+                      className="flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 whitespace-nowrap"
+                    >
+                      <span className="hidden sm:inline">Export Report</span>
+                      <span className="sm:hidden">Export</span>
+                    </button>
+                  )}
+                </>
+              )}
             </div>
           </div>
 
-          {/* Filters - Responsive */}
-          <div className="mb-6">
-            <RedeemFilters
-              startDate={startDate}
-              endDate={endDate}
-              category={category}
-              cardType={cardType}
-              redeemType={redeemType}
-              stationId={stationId}
-              onStartDateChange={setStartDate}
-              onEndDateChange={setEndDate}
-              onCategoryChange={setCategory}
-              onCardTypeChange={setCardType}
-              onRedeemTypeChange={setRedeemType}
-              onStationIdChange={setStationId}
-              onReset={handleResetFilters}
-              categories={categories}
-              cardTypes={cardTypes}
-              categoryValueKey="categoryName"
-              cardTypeValueKey="typeName"
-              stations={stations}
-              isLoading={isLoadingRedeems}
-            />
-          </div>
+          {/* Semua komponen terkait hanya muncul jika produk dipilih */}
+          {isProductSelected && (
+            <>
+              {/* Filters - Responsive */}
+              <div className="mb-6">
+                <RedeemFilters
+                  startDate={startDate}
+                  endDate={endDate}
+                  category={category}
+                  cardType={cardType}
+                  stationId={stationId}
+                  onStartDateChange={setStartDate}
+                  onEndDateChange={setEndDate}
+                  onCategoryChange={setCategory}
+                  onCardTypeChange={setCardType}
+                  onStationIdChange={setStationId}
+                  onReset={handleResetFilters}
+                  categories={categories}
+                  cardTypes={cardTypes}
+                  categoryValueKey="categoryName"
+                  cardTypeValueKey="typeName"
+                  stations={stations}
+                  isLoading={isLoadingRedeems}
+                  product={product as 'FWC' | 'VOUCHER'}
+                  disabled={!isProductSelected}
+                />
+              </div>
 
-          {/* Table */}
-          <div className="mb-4 overflow-x-auto">
-            <RedeemTable
-              data={redeems}
-              onUploadLastDoc={handleUploadDoc}
-              onDelete={handleDelete}
-              canDelete={canDelete}
-              isLoading={isLoadingRedeems}
-            />
-          </div>
+              {/* Table */}
+              <div className="mb-4 overflow-x-auto rounded-lg border bg-white">
+                <RedeemTable
+                  data={redeems}
+                  onUploadLastDoc={handleUploadDoc}
+                  onDelete={handleDelete}
+                  canDelete={canDelete}
+                  isLoading={isLoadingRedeems}
+                  noDataMessage={isProductSelected ? undefined : 'Pilih produk terlebih dulu'}
+                />
+              </div>
 
-          {/* Pagination */}
-          {(() => {
-            const pageNumbers = Array.from(
-              { length: totalPages },
-              (_, i) => i + 1
-            ).slice(Math.max(0, pagination.page - 3), pagination.page + 2);
-
-            return (
+              {/* Pagination */}
               <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-600">
                 <button
                   disabled={pagination.page === 1}
@@ -365,43 +398,46 @@ export default function RedeemPage() {
                   <ChevronRight size={18} />
                 </button>
               </div>
-            );
-          })()}
+
+              {/* Modals */}
+              <CreateRedeemModal
+                isOpen={createModalOpen}
+                onClose={() => setCreateModalOpen(false)}
+                onSuccess={handleCreateSuccess}
+                product={product as 'FWC' | 'VOUCHER'}
+              />
+
+              <RedeemDetailModal
+                isOpen={detailModalOpen}
+                onClose={() => setDetailModalOpen(false)}
+                data={selectedRedeem}
+                product={product as 'FWC' | 'VOUCHER'}
+              />
+
+              <LastRedeemDocModal
+                isOpen={uploadDocModalOpen}
+                onClose={() => setUploadDocModalOpen(false)}
+                data={selectedRedeem}
+                onSuccess={handleCreateSuccess}
+              />
+
+              <DeleteRedeemDialog
+                isOpen={deleteDialogOpen}
+                onClose={() => setDeleteDialogOpen(false)}
+                data={selectedRedeem}
+                onSuccess={handleDeleteSuccess}
+              />
+
+              {/* Export Modal */}
+              <ExportRedeemModal
+                isOpen={exportModalOpen}
+                onClose={() => setExportModalOpen(false)}
+                product={product as 'FWC' | 'VOUCHER'}
+              />
+            </>
+          )}
         </div>
       </div>
-
-      {/* Modals */}
-      <CreateRedeemModal
-        isOpen={createModalOpen}
-        onClose={() => setCreateModalOpen(false)}
-        onSuccess={handleCreateSuccess}
-      />
-
-      <RedeemDetailModal
-        isOpen={detailModalOpen}
-        onClose={() => setDetailModalOpen(false)}
-        data={selectedRedeem}
-      />
-
-      <LastRedeemDocModal
-        isOpen={uploadDocModalOpen}
-        onClose={() => setUploadDocModalOpen(false)}
-        data={selectedRedeem}
-        onSuccess={handleCreateSuccess}
-      />
-
-      <DeleteRedeemDialog
-        isOpen={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-        data={selectedRedeem}
-        onSuccess={handleDeleteSuccess}
-      />
-
-      {/* Export Modal */}
-      <ExportRedeemModal
-        isOpen={exportModalOpen}
-        onClose={() => setExportModalOpen(false)}
-      />
     </div>
   );
 }

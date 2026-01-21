@@ -1,4 +1,11 @@
-'use client';
+"use client";
+// Helper to get today in YYYY-MM-DD
+function getToday() {
+  const d = new Date();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${month}-${day}`;
+}
 
 import { useRef } from 'react';
 
@@ -7,13 +14,11 @@ interface RedeemFiltersProps {
   endDate: string;
   category: string;
   cardType: string;
-  redeemType: string;
   stationId: string;
   onStartDateChange: (value: string) => void;
   onEndDateChange: (value: string) => void;
   onCategoryChange: (value: string) => void;
   onCardTypeChange: (value: string) => void;
-  onRedeemTypeChange: (value: string) => void;
   onStationIdChange: (value: string) => void;
   onReset: () => void;
   categories: any[];
@@ -29,13 +34,11 @@ export default function RedeemFilters({
   endDate,
   category,
   cardType,
-  redeemType,
   stationId,
   onStartDateChange,
   onEndDateChange,
   onCategoryChange,
   onCardTypeChange,
-  onRedeemTypeChange,
   onStationIdChange,
   onReset,
   categories,
@@ -44,12 +47,15 @@ export default function RedeemFilters({
   isLoading,
   categoryValueKey = 'categoryName',
   cardTypeValueKey = 'typeName',
-}: RedeemFiltersProps & { categoryValueKey?: string; cardTypeValueKey?: string }) {
+  product,
+  disabled = false,
+}: RedeemFiltersProps & { categoryValueKey?: string; cardTypeValueKey?: string; product?: string; disabled?: boolean }) {
   const startDateRef = useRef<HTMLInputElement>(null);
   const endDateRef = useRef<HTMLInputElement>(null);
 
   return (
     <div className="rounded-lg border bg-white">
+      {/* No product label/chip here, only dropdown in parent */}
       {/* Mobile: Stack vertically */}
       <div className="flex flex-col gap-3 p-4 lg:hidden">
         {/* Date filters row */}
@@ -60,11 +66,16 @@ export default function RedeemFilters({
               <input
                 ref={startDateRef}
                 type="date"
-                value={startDate}
-                onChange={e => onStartDateChange(e.target.value)}
+                value={startDate || getToday()}
+                max={endDate || undefined}
+                onChange={e => {
+                  if (endDate && e.target.value > endDate) return;
+                  onStartDateChange(e.target.value);
+                }}
                 className={`h-9 w-full rounded-md border px-2 pr-8 text-xs appearance-none font-medium cursor-pointer
-                  [&::-webkit-calendar-picker-indicator]:hidden
-                  ${startDate ? 'border-[#8D1231] bg-red-50 text-[#8D1231]' : 'border-gray-300'}`}
+                    [&::-webkit-calendar-picker-indicator]:hidden
+                    ${startDate ? 'border-[#8D1231] bg-red-50 text-[#8D1231]' : 'border-gray-300'}`}
+                  disabled={disabled}
               />
               <svg 
                 xmlns="http://www.w3.org/2000/svg" 
@@ -73,7 +84,7 @@ export default function RedeemFilters({
                 height="14" 
                 fill="none" 
                 viewBox="0 0 24 24"
-                onClick={() => startDateRef.current?.showPicker()}
+                onClick={() => { if (!disabled) startDateRef.current?.showPicker(); }}
               >
                 <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
               </svg>
@@ -86,11 +97,16 @@ export default function RedeemFilters({
               <input
                 ref={endDateRef}
                 type="date"
-                value={endDate}
-                onChange={e => onEndDateChange(e.target.value)}
+                value={endDate || getToday()}
+                min={startDate || undefined}
+                onChange={e => {
+                  if (startDate && e.target.value < startDate) return;
+                  onEndDateChange(e.target.value);
+                }}
                 className={`h-9 w-full rounded-md border px-2 pr-8 text-xs appearance-none font-medium cursor-pointer
-                  [&::-webkit-calendar-picker-indicator]:hidden
-                  ${endDate ? 'border-[#8D1231] bg-red-50 text-[#8D1231]' : 'border-gray-300'}`}
+                    [&::-webkit-calendar-picker-indicator]:hidden
+                    ${endDate ? 'border-[#8D1231] bg-red-50 text-[#8D1231]' : 'border-gray-300'}`}
+                  disabled={disabled}
               />
               <svg 
                 xmlns="http://www.w3.org/2000/svg" 
@@ -99,7 +115,7 @@ export default function RedeemFilters({
                 height="14" 
                 fill="none" 
                 viewBox="0 0 24 24"
-                onClick={() => endDateRef.current?.showPicker()}
+                onClick={() => { if (!disabled) endDateRef.current?.showPicker(); }}
               >
                 <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
               </svg>
@@ -112,14 +128,19 @@ export default function RedeemFilters({
           value={category}
           onChange={e => onCategoryChange(e.target.value)}
           className="h-9 rounded-md border px-3 text-sm font-medium border-[#8D1231] bg-[#8D1231] text-white focus:outline-none"
+          disabled={disabled}
         >
           <option value="">Kategori</option>
           {categories && categories.length > 0 ? (
-            categories.map((cat) => (
-              <option key={cat.id || cat} value={cat[categoryValueKey] || cat}>
-                {cat[categoryValueKey] || cat}
-              </option>
-            ))
+            categories.map((cat) => {
+              const value = typeof cat === 'object' ? cat[categoryValueKey] : cat;
+              const key = typeof cat === 'object' ? cat.id || value : value;
+              return (
+                <option key={key} value={value}>
+                  {value}
+                </option>
+              );
+            })
           ) : (
             <option disabled>Tidak ada data</option>
           )}
@@ -129,33 +150,30 @@ export default function RedeemFilters({
           value={cardType}
           onChange={e => onCardTypeChange(e.target.value)}
           className="h-9 rounded-md border px-3 text-sm font-medium border-[#8D1231] bg-[#8D1231] text-white focus:outline-none"
+          disabled={disabled}
         >
           <option value="">Tipe Kartu</option>
           {cardTypes && cardTypes.length > 0 ? (
-            cardTypes.map((type) => (
-              <option key={type.id || type} value={type[cardTypeValueKey] || type}>
-                {type[cardTypeValueKey] || type}
-              </option>
-            ))
+            cardTypes.map((type) => {
+              const value = typeof type === 'object' ? type[cardTypeValueKey] : type;
+              const key = typeof type === 'object' ? type.id || value : value;
+              return (
+                <option key={key} value={value}>
+                  {value}
+                </option>
+              );
+            })
           ) : (
             <option disabled>Tidak ada data</option>
           )}
         </select>
 
-        <select
-          value={redeemType}
-          onChange={e => onRedeemTypeChange(e.target.value)}
-          className="h-9 rounded-md border px-3 text-sm font-medium border-[#8D1231] bg-[#8D1231] text-white focus:outline-none"
-        >
-          <option value="">Tipe Perjalanan</option>
-          <option value="SINGLE">Single Trip</option>
-          <option value="ROUNDTRIP">Round Trip</option>
-        </select>
-
+        {/* Stasiun dropdown */}
         <select
           value={stationId}
           onChange={e => onStationIdChange(e.target.value)}
           className="h-9 rounded-md border px-3 text-sm font-medium border-[#8D1231] bg-[#8D1231] text-white focus:outline-none"
+          disabled={disabled}
         >
           <option value="">Stasiun</option>
           {stations && stations.length > 0 ? (
@@ -174,6 +192,7 @@ export default function RedeemFilters({
           onClick={onReset}
           title="Reset filter"
           className="flex items-center justify-center h-9 px-3 rounded-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-100 hover:border-gray-400 transition text-sm font-medium"
+          disabled={disabled}
         >
           Reset Filter
         </button>
@@ -188,12 +207,17 @@ export default function RedeemFilters({
             <input
               ref={startDateRef}
               type="date"
-              value={startDate}
-              onChange={e => onStartDateChange(e.target.value)}
+              value={startDate || getToday()}
+              max={endDate || undefined}
+              onChange={e => {
+                if (endDate && e.target.value > endDate) return;
+                onStartDateChange(e.target.value);
+              }}
               className={`h-9 w-[160px] rounded-md border px-3 pr-9 text-sm appearance-none font-medium cursor-pointer
                 [&::-webkit-calendar-picker-indicator]:hidden
                 ${startDate ? 'border-[#8D1231] bg-red-50 text-[#8D1231]' : 'border-gray-300'}`}
               placeholder="dd/mm/yyyy"
+              disabled={disabled}
             />
             <svg 
               xmlns="http://www.w3.org/2000/svg" 
@@ -216,12 +240,17 @@ export default function RedeemFilters({
             <input
               ref={endDateRef}
               type="date"
-              value={endDate}
-              onChange={e => onEndDateChange(e.target.value)}
+              value={endDate || getToday()}
+              min={startDate || undefined}
+              onChange={e => {
+                if (startDate && e.target.value < startDate) return;
+                onEndDateChange(e.target.value);
+              }}
               className={`h-9 w-[160px] rounded-md border px-3 pr-9 text-sm appearance-none font-medium cursor-pointer
                 [&::-webkit-calendar-picker-indicator]:hidden
                 ${endDate ? 'border-[#8D1231] bg-red-50 text-[#8D1231]' : 'border-gray-300'}`}
               placeholder="dd/mm/yyyy"
+              disabled={disabled}
             />
             <svg 
               xmlns="http://www.w3.org/2000/svg" 
@@ -242,12 +271,17 @@ export default function RedeemFilters({
           value={category}
           onChange={e => onCategoryChange(e.target.value)}
           className="h-9 rounded-md border px-3 text-sm font-medium border-[#8D1231] bg-[#8D1231] text-white focus:outline-none min-w-[130px]"
+          disabled={disabled}
         >
           <option value="">Kategori</option>
           {categories && categories.length > 0 ? (
-            categories.map((cat) => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))
+            categories.map((cat) => {
+              const value = typeof cat === 'object' ? cat[categoryValueKey] : cat;
+              const key = typeof cat === 'object' ? cat.id || value : value;
+              return (
+                <option key={key} value={value}>{value}</option>
+              );
+            })
           ) : (
             <option disabled>Tidak ada data</option>
           )}
@@ -258,33 +292,31 @@ export default function RedeemFilters({
           value={cardType}
           onChange={e => onCardTypeChange(e.target.value)}
           className="h-9 rounded-md border px-3 text-sm font-medium border-[#8D1231] bg-[#8D1231] text-white focus:outline-none min-w-[130px]"
+          disabled={disabled}
         >
           <option value="">Tipe Kartu</option>
           {cardTypes && cardTypes.length > 0 ? (
-            cardTypes.map((type) => (
-              <option key={type} value={type}>{type}</option>
-            ))
+            cardTypes.map((type) => {
+              const value = typeof type === 'object' ? type[cardTypeValueKey] : type;
+              const key = typeof type === 'object' ? type.id || value : value;
+              return (
+                <option key={key} value={value}>{value}</option>
+              );
+            })
           ) : (
             <option disabled>Tidak ada data</option>
           )}
         </select>
 
         {/* Tipe Perjalanan dropdown */}
-        <select
-          value={redeemType}
-          onChange={e => onRedeemTypeChange(e.target.value)}
-          className="h-9 rounded-md border px-3 text-sm font-medium border-[#8D1231] bg-[#8D1231] text-white focus:outline-none min-w-[150px]"
-        >
-          <option value="">Tipe Perjalanan</option>
-          <option value="SINGLE">Single Trip</option>
-          <option value="ROUNDTRIP">Round Trip</option>
-        </select>
+        {/* Tipe Perjalanan filter removed (desktop) */}
 
         {/* Stasiun dropdown */}
         <select
           value={stationId}
           onChange={e => onStationIdChange(e.target.value)}
           className="h-9 rounded-md border px-3 text-sm font-medium border-[#8D1231] bg-[#8D1231] text-white focus:outline-none min-w-[130px]"
+          disabled={disabled}
         >
           <option value="">Stasiun</option>
           {stations && stations.length > 0 ? (
@@ -303,6 +335,7 @@ export default function RedeemFilters({
           onClick={onReset}
           title="Reset filter"
           className="flex items-center justify-center h-9 px-3 rounded-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-100 hover:border-gray-400 transition text-sm font-medium"
+          disabled={disabled}
         >
           Reset
         </button>
