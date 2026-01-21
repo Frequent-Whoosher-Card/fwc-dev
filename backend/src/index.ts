@@ -21,6 +21,7 @@ import { AuthenticationError, AuthorizationError } from "./utils/errors";
 import { inbox } from "./modules/inbox";
 import { redeem } from "./modules/redeem";
 import { cardSwaps } from "./modules/card-swaps";
+import { ticketSalesImport } from "./modules/ticket-sales";
 
 const app = new Elysia()
   .use(docsConfig)
@@ -48,6 +49,7 @@ const app = new Elysia()
   .use(metrics)
   .use(inbox)
   .use(redeem)
+  .use(ticketSalesImport)
   // .use(superset)
 
   .onError(({ code, error, set }) => {
@@ -147,7 +149,7 @@ const app = new Elysia()
   .listen(3001);
 
 console.log(
-  `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`
+  `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
 );
 
 // Cleanup job for temporary storage (runs every 30 minutes)
@@ -158,14 +160,14 @@ setInterval(
       const cleanedCount = await tempStorage.cleanupExpired();
       if (cleanedCount > 0) {
         console.log(
-          `[Cleanup] Removed ${cleanedCount} expired temporary file(s)`
+          `[Cleanup] Removed ${cleanedCount} expired temporary file(s)`,
         );
       }
     } catch (error) {
       console.error("[Cleanup] Error cleaning up temporary files:", error);
     }
   },
-  30 * 60 * 1000
+  30 * 60 * 1000,
 ); // 30 minutes
 
 // Run cleanup immediately on startup
@@ -175,13 +177,13 @@ setInterval(
     const cleanedCount = await tempStorage.cleanupExpired();
     if (cleanedCount > 0) {
       console.log(
-        `[Cleanup] Removed ${cleanedCount} expired temporary file(s) on startup`
+        `[Cleanup] Removed ${cleanedCount} expired temporary file(s) on startup`,
       );
     }
   } catch (error) {
     console.error(
       "[Cleanup] Error cleaning up temporary files on startup:",
-      error
+      error,
     );
   }
 })();
