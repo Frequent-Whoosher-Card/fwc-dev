@@ -6,6 +6,10 @@ export namespace RedeemModel {
       description: "Serial number of the card to check",
       examples: ["01112600001"],
     }),
+    product: t.Optional(t.String({
+      description: "Product type for redeem (FWC or VOUCHER)",
+      examples: ["FWC", "VOUCHER"],
+    })),
   });
 
   export const checkSerialResponse = t.Object({
@@ -28,6 +32,11 @@ export namespace RedeemModel {
         }),
         t.Null(),
       ]),
+      cardProduct: t.Optional(
+        t.Object({
+          totalQuota: t.Optional(t.Number()),
+        })
+      ),
     }),
   });
 
@@ -41,6 +50,10 @@ export namespace RedeemModel {
       t.Literal("ROUNDTRIP"),
     ], {
       description: "Type of redemption: SINGLE (1 quota) or ROUNDTRIP (2 quota)",
+    }),
+    product: t.String({
+      description: "Product type for redeem (FWC or VOUCHER)",
+      examples: ["FWC", "VOUCHER"],
     }),
     notes: t.Optional(
       t.String({
@@ -60,6 +73,7 @@ export namespace RedeemModel {
     category: t.Optional(t.String()),
     cardType: t.Optional(t.String()),
     redeemType: t.Optional(t.String()),
+    product: t.Optional(t.String()),
   });
 
   const redeemData = t.Object({

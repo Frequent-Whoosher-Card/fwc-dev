@@ -9,6 +9,7 @@ interface RedeemTableProps {
   onDelete: (item: RedeemItem) => void;
   canDelete: boolean;
   isLoading: boolean;
+  noDataMessage?: string;
 }
 
 export default function RedeemTable({
@@ -17,15 +18,13 @@ export default function RedeemTable({
   onDelete,
   canDelete,
   isLoading,
+  noDataMessage,
 }: RedeemTableProps) {
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('id-ID', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    if (!date) return '-';
+    const d = new Date(date);
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}, ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   };
 
   const formatCurrency = (nominal: number) => {
@@ -41,45 +40,19 @@ export default function RedeemTable({
       <table className="min-w-full text-sm">
         <thead>
           <tr className="bg-gray-50 border-b-2 border-gray-200">
-            <th className="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">
-              Tanggal Redeem
-            </th>
-            <th className="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">
-              Nama Pelanggan
-            </th>
-            <th className="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">
-              NIK
-            </th>
-            <th className="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">
-              ID Transaksi
-            </th>
-            <th className="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">
-              Serial Kartu
-            </th>
-            <th className="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">
-              Kategori Kartu
-            </th>
-            <th className="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">
-              Tipe Kartu
-            </th>
-            <th className="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">
-              Tipe Perjalanan
-            </th>
-            <th className="px-4 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">
-              Kuota Terpakai
-            </th>
-            <th className="px-4 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">
-              Sisa Kuota
-            </th>
-            <th className="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">
-              Stasiun
-            </th>
-            <th className="px-4 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">
-              Last Redeem
-            </th>
-            <th className="px-4 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">
-              Aksi
-            </th>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Tanggal Redeem</th>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Nama Pelanggan</th>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">NIK</th>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Nomor Transaksi</th>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Serial Kartu</th>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Kategori Kartu</th>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Tipe Kartu</th>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Tipe Perjalanan</th>
+            <th className="px-4 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">Kuota Terpakai</th>
+            <th className="px-4 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">Sisa Kuota</th>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Operator</th>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Stasiun</th>
+            <th className="px-4 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">Aksi</th>
           </tr>
         </thead>
         <tbody>
@@ -94,32 +67,29 @@ export default function RedeemTable({
           ) : !data || data.length === 0 ? (
             <tr>
               <td colSpan={12} className="px-4 py-8 text-center text-gray-500">
-                Tidak ada data redeem
+                {noDataMessage || 'Tidak ada data redeem'}
               </td>
             </tr>
           ) : (
             data.map((item) => {
-              // Sisa kuota diambil dari card.quotaTicket
               const sisaKuota = item.card?.quotaTicket ?? 0;
-              // Tombol last redeem hanya aktif jika sisa kuota = 0
               const isQuotaEmpty = sisaKuota === 0;
-              
               return (
-              <tr
-                key={item.id}
-                className="border-b border-gray-200 hover:bg-gray-50 transition"
-              >
-                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                  {formatDate(item.createdAt)}
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                  {item.card?.member?.name || '-'}
-                </td>
+                <tr
+                  key={item.id}
+                  className="border-b border-gray-200 hover:bg-gray-50 transition"
+                >
+                  <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                    {formatDate(item.createdAt)}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                    {item.card?.member?.name || '-'}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap font-mono">
+                    {item.card?.member?.identityNumber || '-'}
+                  </td>
                 <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap font-mono">
-                  {item.card?.member?.identityNumber || '-'}
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap font-mono">
-                  {item.transactionNumber}
+                  {item.transactionNumber || '-'}
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap font-mono">
                   {item.card?.serialNumber || '-'}
@@ -152,6 +122,9 @@ export default function RedeemTable({
                   <span className={`${isQuotaEmpty ? 'text-red-600' : 'text-green-600'}`}>
                     {sisaKuota}
                   </span>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                  {item.operator?.fullName || '-'}
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
                   {item.station?.stationName || '-'}

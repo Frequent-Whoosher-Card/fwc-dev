@@ -10,9 +10,12 @@ const redeemRoutes = new Elysia()
   .use(rbacMiddleware(["superadmin", "admin", "supervisor", "petugas"]))
   .get(
     "/check/:serialNumber",
-    async ({ params: { serialNumber }, set }) => {
+    async ({ params, query, set }) => {
       try {
-        const data = await RedeemService.checkSerial(serialNumber);
+        // Accept product from query or params
+        const serialNumber = params.serialNumber;
+        const product = query.product;
+        const data = await RedeemService.checkSerial(serialNumber, product);
         return {
           success: true,
           message: "Card data retrieved successfully",
@@ -43,7 +46,7 @@ const redeemRoutes = new Elysia()
   )
   .post(
     "/",
-    async ({ body: { serialNumber, redeemType, notes }, user, set }) => {
+    async ({ body: { serialNumber, redeemType, product, notes }, user, set }) => {
       try {
         if (!user?.stationId) {
           set.status = 400;
@@ -55,6 +58,7 @@ const redeemRoutes = new Elysia()
           redeemType,
           user.id,
           user.stationId,
+          product,
           notes
         );
 
@@ -102,6 +106,7 @@ const listRedeemRoutes = new Elysia()
           category: query.category,
           cardType: query.cardType,
           redeemType: query.redeemType,
+          product: query.product as any,
         });
 
         return {
@@ -116,18 +121,6 @@ const listRedeemRoutes = new Elysia()
             : 500;
         return formatErrorResponse(error);
       }
-    },
-    {
-      query: RedeemModel.getRedeemsQuery,
-      response: {
-        200: RedeemModel.getRedeemsResponse,
-        500: RedeemModel.errorResponse,
-      },
-      detail: {
-        summary: "List Redeem Transactions",
-        tags: ["Redeem"],
-        description: "Get list of redeem transactions with filters",
-      },
     }
   )
   // Get Redeem Detail
