@@ -7,14 +7,17 @@ interface RedeemDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   data: RedeemItem | null;
+  product?: 'FWC' | 'VOUCHER';
 }
 
 export default function RedeemDetailModal({
   isOpen,
   onClose,
   data,
+  product = 'FWC',
 }: RedeemDetailModalProps) {
   if (!isOpen || !data) return null;
+  // You can use product to adjust transaction number/fields if needed
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('id-ID', {

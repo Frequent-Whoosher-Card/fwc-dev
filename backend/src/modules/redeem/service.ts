@@ -7,7 +7,7 @@ export class RedeemService {
    * Check card details by serial number
    * @param serialNumber Serial number of the card
    */
-  static async checkSerial(serialNumber: string) {
+  static async checkSerial(serialNumber: string, product?: string) {
     const card = await db.card.findUnique({
       where: { serialNumber },
       include: {
@@ -26,14 +26,13 @@ export class RedeemService {
       throw new NotFoundError("Card not found");
     }
 
+    // Product type validation (moved here)
+    if (product && card.programType !== product) {
+      throw new ValidationError(`Kartu ini bukan produk yang sesuai (${product}). Produk kartu: ${card.programType}`);
+    }
+
     // Determine status text
     let statusActive = "Tidak Aktif";
-
-    // Status logic update:
-    // SOLD_ACTIVE -> Aktif
-    // SOLD_INACTIVE -> Tidak Aktif (but still return data)
-    // Others -> Use the raw status string (or map as needed, e.g. "Expired" was previously mapped from SOLD_INACTIVE)
-
     if (card.status === CardStatus.SOLD_ACTIVE) {
       statusActive = "ACTIVE";
     } else if (card.status === CardStatus.SOLD_INACTIVE) {
@@ -45,7 +44,6 @@ export class RedeemService {
     // Customer Name & NIK
     let customerName = "-";
     let nik = "-";
-
     if (card.member) {
       customerName = card.member.name;
       nik = card.member.identityNumber;
@@ -79,6 +77,9 @@ export class RedeemService {
           destination: "-",
         };
       })(),
+      cardProduct: {
+        totalQuota: card.cardProduct.totalQuota,
+      },
     };
   }
 
@@ -87,8 +88,10 @@ export class RedeemService {
     redeemType: "SINGLE" | "ROUNDTRIP",
     operatorId: string,
     stationId: string,
+    product: "FWC" | "VOUCHER",
     notes?: string
   ): Promise<{ transactionNumber: string; remainingQuota: number; quotaUsed: number; redeemType: string }> {
+
     return await db.$transaction(
       async (tx) => {
         const card = await tx.card.findUnique({
@@ -96,11 +99,14 @@ export class RedeemService {
           include: { cardProduct: true, fileObject: true },
         });
 
-
         if (!card) {
           throw new NotFoundError("Card not found");
         }
 
+        // Product type validation
+        if (card.programType !== product) {
+          throw new ValidationError(`Card product type mismatch. Expected: ${product}, Found: ${card.programType}`);
+        }
 
         // Check if card is active
         if (card.status !== CardStatus.SOLD_ACTIVE) {
@@ -122,20 +128,23 @@ export class RedeemService {
 
         const prevQuota = card.quotaTicket;
 
-        // Calculate transaction number
+        // Calculate transaction number with new format
         const date = new Date();
-        const dateStr = date.toISOString().slice(0, 10).replace(/-/g, ""); // YYYYMMDD
+        const yy = date.getFullYear().toString().slice(-2);
+        const mm = (date.getMonth() + 1).toString().padStart(2, '0');
+        const dd = date.getDate().toString().padStart(2, '0');
+        const dateStr = `${yy}${mm}${dd}`;
         const count = await tx.redeem.count({
           where: {
             createdAt: {
               gte: new Date(date.setHours(0, 0, 0, 0)),
               lt: new Date(date.setHours(23, 59, 59, 999)),
             },
+            programType: product,
           },
         });
-        const transactionNumber = `TRX-${dateStr}-${(count + 1)
-          .toString()
-          .padStart(4, "0")}`;
+        let productCode = product === 'FWC' ? 'FW' : (product === 'VOUCHER' ? 'VC' : 'XX');
+        const transactionNumber = `RDM-${productCode}-${dateStr}-${(count + 1).toString().padStart(4, '0')}`;
 
         // Create Redeem Record
         const redeem = await tx.redeem.create({
@@ -149,6 +158,7 @@ export class RedeemService {
             redeem_type: redeemType as any,
             fileObjectId: card.fileObjectId,
             notes: notes || null,
+            programType: product,
           } as any,
         });
 
@@ -195,7 +205,7 @@ export class RedeemService {
     search?: string;
     category?: string;
     cardType?: string;
-    redeemType?: string;
+    product?: 'FWC' | 'VOUCHER';
   }) {
     const {
       page = 1,
@@ -206,13 +216,19 @@ export class RedeemService {
       search,
       category,
       cardType,
-      redeemType,
+      product,
     } = params;
     const skip = (page - 1) * limit;
 
     const where: any = {
       deletedAt: null, // Only show non-deleted redeems
     };
+
+    // Product Filter
+    if (product) {
+      if (!where.card) where.card = {};
+      where.card.programType = product;
+    }
 
     // Date Range Filter
     if (startDate || endDate) {
@@ -234,9 +250,7 @@ export class RedeemService {
     }
 
     // RedeemType Filter
-    if (redeemType) {
-      where.redeem_type = redeemType;
-    }
+    // RedeemType filter removed
 
     // Category Filter
     if (category) {
@@ -285,8 +299,8 @@ export class RedeemService {
     const [items, total] = await Promise.all([
       db.redeem.findMany({
         where,
-        skip,
         take: limit,
+        skip,
         orderBy: { createdAt: "desc" },
         include: {
           station: {
@@ -306,6 +320,7 @@ export class RedeemService {
               id: true,
               serialNumber: true,
               quotaTicket: true,
+              programType: true,
               member: {
                 select: {
                   id: true,
@@ -339,24 +354,18 @@ export class RedeemService {
       db.redeem.count({ where }),
     ]);
 
-    // Fetch usage logs for all redeem ids in one query
-    // Format response dates and calculate quota used + fallback member
     const formattedItems = items.map((item) => {
-      // Fallback quotaUsed: SINGLE=1, ROUNDTRIP=2 (skip usageLogs to avoid DB column mismatch)
-      const quotaUsed = item.redeem_type === "SINGLE" ? 1 : 2;
-      const fallbackMember =
-        item.card.member || item.card.purchases?.[0]?.member || null;
-
+      const fallbackMember = item.card.member || item.card.purchases?.[0]?.member || null;
       return {
         id: item.id,
-        transactionNumber: item.transactionNumber,
+        transactionNumber: item.transactionNumber, // <-- tambahkan field ini
         cardId: item.cardId,
         operatorId: item.operatorId,
         stationId: item.stationId,
         shiftDate: item.shiftDate.toISOString(),
         status: item.status,
         redeemType: item.redeem_type,
-        quotaUsed,
+        quotaUsed: item.redeem_type === "SINGLE" ? 1 : 2,
         notes: item.notes,
         createdAt: item.createdAt.toISOString(),
         updatedAt: item.updatedAt.toISOString(),
@@ -366,6 +375,7 @@ export class RedeemService {
           id: item.card.id,
           serialNumber: item.card.serialNumber,
           quotaTicket: item.card.quotaTicket,
+          programType: item.card.programType,
           member: fallbackMember,
           cardProduct: item.card.cardProduct,
         },
@@ -400,39 +410,40 @@ export class RedeemService {
             fullName: true,
           },
         },
-        card: {
-          select: {
-            id: true,
-            serialNumber: true,
-            quotaTicket: true,
-            member: {
-              select: {
-                id: true,
-                name: true,
-                identityNumber: true,
+          card: {
+            select: {
+              id: true,
+              serialNumber: true,
+              quotaTicket: true,
+              programType: true,
+              member: {
+                select: {
+                  id: true,
+                  name: true,
+                  identityNumber: true,
+                },
               },
-            },
-            cardProduct: {
-              select: {
-                category: { select: { categoryName: true } },
-                type: { select: { typeName: true } },
+              cardProduct: {
+                select: {
+                  category: { select: { categoryName: true } },
+                  type: { select: { typeName: true } },
+                },
               },
-            },
-            purchases: {
-              orderBy: { purchaseDate: "desc" },
-              take: 1,
-              select: {
-                member: {
-                  select: {
-                    id: true,
-                    name: true,
-                    identityNumber: true,
+              purchases: {
+                orderBy: { purchaseDate: "desc" },
+                take: 1,
+                select: {
+                  member: {
+                    select: {
+                      id: true,
+                      name: true,
+                      identityNumber: true,
+                    },
                   },
                 },
               },
             },
           },
-        },
       },
     });
 
@@ -542,9 +553,12 @@ export class RedeemService {
   // Delete Redeem (soft delete) and restore quota
   static async deleteRedeem(id: string, userId?: string) {
     return await db.$transaction(async (tx) => {
-      const redeem = await tx.redeem.findUnique({ where: { id } });
+      const redeem = await tx.redeem.findUnique({ where: { id }, include: { card: true } });
       if (!redeem) throw new NotFoundError("Redeem transaction not found");
       if (redeem.deletedAt) throw new ValidationError("Redeem already deleted");
+
+      // Optional: enforce product type validation if product param is provided (future-proof)
+      // Example: if (product && redeem.card.programType !== product) { throw new ValidationError(...) }
 
       // Cari log usage terkait redeem ini
       const usageLog = await tx.cardUsageLog.findFirst({ where: { redeemId: id, deletedAt: null } });
