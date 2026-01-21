@@ -159,13 +159,13 @@ export default function TransactionPage() {
     /* ===== REPORT INFO ===== */
     const reportInfo = {
       station: stationId
-        ? firstItem?.station?.stationName ?? "-"
+        ? (firstItem?.station?.stationName ?? "-")
         : "All Station",
       category: cardCategoryId
-        ? firstItem?.card?.cardProduct?.category?.categoryName ?? "-"
+        ? (firstItem?.card?.cardProduct?.category?.categoryName ?? "-")
         : "All Category",
       type: cardTypeId
-        ? firstItem?.card?.cardProduct?.type?.typeName ?? "-"
+        ? (firstItem?.card?.cardProduct?.type?.typeName ?? "-")
         : "All Type",
       dateRange:
         purchasedDate || shiftDate
@@ -217,19 +217,21 @@ export default function TransactionPage() {
     /* ===== TABLE ===== */
     autoTable(doc, {
       startY: infoY + gap * 6 + 4,
-      head: [[
-        "Customer Name",
-        "NIK",
-        "Card Category",
-        "Card Type",
-        "Serial Number",
-        "Reference EDC",
-        "FWC Price",
-        "Purchase Date",
-        "Shift Date",
-        "Operator Name",
-        "Station",
-      ]],
+      head: [
+        [
+          "Customer Name",
+          "NIK",
+          "Card Category",
+          "Card Type",
+          "Serial Number",
+          "Reference EDC",
+          "FWC Price",
+          "Purchase Date",
+          "Shift Date",
+          "Operator Name",
+          "Station",
+        ],
+      ],
       body: items.map((item: any) => [
         item.member?.name ?? "-",
         item.member?.identityNumber ?? "-",
@@ -315,11 +317,9 @@ export default function TransactionPage() {
         data={data}
         loading={loading}
         pagination={pagination}
-        onPageChange={(page) =>
-          setPagination((p) => ({ ...p, page }))
-        }
+        onPageChange={(page) => setPagination((p) => ({ ...p, page }))}
         onEdit={(id) =>
-          router.push(`/dashboard/superadmin/transaksi/${id}/edit`)
+          router.push(`/dashboard/superadmin/transaksi/edit/${id}`)
         }
         canEdit
         canDelete
