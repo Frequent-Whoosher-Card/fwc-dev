@@ -890,6 +890,12 @@ export class RedeemService {
     await fs.mkdir(dir, { recursive: true });
     await fs.writeFile(relativePath, buf);
 
+    // Delete existing fileObject with same relativePath (if any)
+    const existing = await db.fileObject.findUnique({ where: { relativePath } });
+    if (existing) {
+      await db.fileObject.delete({ where: { id: existing.id } });
+    }
+
     const file = await db.fileObject.create({
       data: {
         originalName: storedName,
