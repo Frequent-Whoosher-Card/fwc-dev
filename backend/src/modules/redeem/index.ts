@@ -259,7 +259,7 @@ const exportRedeemRoutes = new Elysia()
 // Upload last redeem documentation (role: petugas)
 const lastDocRoutes = new Elysia()
   .use(authMiddleware)
-  .use(rbacMiddleware(["petugas"]))
+  .use(rbacMiddleware(["petugas", "superadmin"]))
   .post(
     "/:id/last-doc",
     async ({ params: { id }, body, user, set }) => {
