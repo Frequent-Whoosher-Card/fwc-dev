@@ -14,6 +14,9 @@ export namespace CardProductModel {
         masaBerlaku: t.Number(),
         price: t.String(),
         serialTemplate: t.String(),
+        programType: t.Nullable(
+          t.Union([t.Literal("FWC"), t.Literal("VOUCHER")]),
+        ),
         isActive: t.Boolean(),
         createdAt: t.Nullable(t.Date()),
         createdBy: t.Nullable(t.String()),
@@ -36,6 +39,11 @@ export namespace CardProductModel {
   // Get Card Products Query
   export const getCardProductsQuery = t.Object({
     search: t.Optional(t.String()),
+    programType: t.Optional(
+      t.Union([t.Literal("FWC"), t.Literal("VOUCHER")], {
+        description: "Tipe Program (FWC/VOUCHER)",
+      }),
+    ),
   });
 
   // Get Card Product by ID Response
@@ -50,6 +58,9 @@ export namespace CardProductModel {
       masaBerlaku: t.Number(),
       price: t.String(),
       serialTemplate: t.String(),
+      programType: t.Nullable(
+        t.Union([t.Literal("FWC"), t.Literal("VOUCHER")]),
+      ),
       isActive: t.Boolean(),
       createdAt: t.Nullable(t.Date()),
       createdBy: t.Nullable(t.String()),
@@ -69,6 +80,10 @@ export namespace CardProductModel {
     typeId: t.String({
       format: "uuid",
       description: "Type ID",
+    }),
+    programType: t.Union([t.Literal("FWC"), t.Literal("VOUCHER")], {
+      description:
+        "Tipe Program (FWC/VOUCHER). Harus sesuai dengan Kategori & Tipe.",
     }),
     totalQuota: t.Number({
       description: "Total quota",
@@ -98,6 +113,9 @@ export namespace CardProductModel {
       masaBerlaku: t.Number(),
       price: t.String(),
       serialTemplate: t.String(),
+      programType: t.Nullable(
+        t.Union([t.Literal("FWC"), t.Literal("VOUCHER")]),
+      ),
       isActive: t.Boolean(),
       createdAt: t.Nullable(t.Date()),
       createdBy: t.Nullable(t.String()),
@@ -117,6 +135,10 @@ export namespace CardProductModel {
     typeId: t.String({
       format: "uuid",
       description: "Type ID",
+    }),
+    programType: t.Union([t.Literal("FWC"), t.Literal("VOUCHER")], {
+      description:
+        "Tipe Program (FWC/VOUCHER). Harus sesuai dengan Kategori & Tipe.",
     }),
     totalQuota: t.Number({
       description: "Total quota",
@@ -146,6 +168,9 @@ export namespace CardProductModel {
       masaBerlaku: t.Number(),
       price: t.String(),
       serialTemplate: t.String(),
+      programType: t.Nullable(
+        t.Union([t.Literal("FWC"), t.Literal("VOUCHER")]),
+      ),
       isActive: t.Boolean(),
       createdAt: t.Nullable(t.Date()),
       createdBy: t.Nullable(t.String()),
