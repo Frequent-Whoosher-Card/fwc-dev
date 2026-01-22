@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { getPurchases } from "@/lib/services/purchase.service";
 
@@ -47,6 +47,7 @@ const formatDateID = (date?: string) => {
 
 export default function TransactionPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   /* =====================
      TAB STATE
@@ -106,9 +107,12 @@ export default function TransactionPage() {
       typeId: cardTypeId,
     };
 
+    console.log("Fetching purchases with params:", params);
+
     try {
       if (activeTab === "fwc") {
         const res = await getPurchases(params);
+        console.log("Purchases response:", res);
         if (res.success && res.data) {
           setFWCData(res.data.items);
           setPagination(res.data.pagination);
@@ -144,6 +148,7 @@ export default function TransactionPage() {
     cardCategoryId,
     cardTypeId,
     pagination.page,
+    searchParams.get("refresh"), // Trigger refetch saat refresh param berubah
   ]);
 
   /* =====================
@@ -151,10 +156,14 @@ export default function TransactionPage() {
   ===================== */
   const handleAddPurchased = () => {
     if (activeTab === "voucher") {
-      router.push("/dashboard/superadmin/transaksi/voucher/create");  
+      router.push("/dashboard/superadmin/transaksi/voucher/create");
     } else {
       router.push("/dashboard/superadmin/transaksi/create");
     }
+  };
+
+  const handleAddMember = () => {
+    router.push("/dashboard/superadmin/membership/create");
   };
 
   const handleExportPDF = async () => {
@@ -236,6 +245,7 @@ export default function TransactionPage() {
           setPagination((p) => ({ ...p, page: 1 }));
         }}
         onAdd={handleAddPurchased}
+        onAddMember={handleAddMember}
       />
 
       <TransactionFilter

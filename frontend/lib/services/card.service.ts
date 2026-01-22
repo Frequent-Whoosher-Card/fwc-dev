@@ -1,4 +1,6 @@
 import { apiFetch } from "@/lib/apiConfig";
+import axios from "@/lib/axios";
+import type { Card, CardType, CardStatus } from "@/types/purchase";
 
 export const getCards = async (params?: {
   page?: number;
@@ -24,3 +26,42 @@ export const getCards = async (params?: {
     method: "GET",
   });
 };
+
+/**
+ * Get card types from API
+ * @param categoryId - Optional: filter by category
+ */
+export async function getCardTypes(categoryId?: string): Promise<CardType[]> {
+  const url = categoryId
+    ? `/card/types?categoryId=${categoryId}`
+    : "/card/types";
+  const response = await axios.get(url);
+  return response.data.data || [];
+}
+
+/**
+ * Get cards by category, type and status
+ */
+export async function getCardsByType(
+  categoryId: string,
+  cardTypeId: string,
+  status: CardStatus = "IN_STATION",
+): Promise<Card[]> {
+  const response = await axios.get("/cards", {
+    params: {
+      categoryId,
+      typeId: cardTypeId,
+      status,
+    },
+  });
+  
+  return response.data.data?.items || [];
+}
+
+/**
+ * Get card by ID
+ */
+export async function getCardById(cardId: string): Promise<Card> {
+  const response = await axios.get(`/cards/${cardId}`);
+  return response.data.data;
+}

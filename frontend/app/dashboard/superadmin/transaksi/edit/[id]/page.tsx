@@ -85,6 +85,7 @@ export default function EditTransactionPage() {
 
   // card (dropdown)
   const [categories, setCategories] = useState<any[]>([]);
+  const [cardProducts, setCardProducts] = useState<any[]>([]);
   const [types, setTypes] = useState<any[]>([]);
   const [cards, setCards] = useState<any[]>([]);
 
@@ -96,6 +97,13 @@ export default function EditTransactionPage() {
   const [typeName, setTypeName] = useState("");
   const [serialNumber, setSerialNumber] = useState("");
 
+  // editable - operators and stations
+  const [operators, setOperators] = useState<any[]>([]);
+  const [stations, setStations] = useState<any[]>([]);
+  const [operatorId, setOperatorId] = useState<string>("");
+  const [stationId, setStationId] = useState<string>("");
+  const [memberId, setMemberId] = useState<string>("");
+
   // otomatis
   const [price, setPrice] = useState(0);
   const [purchaseDate, setPurchaseDate] = useState("");
@@ -103,10 +111,17 @@ export default function EditTransactionPage() {
   const [operatorName, setOperatorName] = useState("");
   const [stationName, setStationName] = useState("");
   const [updatedBy, setUpdatedBy] = useState("");
+  const [updatedAt, setUpdatedAt] = useState("");
 
   // editable transaksi
   const [edcRef, setEdcRef] = useState("");
   const [note, setNote] = useState("");
+
+  // card mismatch correction
+  const [showCorrection, setShowCorrection] = useState(false);
+  const [wrongCardSerial, setWrongCardSerial] = useState("");
+  const [correctCardSerial, setCorrectCardSerial] = useState("");
+  const [correctionNote, setCorrectionNote] = useState("");
 
   /* ======================
      INIT LOAD
@@ -114,9 +129,11 @@ export default function EditTransactionPage() {
   useEffect(() => {
     async function init() {
       try {
-        const [trx, cat] = await Promise.all([
+        const [trx, cat, ops, sts] = await Promise.all([
           axios.get(`/purchases/${id}`),
           axios.get("/card/category/"),
+          axios.get("/users"),
+          axios.get("/station"),
         ]);
 
         const p = trx.data?.data;
@@ -127,23 +144,31 @@ export default function EditTransactionPage() {
         setIdentityNumber(p.member?.identityNumber ?? "");
         setMemberType(p.member?.type ?? "");
         setNip(p.member?.nippKai ?? "");
+        setMemberId(p.memberId ?? "");
 
         // card
         setCategoryName(p.card?.cardProduct?.category?.categoryName ?? "");
         setTypeName(p.card?.cardProduct?.type?.typeName ?? "");
         setSerialNumber(p.card?.serialNumber ?? "");
 
+        // editable - operator and station
+        setOperatorId(p.operatorId ?? "");
+        setOperatorName(p.operator?.fullName ?? "");
+        setStationId(p.stationId ?? "");
+        setStationName(p.station?.stationName ?? "");
+        setOperators(ops.data?.data?.items ?? []);
+        setStations(sts.data?.data?.items ?? []);
+
         // otomatis
         setPrice(p.price ?? 0);
         setPurchaseDate(formatDate(p.purchaseDate));
-        setShiftDate(formatDate(p.shiftDate));
-        setOperatorName(p.operator?.fullName ?? "");
-        setStationName(p.station?.stationName ?? "");
-        setUpdatedBy(p.updatedBy?.fullName ?? p.operator?.fullName ?? "");
+        setShiftDate(p.shiftDate ? formatDate(p.shiftDate) : "");
+        setUpdatedBy(p.updatedByName ?? p.operator?.fullName ?? "");
+        setUpdatedAt(p.updatedAt ? formatDate(p.updatedAt) : "");
 
         // editable
         setEdcRef(p.edcReferenceNumber ?? "");
-        setNote(p.note ?? "");
+        setNote(p.notes ?? "");
 
         setCategories(cat.data?.data ?? []);
       } catch {
@@ -165,21 +190,21 @@ export default function EditTransactionPage() {
     setCardId(undefined);
     setTypes([]);
     setCards([]);
+    setPrice(0);
 
     if (!id) return;
 
     const selected = categories.find((c) => c.id === id);
     setCategoryName(selected?.categoryName ?? "");
 
-    // harga otomatis (sementara BRD)
-    if (selected?.categoryName === "GOLD") setPrice(500000);
-    else if (selected?.categoryName === "SILVER") setPrice(300000);
-    else setPrice(0);
+    // Load card products untuk mendapatkan price
+    const [typesRes, productsRes] = await Promise.all([
+      axios.get("/card/types", { params: { categoryId: id } }),
+      axios.get("/card/product", { params: { categoryId: id } }),
+    ]);
 
-    const res = await axios.get("/card/types", {
-      params: { categoryId: id },
-    });
-    setTypes(res.data?.data ?? []);
+    setTypes(typesRes.data?.data ?? []);
+    setCardProducts(productsRes.data?.data ?? []);
   }
 
   /* ======================
@@ -193,31 +218,122 @@ export default function EditTransactionPage() {
     const t = types.find((x) => x.id === id);
     setTypeName(t?.typeName ?? "");
 
-    if (!id) return;
+    if (!id) {
+      setPrice(0);
+      return;
+    }
 
+    // Set price dari cardProduct yang sesuai dengan categoryId DAN typeId
+    const matchedProduct = cardProducts.find(
+      (product: any) =>
+        product.categoryId === categoryId && product.type?.id === id,
+    );
+    if (matchedProduct) {
+      setPrice(Number(matchedProduct.price) || 0);
+    }
+
+    // Load cards dengan filter categoryId DAN typeId
     const res = await axios.get("/cards", {
-      params: { cardTypeId: id, status: "IN_STATION" },
+      params: {
+        categoryId: categoryId,
+        typeId: id,
+        status: "IN_STATION",
+      },
     });
     setCards(res.data?.data?.items ?? []);
   }
 
   /* ======================
-     SUBMIT (sementara UI only)
+     CARD CORRECTION
+  ====================== */
+  async function handleCorrectCard() {
+    if (!wrongCardSerial || !correctCardSerial) {
+      alert("Harap isi Wrong Card Serial dan Correct Card Serial");
+      return;
+    }
+
+    if (
+      !confirm(
+        "Apakah Anda yakin ingin melakukan koreksi kartu? Kartu yang salah akan di-set ke status DELETED (permanent).",
+      )
+    ) {
+      return;
+    }
+
+    try {
+      // Find wrong card ID by serial number
+      const wrongCardRes = await axios.get("/cards", {
+        params: { search: wrongCardSerial },
+      });
+      const wrongCard = wrongCardRes.data?.data?.items?.find(
+        (c: any) => c.serialNumber === wrongCardSerial,
+      );
+
+      if (!wrongCard) {
+        alert(`Card dengan serial ${wrongCardSerial} tidak ditemukan`);
+        return;
+      }
+
+      // Find correct card ID by serial number
+      const correctCardRes = await axios.get("/cards", {
+        params: { search: correctCardSerial },
+      });
+      const correctCard = correctCardRes.data?.data?.items?.find(
+        (c: any) => c.serialNumber === correctCardSerial,
+      );
+
+      if (!correctCard) {
+        alert(`Card dengan serial ${correctCardSerial} tidak ditemukan`);
+        return;
+      }
+
+      // Call correction endpoint
+      await axios.patch(`/purchases/${id}/correct-card-mismatch`, {
+        wrongCardId: wrongCard.id,
+        correctCardId: correctCard.id,
+        notes: correctionNote,
+      });
+
+      alert("Koreksi kartu berhasil!");
+      router.refresh();
+      router.back();
+    } catch (error: any) {
+      const message =
+        error.response?.data?.error?.message || "Gagal melakukan koreksi kartu";
+      alert(message);
+    }
+  }
+
+  /* ======================
+     SUBMIT
   ====================== */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    // endpoint edit belum aktif
-    console.log({
-      customerName,
-      identityNumber,
-      nip,
-      cardId,
-      edcRef,
-      note,
-    });
+    try {
+      const updateData: any = {};
 
-    alert("Endpoint update belum tersedia");
+      if (memberId) updateData.memberId = memberId;
+      if (operatorId) updateData.operatorId = operatorId;
+      if (stationId) updateData.stationId = stationId;
+      if (edcRef) updateData.edcReferenceNumber = edcRef;
+      if (price) updateData.price = price;
+      if (note) updateData.notes = note;
+      if (shiftDate) {
+        // Convert YYYY-MM-DD to ISO datetime
+        const date = new Date(shiftDate);
+        updateData.shiftDate = date.toISOString();
+      }
+
+      await axios.patch(`/purchases/${id}`, updateData);
+
+      alert("Transaksi berhasil diperbarui");
+      router.back();
+    } catch (error: any) {
+      const message =
+        error.response?.data?.error?.message || "Gagal memperbarui transaksi";
+      alert(message);
+    }
   }
 
   if (loading) return <div className="p-6">Memuat data…</div>;
@@ -249,31 +365,30 @@ export default function EditTransactionPage() {
           <Field label="Nama Customer">
             <input
               value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              className={base}
+              disabled
+              className={`${base} bg-gray-100`}
             />
           </Field>
 
           <Field label="Identity Number">
             <input
               value={identityNumber}
-              onChange={(e) => setIdentityNumber(e.target.value)}
-              className={base}
+              disabled
+              className={`${base} bg-gray-100`}
             />
           </Field>
 
           <Field label="NIP (Khusus KAI)">
             <input
               value={nip}
-              onChange={(e) => setNip(e.target.value)}
-              disabled={memberType !== "KAI"}
+              disabled
               placeholder={
                 memberType === "KAI"
                   ? "Masukkan NIP KAI"
                   : "Tidak berlaku (Non-KAI)"
               }
-              className={`${base} ${
-                memberType !== "KAI" ? "bg-gray-100 italic" : ""
+              className={`${base} bg-gray-100 ${
+                memberType !== "KAI" ? "italic" : ""
               }`}
             />
           </Field>
@@ -284,47 +399,27 @@ export default function EditTransactionPage() {
           description="Kategori, tipe, dan kartu yang digunakan"
         >
           <Field label="Card Category">
-            <select
-              className={base}
-              onChange={(e) => onCategoryChange(e.target.value)}
-            >
-              <option value="">{categoryName || "Pilih Category"}</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.categoryName}
-                </option>
-              ))}
-            </select>
+            <input
+              value={categoryName}
+              disabled
+              className={`${base} bg-gray-100`}
+            />
           </Field>
 
           <Field label="Card Type">
-            <select
-              className={base}
-              disabled={!categoryId}
-              onChange={(e) => onTypeChange(e.target.value)}
-            >
-              <option value="">{typeName || "Pilih Type"}</option>
-              {types.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.typeName}
-                </option>
-              ))}
-            </select>
+            <input
+              value={typeName}
+              disabled
+              className={`${base} bg-gray-100`}
+            />
           </Field>
 
           <Field label="Serial Number">
-            <select
-              className={base}
-              disabled={!typeId}
-              onChange={(e) => setCardId(e.target.value)}
-            >
-              <option value="">{serialNumber || "Pilih Serial"}</option>
-              {cards.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.serialNumber}
-                </option>
-              ))}
-            </select>
+            <input
+              value={serialNumber}
+              disabled
+              className={`${base} bg-gray-100`}
+            />
           </Field>
 
           <Field label="FW Price (Otomatis)">
@@ -346,6 +441,7 @@ export default function EditTransactionPage() {
           </Field>
           <Field label="Shift Date">
             <input
+              type="date"
               value={shiftDate}
               disabled
               className={`${base} bg-gray-100`}
@@ -355,18 +451,32 @@ export default function EditTransactionPage() {
 
         <SectionCard title="Operasional">
           <Field label="Operator">
-            <input
-              value={operatorName}
-              disabled
-              className={`${base} bg-gray-100`}
-            />
+            <select
+              value={operatorId}
+              onChange={(e) => setOperatorId(e.target.value)}
+              className={base}
+            >
+              <option value="">{operatorName || "Pilih Operator"}</option>
+              {operators.map((op) => (
+                <option key={op.id} value={op.id}>
+                  {op.fullName}
+                </option>
+              ))}
+            </select>
           </Field>
           <Field label="Stasiun">
-            <input
-              value={stationName}
-              disabled
-              className={`${base} bg-gray-100`}
-            />
+            <select
+              value={stationId}
+              onChange={(e) => setStationId(e.target.value)}
+              className={base}
+            >
+              <option value="">{stationName || "Pilih Stasiun"}</option>
+              {stations.map((st) => (
+                <option key={st.id} value={st.id}>
+                  {st.stationName}
+                </option>
+              ))}
+            </select>
           </Field>
         </SectionCard>
 
@@ -383,26 +493,125 @@ export default function EditTransactionPage() {
             />
           </Field>
 
-          <Field label="Terakhir Diperbarui Oleh">
-            <input
-              value={updatedBy}
-              disabled
-              className={`${base} bg-gray-100`}
-            />
-          </Field>
+          {updatedAt && (
+            <>
+              <Field label="Terakhir Diperbarui Oleh">
+                <input
+                  value={updatedBy}
+                  disabled
+                  className={`${base} bg-gray-100`}
+                />
+              </Field>
 
-          {/* ROW 2 - FULL WIDTH */}
+              {/* ROW 2 */}
+              <Field label="Terakhir Diperbarui Pada">
+                <input
+                  value={updatedAt}
+                  disabled
+                  className={`${base} bg-gray-100`}
+                />
+              </Field>
+            </>
+          )}
+
+          {/* ROW 3 - FULL WIDTH */}
           <div className="md:col-span-2">
-            <Field label="Catatan Transaksi">
+            <Field label="Noted">
               <textarea
                 value={note}
-                onChange={(e) => setNote(e.target.value)}
-                className="min-h-[96px] w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
+                disabled
+                className="min-h-[96px] w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
                 placeholder="Tambahkan catatan jika diperlukan"
               />
             </Field>
           </div>
         </SectionCard>
+
+        {/* CARD MISMATCH CORRECTION - Only show if no note exists */}
+        {!note && (
+          <SectionCard
+            title="Koreksi Kartu (Card Mismatch)"
+            description="Gunakan jika petugas salah memberikan kartu ke customer"
+          >
+            <div className="md:col-span-2">
+              <div className="flex items-center gap-2 mb-4">
+                <input
+                  type="checkbox"
+                  id="showCorrection"
+                  checked={showCorrection}
+                  onChange={(e) => setShowCorrection(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+                <label
+                  htmlFor="showCorrection"
+                  className="text-sm font-medium text-gray-700"
+                >
+                  Aktifkan Koreksi Kartu
+                </label>
+              </div>
+            </div>
+
+          {showCorrection && (
+            <>
+              <Field label="Wrong Card Serial (yang salah dikasih)">
+                <input
+                  value={wrongCardSerial}
+                  onChange={(e) => setWrongCardSerial(e.target.value)}
+                  placeholder="Contoh: 0111001"
+                  className={base}
+                />
+              </Field>
+
+              <Field label="Correct Card Serial (yang benar seharusnya)">
+                <input
+                  value={correctCardSerial}
+                  onChange={(e) => setCorrectCardSerial(e.target.value)}
+                  placeholder="Contoh: 0111002"
+                  className={base}
+                />
+              </Field>
+
+              <div className="md:col-span-2">
+                <Field label="Alasan Koreksi">
+                  <textarea
+                    value={correctionNote}
+                    onChange={(e) => setCorrectionNote(e.target.value)}
+                    className="min-h-[80px] w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
+                    placeholder="Jelaskan alasan koreksi kartu"
+                  />
+                </Field>
+              </div>
+
+              <div className="md:col-span-2">
+                <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3">
+                  <p className="text-xs text-yellow-800">
+                    <strong>Perhatian:</strong> Koreksi kartu akan:
+                  </p>
+                  <ul className="text-xs text-yellow-700 mt-1 ml-4 list-disc">
+                    <li>Card lama ({serialNumber}) return ke IN_STATION</li>
+                    <li>
+                      Wrong card (yang salah dikasih) jadi status DELETED
+                      (permanent)
+                    </li>
+                    <li>Correct card (yang benar) jadi SOLD_ACTIVE</li>
+                    <li>Price transaksi tetap (tidak berubah)</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="md:col-span-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleCorrectCard}
+                  className="rounded-md bg-orange-600 px-6 py-2 text-sm font-medium text-white hover:bg-orange-700"
+                >
+                  Lakukan Koreksi Kartu
+                </button>
+              </div>
+            </>
+          )}
+          </SectionCard>
+        )}
 
         <div className="flex justify-end pt-4">
           <button className="rounded-md bg-[#8B1538] px-8 py-2 text-sm font-medium text-white hover:bg-[#73122E]">

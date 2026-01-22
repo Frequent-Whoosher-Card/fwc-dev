@@ -1,37 +1,8 @@
-// ✅ BENAR
 import { apiFetch } from "@/lib/apiConfig";
-
-/* =========================
-   COMMON TYPES
-========================= */
+import axios from "@/lib/axios";
+import type { Purchase } from "@/types/purchase";
 
 export type TransactionType = "fwc" | "voucher";
-
-/* =========================
-   CREATE / UPDATE PAYLOAD
-========================= */
-
-/**
- * Payload CREATE / UPDATE PURCHASE (FWC)
- */
-export interface CreatePurchasePayload {
-  cardId: string;
-  memberId: string;
-  edcReferenceNumber: string;
-  purchasedDate: string;
-  expiredDate: string;
-  shiftDate?: string;
-
-  /** readonly / backend */
-  price?: number;
-  operatorName?: string;
-  stationId?: string;
-  notes?: string;
-}
-
-/* =========================
-   FWC TYPES
-========================= */
 
 export interface FWCPurchaseListItem {
   id: string;
@@ -68,10 +39,6 @@ export interface FWCPurchaseListItem {
   };
 }
 
-/* =========================
-   VOUCHER TYPES
-========================= */
-
 export interface VoucherTransactionListItem {
   id: string;
   edcReferenceNumber: string;
@@ -105,10 +72,6 @@ export interface VoucherTransactionListItem {
     stationName: string;
   };
 }
-
-/* =========================
-   DETAIL PURCHASE (FWC)
-========================= */
 
 export interface PurchaseDetail {
   id: string;
@@ -156,10 +119,6 @@ export interface PurchaseDetail {
   };
 }
 
-/* =========================
-   QUERY PARAMS
-========================= */
-
 export interface GetPurchasesParams {
   page?: number;
   limit?: number;
@@ -169,50 +128,22 @@ export interface GetPurchasesParams {
   categoryId?: string;
   typeId?: string;
   stationId?: string;
-
-  /** 🔥 INI YANG HILANG KEMARIN */
   transactionType?: TransactionType;
 }
 
-/* =========================
-   SERVICES
-========================= */
-
-/**
- * CREATE FWC PURCHASE
- */
-export const createPurchase = (payload: CreatePurchasePayload) => {
-  return apiFetch("/purchases", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-};
-
-/**
- * UPDATE FWC PURCHASE
- */
-export const updatePurchase = (
-  id: string | number,
-  payload: CreatePurchasePayload,
-) => {
+export const updatePurchase = (id: string | number, payload: any) => {
   return apiFetch(`/purchases/${id}`, {
     method: "PUT",
     body: JSON.stringify(payload),
   });
 };
 
-/**
- * DELETE PURCHASE (FWC / Voucher)
- */
 export const deletePurchase = (id: string | number) => {
   return apiFetch(`/purchases/${id}`, {
     method: "DELETE",
   });
 };
 
-/**
- * GET PURCHASE LIST (FWC / VOUCHER)
- */
 export const getPurchases = async (params?: GetPurchasesParams) => {
   const query = new URLSearchParams();
 
@@ -224,8 +155,6 @@ export const getPurchases = async (params?: GetPurchasesParams) => {
   if (params?.categoryId) query.append("categoryId", params.categoryId);
   if (params?.typeId) query.append("typeId", params.typeId);
   if (params?.stationId) query.append("stationId", params.stationId);
-
-  /** 🔥 TAB CONTROLLER */
   if (params?.transactionType) {
     query.append("transactionType", params.transactionType);
   }
@@ -235,11 +164,13 @@ export const getPurchases = async (params?: GetPurchasesParams) => {
   });
 };
 
-/**
- * GET PURCHASE BY ID (FWC)
- */
 export const getPurchaseById = (id: string | number) => {
   return apiFetch(`/purchases/${id}`, {
     method: "GET",
   });
 };
+
+export async function createPurchase(payload: any): Promise<Purchase> {
+  const response = await axios.post("/purchases", payload);
+  return response.data.data;
+}
