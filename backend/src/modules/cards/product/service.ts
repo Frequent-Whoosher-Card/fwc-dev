@@ -336,12 +336,24 @@ export class CardProductService {
 
   // Soft delete card product
   static async deleteCardProduct(id: string, userId: string) {
+    const existingProduct = await db.cardProduct.findUnique({
+      where: { id },
+    });
+
+    if (!existingProduct) {
+      throw new ValidationError(
+        "Card Product Not Found",
+        "CARD_PRODUCT_NOT_FOUND",
+      );
+    }
+
     const deleteCardProduct = await db.cardProduct.update({
       where: {
         id,
       },
       data: {
         isActive: false,
+        serialTemplate: `${existingProduct.serialTemplate}-deleted-${Date.now()}`,
         deletedAt: new Date(),
         deletedBy: userId,
       },

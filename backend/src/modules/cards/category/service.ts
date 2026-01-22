@@ -136,11 +136,23 @@ export class CardCategoryService {
 
   // Soft delete Card Category
   static async deleteCardCategory(id: string, userId: string) {
+    const existingCategory = await db.cardCategory.findUnique({
+      where: { id },
+    });
+
+    if (!existingCategory) {
+      throw new ValidationError(
+        "Card Category Not Found",
+        "CARD_CATEGORY_NOT_FOUND",
+      );
+    }
+
     const cardCategory = await db.cardCategory.update({
       where: {
         id,
       },
       data: {
+        categoryCode: `${existingCategory.categoryCode}-deleted-${Date.now()}`,
         deletedAt: new Date(),
         deletedBy: userId,
       },
@@ -166,18 +178,18 @@ export class CardCategoryService {
       },
     });
 
-    let maxCode = 0;
-    for (const category of categories) {
-      const code = parseInt(category.categoryCode);
-      if (!isNaN(code)) {
-        if (code > maxCode) {
-          maxCode = code;
-        }
-      }
+    const existingCodes = new Set(
+      categories
+        .map((cat) => parseInt(cat.categoryCode))
+        .filter((code) => !isNaN(code)),
+    );
+
+    let recommendedInt = 1;
+    while (existingCodes.has(recommendedInt)) {
+      recommendedInt++;
     }
 
-    const nextCode = maxCode + 1;
     // Pad with leading zero if single digit, e.g., "01", "02" ... "09", "10"
-    return nextCode.toString();
+    return recommendedInt.toString();
   }
 }

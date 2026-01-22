@@ -135,11 +135,20 @@ export class CardTypeService {
 
   // Soft delete card type
   static async deleteCardType(id: string, userId: string) {
+    const existingType = await db.cardType.findUnique({
+      where: { id },
+    });
+
+    if (!existingType) {
+      throw new ValidationError("Card Type Not Found", "CARD_TYPE_NOT_FOUND");
+    }
+
     const cardType = await db.cardType.update({
       where: {
         id,
       },
       data: {
+        typeCode: `${existingType.typeCode}-deleted-${Date.now()}`,
         deletedAt: new Date(),
         deletedBy: userId,
       },
@@ -165,18 +174,18 @@ export class CardTypeService {
       },
     });
 
-    let maxCode = 0;
-    for (const type of types) {
-      const code = parseInt(type.typeCode);
-      if (!isNaN(code)) {
-        if (code > maxCode) {
-          maxCode = code;
-        }
-      }
+    const existingCodes = new Set(
+      types
+        .map((type) => parseInt(type.typeCode))
+        .filter((code) => !isNaN(code)),
+    );
+
+    let recommendedInt = 1;
+    while (existingCodes.has(recommendedInt)) {
+      recommendedInt++;
     }
 
-    const nextCode = maxCode + 1;
     // Pad with leading zero if single digit, e.g., "01", "02" ... "09", "10"
-    return nextCode.toString();
+    return recommendedInt.toString();
   }
 }
