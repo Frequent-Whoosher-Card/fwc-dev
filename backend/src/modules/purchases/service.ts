@@ -300,7 +300,7 @@ export class PurchaseService {
         where,
         skip,
         take: limit,
-        orderBy: { purchaseDate: "desc" },
+        orderBy: { createdAt: "desc" },
         include: {
           card: {
             select: {
@@ -535,5 +535,348 @@ export class PurchaseService {
       operator: purchase.operator,
       station: purchase.station,
     };
+  }
+
+  // Update Purchase
+  static async updatePurchase(
+    id: string,
+    data: {
+      memberId?: string;
+      operatorId?: string;
+      stationId?: string;
+      edcReferenceNumber?: string;
+      price?: number;
+      notes?: string;
+      shiftDate?: string;
+    },
+    userId: string,
+  ) {
+    return await db.$transaction(async (tx) => {
+      // 1. Check if purchase exists
+      const purchase = await tx.cardPurchase.findUnique({
+        where: { id, deletedAt: null },
+        include: {
+          card: true,
+        },
+      });
+
+      if (!purchase) {
+        throw new NotFoundError("Transaksi pembelian tidak ditemukan");
+      }
+
+      // 2. Validate member if provided
+      if (data.memberId) {
+        const member = await tx.member.findUnique({
+          where: { id: data.memberId, deletedAt: null },
+        });
+        if (!member) {
+          throw new ValidationError("Member tidak ditemukan");
+        }
+      }
+
+      // 3. Validate operator if provided
+      if (data.operatorId) {
+        const operator = await tx.user.findUnique({
+          where: { id: data.operatorId, deletedAt: null },
+        });
+        if (!operator) {
+          throw new ValidationError("Operator tidak ditemukan");
+        }
+      }
+
+      // 4. Validate station if provided
+      if (data.stationId) {
+        const station = await tx.station.findUnique({
+          where: { id: data.stationId, deletedAt: null },
+        });
+        if (!station) {
+          throw new ValidationError("Stasiun tidak ditemukan");
+        }
+      }
+
+      // 5. Check EDC reference uniqueness if provided
+      if (
+        data.edcReferenceNumber &&
+        data.edcReferenceNumber !== purchase.edcReferenceNumber
+      ) {
+        const existingEdc = await tx.cardPurchase.findFirst({
+          where: {
+            edcReferenceNumber: data.edcReferenceNumber,
+            deletedAt: null,
+          },
+        });
+        if (existingEdc) {
+          throw new ValidationError(
+            "EDC Reference Number sudah digunakan untuk transaksi lain",
+          );
+        }
+      }
+
+      // 6. Prepare update data
+      const updateData: any = {
+        updatedBy: userId,
+      };
+
+      if (data.memberId !== undefined) updateData.memberId = data.memberId;
+      if (data.operatorId !== undefined)
+        updateData.operatorId = data.operatorId;
+      if (data.stationId !== undefined) updateData.stationId = data.stationId;
+      if (data.edcReferenceNumber !== undefined)
+        updateData.edcReferenceNumber = data.edcReferenceNumber;
+      if (data.price !== undefined) updateData.price = data.price;
+      if (data.notes !== undefined) updateData.notes = data.notes;
+      if (data.shiftDate !== undefined)
+        updateData.shiftDate = new Date(data.shiftDate);
+
+      // 7. Update purchase
+      const updatedPurchase = await tx.cardPurchase.update({
+        where: { id },
+        data: updateData,
+        include: {
+          card: {
+            include: {
+              cardProduct: {
+                include: {
+                  category: true,
+                  type: true,
+                },
+              },
+            },
+          },
+          member: true,
+          operator: true,
+          station: true,
+        },
+      });
+
+      // 8. Fetch creator and updater names
+      const [creator, updater] = await Promise.all([
+        updatedPurchase.createdBy
+          ? tx.user.findUnique({
+              where: { id: updatedPurchase.createdBy },
+              select: { fullName: true },
+            })
+          : null,
+        tx.user.findUnique({
+          where: { id: userId },
+          select: { fullName: true },
+        }),
+      ]);
+
+      // 9. Return formatted response
+      return {
+        id: updatedPurchase.id,
+        cardId: updatedPurchase.cardId,
+        memberId: updatedPurchase.memberId,
+        operatorId: updatedPurchase.operatorId,
+        stationId: updatedPurchase.stationId,
+        edcReferenceNumber: updatedPurchase.edcReferenceNumber,
+        purchaseDate: updatedPurchase.purchaseDate.toISOString(),
+        price: Number(updatedPurchase.price),
+        notes: updatedPurchase.notes,
+        createdAt: updatedPurchase.createdAt.toISOString(),
+        updatedAt: updatedPurchase.updatedAt.toISOString(),
+        createdByName: creator?.fullName || null,
+        updatedByName: updater?.fullName || null,
+        card: {
+          ...updatedPurchase.card,
+          expiredDate: updatedPurchase.card.expiredDate
+            ? updatedPurchase.card.expiredDate.toISOString()
+            : null,
+          cardProduct: {
+            ...updatedPurchase.card.cardProduct,
+            totalQuota: updatedPurchase.card.cardProduct.totalQuota,
+            masaBerlaku: updatedPurchase.card.cardProduct.masaBerlaku,
+          },
+        },
+        member: updatedPurchase.member,
+        operator: updatedPurchase.operator,
+        station: updatedPurchase.station,
+      };
+    });
+  }
+
+  // Correct Card Mismatch
+  static async correctCardMismatch(
+    id: string,
+    data: {
+      wrongCardId: string;
+      correctCardId: string;
+      notes?: string;
+    },
+    userId: string,
+  ) {
+    return await db.$transaction(async (tx) => {
+      // 1. Get purchase
+      const purchase = await tx.cardPurchase.findUnique({
+        where: { id, deletedAt: null },
+        include: {
+          card: {
+            include: {
+              cardProduct: {
+                include: {
+                  category: true,
+                  type: true,
+                },
+              },
+            },
+          },
+          member: true,
+          operator: true,
+          station: true,
+        },
+      });
+
+      if (!purchase) {
+        throw new NotFoundError("Transaksi pembelian tidak ditemukan");
+      }
+
+      const oldCardId = purchase.cardId;
+
+      // 2. Validate wrong card
+      const wrongCard = await tx.card.findUnique({
+        where: { id: data.wrongCardId, deletedAt: null },
+      });
+
+      if (!wrongCard) {
+        throw new ValidationError("Wrong card tidak ditemukan");
+      }
+
+      if (wrongCard.status !== "IN_STATION") {
+        throw new ValidationError(
+          `Wrong card harus berstatus IN_STATION, saat ini: ${wrongCard.status}`,
+        );
+      }
+
+      // 3. Validate correct card
+      const correctCard = await tx.card.findUnique({
+        where: { id: data.correctCardId, deletedAt: null },
+        include: {
+          cardProduct: {
+            include: {
+              category: true,
+              type: true,
+            },
+          },
+        },
+      });
+
+      if (!correctCard) {
+        throw new ValidationError("Correct card tidak ditemukan");
+      }
+
+      if (correctCard.status !== "IN_STATION") {
+        throw new ValidationError(
+          `Correct card harus berstatus IN_STATION, saat ini: ${correctCard.status}`,
+        );
+      }
+
+      // 4. Calculate expiredDate for correct card
+      const masaBerlaku = correctCard.cardProduct.masaBerlaku;
+      const expiredDate = new Date(purchase.purchaseDate);
+      expiredDate.setDate(expiredDate.getDate() + masaBerlaku);
+
+      // 5. Update old card (yang tercatat di transaksi) - return to IN_STATION
+      await tx.card.update({
+        where: { id: oldCardId },
+        data: {
+          status: "IN_STATION",
+          purchaseDate: null,
+          expiredDate: null,
+          updatedBy: userId,
+        },
+      });
+
+      // 6. Update wrong card - set to DELETED status
+      await tx.card.update({
+        where: { id: data.wrongCardId },
+        data: {
+          status: "DELETED",
+          updatedBy: userId,
+        },
+      });
+
+      // 7. Update correct card - set to SOLD_ACTIVE
+      await tx.card.update({
+        where: { id: data.correctCardId },
+        data: {
+          status: "SOLD_ACTIVE",
+          purchaseDate: purchase.purchaseDate,
+          expiredDate: expiredDate,
+          updatedBy: userId,
+        },
+      });
+
+      // 8. Update purchase - change cardId to correct card
+      const correctionNote = `Card corrected: ${oldCardId} → ${data.correctCardId}, wrong card: ${data.wrongCardId}. ${data.notes || ""}`;
+
+      const updatedPurchase = await tx.cardPurchase.update({
+        where: { id },
+        data: {
+          cardId: data.correctCardId,
+          notes: correctionNote,
+          updatedBy: userId,
+        },
+        include: {
+          card: {
+            include: {
+              cardProduct: {
+                include: {
+                  category: true,
+                  type: true,
+                },
+              },
+            },
+          },
+          member: true,
+          operator: true,
+          station: true,
+        },
+      });
+
+      // 9. Fetch updater name
+      const updater = await tx.user.findUnique({
+        where: { id: userId },
+        select: { fullName: true },
+      });
+
+      const creator = updatedPurchase.createdBy
+        ? await tx.user.findUnique({
+            where: { id: updatedPurchase.createdBy },
+            select: { fullName: true },
+          })
+        : null;
+
+      // 10. Return formatted response
+      return {
+        id: updatedPurchase.id,
+        cardId: updatedPurchase.cardId,
+        memberId: updatedPurchase.memberId,
+        operatorId: updatedPurchase.operatorId,
+        stationId: updatedPurchase.stationId,
+        edcReferenceNumber: updatedPurchase.edcReferenceNumber,
+        purchaseDate: updatedPurchase.purchaseDate.toISOString(),
+        price: Number(updatedPurchase.price),
+        notes: updatedPurchase.notes,
+        createdAt: updatedPurchase.createdAt.toISOString(),
+        updatedAt: updatedPurchase.updatedAt.toISOString(),
+        createdByName: creator?.fullName || null,
+        updatedByName: updater?.fullName || null,
+        card: {
+          ...updatedPurchase.card,
+          expiredDate: updatedPurchase.card.expiredDate
+            ? updatedPurchase.card.expiredDate.toISOString()
+            : null,
+          cardProduct: {
+            ...updatedPurchase.card.cardProduct,
+            totalQuota: updatedPurchase.card.cardProduct.totalQuota,
+            masaBerlaku: updatedPurchase.card.cardProduct.masaBerlaku,
+          },
+        },
+        member: updatedPurchase.member,
+        operator: updatedPurchase.operator,
+        station: updatedPurchase.station,
+      };
+    });
   }
 }

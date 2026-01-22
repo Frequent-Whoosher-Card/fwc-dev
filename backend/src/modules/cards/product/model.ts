@@ -28,6 +28,7 @@ export namespace CardProductModel {
         type: t.Object({
           id: t.String(),
           typeName: t.String(),
+          typeCode: t.String(),
         }),
       })
     ),
