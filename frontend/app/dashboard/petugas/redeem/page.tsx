@@ -10,6 +10,8 @@ import RedeemDetailModal from '@/components/redeem/RedeemDetailModal';
 import LastRedeemDocModal from '@/components/redeem/LastRedeemDocModal';
 import DeleteRedeemDialog from '@/components/redeem/DeleteRedeemDialog';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search } from 'lucide-react';
+import React from 'react';
 import ExportRedeemModal from '@/components/redeem/ExportRedeemModal';
 import { getStations } from '@/lib/services/station.service';
 import { getCardCategories, getCardTypes } from '@/lib/services/cardcategory';
@@ -101,9 +103,10 @@ export default function PetugasRedeemPage() {
     <div className="min-h-screen space-y-6 p-2 sm:p-4 lg:p-6">
       <div className="max-w-7xl mx-auto">
         <div className="rounded-xl border border-gray-200 p-4 sm:p-6 lg:p-8">
-          <div className="flex flex-row items-center justify-between gap-4 mb-6">
-            <h1 className="text-lg sm:text-xl font-semibold">Redeem Kuota</h1>
-            <div className="flex flex-row items-center gap-2 sm:gap-3">
+          {/* Responsive Header: Title always on top, controls below, shrink buttons if needed */}
+          <div className="flex flex-col gap-2 mb-6 w-full">
+            <h1 className="text-lg sm:text-xl font-semibold flex-shrink-0 mb-1">Redeem Kuota</h1>
+            <div className="flex flex-col gap-2 w-full sm:flex-row sm:items-center sm:gap-3 sm:w-auto">
               <span className="text-sm font-medium text-gray-700 hidden sm:inline">Pilih Jenis Produk:</span>
               <select
                 value={product}
@@ -120,34 +123,61 @@ export default function PetugasRedeemPage() {
                   setRedeems([]);
                   setPagination({ total: 0, page: 1, limit: 50 });
                 }}
-                className="h-9 w-36 sm:w-44 rounded-md border px-3 text-sm font-semibold text-[#8D1231] bg-red-50 border-[#8D1231] focus:outline-none focus:ring-2 focus:ring-[#8D1231]"
+                className="h-9 w-full sm:w-44 rounded-md border px-3 text-sm font-semibold text-[#8D1231] bg-red-50 border-[#8D1231] focus:outline-none focus:ring-2 focus:ring-[#8D1231]"
               >
                 <option value="">Pilih Produk</option>
                 <option value="FWC">FWC</option>
                 <option value="VOUCHER">VOUCHER</option>
               </select>
               {isProductSelected && (
-                <>
-                  {canCreate && (
+                <div className="flex flex-col gap-2 w-full sm:flex-row sm:gap-3 sm:items-center sm:w-auto">
+                  <div className="flex flex-row gap-2 w-full sm:w-auto">
+                    {canCreate && (
+                      <button
+                        onClick={() => setCreateModalOpen(true)}
+                        className="flex items-center justify-center gap-2 rounded-md bg-[#8D1231] px-2 sm:px-4 py-2 text-xs sm:text-sm text-white hover:bg-[#73122E] transition whitespace-nowrap w-full sm:w-auto min-w-0"
+                        style={{ minWidth: 0 }}
+                      >
+                        <Plus size={14} className="sm:hidden" />
+                        <span className="hidden sm:inline">Tambah Redeem</span>
+                        <span className="sm:hidden">Tambah</span>
+                      </button>
+                    )}
+                    {canExport && (
+                      <button
+                        onClick={() => setExportModalOpen(true)}
+                        className="flex items-center justify-center gap-2 rounded-md bg-blue-600 px-2 sm:px-4 py-2 text-xs sm:text-sm text-white hover:bg-blue-700 whitespace-nowrap w-full sm:w-auto min-w-0"
+                        style={{ minWidth: 0 }}
+                      >
+                        <span className="hidden sm:inline">Export Report</span>
+                        <span className="sm:hidden">Export</span>
+                      </button>
+                    )}
+                  </div>
+                  {/* Search Field */}
+                  <form
+                    onSubmit={e => {
+                      e.preventDefault();
+                      setCurrentPage(1);
+                    }}
+                    className="flex flex-row items-center gap-2 w-full sm:w-auto"
+                  >
+                    <input
+                      type="text"
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                      placeholder="Cari serial/NIK/nama pelanggan"
+                      className="h-9 w-full sm:w-56 rounded-md border px-3 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#8D1231] border-gray-300"
+                    />
                     <button
-                      onClick={() => setCreateModalOpen(true)}
-                      className="flex items-center justify-center gap-2 rounded-md bg-[#8D1231] px-4 py-2 text-sm text-white hover:bg-[#73122E] transition whitespace-nowrap"
+                      type="submit"
+                      className="flex items-center justify-center rounded-md bg-gray-200 hover:bg-gray-300 px-2 py-2 text-gray-700"
+                      aria-label="Cari"
                     >
-                      <Plus size={16} />
-                      <span className="hidden sm:inline">Tambah Redeem</span>
-                      <span className="sm:hidden">Tambah</span>
+                      <Search size={16} />
                     </button>
-                  )}
-                  {canExport && (
-                    <button
-                      onClick={() => setExportModalOpen(true)}
-                      className="flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 whitespace-nowrap"
-                    >
-                      <span className="hidden sm:inline">Export Report</span>
-                      <span className="sm:hidden">Export</span>
-                    </button>
-                  )}
-                </>
+                  </form>
+                </div>
               )}
             </div>
           </div>

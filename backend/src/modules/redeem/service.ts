@@ -293,6 +293,20 @@ export class RedeemService {
             serialNumber: { contains: search, mode: "insensitive" },
           },
         },
+        {
+          card: {
+            member: {
+              identityNumber: { contains: search, mode: "insensitive" },
+            },
+          },
+        },
+        {
+          card: {
+            member: {
+              name: { contains: search, mode: "insensitive" },
+            },
+          },
+        },
       ];
     }
 

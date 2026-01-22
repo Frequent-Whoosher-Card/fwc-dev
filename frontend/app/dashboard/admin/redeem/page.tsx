@@ -13,6 +13,8 @@ import LastRedeemDocModal from '@/components/redeem/LastRedeemDocModal';
 import DeleteRedeemDialog from '@/components/redeem/DeleteRedeemDialog';
 import ExportRedeemModal from '@/components/redeem/ExportRedeemModal';
 import { Plus, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+// Search input for toolbar
+import React from 'react';
 import { getStations } from '@/lib/services/station.service';
 import { getCardCategories, getCardTypes } from '@/lib/services/cardcategory';
 
@@ -46,10 +48,13 @@ export default function AdminRedeemPage() {
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 50 });
-  // ...existing code...
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [uploadDocModalOpen, setUploadDocModalOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [selectedRedeem, setSelectedRedeem] = useState<RedeemItem | null>(null);
   const isProductSelected = product === 'FWC' || product === 'VOUCHER';
-
-  // ...existing code...
 
   // Get permission hook dari role context
   const userCtx = useContext(UserContext);
@@ -59,32 +64,27 @@ export default function AdminRedeemPage() {
 
   const totalPages = Math.ceil(pagination.total / pagination.limit);
 
-  // Load initial data
   useEffect(() => {
     loadStations();
     loadCategories();
     loadCardTypes();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch redeems ketika filter atau page berubah
   useEffect(() => {
-    loadRedeems({
-      page: currentPage,
-      limit: 50,
-      startDate: startDate ? new Date(startDate).toISOString() : undefined,
-      endDate: endDate ? (() => {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        return end.toISOString();
-      })() : undefined,
-      category: category || undefined,
-      cardType: cardType || undefined,
-      stationId: stationId || undefined,
-      search: search || undefined,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startDate, endDate, category, cardType, stationId, search, currentPage]);
+    if (isProductSelected) {
+      loadRedeems({
+        page: currentPage,
+        limit: 50,
+        startDate: startDate ? new Date(startDate).toISOString() : undefined,
+        endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
+        category: category || undefined,
+        cardType: cardType || undefined,
+        stationId: stationId || undefined,
+        search: search || undefined,
+        product,
+      });
+    }
+  }, [startDate, endDate, category, cardType, stationId, search, currentPage, product]);
 
   const loadRedeems = async (filters: RedeemFilterParams) => {
     setIsLoadingRedeems(true);
@@ -144,5 +144,229 @@ export default function AdminRedeemPage() {
     setCurrentPage(1);
   };
 
-
+  // Responsive header and filter layout
+  return (
+    <div className="min-h-screen space-y-6 p-2 sm:p-4 lg:p-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="rounded-xl border border-gray-200 p-4 sm:p-6 lg:p-8">
+              <div className="flex flex-col gap-2 mb-6 w-full">
+                <h1 className="text-lg sm:text-xl font-semibold flex-shrink-0 mb-1">Redeem Kuota</h1>
+                <div className="flex flex-col gap-2 w-full sm:flex-row sm:items-center sm:gap-3 sm:w-auto">
+                  <span className="text-sm font-medium text-gray-700 hidden sm:inline">Pilih Jenis Produk:</span>
+                  <select
+                    value={product}
+                    onChange={e => {
+                      const val = e.target.value as 'FWC' | 'VOUCHER' | '';
+                      setProduct(val);
+                      setStartDate('');
+                      setEndDate('');
+                      setCategory('');
+                      setCardType('');
+                      setStationId('');
+                      setSearch('');
+                      setCurrentPage(1);
+                      setRedeems([]);
+                      setPagination({ total: 0, page: 1, limit: 50 });
+                    }}
+                    className="h-9 w-full sm:w-44 rounded-md border px-3 text-sm font-semibold text-[#8D1231] bg-red-50 border-[#8D1231] focus:outline-none focus:ring-2 focus:ring-[#8D1231]"
+                  >
+                    <option value="">Pilih Produk</option>
+                    <option value="FWC">FWC</option>
+                    <option value="VOUCHER">VOUCHER</option>
+                  </select>
+                  {isProductSelected && (
+                    <div className="flex flex-col gap-2 w-full sm:flex-row sm:gap-3 sm:items-center sm:w-auto">
+                      <div className="flex flex-row gap-2 w-full sm:w-auto">
+                        {canCreate && (
+                          <button
+                            onClick={() => setCreateModalOpen(true)}
+                            className="flex items-center justify-center gap-2 rounded-md bg-[#8D1231] px-2 sm:px-4 py-2 text-xs sm:text-sm text-white hover:bg-[#73122E] transition whitespace-nowrap w-full sm:w-auto min-w-0"
+                            style={{ minWidth: 0 }}
+                          >
+                            <Plus size={14} className="sm:hidden" />
+                            <span className="hidden sm:inline">Tambah Redeem</span>
+                            <span className="sm:hidden">Tambah</span>
+                          </button>
+                        )}
+                        {canExport && (
+                          <button
+                            onClick={() => setExportModalOpen(true)}
+                            className="flex items-center justify-center gap-2 rounded-md bg-blue-600 px-2 sm:px-4 py-2 text-xs sm:text-sm text-white hover:bg-blue-700 whitespace-nowrap w-full sm:w-auto min-w-0"
+                            style={{ minWidth: 0 }}
+                          >
+                            <span className="hidden sm:inline">Export Report</span>
+                            <span className="sm:hidden">Export</span>
+                          </button>
+                        )}
+                      </div>
+                      {/* Search Field */}
+                      <form
+                        onSubmit={e => {
+                          e.preventDefault();
+                          /* search state is already bound, so just trigger reload */
+                          setCurrentPage(1);
+                        }}
+                        className="flex flex-row items-center gap-2 w-full sm:w-auto"
+                      >
+                        <input
+                          type="text"
+                          value={search}
+                          onChange={e => setSearch(e.target.value)}
+                          placeholder="Cari serial/NIK/nama pelanggan"
+                          className="h-9 w-full sm:w-56 rounded-md border px-3 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#8D1231] border-gray-300"
+                        />
+                        <button
+                          type="submit"
+                          className="flex items-center justify-center rounded-md bg-gray-200 hover:bg-gray-300 px-2 py-2 text-gray-700"
+                          aria-label="Cari"
+                        >
+                          <Search size={16} />
+                        </button>
+                      </form>
+                    </div>
+                  )}
+                </div>
+          {isProductSelected && (
+            <>
+              <div className="mb-6">
+                <RedeemFilters
+                  startDate={startDate}
+                  endDate={endDate}
+                  category={category}
+                  cardType={cardType}
+                  stationId={stationId}
+                  onStartDateChange={setStartDate}
+                  onEndDateChange={setEndDate}
+                  onCategoryChange={setCategory}
+                  onCardTypeChange={setCardType}
+                  onStationIdChange={setStationId}
+                  onReset={handleResetFilters}
+                  categories={categories}
+                  cardTypes={cardTypes}
+                  stations={stations}
+                  isLoading={isLoadingRedeems}
+                  product={product as 'FWC' | 'VOUCHER'}
+                  disabled={!isProductSelected}
+                />
+              </div>
+              <div className="mb-4 overflow-x-auto rounded-lg border bg-white">
+                <RedeemTable
+                  data={redeems}
+                  onUploadLastDoc={item => {
+                    setSelectedRedeem(item);
+                    setUploadDocModalOpen(true);
+                  }}
+                  onDelete={item => {
+                    setSelectedRedeem(item);
+                    setDeleteDialogOpen(true);
+                  }}
+                  canDelete={canDelete}
+                  isLoading={isLoadingRedeems}
+                  noDataMessage={isProductSelected ? undefined : 'Pilih produk terlebih dulu'}
+                />
+              </div>
+              {/* Pagination */}
+              <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-600">
+                <button
+                  disabled={pagination.page === 1}
+                  onClick={() => {
+                    if (pagination.page > 1) {
+                      setCurrentPage(pagination.page - 1);
+                    }
+                  }}
+                  className="px-2 disabled:opacity-40"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .slice(Math.max(0, pagination.page - 3), pagination.page + 2)
+                  .map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => {
+                        setCurrentPage(p);
+                      }}
+                      className={`px-3 py-1 ${p === pagination.page ? 'font-semibold underline' : ''}`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                <button
+                  disabled={pagination.page === totalPages}
+                  onClick={() => {
+                    if (pagination.page < totalPages) {
+                      setCurrentPage(pagination.page + 1);
+                    }
+                  }}
+                  className="px-2 disabled:opacity-40"
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+              {/* Modals */}
+              <CreateRedeemModal
+                isOpen={createModalOpen}
+                onClose={() => setCreateModalOpen(false)}
+                onSuccess={() => loadRedeems({
+                  page: 1,
+                  limit: 50,
+                  startDate: startDate ? new Date(startDate).toISOString() : undefined,
+                  endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
+                  category: category || undefined,
+                  cardType: cardType || undefined,
+                  stationId: stationId || undefined,
+                  search: search || undefined,
+                  product,
+                })}
+                product={product as 'FWC' | 'VOUCHER'}
+              />
+              <RedeemDetailModal
+                isOpen={detailModalOpen}
+                onClose={() => setDetailModalOpen(false)}
+                data={selectedRedeem}
+                product={product as 'FWC' | 'VOUCHER'}
+              />
+              <LastRedeemDocModal
+                isOpen={uploadDocModalOpen}
+                onClose={() => setUploadDocModalOpen(false)}
+                data={selectedRedeem}
+                onSuccess={() => loadRedeems({
+                  page: 1,
+                  limit: 50,
+                  startDate: startDate ? new Date(startDate).toISOString() : undefined,
+                  endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
+                  category: category || undefined,
+                  cardType: cardType || undefined,
+                  stationId: stationId || undefined,
+                  search: search || undefined,
+                  product,
+                })}
+              />
+              <DeleteRedeemDialog
+                isOpen={deleteDialogOpen}
+                onClose={() => setDeleteDialogOpen(false)}
+                data={selectedRedeem}
+                onSuccess={() => loadRedeems({
+                  page: currentPage,
+                  limit: 50,
+                  startDate: startDate ? new Date(startDate).toISOString() : undefined,
+                  endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
+                  category: category || undefined,
+                  cardType: cardType || undefined,
+                  stationId: stationId || undefined,
+                  search: search || undefined,
+                  product,
+                })}
+              />
+              <ExportRedeemModal
+                isOpen={exportModalOpen}
+                onClose={() => setExportModalOpen(false)}
+                product={product as 'FWC' | 'VOUCHER'}
+              />
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
