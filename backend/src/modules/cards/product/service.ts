@@ -102,6 +102,7 @@ export class CardProductService {
     serialTemplate: string,
     price: number,
     userId: string,
+    maxQuantity?: number,
   ) {
     const [cardCategory, cardType] = await Promise.all([
       db.cardCategory.findUnique({
@@ -192,6 +193,7 @@ export class CardProductService {
           price,
           serialTemplate: generatedSerialTemplate.toString(),
           programType: programType,
+          maxQuantity,
           updatedAt: new Date(),
           updatedBy: userId,
         },
@@ -218,6 +220,7 @@ export class CardProductService {
         price,
         serialTemplate: generatedSerialTemplate.toString(),
         programType: programType,
+        maxQuantity,
         isActive: true,
         createdAt: new Date(),
         createdBy: userId,
@@ -249,6 +252,7 @@ export class CardProductService {
     serialTemplate: string,
     price: number,
     userId: string,
+    maxQuantity?: number,
   ) {
     const [cardCategory, cardType] = await Promise.all([
       db.cardCategory.findUnique({
@@ -322,6 +326,7 @@ export class CardProductService {
         price,
         serialTemplate: generatedSerialTemplate.toString(),
         programType: programType,
+        maxQuantity,
         updatedAt: new Date(),
         updatedBy: userId,
       },
