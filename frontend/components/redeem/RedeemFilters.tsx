@@ -54,12 +54,11 @@ export default function RedeemFilters({
   const endDateRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="rounded-lg border bg-white">
-      {/* No product label/chip here, only dropdown in parent */}
-      {/* Mobile: Stack vertically */}
-      <div className="flex flex-col gap-3 p-4 lg:hidden">
+    <div className="rounded-lg border bg-white w-full">
+      {/* Responsive filter: grid for tablet/desktop, stack for mobile */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:hidden gap-3 p-4 w-full">
         {/* Date filters row */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 xs:grid-cols-2 gap-2">
           <div className="flex flex-col gap-1">
             <span className="text-xs text-gray-500">Start Date</span>
             <div className="relative">
@@ -198,10 +197,10 @@ export default function RedeemFilters({
         </button>
       </div>
 
-      {/* Desktop: Horizontal layout */}
-      <div className="hidden lg:flex items-center gap-2 px-4 py-3">
+      {/* Desktop/Tablet: Responsive horizontal layout */}
+      <div className="hidden lg:flex flex-wrap items-center gap-2 px-4 py-3 w-full">
         {/* Start date */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-[180px]">
           <span className="text-sm text-gray-500">Start</span>
           <div className="relative">
             <input
@@ -234,7 +233,7 @@ export default function RedeemFilters({
         </div>
 
         {/* End date */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-[180px]">
           <span className="text-sm text-gray-500">End</span>
           <div className="relative">
             <input
@@ -270,7 +269,7 @@ export default function RedeemFilters({
         <select
           value={category}
           onChange={e => onCategoryChange(e.target.value)}
-          className="h-9 rounded-md border px-3 text-sm font-medium border-[#8D1231] bg-[#8D1231] text-white focus:outline-none min-w-[130px]"
+          className="h-9 rounded-md border px-3 text-sm font-medium border-[#8D1231] bg-[#8D1231] text-white focus:outline-none min-w-[120px] max-w-[180px]"
           disabled={disabled}
         >
           <option value="">Kategori</option>
@@ -291,7 +290,7 @@ export default function RedeemFilters({
         <select
           value={cardType}
           onChange={e => onCardTypeChange(e.target.value)}
-          className="h-9 rounded-md border px-3 text-sm font-medium border-[#8D1231] bg-[#8D1231] text-white focus:outline-none min-w-[130px]"
+          className="h-9 rounded-md border px-3 text-sm font-medium border-[#8D1231] bg-[#8D1231] text-white focus:outline-none min-w-[120px] max-w-[180px]"
           disabled={disabled}
         >
           <option value="">Tipe Kartu</option>
@@ -315,7 +314,7 @@ export default function RedeemFilters({
         <select
           value={stationId}
           onChange={e => onStationIdChange(e.target.value)}
-          className="h-9 rounded-md border px-3 text-sm font-medium border-[#8D1231] bg-[#8D1231] text-white focus:outline-none min-w-[130px]"
+          className="h-9 rounded-md border px-3 text-sm font-medium border-[#8D1231] bg-[#8D1231] text-white focus:outline-none min-w-[120px] max-w-[180px]"
           disabled={disabled}
         >
           <option value="">Stasiun</option>
@@ -334,7 +333,7 @@ export default function RedeemFilters({
         <button
           onClick={onReset}
           title="Reset filter"
-          className="flex items-center justify-center h-9 px-3 rounded-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-100 hover:border-gray-400 transition text-sm font-medium"
+          className="flex items-center justify-center h-9 px-3 rounded-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-100 hover:border-gray-400 transition text-sm font-medium min-w-[80px]"
           disabled={disabled}
         >
           Reset
