@@ -9,14 +9,20 @@ export namespace CardTypeModel {
         id: t.String(),
         typeCode: t.String(),
         typeName: t.String(),
-        routeDescription: t.String(),
+        routeDescription: t.Nullable(t.String()),
+        programType: t.Nullable(
+          t.Union([t.Literal("FWC"), t.Literal("VOUCHER")], {
+            default: "FWC",
+            description: "Tipe Program (FWC/VOUCHER)",
+          }),
+        ),
         createdAt: t.Date(),
         createdBy: t.Nullable(t.String()),
         updatedAt: t.Date(),
         updatedBy: t.Nullable(t.String()),
         deletedAt: t.Nullable(t.Date()),
         deletedBy: t.Nullable(t.String()),
-      })
+      }),
     ),
   });
 
@@ -28,6 +34,12 @@ export namespace CardTypeModel {
       typeCode: t.String(),
       typeName: t.String(),
       routeDescription: t.String(),
+      programType: t.Nullable(
+        t.Union([t.Literal("FWC"), t.Literal("VOUCHER")], {
+          default: "FWC",
+          description: "Tipe Program (FWC/VOUCHER)",
+        }),
+      ),
       createdAt: t.Date(),
       createdBy: t.Nullable(t.String()),
       updatedAt: t.Date(),
@@ -48,6 +60,12 @@ export namespace CardTypeModel {
     routeDescription: t.String({
       description: "Deskripsi rute",
     }),
+    programType: t.Optional(
+      t.Union([t.Literal("FWC"), t.Literal("VOUCHER")], {
+        default: "FWC",
+        description: "Tipe Program (FWC/VOUCHER)",
+      }),
+    ),
   });
 
   // Create Card Type Response
@@ -59,6 +77,10 @@ export namespace CardTypeModel {
       typeCode: t.String(),
       typeName: t.String(),
       routeDescription: t.String(),
+      programType: t.Union([t.Literal("FWC"), t.Literal("VOUCHER")], {
+        default: "FWC",
+        description: "Tipe Program (FWC/VOUCHER)",
+      }),
       createdAt: t.Date(),
       createdBy: t.Nullable(t.String()),
       updatedAt: t.Date(),
@@ -79,6 +101,10 @@ export namespace CardTypeModel {
     routeDescription: t.String({
       description: "Deskripsi rute",
     }),
+    programType: t.Union([t.Literal("FWC"), t.Literal("VOUCHER")], {
+      default: "FWC",
+      description: "Tipe Program (FWC/VOUCHER)",
+    }),
   });
 
   // Edit Card Type Response
@@ -90,6 +116,12 @@ export namespace CardTypeModel {
       typeCode: t.String(),
       typeName: t.String(),
       routeDescription: t.String(),
+      programType: t.Nullable(
+        t.Union([t.Literal("FWC"), t.Literal("VOUCHER")], {
+          default: "FWC",
+          description: "Tipe Program (FWC/VOUCHER)",
+        }),
+      ),
       createdAt: t.Date(),
       createdBy: t.Nullable(t.String()),
       updatedAt: t.Date(),
@@ -124,6 +156,14 @@ export namespace CardTypeModel {
       message: t.String(),
       code: t.String(),
       statusCode: t.Number(),
+    }),
+  });
+
+  // Get Recommended Code Response
+  export const getRecommendedCodeResponse = t.Object({
+    success: t.Boolean(),
+    data: t.Object({
+      recommendedCode: t.String(),
     }),
   });
 }

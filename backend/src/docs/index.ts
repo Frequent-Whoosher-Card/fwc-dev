@@ -291,8 +291,8 @@ export const docsConfig = swagger({
         description: "Card product management endpoints",
       },
       {
-        name: "Cards Generate",
-        description: "Cards generate management endpoints",
+        name: "Generate",
+        description: "Generate management endpoints",
       },
       {
         name: "Stock",
