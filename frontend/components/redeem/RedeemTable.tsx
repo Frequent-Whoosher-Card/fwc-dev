@@ -52,6 +52,7 @@ export default function RedeemTable({
             <th className="px-2 md:px-4 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">Sisa Kuota</th>
             <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Operator</th>
             <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Stasiun</th>
+            <th className="px-2 md:px-4 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">Last Redeem</th>
             <th className="px-2 md:px-4 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">Aksi</th>
           </tr>
         </thead>
