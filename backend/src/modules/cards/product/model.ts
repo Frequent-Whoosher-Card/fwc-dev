@@ -12,6 +12,7 @@ export namespace CardProductModel {
         typeId: t.String(),
         totalQuota: t.Number(),
         masaBerlaku: t.Number(),
+        maxQuantity: t.Nullable(t.Number()),
         price: t.String(),
         serialTemplate: t.String(),
         programType: t.Nullable(
@@ -56,6 +57,7 @@ export namespace CardProductModel {
       typeId: t.String(),
       totalQuota: t.Number(),
       masaBerlaku: t.Number(),
+      maxQuantity: t.Nullable(t.Number()),
       price: t.String(),
       serialTemplate: t.String(),
       programType: t.Nullable(
@@ -91,6 +93,11 @@ export namespace CardProductModel {
     masaBerlaku: t.Number({
       description: "Masa berlaku",
     }),
+    maxQuantity: t.Optional(
+      t.Number({
+        description: "Maksimal jumlah kartu",
+      }),
+    ),
     serialTemplate: t.String({
       description: "Kode Program (2 digit awal serial number)",
       minLength: 2,
@@ -111,6 +118,7 @@ export namespace CardProductModel {
       typeId: t.String(),
       totalQuota: t.Number(),
       masaBerlaku: t.Number(),
+      maxQuantity: t.Nullable(t.Number()),
       price: t.String(),
       serialTemplate: t.String(),
       programType: t.Nullable(
@@ -146,6 +154,11 @@ export namespace CardProductModel {
     masaBerlaku: t.Number({
       description: "Masa berlaku",
     }),
+    maxQuantity: t.Optional(
+      t.Number({
+        description: "Maksimal jumlah kartu",
+      }),
+    ),
     price: t.Number({
       description: "Harga",
     }),
@@ -166,6 +179,7 @@ export namespace CardProductModel {
       typeId: t.String(),
       totalQuota: t.Number(),
       masaBerlaku: t.Number(),
+      maxQuantity: t.Nullable(t.Number()),
       price: t.String(),
       serialTemplate: t.String(),
       programType: t.Nullable(
@@ -191,6 +205,7 @@ export namespace CardProductModel {
       typeId: t.String(),
       totalQuota: t.Number(),
       masaBerlaku: t.Number(),
+      maxQuantity: t.Nullable(t.Number()),
       price: t.String(),
       isActive: t.Boolean(),
       createdAt: t.Nullable(t.Date()),
