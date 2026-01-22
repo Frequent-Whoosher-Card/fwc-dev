@@ -8,6 +8,22 @@ export namespace CardGenerateModel {
     endSerial: t.String(),
   });
 
+  export const generateVoucherBody = t.Object({
+    cardProductId: t.String({ format: "uuid" }),
+    quantity: t.Number({ minimum: 1, maximum: 1000 }),
+  });
+
+  export const generateVoucherResponse = t.Object({
+    status: t.String(),
+    message: t.String(),
+    data: t.Object({
+      message: t.String(),
+      firstSerial: t.String(),
+      lastSerial: t.String(),
+      generatedFilesCount: t.Number(),
+    }),
+  });
+
   export const generateResponse = t.Object({
     status: t.String(),
     message: t.String(),
@@ -68,9 +84,9 @@ export namespace CardGenerateModel {
               status: t.String(),
               barcodeUrl: t.Union([t.String(), t.Null()]),
               createdAt: t.String(),
-            })
+            }),
           ),
-        })
+        }),
       ),
       pagination: t.Object({
         total: t.Number(),
@@ -110,7 +126,7 @@ export namespace CardGenerateModel {
           status: t.String(),
           createdAt: t.String(),
           barcodeUrl: t.Union([t.String(), t.Null()]),
-        })
+        }),
       ),
     }),
   });
