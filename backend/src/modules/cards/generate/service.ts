@@ -93,6 +93,7 @@ export class CardGenerateService {
     endSerial: string;
     userId: string;
   }) {
+    // ... existing generate logic ...
     const { cardProductId, startSerial, endSerial, userId } = params;
 
     // --- 1. PRE-TRANSACTION VALIDATION & SETUP ---
@@ -217,6 +218,98 @@ export class CardGenerateService {
       );
     }
 
+    return await this.processGeneration(
+      product,
+      serialNumbers,
+      userId,
+      product.programType || "FWC",
+    );
+  }
+
+  static async generateVoucher(params: {
+    cardProductId: string;
+    quantity: number;
+    userId: string;
+  }) {
+    const { cardProductId, quantity, userId } = params;
+
+    if (quantity > 1000) {
+      throw new ValidationError("Maksimal 1000 voucher per batch");
+    }
+
+    const product = await db.cardProduct.findUnique({
+      where: { id: cardProductId },
+      include: {
+        category: true,
+        type: true,
+      },
+    });
+
+    if (!product) {
+      throw new ValidationError("Produk tidak ditemukan");
+    }
+
+    if (product.programType !== "VOUCHER") {
+      throw new ValidationError("Produk ini bukan tipe VOUCHER");
+    }
+
+    // Format Date: YYMMDD (Always use current date)
+    const dateObj = new Date();
+    const yy = dateObj.getFullYear().toString().slice(-2);
+    const mm = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const dd = String(dateObj.getDate()).padStart(2, "0");
+    const datePrefix = `${yy}${mm}${dd}`;
+
+    // Full Prefix: PP + C + T + YYMMDD
+    // product.serialTemplate = PP + C + T
+    const fullPrefix = `${product.serialTemplate}${datePrefix}`;
+
+    // Determine Sequence
+    let nextSequence = 1;
+    try {
+      const result = await db.$queryRaw<Array<{ serial_number: string }>>`
+        SELECT serial_number 
+        FROM cards 
+        WHERE card_product_id = ${product.id}::uuid
+          AND serial_number LIKE ${fullPrefix || ""} || '%'
+        ORDER BY serial_number DESC 
+        LIMIT 1
+      `;
+
+      if (result && result.length > 0) {
+        const lastSerial = result[0].serial_number;
+        const lastSuffix = lastSerial.slice(fullPrefix.length);
+        if (/^\d+$/.test(lastSuffix)) {
+          nextSequence = Number(lastSuffix) + 1;
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to check last voucher sequence", e);
+    }
+
+    const serialNumbers: string[] = [];
+    const width = 5;
+
+    for (let i = 0; i < quantity; i++) {
+      const seq = String(nextSequence + i).padStart(width, "0");
+      serialNumbers.push(`${fullPrefix}${seq}`);
+    }
+
+    return await this.processGeneration(
+      product,
+      serialNumbers,
+      userId,
+      product.programType || "VOUCHER",
+    );
+  }
+
+  // Refactored shared logic for Image Generation + Transaction
+  private static async processGeneration(
+    product: any,
+    serialNumbers: string[],
+    userId: string,
+    program: string,
+  ) {
     // --- 2. IMAGE GENERATION (OUTSIDE TRANSACTION) ---
 
     const now = new Date();
@@ -224,7 +317,13 @@ export class CardGenerateService {
     const month = String(now.getMonth() + 1).padStart(2, "0");
 
     const storageRoot = path.join(process.cwd(), "storage");
-    const barcodeDir = path.join(storageRoot, "barcode", String(year), month);
+    const barcodeDir = path.join(
+      storageRoot,
+      "barcode",
+      program.toLowerCase(),
+      String(year),
+      month,
+    );
 
     if (!fs.existsSync(barcodeDir)) {
       fs.mkdirSync(barcodeDir, { recursive: true });
@@ -242,19 +341,24 @@ export class CardGenerateService {
 
       const fileName = `${batchParams.typeName}-${batchParams.categoryName}-${sn}.png`;
       const absolutePath = path.join(barcodeDir, fileName);
-      const relativePath = `storage/barcode/${year}/${month}/${fileName}`;
+
+      let relativePath;
+      if (program === "FWC") {
+        relativePath = `storage/barcode/fwc/${year}/${month}/${fileName}`;
+      } else if (program === "VOUCHER") {
+        relativePath = `storage/barcode/voucher/${year}/${month}/${fileName}`;
+      }
       const textFormatted = sn.split("").join(" ");
 
       // BWIP-JS
-      // Config based on Mentor's CLI example
       const pngBuffer = await bwipjs.toBuffer({
         bcid: "code128",
         text: sn,
         textfont: "OCR-B",
-        width: 55, // REMOVED: Caused horizontal stretching ("gepeng")
-        height: 10, // Significantly reduced height to maximize "Wider" look
+        width: 55,
+        height: 10,
         scale: 5,
-        textsize: 8, // Smaller text as requested
+        textsize: 8,
         backgroundcolor: "FFFFFF",
         textyoffset: -1,
         includetext: true,
@@ -268,25 +372,20 @@ export class CardGenerateService {
       ctx.fillStyle = "#fff";
       ctx.fillRect(0, 0, TARGET_W, TARGET_H);
 
-      // Calculate scaling to FIT inside the canvas with margins
-      // Available space
-      const safeW = TARGET_W - 20; // 10px padding sides
-      const safeH = TARGET_H - 20; // 10px padding top/bottom
+      const safeW = TARGET_W - 20;
+      const safeH = TARGET_H - 20;
 
       const scaleX = safeW / barcodeImg.width;
       const scaleY = safeH / barcodeImg.height;
-      const finalScale = Math.min(scaleX, scaleY, 1); // Never scale UP, only down
+      const finalScale = Math.min(scaleX, scaleY, 1);
 
       const drawW = barcodeImg.width * finalScale;
       const drawH = barcodeImg.height * finalScale;
 
-      // Center
       const barcodeX = (TARGET_W - drawW) / 2;
       const barcodeY = (TARGET_H - drawH) / 2;
 
       ctx.drawImage(barcodeImg, barcodeX, barcodeY, drawW, drawH);
-
-      // Manual text drawing removed because 'includetext: true' handles it now
 
       const finalBuffer = canvas.toBuffer("image/png");
 
@@ -324,9 +423,6 @@ export class CardGenerateService {
       // --- 3. DATABASE TRANSACTION (FAST) ---
 
       const transactionResult = await db.$transaction(async (tx) => {
-        // Double check collision (optional but safe) within transaction?
-        // Not strictly necessary if we rely on unique constraint error handling.
-
         // 1. Handle FileObjects (Create New or Reuse Existing)
         const relativePaths = fileObjectsData.map((f) => f.relativePath);
 
@@ -386,7 +482,7 @@ export class CardGenerateService {
             status: "APPROVED",
             categoryId: product.categoryId,
             typeId: product.typeId,
-            quantity: quantity,
+            quantity: serialNumbers.length,
             note: `Generated Batch ${serialNumbers[0]} - ${serialNumbers[serialNumbers.length - 1]}`,
             sentSerialNumbers: serialNumbers,
             receivedSerialNumbers: serialNumbers,
@@ -399,7 +495,7 @@ export class CardGenerateService {
       });
 
       return {
-        message: `Berhasil generate ${quantity} kartu`,
+        message: `Berhasil generate ${serialNumbers.length} kartu`,
         firstSerial: serialNumbers[0],
         lastSerial: serialNumbers[serialNumbers.length - 1],
         generatedFilesCount: generatedFiles.length,
@@ -630,8 +726,19 @@ export class CardGenerateService {
       throw new ValidationError("Produk tidak ditemukan");
     }
 
-    const yearSuffix = new Date().getFullYear().toString().slice(-2);
-    const prefix = `${product.serialTemplate}${yearSuffix}`;
+    // Default to FWC logic
+    let datePart = new Date().getFullYear().toString().slice(-2); // YY
+
+    // If Voucher, use YYMMDD
+    if (product.programType === "VOUCHER") {
+      const now = new Date();
+      const yy = now.getFullYear().toString().slice(-2);
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const dd = String(now.getDate()).padStart(2, "0");
+      datePart = `${yy}${mm}${dd}`;
+    }
+
+    const prefix = `${product.serialTemplate}${datePart}`;
 
     let lastCard = null;
     try {
@@ -654,9 +761,6 @@ export class CardGenerateService {
     let nextSuffix = 1;
     let lastSerial = null;
 
-    // Fallback if raw query returned nothing (possibly empty table) -> suffix 1
-    // (We removed the 'count' fallback because Raw Query is definitive)
-
     if (lastCard && lastCard.serialNumber.startsWith(prefix)) {
       lastSerial = lastCard.serialNumber;
       const lastSuffixStr = lastCard.serialNumber.slice(prefix.length);
@@ -668,7 +772,6 @@ export class CardGenerateService {
     const width = 5;
     const nextSerial = `${prefix}${String(nextSuffix).padStart(width, "0")}`;
 
-    // ... (previous code)
     return {
       nextSerial,
       prefix,

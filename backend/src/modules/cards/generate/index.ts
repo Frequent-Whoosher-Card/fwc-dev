@@ -59,9 +59,53 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
         500: CardGenerateModel.errorResponse,
       },
       detail: {
-        tags: ["Cards Generate"],
+        tags: ["Generate"],
         summary: "Generate Cards",
         description: "Generate cards and barcode images.",
+      },
+    },
+  )
+  .post(
+    "/voucher",
+    async (context) => {
+      const { body, set, user } = context as typeof context & AuthContextUser;
+
+      try {
+        const result = await CardGenerateService.generateVoucher({
+          cardProductId: body.cardProductId,
+          quantity: body.quantity,
+          userId: user.id || "00000000-0000-0000-0000-000000000000",
+        });
+
+        return {
+          status: "success",
+          message: "Vouchers generated successfully",
+          data: result,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      body: CardGenerateModel.generateVoucherBody,
+      response: {
+        200: CardGenerateModel.generateVoucherResponse,
+        400: CardGenerateModel.errorResponse,
+        401: CardGenerateModel.errorResponse,
+        403: CardGenerateModel.errorResponse,
+        404: CardGenerateModel.errorResponse,
+        409: CardGenerateModel.errorResponse,
+        422: CardGenerateModel.errorResponse,
+        500: CardGenerateModel.errorResponse,
+      },
+      detail: {
+        tags: ["Generate"],
+        summary: "Generate Vouchers",
+        description: "Generate separate voucher cards with date-based serials.",
       },
     },
   )
@@ -95,7 +139,7 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
         500: CardGenerateModel.errorResponse,
       },
       detail: {
-        tags: ["Cards Generate"],
+        tags: ["Generate"],
         summary: "Get Next Serial",
         description:
           "Get the next available serial number suffix for a product.",
@@ -133,7 +177,7 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
         500: CardGenerateModel.errorResponse,
       },
       detail: {
-        tags: ["Cards Generate"],
+        tags: ["Generate"],
         summary: "Get History",
         description: "Get history of card generation.",
       },
@@ -171,7 +215,7 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
         500: CardGenerateModel.errorResponse,
       },
       detail: {
-        tags: ["Cards Generate"],
+        tags: ["Generate"],
         summary: "Get History Detail",
         description:
           "Get detailed history of a specific card generation batch.",
@@ -204,7 +248,7 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
         id: t.String({ format: "uuid" }),
       }),
       detail: {
-        tags: ["Cards Generate"],
+        tags: ["Generate"],
         summary: "Download ZIP",
         description:
           "Download all generated barcodes in this batch as a ZIP file.",
@@ -248,7 +292,7 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
         500: CardGenerateModel.errorResponse,
       },
       detail: {
-        tags: ["Cards Generate"],
+        tags: ["Generate"],
         summary: "Delete Generated Batch",
         description:
           "Delete a generated batch. Allowed ONLY if cards are still ON_REQUEST (not stocked in).",

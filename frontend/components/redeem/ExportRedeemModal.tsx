@@ -7,11 +7,13 @@ import { redeemService } from '@/lib/services/redeem/redeemService';
 interface ExportRedeemModalProps {
   isOpen: boolean;
   onClose: () => void;
+  product?: 'FWC' | 'VOUCHER';
 }
 
 export default function ExportRedeemModal({
   isOpen,
   onClose,
+  product = 'FWC',
 }: ExportRedeemModalProps) {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [format, setFormat] = useState<'CSV' | 'XLSX' | 'PDF' | 'JPG'>('CSV');
@@ -76,7 +78,10 @@ export default function ExportRedeemModal({
             ×
           </button>
         </div>
-
+        <div className="mb-2">
+          <span className="text-xs text-gray-500 mr-2">Produk:</span>
+          <span className="px-2 py-1 rounded bg-red-50 text-[#8D1231] font-semibold border border-[#8D1231] text-xs">{product}</span>
+        </div>
         <div className="space-y-4">
           {/* Date Selection */}
           <div>
