@@ -21,6 +21,7 @@ enum CardStatus {
   ON_REQUEST
   IN_OFFICE
   IN_TRANSIT
+  ON_TRANSFER
   IN_STATION
   LOST
   DAMAGED
@@ -151,7 +152,7 @@ model User {
 
 model CardCategory {
   id           String    @id @default(uuid()) @map("category_id") @db.Uuid
-  categoryCode String    @unique @map("category_code")
+  categoryCode String    @map("category_code")
   categoryName String    @map("category_name")
   description  String?
   createdAt    DateTime  @default(now()) @map("created_at")
@@ -161,14 +162,15 @@ model CardCategory {
   deletedAt    DateTime? @map("deleted_at")
   deletedBy    String?   @map("deleted_by") @db.Uuid
 
-  maxQuantity Int?         @map("max_quantity")
   programType ProgramType? @map("program_type")
+  maxQuantity Int?         @map("max_quantity")
 
   // Relation
   cardInventories    CardInventory[]
   cardProducts       CardProduct[]
   cardStockMovements CardStockMovement[]
 
+  @@unique([categoryCode, programType], name: "unique_category_code_program")
   @@map("card_categories")
 }
 
@@ -178,7 +180,7 @@ model CardCategory {
 
 model CardType {
   id               String       @id @default(uuid()) @map("type_id") @db.Uuid
-  typeCode         String       @unique @map("type_code")
+  typeCode         String       @map("type_code")
   typeName         String       @map("type_name")
   routeDescription String?      @map("route_description")
   classPrice       Decimal?     @map("class_price")
@@ -195,6 +197,7 @@ model CardType {
   cardProducts       CardProduct[]
   cardStockMovements CardStockMovement[]
 
+  @@unique([typeCode, programType], name: "unique_type_code_program")
   @@map("card_types")
 }
 
@@ -245,6 +248,7 @@ model CardProduct {
   productDetailId Int?         @map("product_detail_id")
   totalQuota      Int          @map("total_quota")
   masaBerlaku     Int          @map("masa_berlaku")
+  maxQuantity     Int?         @map("max_quantity")
   price           Decimal
   isActive        Boolean      @map("is_active")
   serialTemplate  String       @unique @map("serial_template")
@@ -628,9 +632,9 @@ model ActivityLog {
   userId      String    @map("user_id") @db.Uuid
   action      String    @map("action")
   description String?   @map("description")
-  createdAt   DateTime  @map("created_at")
+  createdAt   DateTime? @map("created_at")
   createdBy   String?   @map("created_by")
-  updatedAt   DateTime  @map("updated_at")
+  updatedAt   DateTime? @map("updated_at")
   updatedBy   String?   @map("updated_by")
   deletedAt   DateTime? @map("deleted_at")
   deletedBy   String?   @map("deleted_by")

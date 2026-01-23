@@ -29,7 +29,8 @@ const baseRoutes = new Elysia()
 
       try {
         const cardProducts = await CardProductService.getCardProducts(
-          query?.search
+          query?.search,
+          query?.programType,
         );
 
         return {
@@ -59,7 +60,7 @@ const baseRoutes = new Elysia()
         summary: "Get all card products",
         description: "This endpoint is used to get all card products",
       },
-    }
+    },
   )
   .get(
     "/:id",
@@ -67,7 +68,7 @@ const baseRoutes = new Elysia()
       const { params, set } = context as typeof context;
       try {
         const cardProduct = await CardProductService.getCardProductById(
-          params.id
+          params.id,
         );
 
         return {
@@ -97,7 +98,7 @@ const baseRoutes = new Elysia()
         summary: "Get card product by ID",
         description: "This endpoint is used to get card product by ID",
       },
-    }
+    },
   );
 
 const adminRoutes = new Elysia()
@@ -111,11 +112,12 @@ const adminRoutes = new Elysia()
         const cardProduct = await CardProductService.createCardProduct(
           body.categoryId,
           body.typeId,
+          body.programType,
           body.totalQuota,
           body.masaBerlaku,
           body.serialTemplate,
           body.price,
-          user.id
+          user.id,
         );
 
         return {
@@ -146,7 +148,7 @@ const adminRoutes = new Elysia()
         description:
           "This endpoint is used to create new card product (superadmin and admin)",
       },
-    }
+    },
   )
   .put(
     "/:id",
@@ -158,11 +160,12 @@ const adminRoutes = new Elysia()
           params.id,
           body.categoryId,
           body.typeId,
+          body.programType,
           body.totalQuota,
           body.masaBerlaku,
           body.serialTemplate,
           body.price,
-          user.id
+          user.id,
         );
 
         return {
@@ -194,7 +197,7 @@ const adminRoutes = new Elysia()
         description:
           "This endpoint is used to update card product (superadmin and admin)",
       },
-    }
+    },
   );
 
 const superadminRoutes = new Elysia()
@@ -207,7 +210,7 @@ const superadminRoutes = new Elysia()
       try {
         const cardProduct = await CardProductService.deleteCardProduct(
           params.id,
-          user.id
+          user.id,
         );
 
         return {
@@ -238,7 +241,7 @@ const superadminRoutes = new Elysia()
         description:
           "This endpoint is used to delete card product (superadmin)",
       },
-    }
+    },
   );
 
 export const cardProducts = new Elysia({ prefix: "/card/product" })

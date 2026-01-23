@@ -12,8 +12,12 @@ export namespace CardProductModel {
         typeId: t.String(),
         totalQuota: t.Number(),
         masaBerlaku: t.Number(),
+        maxQuantity: t.Nullable(t.Number()),
         price: t.String(),
         serialTemplate: t.String(),
+        programType: t.Nullable(
+          t.Union([t.Literal("FWC"), t.Literal("VOUCHER")]),
+        ),
         isActive: t.Boolean(),
         createdAt: t.Nullable(t.Date()),
         createdBy: t.Nullable(t.String()),
@@ -28,14 +32,20 @@ export namespace CardProductModel {
         type: t.Object({
           id: t.String(),
           typeName: t.String(),
+          typeCode: t.String(),
         }),
-      })
+      }),
     ),
   });
 
   // Get Card Products Query
   export const getCardProductsQuery = t.Object({
     search: t.Optional(t.String()),
+    programType: t.Optional(
+      t.Union([t.Literal("FWC"), t.Literal("VOUCHER")], {
+        description: "Tipe Program (FWC/VOUCHER)",
+      }),
+    ),
   });
 
   // Get Card Product by ID Response
@@ -48,8 +58,12 @@ export namespace CardProductModel {
       typeId: t.String(),
       totalQuota: t.Number(),
       masaBerlaku: t.Number(),
+      maxQuantity: t.Nullable(t.Number()),
       price: t.String(),
       serialTemplate: t.String(),
+      programType: t.Nullable(
+        t.Union([t.Literal("FWC"), t.Literal("VOUCHER")]),
+      ),
       isActive: t.Boolean(),
       createdAt: t.Nullable(t.Date()),
       createdBy: t.Nullable(t.String()),
@@ -70,16 +84,25 @@ export namespace CardProductModel {
       format: "uuid",
       description: "Type ID",
     }),
+    programType: t.Union([t.Literal("FWC"), t.Literal("VOUCHER")], {
+      description:
+        "Tipe Program (FWC/VOUCHER). Harus sesuai dengan Kategori & Tipe.",
+    }),
     totalQuota: t.Number({
       description: "Total quota",
     }),
     masaBerlaku: t.Number({
       description: "Masa berlaku",
     }),
+    maxQuantity: t.Optional(
+      t.Number({
+        description: "Maksimal jumlah kartu",
+      }),
+    ),
     serialTemplate: t.String({
-      description: "Template serial untuk produk ini",
-      minLength: 4,
-      maxLength: 4,
+      description: "Kode Program (2 digit awal serial number)",
+      minLength: 2,
+      maxLength: 2,
     }),
     price: t.Number({
       description: "Harga",
@@ -96,8 +119,12 @@ export namespace CardProductModel {
       typeId: t.String(),
       totalQuota: t.Number(),
       masaBerlaku: t.Number(),
+      maxQuantity: t.Nullable(t.Number()),
       price: t.String(),
       serialTemplate: t.String(),
+      programType: t.Nullable(
+        t.Union([t.Literal("FWC"), t.Literal("VOUCHER")]),
+      ),
       isActive: t.Boolean(),
       createdAt: t.Nullable(t.Date()),
       createdBy: t.Nullable(t.String()),
@@ -118,19 +145,28 @@ export namespace CardProductModel {
       format: "uuid",
       description: "Type ID",
     }),
+    programType: t.Union([t.Literal("FWC"), t.Literal("VOUCHER")], {
+      description:
+        "Tipe Program (FWC/VOUCHER). Harus sesuai dengan Kategori & Tipe.",
+    }),
     totalQuota: t.Number({
       description: "Total quota",
     }),
     masaBerlaku: t.Number({
       description: "Masa berlaku",
     }),
+    maxQuantity: t.Optional(
+      t.Number({
+        description: "Maksimal jumlah kartu",
+      }),
+    ),
     price: t.Number({
       description: "Harga",
     }),
     serialTemplate: t.String({
-      description: "Template serial untuk produk ini",
-      minLength: 4,
-      maxLength: 4,
+      description: "Kode Program (2 digit awal serial number)",
+      minLength: 2,
+      maxLength: 2,
     }),
   });
 
@@ -144,8 +180,12 @@ export namespace CardProductModel {
       typeId: t.String(),
       totalQuota: t.Number(),
       masaBerlaku: t.Number(),
+      maxQuantity: t.Nullable(t.Number()),
       price: t.String(),
       serialTemplate: t.String(),
+      programType: t.Nullable(
+        t.Union([t.Literal("FWC"), t.Literal("VOUCHER")]),
+      ),
       isActive: t.Boolean(),
       createdAt: t.Nullable(t.Date()),
       createdBy: t.Nullable(t.String()),
@@ -166,6 +206,7 @@ export namespace CardProductModel {
       typeId: t.String(),
       totalQuota: t.Number(),
       masaBerlaku: t.Number(),
+      maxQuantity: t.Nullable(t.Number()),
       price: t.String(),
       isActive: t.Boolean(),
       createdAt: t.Nullable(t.Date()),

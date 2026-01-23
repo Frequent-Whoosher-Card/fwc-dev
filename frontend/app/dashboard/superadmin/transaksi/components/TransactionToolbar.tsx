@@ -6,12 +6,14 @@ interface Props {
   search: string;
   onSearchChange: (value: string) => void;
   onAdd: () => void;
+  onAddMember: () => void;
 }
 
 export default function TransactionToolbar({
   search,
   onSearchChange,
   onAdd,
+  onAddMember,
 }: Props) {
   return (
     <div className="flex items-center justify-between">
@@ -48,7 +50,24 @@ export default function TransactionToolbar({
           />
         </div>
 
-        {/* ADD */}
+        {/* ADD MEMBER */}
+        <button
+          onClick={onAddMember}
+          className="
+            flex items-center gap-2
+            rounded-md
+            bg-green-700
+            px-4 py-2
+            text-sm text-white
+            transition
+            hover:bg-green-800
+          "
+        >
+          <Plus size={16} />
+          Purchased
+        </button>
+
+        {/* ADD PURCHASE */}
         <button
           onClick={onAdd}
           className="
@@ -62,7 +81,7 @@ export default function TransactionToolbar({
           "
         >
           <Plus size={16} />
-          Add Purchased
+          Repurchased
         </button>
       </div>
     </div>
