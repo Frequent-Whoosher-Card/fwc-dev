@@ -1,0 +1,240 @@
+import { useState, useEffect, useCallback } from 'react';
+import toast from 'react-hot-toast';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
+import CardGenerateService, { CardProduct, GenerateHistoryItem, Pagination } from '@/services/card.generate';
+
+export interface SerialItem {
+    serial: string;
+    barcodeUrl?: string;
+}
+
+export interface BatchData {
+    id: string;
+    date: string;
+    productLabel: string;
+    start: string;
+    end: string;
+    serials: SerialItem[];
+}
+
+interface UseGenerateNumberProps {
+    programType?: string;
+    limit?: number;
+}
+
+export function useGenerateNumber({ programType, limit = 10 }: UseGenerateNumberProps = {}) {
+    const [products, setProducts] = useState<CardProduct[]>([]);
+    const [selectedProductId, setSelectedProductId] = useState('');
+    const [selectedProduct, setSelectedProduct] = useState<CardProduct | null>(null);
+
+    const [startNumber, setStartNumber] = useState('');
+    const [quantity, setQuantity] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const [history, setHistory] = useState<GenerateHistoryItem[]>([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
+
+    const [batch, setBatch] = useState<BatchData | null>(null);
+    const [loadingBatch, setLoadingBatch] = useState(false);
+
+    const [page, setPage] = useState(1);
+    const [pagination, setPagination] = useState<Pagination | null>(null);
+
+    const fetchProducts = useCallback(async () => {
+        try {
+            const data = await CardGenerateService.getProducts(programType);
+            setProducts(data);
+        } catch {
+            toast.error('Gagal mengambil card product');
+        }
+    }, [programType]);
+
+    const fetchHistory = useCallback(async (currentPage = 1) => {
+        try {
+            setLoadingHistory(true);
+            const data = await CardGenerateService.getHistory({
+                page: currentPage,
+                limit,
+                programType,
+            });
+
+            const items: GenerateHistoryItem[] = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+            setHistory(items);
+
+            if (data?.pagination) {
+                setPagination(data.pagination);
+            } else {
+                setPagination({
+                    page: currentPage,
+                    limit,
+                    total: items.length,
+                    totalPages: items.length > limit ? Math.ceil(items.length / limit) : 1,
+                });
+            }
+            setPage(currentPage);
+        } catch {
+            toast.error('Gagal mengambil history generate');
+            setHistory([]);
+            setPagination(null);
+        } finally {
+            setLoadingHistory(false);
+        }
+    }, [programType, limit]);
+
+    const fetchHistoryDetail = useCallback(async (id: string) => {
+        try {
+            setLoadingBatch(true);
+            const data = await CardGenerateService.getHistoryDetail(id);
+
+            if (!data || !data.movement) {
+                throw new Error('Invalid response');
+            }
+
+            const movement = data.movement;
+            const cards = data.cards || [];
+
+            const serials: SerialItem[] = movement.serialNumbers.map((serial: string) => {
+                const card = cards.find((c: any) => c.serialNumber === serial);
+                return {
+                    serial,
+                    barcodeUrl: card?.barcodeUrl,
+                };
+            });
+
+            setBatch({
+                id: movement.id,
+                date: new Date(movement.movementAt).toLocaleDateString('id-ID').replace(/\//g, '-'),
+                productLabel: `${movement.category.name} - ${movement.type.name}`,
+                start: movement.serialNumbers[0],
+                end: movement.serialNumbers[movement.serialNumbers.length - 1],
+                serials,
+            });
+        } catch {
+            toast.error('Gagal mengambil data generate');
+            setBatch(null);
+        } finally {
+            setLoadingBatch(false);
+        }
+    }, []);
+
+    const handleExportZip = async (currentBatch: BatchData | null) => {
+        if (!currentBatch || !currentBatch.serials.length) {
+            toast.error('Tidak ada barcode untuk diexport');
+            return;
+        }
+
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+        const safeLabel = currentBatch.productLabel.replace(/\s+/g, '');
+        const zip = new JSZip();
+        const folder = zip.folder(`barcode-${safeLabel}`);
+
+        for (const item of currentBatch.serials) {
+            if (!item.barcodeUrl) continue;
+
+            try {
+                const res = await fetch(`${API_BASE_URL}${item.barcodeUrl}`, {
+                    credentials: 'include',
+                });
+
+                if (!res.ok) continue;
+
+                const blob = await res.blob();
+                if (!blob.type.startsWith('image/')) continue;
+
+                const cleanSerial = item.serial.replace(/^_+/, '');
+                folder?.file(`${safeLabel}-${cleanSerial}.png`, blob);
+            } catch (err) {
+                console.error('Error fetch barcode:', err);
+            }
+        }
+
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+        saveAs(zipBlob, `barcode-${safeLabel}-${timestamp}.zip`);
+        toast.success('Export ZIP berhasil');
+    };
+
+    const fetchNextSerial = useCallback(async (productId: string) => {
+        try {
+            const nextSerial = await CardGenerateService.getNextSerial(productId);
+            if (typeof nextSerial === 'string') {
+                setStartNumber(nextSerial);
+                setQuantity('');
+            }
+        } catch {
+            toast.error('Gagal mengambil next serial number');
+        }
+    }, []);
+
+    const handleSelectProduct = (id: string) => {
+        setSelectedProductId(id);
+        const p = products.find((x) => x.id === id) || null;
+        setSelectedProduct(p);
+        if (p) fetchNextSerial(p.id);
+    };
+
+    const handleGenerate = async () => {
+        const startSerial5 = startNumber ? startNumber.slice(-5) : '';
+        const qtyNumber = Number(quantity);
+        const calculatedEndSerial = /^\d{5}$/.test(startSerial5) && qtyNumber > 0 ? String(Number(startSerial5) + qtyNumber - 1).padStart(5, '0') : '';
+
+        if (!selectedProduct || qtyNumber <= 0) {
+            toast.error('Data tidak valid');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            await CardGenerateService.generate({
+                cardProductId: selectedProduct.id,
+                startSerial: startSerial5,
+                endSerial: calculatedEndSerial,
+                programType,
+            });
+
+            toast.success('Generate serial berhasil');
+            fetchHistory(1);
+            fetchNextSerial(selectedProduct.id);
+        } catch (err: any) {
+            toast.error(err?.response?.data?.error?.message || err?.response?.data?.message || 'Terjadi kesalahan');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchProducts();
+    }, [fetchProducts]);
+
+    useEffect(() => {
+        fetchHistory(1);
+    }, [fetchHistory]);
+
+    const startSerial5 = startNumber ? startNumber.slice(-5) : '';
+    const qtyNumber = Number(quantity);
+    const calculatedEndSerial = /^\d{5}$/.test(startSerial5) && qtyNumber > 0 ? String(Number(startSerial5) + qtyNumber - 1).padStart(5, '0') : '';
+
+    return {
+        products,
+        selectedProductId,
+        selectedProduct,
+        startNumber,
+        quantity,
+        setQuantity,
+        loading,
+        history,
+        loadingHistory,
+        page,
+        pagination,
+        calculatedEndSerial,
+        batch,
+        loadingBatch,
+        handleSelectProduct,
+        handleGenerate,
+        fetchHistory,
+        fetchHistoryDetail,
+        handleExportZip,
+    };
+}

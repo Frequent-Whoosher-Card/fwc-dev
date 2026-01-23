@@ -3,121 +3,178 @@
 import { ArrowLeft } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import axios from "@/lib/axios";
 
 /* ======================
-   CONFIG
-====================== */
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
-
-/* ======================
-   BASE INPUT STYLE
+   STYLE
 ====================== */
 const base =
   "h-10 w-full rounded-md border border-gray-300 px-3 text-sm text-gray-700 focus:border-gray-400 focus:outline-none";
 
 /* ======================
-   DATE HELPER
+   HELPERS
 ====================== */
-const formatDate = (iso?: string | null) => (iso ? iso.slice(0, 10) : "");
+const formatDate = (iso?: string | null) =>
+  iso ? iso.slice(0, 10) : "Tidak tersedia";
+
+const rupiah = (n: number) =>
+  new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+  }).format(n);
 
 /* ======================
-   FIELD WRAPPER
+   UI HELPERS
 ====================== */
 function Field({
   label,
-  required,
   children,
 }: {
   label: string;
-  required?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs text-gray-500">
-        {label}
-        {required && <span className="ml-1 text-red-500">*</span>}
-      </label>
+      <label className="text-xs font-medium text-gray-600">{label}</label>
       {children}
     </div>
   );
 }
 
-/* ======================
-   SECTION CARD
-====================== */
 function SectionCard({
   title,
+  description,
   children,
 }: {
   title: string;
+  description?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-md border border-gray-200 p-4">
-      <h3 className="mb-4 text-sm font-semibold text-gray-700">{title}</h3>
+    <div className="rounded-lg border border-gray-200 bg-white p-5">
+      <div className="mb-4">
+        <h3 className="text-sm font-semibold text-gray-800">{title}</h3>
+        {description && (
+          <p className="mt-1 text-xs text-gray-500">{description}</p>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{children}</div>
     </div>
   );
 }
 
 /* ======================
-   PAGE (EDIT)
+   PAGE
 ====================== */
 export default function EditTransactionPage() {
-  const params = useParams();
-  const id = params.id as string;
+  const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
   /* ======================
      STATE
   ====================== */
-  const [customerName, setCustomerName] = useState("");
-  const [nik, setNik] = useState("");
-  const [nip, setNip] = useState("");
-  const [memberId, setMemberId] = useState<string | null>(null);
-
-  const [stations, setStations] = useState<any[]>([]);
-  const [stationId, setStationId] = useState("");
-
-  const [purchaseDate, setPurchaseDate] = useState("");
-  const [expiredDate, setExpiredDate] = useState("");
-  const [price, setPrice] = useState("");
-  const [edcRef, setEdcRef] = useState("");
-
   const [loading, setLoading] = useState(true);
 
+  // customer (editable)
+  const [customerName, setCustomerName] = useState("");
+  const [identityNumber, setIdentityNumber] = useState("");
+  const [nip, setNip] = useState("");
+  const [memberType, setMemberType] = useState("");
+
+  // card (dropdown)
+  const [categories, setCategories] = useState<any[]>([]);
+  const [cardProducts, setCardProducts] = useState<any[]>([]);
+  const [types, setTypes] = useState<any[]>([]);
+  const [cards, setCards] = useState<any[]>([]);
+
+  const [categoryId, setCategoryId] = useState<string>();
+  const [typeId, setTypeId] = useState<string>();
+  const [cardId, setCardId] = useState<string>();
+
+  const [categoryName, setCategoryName] = useState("");
+  const [typeName, setTypeName] = useState("");
+  const [serialNumber, setSerialNumber] = useState("");
+
+  // editable - operators and stations
+  const [operators, setOperators] = useState<any[]>([]);
+  const [stations, setStations] = useState<any[]>([]);
+  const [operatorId, setOperatorId] = useState<string>("");
+  const [stationId, setStationId] = useState<string>("");
+  const [memberId, setMemberId] = useState<string>("");
+
+  // otomatis
+  const [price, setPrice] = useState(0);
+  const [purchaseDate, setPurchaseDate] = useState("");
+  const [shiftDate, setShiftDate] = useState("");
+  const [operatorName, setOperatorName] = useState("");
+  const [stationName, setStationName] = useState("");
+  const [updatedBy, setUpdatedBy] = useState("");
+  const [updatedAt, setUpdatedAt] = useState("");
+
+  // editable transaksi
+  const [edcRef, setEdcRef] = useState("");
+  const [note, setNote] = useState("");
+
+  // card mismatch correction
+  const [showCorrection, setShowCorrection] = useState(false);
+  const [wrongCardSerial, setWrongCardSerial] = useState("");
+  const [correctCardSerial, setCorrectCardSerial] = useState("");
+  const [correctionNote, setCorrectionNote] = useState("");
+
   /* ======================
-     INIT LOAD (SAFE)
+     INIT LOAD
   ====================== */
   useEffect(() => {
     async function init() {
       try {
-        const [purchaseRes, stationRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/purchases/${id}`).then((r) => r.json()),
-          fetch(`${API_BASE_URL}/stations`).then((r) => r.json()),
+        const [trx, cat, ops, sts] = await Promise.all([
+          axios.get(`/purchases/${id}`),
+          axios.get("/card/category/"),
+          axios.get("/users"),
+          axios.get("/station"),
         ]);
 
-        const p = purchaseRes?.data;
-        if (!p) throw new Error("Purchase data not found");
+        const p = trx.data?.data;
+        if (!p) throw new Error("Data tidak ditemukan");
 
+        // customer
         setCustomerName(p.member?.name ?? "");
-        setNik(p.member?.identityNumber ?? "");
+        setIdentityNumber(p.member?.identityNumber ?? "");
+        setMemberType(p.member?.type ?? "");
         setNip(p.member?.nippKai ?? "");
-        setMemberId(p.member?.id ?? null);
+        setMemberId(p.memberId ?? "");
 
-        setStations(stationRes?.data?.items ?? []);
-        setStationId(p.station?.id ?? "");
+        // card
+        setCategoryName(p.card?.cardProduct?.category?.categoryName ?? "");
+        setTypeName(p.card?.cardProduct?.type?.typeName ?? "");
+        setSerialNumber(p.card?.serialNumber ?? "");
 
+        // editable - operator and station
+        setOperatorId(p.operatorId ?? "");
+        setOperatorName(p.operator?.fullName ?? "");
+        setStationId(p.stationId ?? "");
+        setStationName(p.station?.stationName ?? "");
+        setOperators(ops.data?.data?.items ?? []);
+        setStations(sts.data?.data?.items ?? []);
+
+        // otomatis
+        setPrice(p.price ?? 0);
         setPurchaseDate(formatDate(p.purchaseDate));
-        setExpiredDate(formatDate(p.card?.expiredDate));
-        setPrice(String(p.price ?? ""));
+        setShiftDate(p.shiftDate ? formatDate(p.shiftDate) : "");
+        setUpdatedBy(p.updatedByName ?? p.operator?.fullName ?? "");
+        setUpdatedAt(p.updatedAt ? formatDate(p.updatedAt) : "");
+
+        // editable
         setEdcRef(p.edcReferenceNumber ?? "");
-      } catch (err) {
-        console.error("INIT EDIT ERROR:", err);
+        setNote(p.notes ?? "");
+
+        setCategories(cat.data?.data ?? []);
+      } catch {
         alert("Gagal memuat data transaksi");
       } finally {
-        setLoading(false); // 🔥 PENTING
+        setLoading(false);
       }
     }
 
@@ -125,37 +182,161 @@ export default function EditTransactionPage() {
   }, [id]);
 
   /* ======================
-     SUBMIT (UPDATE)
+     CATEGORY CHANGE
+  ====================== */
+  async function onCategoryChange(id?: string) {
+    setCategoryId(id);
+    setTypeId(undefined);
+    setCardId(undefined);
+    setTypes([]);
+    setCards([]);
+    setPrice(0);
+
+    if (!id) return;
+
+    const selected = categories.find((c) => c.id === id);
+    setCategoryName(selected?.categoryName ?? "");
+
+    // Load card products untuk mendapatkan price
+    const [typesRes, productsRes] = await Promise.all([
+      axios.get("/card/types", { params: { categoryId: id } }),
+      axios.get("/card/product", { params: { categoryId: id } }),
+    ]);
+
+    setTypes(typesRes.data?.data ?? []);
+    setCardProducts(productsRes.data?.data ?? []);
+  }
+
+  /* ======================
+     TYPE CHANGE
+  ====================== */
+  async function onTypeChange(id?: string) {
+    setTypeId(id);
+    setCardId(undefined);
+    setCards([]);
+
+    const t = types.find((x) => x.id === id);
+    setTypeName(t?.typeName ?? "");
+
+    if (!id) {
+      setPrice(0);
+      return;
+    }
+
+    // Set price dari cardProduct yang sesuai dengan categoryId DAN typeId
+    const matchedProduct = cardProducts.find(
+      (product: any) =>
+        product.categoryId === categoryId && product.type?.id === id,
+    );
+    if (matchedProduct) {
+      setPrice(Number(matchedProduct.price) || 0);
+    }
+
+    // Load cards dengan filter categoryId DAN typeId
+    const res = await axios.get("/cards", {
+      params: {
+        categoryId: categoryId,
+        typeId: id,
+        status: "IN_STATION",
+      },
+    });
+    setCards(res.data?.data?.items ?? []);
+  }
+
+  /* ======================
+     CARD CORRECTION
+  ====================== */
+  async function handleCorrectCard() {
+    if (!wrongCardSerial || !correctCardSerial) {
+      alert("Harap isi Wrong Card Serial dan Correct Card Serial");
+      return;
+    }
+
+    if (
+      !confirm(
+        "Apakah Anda yakin ingin melakukan koreksi kartu? Kartu yang salah akan di-set ke status DELETED (permanent).",
+      )
+    ) {
+      return;
+    }
+
+    try {
+      // Find wrong card ID by serial number
+      const wrongCardRes = await axios.get("/cards", {
+        params: { search: wrongCardSerial },
+      });
+      const wrongCard = wrongCardRes.data?.data?.items?.find(
+        (c: any) => c.serialNumber === wrongCardSerial,
+      );
+
+      if (!wrongCard) {
+        alert(`Card dengan serial ${wrongCardSerial} tidak ditemukan`);
+        return;
+      }
+
+      // Find correct card ID by serial number
+      const correctCardRes = await axios.get("/cards", {
+        params: { search: correctCardSerial },
+      });
+      const correctCard = correctCardRes.data?.data?.items?.find(
+        (c: any) => c.serialNumber === correctCardSerial,
+      );
+
+      if (!correctCard) {
+        alert(`Card dengan serial ${correctCardSerial} tidak ditemukan`);
+        return;
+      }
+
+      // Call correction endpoint
+      await axios.patch(`/purchases/${id}/correct-card-mismatch`, {
+        wrongCardId: wrongCard.id,
+        correctCardId: correctCard.id,
+        notes: correctionNote,
+      });
+
+      alert("Koreksi kartu berhasil!");
+      router.refresh();
+      router.back();
+    } catch (error: any) {
+      const message =
+        error.response?.data?.error?.message || "Gagal melakukan koreksi kartu";
+      alert(message);
+    }
+  }
+
+  /* ======================
+     SUBMIT
   ====================== */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
     try {
-      await fetch(`${API_BASE_URL}/purchases/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          memberId,
-          stationId,
-          purchaseDate,
-          edcReferenceNumber: edcRef,
-          price: Number(price),
-        }),
-      });
+      const updateData: any = {};
 
-      router.push("/dashboard/superadmin/transaksi");
-    } catch (err) {
-      console.error("UPDATE FAILED:", err);
-      alert("Gagal update transaksi");
+      if (memberId) updateData.memberId = memberId;
+      if (operatorId) updateData.operatorId = operatorId;
+      if (stationId) updateData.stationId = stationId;
+      if (edcRef) updateData.edcReferenceNumber = edcRef;
+      if (price) updateData.price = price;
+      if (note) updateData.notes = note;
+      if (shiftDate) {
+        // Convert YYYY-MM-DD to ISO datetime
+        const date = new Date(shiftDate);
+        updateData.shiftDate = date.toISOString();
+      }
+
+      await axios.patch(`/purchases/${id}`, updateData);
+
+      alert("Transaksi berhasil diperbarui");
+      router.back();
+    } catch (error: any) {
+      const message =
+        error.response?.data?.error?.message || "Gagal memperbarui transaksi";
+      alert(message);
     }
   }
 
-  /* ======================
-     LOADING
-  ====================== */
-  if (loading) {
-    return <div className="p-6 text-gray-500">Loading...</div>;
-  }
+  if (loading) return <div className="p-6">Memuat data…</div>;
 
   /* ======================
      RENDER
@@ -170,89 +351,271 @@ export default function EditTransactionPage() {
         >
           <ArrowLeft size={20} />
         </button>
-        <h1 className="text-xl font-semibold">Edit Transaction</h1>
+        <h1 className="text-xl font-semibold">Edit Transaksi</h1>
       </div>
 
-      {/* FORM */}
       <form
         onSubmit={handleSubmit}
-        className="space-y-4 rounded-lg border bg-white p-6"
+        className="space-y-6 rounded-lg border bg-gray-50 p-6"
       >
-        <SectionCard title="Customer Information">
-          <div className="md:col-span-2">
-            <Field label="Customer Name">
-              <input
-                value={customerName}
-                disabled
-                className={`${base} bg-gray-50`}
-              />
-            </Field>
-          </div>
-
-          <Field label="NIK">
-            <input value={nik} disabled className={`${base} bg-gray-50`} />
+        <SectionCard
+          title="Data Customer"
+          description="Informasi identitas pemegang kartu"
+        >
+          <Field label="Nama Customer">
+            <input
+              value={customerName}
+              disabled
+              className={`${base} bg-gray-100`}
+            />
           </Field>
 
-          <Field label="NIP">
-            <input value={nip} disabled className={`${base} bg-gray-50`} />
+          <Field label="Identity Number">
+            <input
+              value={identityNumber}
+              disabled
+              className={`${base} bg-gray-100`}
+            />
+          </Field>
+
+          <Field label="NIP (Khusus KAI)">
+            <input
+              value={nip}
+              disabled
+              placeholder={
+                memberType === "KAI"
+                  ? "Masukkan NIP KAI"
+                  : "Tidak berlaku (Non-KAI)"
+              }
+              className={`${base} bg-gray-100 ${
+                memberType !== "KAI" ? "italic" : ""
+              }`}
+            />
           </Field>
         </SectionCard>
 
-        <SectionCard title="Purchase Information">
-          <Field label="Purchased Date">
+        <SectionCard
+          title="Data Kartu"
+          description="Kategori, tipe, dan kartu yang digunakan"
+        >
+          <Field label="Card Category">
             <input
-              type="date"
+              value={categoryName}
+              disabled
+              className={`${base} bg-gray-100`}
+            />
+          </Field>
+
+          <Field label="Card Type">
+            <input
+              value={typeName}
+              disabled
+              className={`${base} bg-gray-100`}
+            />
+          </Field>
+
+          <Field label="Serial Number">
+            <input
+              value={serialNumber}
+              disabled
+              className={`${base} bg-gray-100`}
+            />
+          </Field>
+
+          <Field label="FW Price (Otomatis)">
+            <input
+              value={rupiah(price)}
+              disabled
+              className={`${base} bg-gray-100`}
+            />
+          </Field>
+        </SectionCard>
+
+        <SectionCard title="Informasi Transaksi">
+          <Field label="Purchase Date">
+            <input
               value={purchaseDate}
               disabled
-              className={`${base} bg-gray-50`}
+              className={`${base} bg-gray-100`}
             />
           </Field>
-
-          <Field label="Expired Date">
+          <Field label="Shift Date">
             <input
               type="date"
-              value={expiredDate}
+              value={shiftDate}
               disabled
-              className={`${base} bg-gray-50`}
+              className={`${base} bg-gray-100`}
             />
-          </Field>
-
-          <Field label="FWC Price">
-            <input value={price} readOnly className={`${base} bg-gray-50`} />
           </Field>
         </SectionCard>
 
-        <SectionCard title="Operational Information">
-          <Field label="Stasiun" required>
+        <SectionCard title="Operasional">
+          <Field label="Operator">
             <select
+              value={operatorId}
+              onChange={(e) => setOperatorId(e.target.value)}
               className={base}
+            >
+              <option value="">{operatorName || "Pilih Operator"}</option>
+              {operators.map((op) => (
+                <option key={op.id} value={op.id}>
+                  {op.fullName}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Stasiun">
+            <select
               value={stationId}
               onChange={(e) => setStationId(e.target.value)}
+              className={base}
             >
-              <option value="">Select</option>
-              {stations.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.stationName}
+              <option value="">{stationName || "Pilih Stasiun"}</option>
+              {stations.map((st) => (
+                <option key={st.id} value={st.id}>
+                  {st.stationName}
                 </option>
               ))}
             </select>
           </Field>
         </SectionCard>
 
-        <Field label="No. Reference EDC" required>
-          <input
-            value={edcRef}
-            onChange={(e) => setEdcRef(e.target.value)}
-            className={base}
-          />
-        </Field>
+        <SectionCard
+          title="Informasi Pembaruan"
+          description="Data yang dapat diperbarui pada transaksi ini"
+        >
+          {/* ROW 1 */}
+          <Field label="No. Reference EDC">
+            <input
+              value={edcRef}
+              onChange={(e) => setEdcRef(e.target.value)}
+              className={base}
+            />
+          </Field>
+
+          {updatedAt && (
+            <>
+              <Field label="Terakhir Diperbarui Oleh">
+                <input
+                  value={updatedBy}
+                  disabled
+                  className={`${base} bg-gray-100`}
+                />
+              </Field>
+
+              {/* ROW 2 */}
+              <Field label="Terakhir Diperbarui Pada">
+                <input
+                  value={updatedAt}
+                  disabled
+                  className={`${base} bg-gray-100`}
+                />
+              </Field>
+            </>
+          )}
+
+          {/* ROW 3 - FULL WIDTH */}
+          <div className="md:col-span-2">
+            <Field label="Noted">
+              <textarea
+                value={note}
+                disabled
+                className="min-h-[96px] w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
+                placeholder="Tambahkan catatan jika diperlukan"
+              />
+            </Field>
+          </div>
+        </SectionCard>
+
+        {/* CARD MISMATCH CORRECTION - Only show if no note exists */}
+        {!note && (
+          <SectionCard
+            title="Koreksi Kartu (Card Mismatch)"
+            description="Gunakan jika petugas salah memberikan kartu ke customer"
+          >
+            <div className="md:col-span-2">
+              <div className="flex items-center gap-2 mb-4">
+                <input
+                  type="checkbox"
+                  id="showCorrection"
+                  checked={showCorrection}
+                  onChange={(e) => setShowCorrection(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+                <label
+                  htmlFor="showCorrection"
+                  className="text-sm font-medium text-gray-700"
+                >
+                  Aktifkan Koreksi Kartu
+                </label>
+              </div>
+            </div>
+
+            {showCorrection && (
+              <>
+                <Field label="Wrong Card Serial (yang salah dikasih)">
+                  <input
+                    value={wrongCardSerial}
+                    onChange={(e) => setWrongCardSerial(e.target.value)}
+                    placeholder="Contoh: 0111001"
+                    className={base}
+                  />
+                </Field>
+
+                <Field label="Correct Card Serial (yang benar seharusnya)">
+                  <input
+                    value={correctCardSerial}
+                    onChange={(e) => setCorrectCardSerial(e.target.value)}
+                    placeholder="Contoh: 0111002"
+                    className={base}
+                  />
+                </Field>
+
+                <div className="md:col-span-2">
+                  <Field label="Alasan Koreksi">
+                    <textarea
+                      value={correctionNote}
+                      onChange={(e) => setCorrectionNote(e.target.value)}
+                      className="min-h-[80px] w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
+                      placeholder="Jelaskan alasan koreksi kartu"
+                    />
+                  </Field>
+                </div>
+
+                <div className="md:col-span-2">
+                  <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3">
+                    <p className="text-xs text-yellow-800">
+                      <strong>Perhatian:</strong> Koreksi kartu akan:
+                    </p>
+                    <ul className="text-xs text-yellow-700 mt-1 ml-4 list-disc">
+                      <li>Card lama ({serialNumber}) return ke IN_STATION</li>
+                      <li>
+                        Wrong card (yang salah dikasih) jadi status DELETED
+                        (permanent)
+                      </li>
+                      <li>Correct card (yang benar) jadi SOLD_ACTIVE</li>
+                      <li>Price transaksi tetap (tidak berubah)</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="md:col-span-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleCorrectCard}
+                    className="rounded-md bg-orange-600 px-6 py-2 text-sm font-medium text-white hover:bg-orange-700"
+                  >
+                    Lakukan Koreksi Kartu
+                  </button>
+                </div>
+              </>
+            )}
+          </SectionCard>
+        )}
 
         <div className="flex justify-end pt-4">
-          <button
-            type="submit"
-            className="rounded-md bg-[#8B1538] px-8 py-2 text-sm font-medium text-white hover:bg-[#73122E]"
-          >
-            Update
+          <button className="rounded-md bg-[#8B1538] px-8 py-2 text-sm font-medium text-white hover:bg-[#73122E]">
+            Simpan Perubahan
           </button>
         </div>
       </form>

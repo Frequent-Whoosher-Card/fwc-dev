@@ -86,14 +86,67 @@ export namespace PurchaseModel {
           "Purchase price (default: from cardProduct.price, can be overridden for discounts/promos). Must be >= 0.",
         examples: [50000, 75000, 100000],
         minimum: 0,
-      })
+      }),
     ),
     notes: t.Optional(
       t.String({
         maxLength: 500,
         description: "Optional notes for this transaction",
         examples: ["Customer requested discount", "Promo special"],
-      })
+      }),
+    ),
+  });
+
+  export const updatePurchaseBody = t.Object({
+    memberId: t.Optional(
+      t.String({
+        format: "uuid",
+        description: "Update member ID",
+        examples: ["123e4567-e89b-12d3-a456-426614174001"],
+      }),
+    ),
+    operatorId: t.Optional(
+      t.String({
+        format: "uuid",
+        description: "Update operator ID",
+        examples: ["123e4567-e89b-12d3-a456-426614174002"],
+      }),
+    ),
+    stationId: t.Optional(
+      t.String({
+        format: "uuid",
+        description: "Update station ID",
+        examples: ["123e4567-e89b-12d3-a456-426614174003"],
+      }),
+    ),
+    edcReferenceNumber: t.Optional(
+      t.String({
+        minLength: 1,
+        maxLength: 100,
+        description: "Update EDC Reference Number",
+        examples: ["EDC-20260102-002"],
+      }),
+    ),
+    price: t.Optional(
+      t.Number({
+        description: "Update price",
+        examples: [50000, 75000],
+        minimum: 0,
+      }),
+    ),
+    notes: t.Optional(
+      t.String({
+        maxLength: 500,
+        description: "Update notes",
+        examples: ["Updated notes"],
+      }),
+    ),
+    shiftDate: t.Optional(
+      t.String({
+        format: "date-time",
+        description: "Update shift date",
+        examples: ["2026-01-21T00:00:00.000Z"],
+      }),
     ),
   });
 
@@ -103,60 +156,60 @@ export namespace PurchaseModel {
         description:
           "Page number for pagination (default: 1). Note: For petugas role, this filter applies to today's transactions only.",
         examples: ["1"],
-      })
+      }),
     ),
     limit: t.Optional(
       t.String({
         description: "Number of items per page (default: 10)",
         examples: ["10", "20", "50"],
-      })
+      }),
     ),
     startDate: t.Optional(
       t.String({
         description:
           "Start date filter (YYYY-MM-DD). Note: Ignored for petugas role (always uses today). Only applies to admin/superadmin roles.",
         examples: ["2026-01-01"],
-      })
+      }),
     ),
     endDate: t.Optional(
       t.String({
         description:
           "End date filter (YYYY-MM-DD). Note: Ignored for petugas role (always uses today). Only applies to admin/superadmin roles.",
         examples: ["2026-01-31"],
-      })
+      }),
     ),
     stationId: t.Optional(
       t.String({
         description:
           "Filter by station ID. Note: Ignored for supervisor role (always uses supervisor's station). Only applies to admin/superadmin roles.",
         examples: ["123e4567-e89b-12d3-a456-426614174000"],
-      })
+      }),
     ),
     categoryId: t.Optional(
       t.String({
         description: "Filter by card category ID",
         examples: ["123e4567-e89b-12d3-a456-426614174000"],
-      })
+      }),
     ),
     typeId: t.Optional(
       t.String({
         description: "Filter by card type ID",
         examples: ["123e4567-e89b-12d3-a456-426614174000"],
-      })
+      }),
     ),
     operatorId: t.Optional(
       t.String({
         description:
           "Filter by operator ID. Note: Ignored for petugas role (always uses petugas's own ID). Only applies to admin/superadmin roles.",
         examples: ["123e4567-e89b-12d3-a456-426614174000"],
-      })
+      }),
     ),
     search: t.Optional(
       t.String({
         description:
           "Search by EDC reference number, card serial number, customer name, identity number, or operator name (case-insensitive partial match)",
         examples: ["EDC123", "CARD001", "John Doe", "1234567890"],
-      })
+      }),
     ),
   });
 
@@ -167,6 +220,38 @@ export namespace PurchaseModel {
   });
 
   export const createPurchaseResponse = t.Object({
+    success: t.Boolean(),
+    message: t.String(),
+    data: purchaseData,
+  });
+
+  export const updatePurchaseResponse = t.Object({
+    success: t.Boolean(),
+    message: t.String(),
+    data: purchaseData,
+  });
+
+  export const correctCardMismatchBody = t.Object({
+    wrongCardId: t.String({
+      format: "uuid",
+      description: "Card ID that was mistakenly given to customer",
+      examples: ["123e4567-e89b-12d3-a456-426614174001"],
+    }),
+    correctCardId: t.String({
+      format: "uuid",
+      description: "Card ID that should have been given to customer",
+      examples: ["123e4567-e89b-12d3-a456-426614174002"],
+    }),
+    notes: t.Optional(
+      t.String({
+        maxLength: 500,
+        description: "Explanation for the card correction",
+        examples: ["Petugas salah kasih kartu"],
+      }),
+    ),
+  });
+
+  export const correctCardMismatchResponse = t.Object({
     success: t.Boolean(),
     message: t.String(),
     data: purchaseData,

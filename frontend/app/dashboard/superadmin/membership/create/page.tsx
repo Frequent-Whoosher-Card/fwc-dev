@@ -289,7 +289,7 @@ export default function AddMemberPage() {
               const nameA = `${a.category.categoryName} - ${a.type.typeName}`;
               const nameB = `${b.category.categoryName} - ${b.type.typeName}`;
               return nameA.localeCompare(nameB);
-            }
+            },
           );
 
           setCardProducts(sortedProducts);
@@ -344,7 +344,7 @@ export default function AddMemberPage() {
               Authorization: `Bearer ${token}`,
               "Content-Type": "application/json",
             },
-          }
+          },
         );
 
         if (res.ok) {
@@ -357,13 +357,13 @@ export default function AddMemberPage() {
             const sortedCards = cards
               .filter((c) => c.serialNumber)
               .sort((a: Card, b: Card) =>
-                a.serialNumber.localeCompare(b.serialNumber)
+                a.serialNumber.localeCompare(b.serialNumber),
               );
 
             setAvailableCards(sortedCards);
 
             console.log(
-              `✅ Loaded ${sortedCards.length} available cards for product ${selectedCardProductId}`
+              `✅ Loaded ${sortedCards.length} available cards for product ${selectedCardProductId}`,
             );
           } else {
             setAvailableCards([]);
@@ -377,7 +377,7 @@ export default function AddMemberPage() {
 
           if (res.status === 404) {
             console.warn(
-              "⚠️ Cards endpoint returned 404. Make sure backend is restarted and endpoint is registered."
+              "⚠️ Cards endpoint returned 404. Make sure backend is restarted and endpoint is registered.",
             );
           } else if (res.status === 401) {
             console.error("❌ Unauthorized. Check authentication token.");
@@ -402,7 +402,7 @@ export default function AddMemberPage() {
       ...prev,
       expiredDate: calculateExpiredDate(
         prev.purchasedDate,
-        selectedCardProduct.masaBerlaku
+        selectedCardProduct.masaBerlaku,
       ),
     }));
   }, [form.purchasedDate, selectedCardProduct]);
@@ -442,7 +442,7 @@ export default function AddMemberPage() {
         const purchasedDate = new Date(form.purchasedDate || new Date());
         const expiredDate = new Date(purchasedDate);
         expiredDate.setDate(
-          expiredDate.getDate() + selectedCardProduct.masaBerlaku
+          expiredDate.getDate() + selectedCardProduct.masaBerlaku,
         );
         setForm((prev) => ({
           ...prev,
@@ -462,7 +462,7 @@ export default function AddMemberPage() {
 
   const handleKTPDetectionComplete = (
     sessionId: string,
-    croppedImageBase64: string
+    croppedImageBase64: string,
   ) => {
     setKtpSessionId(sessionId);
     // Detection sudah selesai, user bisa klik "Ekstrak Data KTP" untuk OCR
@@ -492,7 +492,7 @@ export default function AddMemberPage() {
 
       if (!response.ok || !result.success) {
         throw new Error(
-          result.error?.message || result.error || "Gagal mengekstrak data KTP"
+          result.error?.message || result.error || "Gagal mengekstrak data KTP",
         );
       }
 
@@ -508,8 +508,8 @@ export default function AddMemberPage() {
             data.gender === "Laki-laki" || data.gender === "L"
               ? "L"
               : data.gender === "Perempuan" || data.gender === "P"
-              ? "P"
-              : prev.gender,
+                ? "P"
+                : prev.gender,
           address: data.alamat || prev.address,
         }));
 
@@ -520,7 +520,7 @@ export default function AddMemberPage() {
     } catch (error: any) {
       console.error("OCR Error:", error);
       toast.error(
-        error.message || "Gagal mengekstrak data KTP. Silakan isi manual."
+        error.message || "Gagal mengekstrak data KTP. Silakan isi manual.",
       );
     } finally {
       setIsExtractingOCR(false);
@@ -529,7 +529,7 @@ export default function AddMemberPage() {
 
   const checkUniqueField = async (
     field: "nik" | "edcReferenceNumber",
-    value: string
+    value: string,
   ) => {
     if (!value) return;
 
@@ -594,7 +594,7 @@ export default function AddMemberPage() {
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
+    >,
   ) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -739,7 +739,7 @@ export default function AddMemberPage() {
       if (!meData.data?.station?.id) {
         toast.error(
           "User tidak memiliki stasiun. Silakan hubungi administrator.",
-          { duration: 5000 }
+          { duration: 5000 },
         );
         return;
       }
@@ -796,8 +796,8 @@ export default function AddMemberPage() {
         stationId: stationIdFromMe,
       });
 
-      if (!purchaseRes?.success) {
-        throw new Error(purchaseRes?.message || "Gagal membuat transaksi");
+      if (!purchaseRes) {
+        throw new Error("Gagal membuat transaksi");
       }
 
       router.push("/dashboard/superadmin/membership");
@@ -1100,10 +1100,10 @@ export default function AddMemberPage() {
                       {isLoadingCards
                         ? "Loading..."
                         : !selectedCardProductId
-                        ? "Pilih Card Product terlebih dahulu"
-                        : availableCards.length === 0
-                        ? "Tidak ada kartu tersedia"
-                        : "Pilih Serial Number"}
+                          ? "Pilih Card Product terlebih dahulu"
+                          : availableCards.length === 0
+                            ? "Tidak ada kartu tersedia"
+                            : "Pilih Serial Number"}
                     </option>
                     {availableCards.map((card) => (
                       <option key={card.id} value={card.id}>
@@ -1258,7 +1258,7 @@ export default function AddMemberPage() {
                     if (form.edcReferenceNumber.length >= 6) {
                       checkUniqueField(
                         "edcReferenceNumber",
-                        form.edcReferenceNumber
+                        form.edcReferenceNumber,
                       );
                     }
                   }}
@@ -1331,8 +1331,8 @@ export default function AddMemberPage() {
             form.gender === "L"
               ? "Laki - Laki"
               : form.gender === "P"
-              ? "Perempuan"
-              : "-",
+                ? "Perempuan"
+                : "-",
           "Phone Number": getFullPhoneNumber(),
           "Email Address": form.email,
           Address: form.address,
