@@ -1,43 +1,76 @@
 'use client';
 
 import { useState } from 'react';
+import {
+  BaseCardProductForm,
+  BaseCardProductTable,
+  BaseCategoryModal,
+  BaseTypeModal,
+} from '@/components/createnewcard';
+import ConfirmModal from '@/components/ConfirmModal';
+import { useCardBase } from '@/hooks/useCardBase';
 
-import { CardProductForm, CardProductTable, AddCategoryModal, AddTypeModal, CardPageHeader } from '@/components/createnewcard';
-
-import { useCardProductsFWC } from '@/hooks/useCardProductsFWC';
-import { useCategoriesFWC } from '@/hooks/useCategoriesFWC';
-import { useTypesFWC } from '@/hooks/useTypesFWC';
-
-export default function Page() {
-  const { data: products, fetch: fetchProducts } = useCardProductsFWC();
-
-  const { data: categories, fetch: fetchCategories } = useCategoriesFWC();
-
-  const { data: types, fetch: fetchTypes } = useTypesFWC();
+export default function FWCPage() {
+  const {
+    products,
+    categories,
+    types,
+    fetchProducts,
+    fetchCategories,
+    fetchTypes,
+    deleteProduct,
+    confirmDelete,
+    showDeleteConfirm,
+    setShowDeleteConfirm,
+    isDeleting,
+    service,
+  } = useCardBase({ programType: 'FWC' });
 
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showTypeModal, setShowTypeModal] = useState(false);
 
   return (
-    <div className="max-w-full space-y-8 px-6">
-      {/* HEADER (judul kiri, switch kanan) */}
-      <CardPageHeader title="FWC" />
-
-      {/* FORM AREA */}
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <CardProductForm categories={categories} types={types} onSuccess={fetchProducts} onOpenCategory={() => setShowCategoryModal(true)} onOpenType={() => setShowTypeModal(true)} />
-
-        {/* Kolom kanan sengaja kosong (future use) */}
+    <div className="px-6 space-y-8 max-w-full">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <BaseCardProductForm
+          programType="FWC"
+          categories={categories}
+          types={types}
+          onSuccess={fetchProducts}
+          onOpenCategory={() => setShowCategoryModal(true)}
+          onOpenType={() => setShowTypeModal(true)}
+          service={service}
+        />
         <div />
       </div>
 
-      {/* TABLE – FULL WIDTH */}
-      <CardProductTable data={products} />
+      <BaseCardProductTable programType="FWC" data={products} onDelete={deleteProduct} />
 
-      {/* MODALS */}
-      <AddCategoryModal open={showCategoryModal} onClose={() => setShowCategoryModal(false)} onSuccess={fetchCategories} />
+      <BaseCategoryModal
+        programType="FWC"
+        open={showCategoryModal}
+        onClose={() => setShowCategoryModal(false)}
+        onSuccess={fetchCategories}
+        service={service}
+      />
 
-      <AddTypeModal open={showTypeModal} onClose={() => setShowTypeModal(false)} onSuccess={fetchTypes} />
+      <BaseTypeModal
+        programType="FWC"
+        open={showTypeModal}
+        onClose={() => setShowTypeModal(false)}
+        onSuccess={fetchTypes}
+        service={service}
+      />
+
+      <ConfirmModal
+        open={showDeleteConfirm}
+        title="Hapus Product"
+        description="Apakah Anda yakin ingin menghapus product FWC ini? Data yang dihapus tidak dapat dikembalikan."
+        confirmText="Ya, Hapus"
+        loading={isDeleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }
