@@ -134,6 +134,34 @@ export class CardGenerateService {
       throw new ValidationError("Maksimal 1000 kartu per batch");
     }
 
+    // --- ENFORCE MAX QUANTITY ---
+    if (product.maxQuantity) {
+      const totalCards = await db.card.count({
+        where: {
+          cardProductId: product.id,
+          deletedAt: null,
+        },
+      });
+
+      if (totalCards + quantity > product.maxQuantity) {
+        const unsoldCardsCount = await db.card.count({
+          where: {
+            cardProductId: product.id,
+            deletedAt: null,
+            status: {
+              notIn: ["SOLD_ACTIVE", "SOLD_INACTIVE"],
+            },
+          },
+        });
+
+        if (unsoldCardsCount > 0) {
+          throw new ValidationError(
+            "Batas maksimal quantity tercapai dan stok yang ada belum terjual sepenuhnya.",
+          );
+        }
+      }
+    }
+
     // Check Sequential (Read-Only)
     // Note: There is a small race condition here if someone generates exactly at the same time,
     // but the unique constraint on serialNumber will catch it safely.
@@ -251,6 +279,34 @@ export class CardGenerateService {
 
     if (product.programType !== "VOUCHER") {
       throw new ValidationError("Produk ini bukan tipe VOUCHER");
+    }
+
+    // --- ENFORCE MAX QUANTITY ---
+    if (product.maxQuantity) {
+      const totalCards = await db.card.count({
+        where: {
+          cardProductId: product.id,
+          deletedAt: null,
+        },
+      });
+
+      if (totalCards + quantity > product.maxQuantity) {
+        const unsoldCardsCount = await db.card.count({
+          where: {
+            cardProductId: product.id,
+            deletedAt: null,
+            status: {
+              notIn: ["SOLD_ACTIVE", "SOLD_INACTIVE"],
+            },
+          },
+        });
+
+        if (unsoldCardsCount > 0) {
+          throw new ValidationError(
+            "Batas maksimal quantity tercapai dan stok yang ada belum terjual sepenuhnya.",
+          );
+        }
+      }
     }
 
     // Format Date: YYMMDD (Always use current date)
