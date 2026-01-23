@@ -32,7 +32,7 @@ export async function getCategoryByName(
   const categories = await getCategories();
   return (
     categories.find(
-      (c) => c.categoryName.toUpperCase() === name.toUpperCase()
+      (c) => c.categoryName.toUpperCase() === name.toUpperCase(),
     ) || null
   );
 }
@@ -46,7 +46,9 @@ export async function getCategoryPrice(categoryId: string): Promise<number> {
     const response = await axios.get("/card/product");
     const allProducts = response.data.data || [];
     // Filter by categoryId karena backend tidak support filter
-    const products = allProducts.filter((p: any) => p.categoryId === categoryId);
+    const products = allProducts.filter(
+      (p: any) => p.categoryId === categoryId,
+    );
     return products[0]?.price ? Number(products[0].price) : 0;
   } catch (error) {
     console.error("Error fetching category price:", error);
