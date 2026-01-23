@@ -35,7 +35,7 @@ export const stockIn = new Elysia({ prefix: "/in" })
               body.startSerial,
               body.endSerial,
               user.id,
-              body.note
+              body.note,
             );
 
             return {
@@ -69,7 +69,7 @@ export const stockIn = new Elysia({ prefix: "/in" })
             description:
               "Menyimpan kartu produksi ke tabel cards dengan serialNumber = serialTemplate + suffix berurutan. Role: superadmin/admin.",
           },
-        }
+        },
       )
       .get(
         "/available-serials",
@@ -77,7 +77,7 @@ export const stockIn = new Elysia({ prefix: "/in" })
           const { query, set } = context;
           try {
             const result = await StockInService.getAvailableSerials(
-              query.cardProductId
+              query.cardProductId,
             );
             return {
               success: true,
@@ -104,7 +104,7 @@ export const stockIn = new Elysia({ prefix: "/in" })
             description:
               "Mendapatkan daftar nomor serial yang statusnya ON_REQUEST (siap untuk di-stock in).",
           },
-        }
+        },
       )
       .get(
         "/",
@@ -150,7 +150,7 @@ export const stockIn = new Elysia({ prefix: "/in" })
             summary: "Get Stock In History",
             description: "Melihat riwayat stock in (produksi).",
           },
-        }
+        },
       )
       .get(
         "/:id",
@@ -186,7 +186,7 @@ export const stockIn = new Elysia({ prefix: "/in" })
             summary: "Get Stock In Detail",
             description: "Melihat detail transaksi stock in.",
           },
-        }
+        },
       )
       .post(
         "/damaged",
@@ -197,7 +197,7 @@ export const stockIn = new Elysia({ prefix: "/in" })
             const result = await StockInService.reportDamaged(
               body.serialNumbers,
               user.id,
-              body.note
+              body.note,
             );
 
             return {
@@ -235,8 +235,8 @@ export const stockIn = new Elysia({ prefix: "/in" })
               "Melaporkan kartu IN_OFFICE sebagai DAMAGED. Mencatat movement OUT (Adjustment) dan mengurangi stok office.",
             deprecated: true,
           },
-        }
-      )
+        },
+      ),
   )
   .group("", (app) =>
     app
@@ -250,7 +250,7 @@ export const stockIn = new Elysia({ prefix: "/in" })
             const result = await StockInService.update(
               params.id,
               body,
-              user.id
+              user.id,
             );
             return {
               success: true,
@@ -283,7 +283,7 @@ export const stockIn = new Elysia({ prefix: "/in" })
             description:
               "Mengupdate data stock in. Bisa mengedit serial number (dengan logic strict), note, dan movementAt.",
           },
-        }
+        },
       )
       .put(
         "/:id/status-batch",
@@ -294,7 +294,7 @@ export const stockIn = new Elysia({ prefix: "/in" })
             const result = await StockInService.updateBatchCardStatus(
               params.id,
               body.updates,
-              user.id
+              user.id,
             );
             return result;
           } catch (error) {
@@ -322,7 +322,7 @@ export const stockIn = new Elysia({ prefix: "/in" })
             description:
               "Mengubah status kartu (DAMAGED/LOST) dalam batch produksi ini. Mengupdate inventory office secara otomatis.",
           },
-        }
+        },
       )
       .delete(
         "/:id",
@@ -360,6 +360,6 @@ export const stockIn = new Elysia({ prefix: "/in" })
             description:
               "Membatalkan stock in. SYARAT MUTLAK: Semua kartu dari batch ini harus masih berstatus 'IN_OFFICE'. Jika ada 1 saja yang tidak di office, batal.",
           },
-        }
-      )
+        },
+      ),
   );

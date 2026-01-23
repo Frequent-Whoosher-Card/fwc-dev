@@ -73,7 +73,8 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
       try {
         const result = await CardGenerateService.generateVoucher({
           cardProductId: body.cardProductId,
-          quantity: body.quantity,
+          startSerial: body.startSerial,
+          endSerial: body.endSerial,
           userId: user.id || "00000000-0000-0000-0000-000000000000",
         });
 

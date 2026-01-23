@@ -256,14 +256,11 @@ export class CardGenerateService {
 
   static async generateVoucher(params: {
     cardProductId: string;
-    quantity: number;
+    startSerial: string;
+    endSerial: string;
     userId: string;
   }) {
-    const { cardProductId, quantity, userId } = params;
-
-    if (quantity > 1000) {
-      throw new ValidationError("Maksimal 1000 voucher per batch");
-    }
+    const { cardProductId, startSerial, endSerial, userId } = params;
 
     const product = await db.cardProduct.findUnique({
       where: { id: cardProductId },
@@ -279,6 +276,33 @@ export class CardGenerateService {
 
     if (product.programType !== "VOUCHER") {
       throw new ValidationError("Produk ini bukan tipe VOUCHER");
+    }
+
+    // Smart Parsing for Voucher: Template + YYMMDD + Suffix
+    const dateObj = new Date();
+    const yy = dateObj.getFullYear().toString().slice(-2);
+    const mm = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const dd = String(dateObj.getDate()).padStart(2, "0");
+    const datePrefix = `${yy}${mm}${dd}`;
+
+    const startNum = parseSmartSerial(
+      startSerial,
+      product.serialTemplate,
+      datePrefix,
+    );
+    const endNum = parseSmartSerial(
+      endSerial,
+      product.serialTemplate,
+      datePrefix,
+    );
+
+    if (endNum < startNum) {
+      throw new ValidationError("End Serial harus >= Start Serial");
+    }
+
+    const quantity = endNum - startNum + 1;
+    if (quantity > 1000) {
+      throw new ValidationError("Maksimal 1000 voucher per batch");
     }
 
     // --- ENFORCE MAX QUANTITY ---
@@ -309,20 +333,13 @@ export class CardGenerateService {
       }
     }
 
-    // Format Date: YYMMDD (Always use current date)
-    const dateObj = new Date();
-    const yy = dateObj.getFullYear().toString().slice(-2);
-    const mm = String(dateObj.getMonth() + 1).padStart(2, "0");
-    const dd = String(dateObj.getDate()).padStart(2, "0");
-    const datePrefix = `${yy}${mm}${dd}`;
-
-    // Full Prefix: PP + C + T + YYMMDD
-    // product.serialTemplate = PP + C + T
+    // Check Sequential (Read-Only)
     const fullPrefix = `${product.serialTemplate}${datePrefix}`;
+    let expectedStartNum = 1;
 
-    // Determine Sequence
-    let nextSequence = 1;
+    let lastCard = null;
     try {
+      // Check ALL cards for this product matching the YYMMDD prefix
       const result = await db.$queryRaw<Array<{ serial_number: string }>>`
         SELECT serial_number 
         FROM cards 
@@ -331,31 +348,53 @@ export class CardGenerateService {
         ORDER BY serial_number DESC 
         LIMIT 1
       `;
-
       if (result && result.length > 0) {
-        const lastSerial = result[0].serial_number;
-        const lastSuffix = lastSerial.slice(fullPrefix.length);
-        if (/^\d+$/.test(lastSuffix)) {
-          nextSequence = Number(lastSuffix) + 1;
-        }
+        lastCard = { serialNumber: result[0].serial_number };
       }
     } catch (e) {
       console.warn("Failed to check last voucher sequence", e);
+    }
+
+    if (lastCard && lastCard.serialNumber.startsWith(fullPrefix)) {
+      const lastSuffixStr = lastCard.serialNumber.slice(fullPrefix.length);
+      if (/^\d+$/.test(lastSuffixStr)) {
+        expectedStartNum = Number(lastSuffixStr) + 1;
+      }
+    }
+
+    if (startNum !== expectedStartNum) {
+      throw new ValidationError(
+        `Nomor serial harus berurutan. Serial terakhir untuk hari ini (${datePrefix}) adalah '${
+          lastCard ? lastCard.serialNumber : "Belum ada"
+        }'. Harap mulai dari suffix '${String(expectedStartNum).padStart(5, "0")}'`,
+      );
     }
 
     const serialNumbers: string[] = [];
     const width = 5;
 
     for (let i = 0; i < quantity; i++) {
-      const seq = String(nextSequence + i).padStart(width, "0");
-      serialNumbers.push(`${fullPrefix}${seq}`);
+      const sfx = String(startNum + i).padStart(width, "0");
+      serialNumbers.push(`${fullPrefix}${sfx}`);
+    }
+
+    // Check Existing
+    const existing = await db.card.findFirst({
+      where: { serialNumber: { in: serialNumbers } },
+      select: { serialNumber: true },
+    });
+
+    if (existing) {
+      throw new ValidationError(
+        `Serial ${existing.serialNumber} sudah ada. Generate gagal.`,
+      );
     }
 
     return await this.processGeneration(
       product,
       serialNumbers,
       userId,
-      product.programType || "VOUCHER",
+      "VOUCHER",
     );
   }
 
@@ -578,17 +617,20 @@ export class CardGenerateService {
     endDate?: Date;
     categoryId?: string;
     typeId?: string;
+    programType?: string; // Added filter
   }) {
     const {
       page = 1,
-      limit = 5,
+      limit = 10,
       startDate,
       endDate,
       categoryId,
       typeId,
+      programType,
     } = params;
     const pageNum = Number(page) || 1;
     const limitNum = Number(limit) || 10;
+
     const skip = (pageNum - 1) * limitNum;
 
     const where: any = {
@@ -606,6 +648,13 @@ export class CardGenerateService {
     if (categoryId) where.categoryId = categoryId;
     if (typeId) where.typeId = typeId;
 
+    // Filter by programType
+    if (programType) {
+      where.category = {
+        programType: programType,
+      };
+    }
+
     const [items, total] = await Promise.all([
       db.cardStockMovement.findMany({
         where,
@@ -613,7 +662,9 @@ export class CardGenerateService {
         take: limitNum,
         orderBy: { movementAt: "desc" },
         include: {
-          category: { select: { id: true, categoryName: true } },
+          category: {
+            select: { id: true, categoryName: true, programType: true },
+          },
           type: { select: { id: true, typeName: true } },
         },
       }),
@@ -666,6 +717,7 @@ export class CardGenerateService {
         createdByName: item.createdBy
           ? userMap.get(item.createdBy) || null
           : null,
+        programType: item.category.programType,
         category: {
           id: item.categoryId,
           name: item.category.categoryName,
@@ -701,7 +753,9 @@ export class CardGenerateService {
     const movement = await db.cardStockMovement.findUnique({
       where: { id },
       include: {
-        category: { select: { id: true, categoryName: true } },
+        category: {
+          select: { id: true, categoryName: true, programType: true },
+        },
         type: { select: { id: true, typeName: true } },
       },
     });
@@ -749,6 +803,7 @@ export class CardGenerateService {
         status: movement.status,
         note: movement.note,
         createdByName,
+        programType: movement.category.programType,
         category: {
           id: movement.category.id,
           name: movement.category.categoryName,
@@ -768,7 +823,7 @@ export class CardGenerateService {
     };
   }
 
-  // Get Next Serial Suggestion
+  // Get Next Serial Suggestion (Refactored)
   static async getNextSerial(cardProductId: string) {
     const product = await db.cardProduct.findUnique({
       where: { id: cardProductId },
@@ -782,8 +837,8 @@ export class CardGenerateService {
       throw new ValidationError("Produk tidak ditemukan");
     }
 
-    // Default to FWC logic
-    let datePart = new Date().getFullYear().toString().slice(-2); // YY
+    // Determine Date Part & Suffix Context
+    let datePart = new Date().getFullYear().toString().slice(-2); // Default YY
 
     // If Voucher, use YYMMDD
     if (product.programType === "VOUCHER") {

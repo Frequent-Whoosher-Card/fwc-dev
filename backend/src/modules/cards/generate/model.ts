@@ -10,7 +10,8 @@ export namespace CardGenerateModel {
 
   export const generateVoucherBody = t.Object({
     cardProductId: t.String({ format: "uuid" }),
-    quantity: t.Number({ minimum: 1, maximum: 1000 }),
+    startSerial: t.String(),
+    endSerial: t.String(),
   });
 
   export const generateVoucherResponse = t.Object({
@@ -54,6 +55,7 @@ export namespace CardGenerateModel {
     endDate: t.Optional(t.String({ format: "date" })),
     categoryId: t.Optional(t.String({ format: "uuid" })),
     typeId: t.Optional(t.String({ format: "uuid" })),
+    programType: t.Optional(t.Union([t.Literal("FWC"), t.Literal("VOUCHER")])),
   });
 
   // History Response
@@ -69,6 +71,7 @@ export namespace CardGenerateModel {
           status: t.String(),
           note: t.Union([t.String(), t.Null()]),
           createdByName: t.Union([t.String(), t.Null()]),
+          programType: t.Union([t.String(), t.Null()]),
           category: t.Object({
             id: t.String(),
             name: t.String(),
@@ -110,6 +113,7 @@ export namespace CardGenerateModel {
         status: t.String(),
         note: t.Union([t.String(), t.Null()]),
         createdByName: t.Union([t.String(), t.Null()]),
+        programType: t.Union([t.String(), t.Null()]),
         category: t.Object({
           id: t.String(),
           name: t.String(),
