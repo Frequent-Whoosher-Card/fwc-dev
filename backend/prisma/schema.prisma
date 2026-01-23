@@ -162,8 +162,8 @@ model CardCategory {
   deletedAt    DateTime? @map("deleted_at")
   deletedBy    String?   @map("deleted_by") @db.Uuid
 
-  maxQuantity Int?         @map("max_quantity")
   programType ProgramType? @map("program_type")
+  maxQuantity Int?         @map("max_quantity")
 
   // Relation
   cardInventories    CardInventory[]
@@ -248,6 +248,7 @@ model CardProduct {
   productDetailId Int?         @map("product_detail_id")
   totalQuota      Int          @map("total_quota")
   masaBerlaku     Int          @map("masa_berlaku")
+  maxQuantity     Int?         @map("max_quantity")
   price           Decimal
   isActive        Boolean      @map("is_active")
   serialTemplate  String       @unique @map("serial_template")
