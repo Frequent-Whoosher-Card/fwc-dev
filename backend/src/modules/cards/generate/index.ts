@@ -112,7 +112,7 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
   .get(
     "/next-serial",
     async (context) => {
-      const { query, set } = context;
+      const { query, set } = context as typeof context;
       try {
         const result = await CardGenerateService.getNextSerial(
           query.cardProductId,
@@ -149,7 +149,7 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
   .get(
     "/history",
     async (context) => {
-      const { query, set } = context;
+      const { query, set } = context as typeof context;
       try {
         const result = await CardGenerateService.getHistory(query);
         return {
@@ -186,7 +186,7 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
   .get(
     "/history/:id",
     async (context) => {
-      const { params, set } = context;
+      const { params, set } = context as typeof context;
       try {
         const result = await CardGenerateService.getHistoryDetail(params.id);
         return {
@@ -225,7 +225,7 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
   .get(
     "/history/:id/download-zip",
     async (context) => {
-      const { params, set } = context;
+      const { params, set } = context as typeof context;
       try {
         const result = await CardGenerateService.downloadZip(params.id);
 

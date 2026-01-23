@@ -220,6 +220,7 @@ export namespace CardProductModel {
   // Error Response
   export const errorResponse = t.Object({
     success: t.Boolean(),
+    message: t.Optional(t.String()),
     error: t.Object({
       message: t.String(),
       code: t.String(),
