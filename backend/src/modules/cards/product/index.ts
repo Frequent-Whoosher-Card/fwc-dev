@@ -1,7 +1,7 @@
 import { Elysia, t } from "elysia";
 import { authMiddleware } from "../../../middleware/auth";
 import { CardProductService } from "./service";
-import { formatErrorResponse } from "../../../utils/errors";
+import { formatErrorResponse, NotFoundError } from "../../../utils/errors";
 import { CardProductModel } from "./model";
 import { rbacMiddleware } from "../../../middleware/rbac";
 
@@ -70,6 +70,10 @@ const baseRoutes = new Elysia()
         const cardProduct = await CardProductService.getCardProductById(
           params.id,
         );
+
+        if (!cardProduct) {
+          throw new NotFoundError("Card product not found");
+        }
 
         return {
           success: true,
