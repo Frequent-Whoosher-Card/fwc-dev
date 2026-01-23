@@ -1,369 +1,366 @@
 "use client";
 
-import SuccessModal from "@/app/dashboard/superadmin/user/components/SuccesModal";
-import { ArrowLeft } from "lucide-react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 
-/* ======================
-   CONFIG
-====================== */
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL!;
+import SuccessModal from "@/app/dashboard/superadmin/user/components/SuccesModal";
+import { SectionCard } from "@/components/ui/section-card";
+import {
+  Field,
+  FieldLabel,
+  FieldContent,
+  FieldError,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { MemberAutocomplete } from "@/components/ui/member-autocomplete";
 
-/* ======================
-   BASE INPUT STYLE
-====================== */
-const base =
+import { usePurchaseForm } from "@/hooks/usePurchaseForm";
+import { useCardSelection } from "@/hooks/useCardSelection";
+import { useCategories } from "@/hooks/useCategories";
+import { useMemberSearch } from "@/hooks/useMemberSearch";
+
+const baseInputClass =
   "h-10 w-full rounded-md border border-gray-300 px-3 text-sm text-gray-700 focus:border-gray-400 focus:outline-none";
 
-/* ======================
-   DATE HELPER
-====================== */
-const getTodayLocalDate = () => {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-};
-
-/* ======================
-   UI HELPERS
-====================== */
-function Field({
-  label,
-  required,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs text-gray-500">
-        {label}
-        {required && <span className="ml-1 text-red-500">*</span>}
-      </label>
-      {children}
-    </div>
-  );
-}
-
-function SectionCard({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-md border border-gray-200 p-4">
-      <h3 className="mb-4 text-sm font-semibold text-gray-700">{title}</h3>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{children}</div>
-    </div>
-  );
-}
-
-/* ======================
-   PAGE
-====================== */
 export default function AddPurchasePage() {
   const router = useRouter();
+  const { categories, loading: loadingCategories } = useCategories();
 
-  /* ======================
-     CORE STATE
-  ====================== */
-  const [identityNumber, setIdentityNumber] = useState("");
-  const [memberId, setMemberId] = useState<string | null>(null);
+  const {
+    form,
+    isSubmitting,
+    showConfirm,
+    setShowConfirm,
+    openConfirmDialog,
+    handleConfirm,
+  } = usePurchaseForm();
 
-  const [cardCategory, setCardCategory] = useState<
-    "GOLD" | "SILVER" | "KAI" | ""
-  >("");
+  const {
+    query: memberQuery,
+    setQuery: setMemberQuery,
+    members,
+    loading: loadingMembers,
+    selectedMember,
+    setSelectedMember,
+    reset: resetMemberSearch,
+  } = useMemberSearch();
 
-  const [cardTypes, setCardTypes] = useState<any[]>([]);
-  const [cardTypeId, setCardTypeId] = useState("");
+  const {
+    cardCategory,
+    cardTypes,
+    cardTypeId,
+    cards,
+    cardId,
+    price,
+    serialNumber,
+    setSerialNumber,
+    searchResults,
+    isSearching,
+    loadingTypes,
+    loadingCards,
+    handleCategoryChange,
+    handleTypeChange,
+    handleCardChange,
+    handleCardSearch,
+    handleCardSelect,
+  } = useCardSelection();
 
-  const [cards, setCards] = useState<any[]>([]);
-  const [cardId, setCardId] = useState("");
+  console.log(cardTypes);
 
-  const [price, setPrice] = useState<number>(0);
-  const [purchaseDate, setPurchaseDate] = useState("");
-  const [shiftDate, setShiftDate] = useState("");
-
-  const [edcRef, setEdcRef] = useState("");
-
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  /* ======================
-     INIT
-  ====================== */
   useEffect(() => {
-    const today = getTodayLocalDate();
-    setPurchaseDate(today);
-    setShiftDate(today);
-  }, []);
-
-  /* ======================
-     CARD CATEGORY CHANGE
-  ====================== */
-  async function handleCategoryChange(
-    category: "GOLD" | "SILVER" | "KAI",
-  ) {
-    const token = localStorage.getItem("fwc_token");
-
-    setCardCategory(category);
-    setCardTypeId("");
-    setCardId("");
-    setCards([]);
-
-    // ✅ PRICE BY CATEGORY (BRD)
-    if (category === "GOLD") setPrice(500000);
-    if (category === "SILVER") setPrice(300000);
-    if (category === "KAI") setPrice(0);
-
-    const res = await fetch(`${API_BASE_URL}/card/types`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    const json = await res.json();
-    setCardTypes(json.data || []);
-  }
-
-  /* ======================
-     CARD TYPE CHANGE
-  ====================== */
-  async function handleTypeChange(typeId: string) {
-    const token = localStorage.getItem("fwc_token");
-
-    setCardTypeId(typeId);
-    setCardId("");
-
-    const res = await fetch(
-      `${API_BASE_URL}/cards?cardTypeId=${typeId}&status=IN_STATION`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      },
-    );
-
-    const json = await res.json();
-    setCards(json.data?.items || []);
-  }
-
-  /* ======================
-     MEMBER RESOLVE
-  ====================== */
-  async function resolveMember(): Promise<string> {
-    const token = localStorage.getItem("fwc_token");
-
-    const res = await fetch(
-      `${API_BASE_URL}/members?identityNumber=${identityNumber}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      },
-    );
-
-    const json = await res.json();
-    if (json.data?.items?.length) {
-      return json.data.items[0].id;
+    if (cardCategory) {
+      form.setValue("cardCategory", cardCategory as "GOLD" | "SILVER" | "KAI");
     }
+  }, [cardCategory, form]);
 
-    const create = await fetch(`${API_BASE_URL}/members`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        identityNumber,
-        type: cardCategory === "KAI" ? "KAI" : "PUBLIC",
-      }),
-    });
+  useEffect(() => {
+    form.setValue("cardTypeId", cardTypeId);
+  }, [cardTypeId, form]);
 
-    const created = await create.json();
-    return created.data.id;
-  }
+  useEffect(() => {
+    // When serialNumber changes, find the card with matching serial number
+    const findCard = async () => {
+      if (serialNumber && cardId) {
+        form.setValue("cardId", cardId);
+      }
+    };
+    findCard();
+  }, [serialNumber, cardId, form]);
 
-  /* ======================
-     SUBMIT
-  ====================== */
-  async function submitPurchase() {
-    const token = localStorage.getItem("fwc_token");
-    if (!token) return alert("Unauthorized");
+  useEffect(() => {
+    form.setValue("price", price);
+  }, [price, form]);
 
-    if (!identityNumber) return alert("Identity Number wajib");
-    if (!cardCategory) return alert("Card Category wajib");
-    if (!cardTypeId) return alert("Card Type wajib");
-    if (!cardId) return alert("Serial Number wajib");
-    if (!edcRef) return alert("No. Reference EDC wajib");
-
-    const resolvedMemberId = memberId ?? (await resolveMember());
-
-    const res = await fetch(`${API_BASE_URL}/purchases`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        memberId: resolvedMemberId,
-        cardId,
-        purchaseDate,
-        shiftDate,
-        edcReferenceNumber: edcRef,
-        price,
-      }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json();
-      return alert(err?.message || "Gagal menyimpan transaksi");
+  // Set memberId when member is selected
+  useEffect(() => {
+    if (selectedMember) {
+      form.setValue("memberId", selectedMember.id);
+      form.setValue("identityNumber", selectedMember.identityNumber);
+    } else {
+      form.setValue("memberId", "");
+      form.setValue("identityNumber", "");
     }
+  }, [selectedMember, form]);
 
-    router.push("/dashboard/superadmin/transaksi");
-  }
+  const {
+    register,
+    formState: { errors },
+  } = form;
 
-  /* ======================
-     RENDER
-  ====================== */
   return (
     <>
       <div className="space-y-6">
+        {/* Header */}
         <div className="flex items-center gap-3">
           <button
-            onClick={() => router.back()}
             className="rounded p-1 hover:bg-gray-100"
+            type="button"
+            onClick={() => router.back()}
           >
             <ArrowLeft size={20} />
           </button>
           <h1 className="text-xl font-semibold">Add Purchase</h1>
         </div>
 
-        <div className="space-y-4 rounded-lg border bg-white p-6">
+        {/* Form */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            openConfirmDialog();
+          }}
+          className="space-y-4 rounded-lg border bg-white p-6"
+        >
+          {/* Customer Section */}
           <SectionCard title="Customer">
-            <Field label="Identity Number" required>
-              <input
-                className={base}
-                value={identityNumber}
-                onChange={(e) =>
-                  setIdentityNumber(e.target.value.replace(/\D/g, ""))
-                }
-                placeholder={
-                  cardCategory === "KAI" ? "NIPP KAI" : "NIK Customer"
-                }
-              />
+            <Field>
+              <FieldLabel>
+                Identity Number (NIK/NIPP)
+                <span className="ml-1 text-red-500">*</span>
+              </FieldLabel>
+              <FieldContent>
+                <MemberAutocomplete
+                  value={memberQuery}
+                  onChange={setMemberQuery}
+                  onSelectMember={setSelectedMember}
+                  members={members}
+                  loading={loadingMembers}
+                  selectedMember={selectedMember}
+                  onClear={resetMemberSearch}
+                  placeholder={
+                    cardCategory === "KAI"
+                      ? "Cari NIPP KAI (min 3 karakter)..."
+                      : "Cari NIK Customer (min 3 karakter)..."
+                  }
+                />
+                <FieldError
+                  errors={
+                    errors.identityNumber ? [errors.identityNumber] : undefined
+                  }
+                />
+              </FieldContent>
             </Field>
           </SectionCard>
 
           <SectionCard title="Card">
-            <Field label="Card Category" required>
-              <select
-                className={base}
-                value={cardCategory}
-                onChange={(e) =>
-                  handleCategoryChange(e.target.value as any)
-                }
-              >
-                <option value="">Select</option>
-                <option value="GOLD">Gold</option>
-                <option value="SILVER">Silver</option>
-                <option value="KAI">KAI</option>
-              </select>
-            </Field>
-
-            <Field label="Card Type" required>
-              <select
-                className={base}
-                value={cardTypeId}
-                onChange={(e) => handleTypeChange(e.target.value)}
-                disabled={!cardCategory}
-              >
-                <option value="">Select</option>
-                {cardTypes.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.typeName}
+            <Field>
+              <FieldLabel>
+                Card Category
+                <span className="ml-1 text-red-500">*</span>
+              </FieldLabel>
+              <FieldContent>
+                <select
+                  className={baseInputClass}
+                  value={cardCategory}
+                  onChange={(e) => handleCategoryChange(e.target.value as any)}
+                  disabled={loadingCategories}
+                >
+                  <option value="">
+                    {loadingCategories ? "Loading..." : "Select"}
                   </option>
-                ))}
-              </select>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.value}>
+                      {cat.label}
+                    </option>
+                  ))}
+                </select>
+                {!cardCategory && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Pilih kategori kartu terlebih dahulu
+                  </p>
+                )}
+                <FieldError
+                  errors={
+                    errors.cardCategory ? [errors.cardCategory] : undefined
+                  }
+                />
+              </FieldContent>
             </Field>
 
-            <Field label="Serial Number" required>
-              <select
-                className={base}
-                value={cardId}
-                onChange={(e) => setCardId(e.target.value)}
-                disabled={!cardTypeId}
-              >
-                <option value="">Select</option>
-                {cards.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.serialNumber}
+            <Field>
+              <FieldLabel>
+                Card Type
+                <span className="ml-1 text-red-500">*</span>
+              </FieldLabel>
+              <FieldContent>
+                <select
+                  className={baseInputClass}
+                  value={cardTypeId}
+                  onChange={(e) => handleTypeChange(e.target.value)}
+                  disabled={!cardCategory || loadingTypes}
+                >
+                  <option value="">
+                    {loadingTypes ? "Loading..." : "Select"}
                   </option>
-                ))}
-              </select>
+                  {cardTypes.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.typeName}
+                    </option>
+                  ))}
+                </select>
+                {!cardCategory ? (
+                  <p className="mt-1 text-xs text-amber-600">
+                    ⚠ Pilih Card Category terlebih dahulu
+                  </p>
+                ) : cardCategory && !cardTypeId && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Pilih tipe kartu
+                  </p>
+                )}
+                <FieldError
+                  errors={errors.cardTypeId ? [errors.cardTypeId] : undefined}
+                />
+              </FieldContent>
             </Field>
 
-            <Field label="FWC Price">
-              <input
-                className={`${base} bg-gray-50`}
-                readOnly
-                value={price}
-              />
+            <Field>
+              <FieldLabel>
+                Serial Number
+                <span className="ml-1 text-red-500">*</span>
+              </FieldLabel>
+              <FieldContent>
+                <div className="relative">
+                  <input
+                    type="text"
+                    className={baseInputClass}
+                    value={serialNumber}
+                    onChange={(e) => handleCardSearch(e.target.value)}
+                    placeholder="Ketik minimal 6 karakter untuk mencari..."
+                    autoComplete="off"
+                  />
+                  {isSearching && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+                    </div>
+                  )}
+                  {searchResults.length > 0 && (
+                    <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
+                      {searchResults.map((card) => (
+                        <button
+                          key={card.id}
+                          type="button"
+                          onClick={() => handleCardSelect(card)}
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                        >
+                          {card.serialNumber}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {serialNumber && searchResults.length === 0 && !isSearching && serialNumber.length >= 6 && !cardId && (
+                  <p className="mt-1 text-xs text-red-600">
+                    Tidak ada kartu ditemukan dengan serial number ini
+                  </p>
+                )}
+                {serialNumber.length > 0 && serialNumber.length < 6 && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Ketik minimal 6 karakter untuk mencari serial number
+                  </p>
+                )}
+                <FieldError
+                  errors={errors.cardId ? [errors.cardId] : undefined}
+                />
+              </FieldContent>
+            </Field>
+
+            <Field>
+              <FieldLabel>FWC Price</FieldLabel>
+              <FieldContent>
+                <Input
+                  className={`${baseInputClass} bg-gray-50`}
+                  readOnly
+                  value={price}
+                />
+              </FieldContent>
             </Field>
           </SectionCard>
 
           <SectionCard title="System Info">
-            <Field label="Purchase Date">
-              <input
-                className={`${base} bg-gray-50`}
-                readOnly
-                value={purchaseDate}
-              />
+            <Field>
+              <FieldLabel>Purchase Date</FieldLabel>
+              <FieldContent>
+                <Input
+                  {...register("purchaseDate")}
+                  className={`${baseInputClass} bg-gray-50`}
+                  readOnly
+                />
+              </FieldContent>
             </Field>
 
-            <Field label="Shift Date">
-              <input
-                className={`${base} bg-gray-50`}
-                readOnly
-                value={shiftDate}
-              />
+            <Field>
+              <FieldLabel>Shift Date</FieldLabel>
+              <FieldContent>
+                <Input
+                  {...register("shiftDate")}
+                  className={`${baseInputClass} bg-gray-50`}
+                  readOnly
+                />
+              </FieldContent>
             </Field>
           </SectionCard>
 
-          <Field label="No. Reference EDC" required>
-            <input
-              className={base}
-              value={edcRef}
-              onChange={(e) =>
-                setEdcRef(e.target.value.replace(/\D/g, "").slice(0, 20))
-              }
-            />
+          <Field>
+            <FieldLabel>
+              No. Reference EDC
+              <span className="ml-1 text-red-500">*</span>
+            </FieldLabel>
+            <FieldContent>
+              <Input
+                {...register("edcReferenceNumber")}
+                className={baseInputClass}
+                maxLength={20}
+              />
+              <FieldError
+                errors={
+                  errors.edcReferenceNumber
+                    ? [errors.edcReferenceNumber]
+                    : undefined
+                }
+              />
+            </FieldContent>
           </Field>
 
-          <div className="flex justify-end pt-4">
-            <button
-              onClick={() => setShowConfirm(true)}
-              className="rounded-md bg-[#8B1538] px-8 py-2 text-sm font-medium text-white"
+          <div className="flex justify-end">
+            <Button
+              type="submit"
+              className="rounded-md bg-[#8B1538] px-8 py-2 text-sm font-medium text-white hover:bg-[#6B0F2B]"
+              disabled={isSubmitting}
             >
-              Save
-            </button>
+              {isSubmitting ? "Saving..." : "Save"}
+            </Button>
           </div>
-        </div>
+        </form>
       </div>
 
       <SuccessModal
         open={showConfirm}
         title="Confirm Save"
         message="Please review transaction data before saving"
-        confirmText={saving ? "Saving..." : "Save"}
+        confirmText={isSubmitting ? "Saving..." : "Save"}
         onClose={() => setShowConfirm(false)}
-        onConfirm={async () => {
-          setSaving(true);
-          setShowConfirm(false);
-          await submitPurchase();
-          setSaving(false);
-        }}
+        onConfirm={handleConfirm}
       />
     </>
   );

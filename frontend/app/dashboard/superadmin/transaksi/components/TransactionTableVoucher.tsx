@@ -1,0 +1,208 @@
+"use client";
+
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
+/* ======================
+   TYPES
+====================== */
+interface VoucherTransaction {
+  id: string;
+  purchaseDate: string;
+  shiftDate?: string | null;
+  price: number;
+  edcReferenceNumber: string;
+
+  voucher: {
+    serialNumber: string;
+    voucherProduct: {
+      category: { categoryName: string };
+      type: { typeName: string };
+    };
+  };
+
+  member: {
+    name: string;
+    identityNumber: string;
+  } | null;
+
+  operator: { fullName: string };
+  station: { stationName: string };
+}
+
+interface Pagination {
+  page: number;
+  limit: number;
+  totalPages: number;
+  total: number;
+}
+
+interface Props {
+  data: VoucherTransaction[];
+  loading: boolean;
+  pagination: Pagination;
+  onPageChange: (page: number) => void;
+}
+
+/* ======================
+   HELPERS
+====================== */
+const formatDate = (iso?: string | null) =>
+  iso
+    ? new Date(iso).toLocaleDateString("id-ID", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+    : "-";
+
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+  }).format(amount);
+
+const formatEDC = (edc?: string | null) =>
+  edc ? `EDC${edc}` : "-";
+
+/* ======================
+   COMPONENT
+====================== */
+export default function TransactionTableVoucher({
+  data,
+  loading,
+  pagination,
+  onPageChange,
+}: Props) {
+  const pageNumbers = Array.from(
+    { length: pagination.totalPages },
+    (_, i) => i + 1,
+  ).slice(Math.max(0, pagination.page - 3), pagination.page + 2);
+
+  return (
+    <div className="space-y-4">
+      {/* TABLE */}
+      <div className="overflow-x-auto rounded-lg border bg-white">
+        <table className="w-full text-xs border-collapse">
+          <thead className="bg-gray-100">
+            <tr className="text-[11px] font-semibold text-gray-600">
+              <th className="px-4 py-3 text-left">Customer Name</th>
+              <th className="px-4 py-3 text-left">Identity Number</th>
+              <th className="px-4 py-3 text-left">Voucher Category</th>
+              <th className="px-4 py-3 text-left">Voucher Type</th>
+              <th className="px-4 py-3 text-left">Serial Number</th>
+              <th className="px-4 py-3 text-left">Reference EDC</th>
+              <th className="px-4 py-3 text-right">Voucher Price</th>
+              <th className="px-4 py-3 text-center">Purchase Date</th>
+              <th className="px-4 py-3 text-center">Shift Date</th>
+              <th className="px-4 py-3 text-left">Operator Name</th>
+              <th className="px-4 py-3 text-left">Station</th>
+            </tr>
+          </thead>
+
+          <tbody className="text-gray-700">
+            {loading ? (
+              <tr>
+                <td colSpan={11} className="py-10 text-center text-gray-400">
+                  Loading...
+                </td>
+              </tr>
+            ) : data.length === 0 ? (
+              <tr>
+                <td colSpan={11} className="py-10 text-center text-gray-400">
+                  No data
+                </td>
+              </tr>
+            ) : (
+              data.map((item) => (
+                <tr
+                  key={item.id}
+                  className="border-t hover:bg-gray-50 transition"
+                >
+                  <td className="px-4 py-3 truncate">
+                    {item.member?.name ?? "-"}
+                  </td>
+
+                  <td className="px-4 py-3 font-mono truncate">
+                    {item.member?.identityNumber ?? "-"}
+                  </td>
+
+                  <td className="px-4 py-3">
+                    {item.voucher.voucherProduct.category.categoryName}
+                  </td>
+
+                  <td className="px-4 py-3">
+                    {item.voucher.voucherProduct.type.typeName}
+                  </td>
+
+                  <td className="px-4 py-3 font-mono truncate">
+                    {item.voucher.serialNumber}
+                  </td>
+
+                  <td className="px-4 py-3 font-mono truncate">
+                    {formatEDC(item.edcReferenceNumber)}
+                  </td>
+
+                  <td className="px-4 py-3 text-right text-[#8D1231] font-medium">
+                    {formatCurrency(item.price)}
+                  </td>
+
+                  <td className="px-3 py-2 text-center whitespace-nowrap">
+                    {formatDate(item.purchaseDate)}
+                  </td>
+
+                  <td className="px-3 py-2 text-center text-gray-500 text-[11px] whitespace-nowrap">
+                    {formatDate(item.shiftDate ?? item.purchaseDate)}
+                  </td>
+
+                  <td className="px-4 py-3 truncate">
+                    {item.operator.fullName}
+                  </td>
+
+                  <td className="px-4 py-3 truncate">
+                    {item.station.stationName}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* PAGINATION */}
+      {!loading && data.length > 0 && (
+        <div className="flex items-center justify-center gap-3 text-sm text-gray-600">
+          <button
+            disabled={pagination.page === 1}
+            onClick={() => onPageChange(pagination.page - 1)}
+            className="disabled:opacity-40"
+          >
+            <ChevronLeft size={18} />
+          </button>
+
+          {pageNumbers.map((p) => (
+            <button
+              key={p}
+              onClick={() => onPageChange(p)}
+              className={`px-2 ${
+                p === pagination.page
+                  ? "font-semibold underline text-gray-900"
+                  : "hover:text-gray-900"
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+
+          <button
+            disabled={pagination.page === pagination.totalPages}
+            onClick={() => onPageChange(pagination.page + 1)}
+            className="disabled:opacity-40"
+          >
+            <ChevronRight size={18} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

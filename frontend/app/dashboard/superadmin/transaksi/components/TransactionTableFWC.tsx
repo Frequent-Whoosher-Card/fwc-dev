@@ -145,6 +145,7 @@ export default function TransactionTable({
         <table className="w-full text-xs border-collapse">
           <thead className="bg-gray-100">
             <tr className="text-[11px] font-semibold text-gray-600">
+              <th className="px-4 py-3 text-center w-16">No</th>
               <th className="px-4 py-3 text-left">Customer Name</th>
               <th className="px-4 py-3 text-left">Identity Number</th>
               <th className="px-4 py-3 text-left">Card Category</th>
@@ -163,66 +164,59 @@ export default function TransactionTable({
           <tbody className="text-gray-700">
             {loading ? (
               <tr>
-                <td colSpan={12} className="py-10 text-center text-gray-400">
+                <td colSpan={13} className="py-10 text-center text-gray-400">
                   Loading...
                 </td>
               </tr>
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={12} className="py-10 text-center text-gray-400">
+                <td colSpan={13} className="py-10 text-center text-gray-400">
                   No data
                 </td>
               </tr>
             ) : (
-              data.map((item) => (
+              data.map((item, index) => (
                 <tr
                   key={item.id}
                   className="border-t hover:bg-gray-50 transition"
                 >
+                  {" "}
+                  <td className="px-4 py-3 text-center font-medium text-gray-500">
+                    {(pagination.page - 1) * pagination.limit + index + 1}
+                  </td>
                   <td className="px-4 py-3 truncate">
                     {item.member?.name ?? "-"}
                   </td>
-
                   <td className="px-4 py-3 font-mono truncate">
                     {formatNIK(item.member?.identityNumber)}
                   </td>
-
                   <td className="px-4 py-3">
                     {item.card.cardProduct.category.categoryName}
                   </td>
-
                   <td className="px-4 py-3">
                     {item.card.cardProduct.type.typeName}
                   </td>
-
                   <td className="px-4 py-3 font-mono truncate">
                     {item.card.serialNumber}
                   </td>
-
                   <td className="px-4 py-3 font-mono truncate">
                     {formatEDC(item.edcReferenceNumber)}
                   </td>
-
                   <td className="px-4 py-3 text-right text-[#8D1231] font-medium">
                     {formatCurrency(item.price)}
                   </td>
-
                   <td className="px-3 py-2 text-center whitespace-nowrap">
                     {formatDate(item.purchaseDate)}
                   </td>
-
                   <td className="px-3 py-2 text-center text-gray-500 text-[11px] whitespace-nowrap">
                     {formatDate(item.shiftDate ?? item.purchaseDate)}
                   </td>
-
                   <td className="px-4 py-3 truncate">
                     {item.operator.fullName}
                   </td>
-
                   <td className="px-4 py-3 truncate">
                     {item.station.stationName}
                   </td>
-
                   <td className="px-4 py-3">
                     <div className="flex justify-center gap-2">
                       {canEdit && (

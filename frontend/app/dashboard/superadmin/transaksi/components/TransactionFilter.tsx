@@ -12,17 +12,24 @@ interface StationItem {
   stationName: string;
 }
 
-interface CardCategoryItem {
+interface CategoryItem {
   id: string;
   categoryName: string;
 }
 
-interface CardTypeItem {
+interface TypeItem {
   id: string;
   typeName: string;
 }
 
+type TabType = "fwc" | "voucher";
+
 interface Props {
+  /* TAB */
+  activeTab: TabType;
+  onTabChange: (tab: TabType) => void;
+
+  /* FILTER */
   stationId?: string;
   purchasedDate?: string;
   shiftDate?: string;
@@ -39,17 +46,25 @@ interface Props {
   onExportPDF: () => void;
 }
 
+/* ======================
+   COMPONENT
+====================== */
 export default function TransactionFilter({
+  activeTab,
+  onTabChange,
+
   stationId,
   purchasedDate,
   shiftDate,
   cardCategoryId,
   cardTypeId,
+
   onStationChange,
   onPurchasedDateChange,
   onShiftDateChange,
   onCardCategoryChange,
   onCardTypeChange,
+
   onReset,
   onExportPDF,
 }: Props) {
@@ -58,10 +73,9 @@ export default function TransactionFilter({
   const stationRef = useRef<HTMLDivElement>(null);
 
   const [openStation, setOpenStation] = useState(false);
-
   const [stations, setStations] = useState<StationItem[]>([]);
-  const [cardCategories, setCardCategories] = useState<CardCategoryItem[]>([]);
-  const [cardTypes, setCardTypes] = useState<CardTypeItem[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [types, setTypes] = useState<TypeItem[]>([]);
 
   /* ======================
      FETCH FILTER DATA
@@ -75,21 +89,11 @@ export default function TransactionFilter({
           axios.get("/station/?page=&limit=&search="),
         ]);
 
-        // CARD TYPE
-        setCardTypes(
-          Array.isArray(typeRes.data?.data) ? typeRes.data.data : [],
-        );
-
-        // CARD CATEGORY
-        setCardCategories(
-          Array.isArray(categoryRes.data?.data) ? categoryRes.data.data : [],
-        );
-
-        // STATION (PAGINATED RESPONSE)
-        const stationData = stationRes.data?.data;
-        setStations(Array.isArray(stationData?.items) ? stationData.items : []);
-      } catch (error) {
-        console.error("Failed to load filter data:", error);
+        setTypes(typeRes.data?.data ?? []);
+        setCategories(categoryRes.data?.data ?? []);
+        setStations(stationRes.data?.data?.items ?? []);
+      } catch (err) {
+        console.error("Failed load filter data:", err);
       }
     };
 
@@ -97,10 +101,10 @@ export default function TransactionFilter({
   }, []);
 
   /* ======================
-     CLOSE STATION ON OUTSIDE CLICK
+     CLOSE STATION DROPDOWN
   ====================== */
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    const handler = (e: MouseEvent) => {
       if (
         stationRef.current &&
         !stationRef.current.contains(e.target as Node)
@@ -109,23 +113,16 @@ export default function TransactionFilter({
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
   /* ======================
-     SELECTED STATION LABEL
+     HELPERS
   ====================== */
-  const selectedStation = useMemo(() => {
-    if (!Array.isArray(stations)) return "All Station";
-    return (
-      stations.find((s) => s.id === stationId)?.stationName || "All Station"
-    );
-  }, [stations, stationId]);
+  const selectedStation =
+    stations.find((s) => s.id === stationId)?.stationName || "All Station";
 
-  /* ======================
-     HELPER
-  ====================== */
   const isFilterActive =
     !!stationId ||
     !!purchasedDate ||
@@ -133,59 +130,49 @@ export default function TransactionFilter({
     !!cardCategoryId ||
     !!cardTypeId;
 
-  /* ======================
-     SANITIZE CARD TYPES
-  ====================== */
-  const safeCardTypes = useMemo(() => {
-    return cardTypes.filter(
-      (t) => typeof t.typeName === "string" && t.typeName.trim() !== "",
-    );
-  }, [cardTypes]);
+  const safeTypes = useMemo(
+    () =>
+      types.filter(
+        (t) => typeof t.typeName === "string" && t.typeName.trim() !== "",
+      ),
+    [types],
+  );
 
+  /* ======================
+     RENDER
+  ====================== */
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-white px-4 py-3">
-      {/* CARD CATEGORY */}
+      {/* CATEGORY */}
       <select
         value={cardCategoryId ?? ""}
         onChange={(e) => onCardCategoryChange(e.target.value || undefined)}
-        className="
-    h-9 rounded-md border px-3 text-sm
-    bg-white text-gray-700 border-gray-300
-
-    focus:bg-[#8D1231]
-    focus:text-white
-    focus:border-[#8D1231]
-    focus:outline-none
-
-    transition-colors
-  "
+        className="h-9 rounded-md border px-3 text-sm bg-white text-gray-700 border-gray-300
+        focus:bg-[#8D1231] focus:text-white focus:border-[#8D1231]"
       >
-        <option value="">All Category</option>
-        {cardCategories.map((c) => (
+        <option value="">
+          {activeTab === "fwc"
+            ? "All Card Category"
+            : "All Voucher Category"}
+        </option>
+        {categories.map((c) => (
           <option key={c.id} value={c.id}>
             {c.categoryName}
           </option>
         ))}
       </select>
 
-      {/* CARD TYPE */}
+      {/* TYPE */}
       <select
         value={cardTypeId ?? ""}
         onChange={(e) => onCardTypeChange(e.target.value || undefined)}
-        className="
-    h-9 rounded-md border px-3 text-sm
-    bg-white text-gray-700 border-gray-300
-
-    focus:bg-[#8D1231]
-    focus:text-white
-    focus:border-[#8D1231]
-    focus:outline-none
-
-    transition-colors
-  "
+        className="h-9 rounded-md border px-3 text-sm bg-white text-gray-700 border-gray-300
+        focus:bg-[#8D1231] focus:text-white focus:border-[#8D1231]"
       >
-        <option value="">All Type</option>
-        {safeCardTypes.map((t) => (
+        <option value="">
+          {activeTab === "fwc" ? "All Card Type" : "All Voucher Type"}
+        </option>
+        {safeTypes.map((t) => (
           <option key={t.id} value={t.id}>
             {t.typeName}
           </option>
@@ -237,20 +224,15 @@ export default function TransactionFilter({
           ref={purchasedRef}
           type="date"
           value={purchasedDate ?? ""}
-          onChange={(e) => onPurchasedDateChange(e.target.value || undefined)}
-          className={`
-      h-9 w-[160px] rounded-md border px-3 pr-9 text-sm
-      appearance-none
-      [&::-webkit-calendar-picker-indicator]:hidden
-    `}
+          onChange={(e) =>
+            onPurchasedDateChange(e.target.value || undefined)
+          }
+          className="h-9 w-[160px] rounded-md border px-3 pr-9 text-sm
+          [&::-webkit-calendar-picker-indicator]:hidden"
         />
-
         <Calendar
           size={16}
-          className="
-      absolute right-2 top-1/2 -translate-y-1/2
-      cursor-pointer text-[#8D1231]
-    "
+          className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-[#8D1231]"
           onClick={() => purchasedRef.current?.showPicker()}
         />
       </div>
@@ -261,58 +243,66 @@ export default function TransactionFilter({
           ref={shiftRef}
           type="date"
           value={shiftDate ?? ""}
-          onChange={(e) => onShiftDateChange(e.target.value || undefined)}
-          className={`
-      h-9 w-[160px] rounded-md border px-3 pr-9 text-sm
-      appearance-none
-      [&::-webkit-calendar-picker-indicator]:hidden
-    `}
+          onChange={(e) =>
+            onShiftDateChange(e.target.value || undefined)
+          }
+          className="h-9 w-[160px] rounded-md border px-3 pr-9 text-sm
+          [&::-webkit-calendar-picker-indicator]:hidden"
         />
-
         <Calendar
           size={16}
-          className="
-      absolute right-2 top-1/2 -translate-y-1/2
-      cursor-pointer text-[#8D1231]
-    "
+          className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-[#8D1231]"
           onClick={() => shiftRef.current?.showPicker()}
         />
       </div>
 
-      {/* RESET */}
-      <button
-        onClick={() => {
-          setOpenStation(false);
-          onReset();
-        }}
-        className={`
-    flex h-9 w-9 items-center justify-center rounded-md border transition-colors
-    ${
-      isFilterActive
-        ? "border-[#8D1231] bg-[#8D1231] text-white hover:bg-[#73122E]"
-        : "border-gray-300 text-gray-400 cursor-default"
-    }
-  `}
-        title="Reset Filter"
-      >
-        <RotateCcw size={16} />
-      </button>
+      {/* RESET + PDF */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onReset}
+          className={`h-9 w-9 rounded-md border flex items-center justify-center
+          ${
+            isFilterActive
+              ? "bg-[#8D1231] text-white"
+              : "border-gray-300 text-gray-400"
+          }`}
+        >
+          <RotateCcw size={16} />
+        </button>
 
-      {/* EXPORT */}
-      <div className="ml-auto">
         <button
           onClick={onExportPDF}
-          className="
-      flex h-9 items-center gap-2
-      rounded-md px-4 text-sm
-      border border-[#8D1231]
-      bg-[#8D1231] text-white
-      hover:bg-[#73122E]
-      transition-colors
-    "
+          className="h-9 px-4 rounded-md bg-[#8D1231] text-white flex items-center gap-2 hover:bg-[#73122E]"
         >
           <Download size={16} />
           PDF
+        </button>
+      </div>
+
+      {/* TAB SWITCH (FIXED UI) */}
+      <div className="ml-auto flex shrink-0 overflow-hidden rounded-md border border-gray-300">
+        <button
+          onClick={() => onTabChange("fwc")}
+          className={`h-8 min-w-[64px] px-4 text-xs transition
+          ${
+            activeTab === "fwc"
+              ? "bg-[#8D1231] text-white"
+              : "bg-white text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          FWC
+        </button>
+
+        <button
+          onClick={() => onTabChange("voucher")}
+          className={`h-8 min-w-[72px] px-4 text-xs transition
+          ${
+            activeTab === "voucher"
+              ? "bg-[#8D1231] text-white"
+              : "bg-white text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          Voucher
         </button>
       </div>
     </div>
