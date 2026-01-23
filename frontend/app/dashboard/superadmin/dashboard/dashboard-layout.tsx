@@ -51,7 +51,7 @@ const superadminMenuItems = [
     ],
   },
   { title: 'Generate Number', icon: FilePlus, href: '/dashboard/superadmin/generatenumber' },
-  { title: 'Create New Card', icon: FolderKanban, href: '/dashboard/superadmin/createnewcard' },
+  { title: 'Create New Card', icon: FolderKanban, href: '/dashboard/superadmin/createnewcard/fwc' },
   { title: 'Inbox', icon: Inbox, href: '/dashboard/superadmin/inbox' },
   { title: 'Membership', icon: UserPlus, href: '/dashboard/superadmin/membership' },
   { title: 'Transaksi', icon: Receipt, href: '/dashboard/superadmin/transaksi' },
@@ -175,23 +175,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [router, pathname]);
 
   if (loading) {
-    return (
-      <div style={{padding: 32, color: '#b91c1c', fontWeight: 600, fontSize: 18}}>Loading auth...</div>
-    );
+    return <div style={{ padding: 32, color: '#b91c1c', fontWeight: 600, fontSize: 18 }}>Loading auth...</div>;
   }
   if (authError) {
     return (
-      <div style={{padding: 32, color: '#b91c1c', fontWeight: 600, fontSize: 18}}>
+      <div style={{ padding: 32, color: '#b91c1c', fontWeight: 600, fontSize: 18 }}>
         AUTH ERROR: {authError}
         <br />
-        <span style={{fontWeight: 400, fontSize: 14}}>Cek token, response /auth/me, dan mapping role di backend.</span>
+        <span style={{ fontWeight: 400, fontSize: 14 }}>Cek token, response /auth/me, dan mapping role di backend.</span>
       </div>
     );
   }
   if (!role) {
     return (
-      <div style={{padding: 32, color: '#b91c1c', fontWeight: 600, fontSize: 18}}>
-        Tidak ada role terdeteksi.<br />
+      <div style={{ padding: 32, color: '#b91c1c', fontWeight: 600, fontSize: 18 }}>
+        Tidak ada role terdeteksi.
+        <br />
         Cek response /auth/me dan mapping role.
       </div>
     );
@@ -289,7 +288,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </Button>
 
           <h1 className="flex-1 text-lg font-semibold">Frequent Whoosher Card</h1>
-
 
           <ClientOnly>
             <DropdownMenu>
