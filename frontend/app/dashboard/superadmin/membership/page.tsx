@@ -209,6 +209,7 @@ export default function MembershipPage() {
   const [cardCategory, setCardCategory] = useState<"all" | "NIPKAI">("all");
   const [search, setSearch] = useState("");
   const [gender, setGender] = useState<"all" | "L" | "P">("all");
+  const [status, setStatus] = useState<"all" | "ACTIVE" | "INACTIVE">("all"); // ✅ TAMBAH
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
@@ -235,6 +236,7 @@ export default function MembershipPage() {
         limit: LIMIT,
         search: debouncedSearch || undefined,
         gender: gender !== "all" ? gender : undefined,
+        status: status !== "all" ? status : undefined, // ✅ TAMBAH
         startDate: startDate || undefined,
         endDate: endDate || undefined,
         hasNippKai: cardCategory === "NIPKAI" ? true : undefined,
@@ -273,7 +275,7 @@ export default function MembershipPage() {
     } else {
       fetchMembers(1);
     }
-  }, [debouncedSearch, gender, startDate, endDate, cardCategory]);
+  }, [debouncedSearch, gender, status, startDate, endDate, cardCategory]);
 
   useEffect(() => {
     if (!search) {
@@ -295,6 +297,7 @@ export default function MembershipPage() {
   const resetFilter = () => {
     setSearch("");
     setGender("all");
+    setStatus("all"); // ✅ TAMBAH
     setCardCategory("all");
     setStartDate("");
     setEndDate("");
@@ -378,6 +381,21 @@ export default function MembershipPage() {
         >
           NIPKAI
         </button>
+
+        {/* STATUS — TARUH DI SINI */}
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value as any)}
+          className="
+    h-9 rounded-md border px-3 text-sm
+    border-[#8D1231] bg-[#8D1231] text-white
+    focus:outline-none
+  "
+        >
+          <option value="all">Status</option>
+          <option value="ACTIVE">Active</option>
+          <option value="INACTIVE">Non Active</option>
+        </select>
 
         {/* GENDER */}
         <select

@@ -49,6 +49,7 @@ export const getMembers = async (params?: {
   limit?: number;
   search?: string;
   gender?: string;
+  status?: "ACTIVE" | "INACTIVE"; 
   startDate?: string;
   endDate?: string;
   cardCategory?: string;
@@ -66,6 +67,10 @@ export const getMembers = async (params?: {
   if (params?.gender) {
     query.append("gender", params.gender);
   }
+
+  if (params?.status) {
+  query.append("status", params.status);
+}
 
   if (params?.startDate) {
     query.append("startDate", params.startDate);
