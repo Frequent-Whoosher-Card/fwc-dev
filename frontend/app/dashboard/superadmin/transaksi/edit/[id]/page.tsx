@@ -551,65 +551,65 @@ export default function EditTransactionPage() {
               </div>
             </div>
 
-          {showCorrection && (
-            <>
-              <Field label="Wrong Card Serial (yang salah dikasih)">
-                <input
-                  value={wrongCardSerial}
-                  onChange={(e) => setWrongCardSerial(e.target.value)}
-                  placeholder="Contoh: 0111001"
-                  className={base}
-                />
-              </Field>
-
-              <Field label="Correct Card Serial (yang benar seharusnya)">
-                <input
-                  value={correctCardSerial}
-                  onChange={(e) => setCorrectCardSerial(e.target.value)}
-                  placeholder="Contoh: 0111002"
-                  className={base}
-                />
-              </Field>
-
-              <div className="md:col-span-2">
-                <Field label="Alasan Koreksi">
-                  <textarea
-                    value={correctionNote}
-                    onChange={(e) => setCorrectionNote(e.target.value)}
-                    className="min-h-[80px] w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
-                    placeholder="Jelaskan alasan koreksi kartu"
+            {showCorrection && (
+              <>
+                <Field label="Wrong Card Serial (yang salah dikasih)">
+                  <input
+                    value={wrongCardSerial}
+                    onChange={(e) => setWrongCardSerial(e.target.value)}
+                    placeholder="Contoh: 0111001"
+                    className={base}
                   />
                 </Field>
-              </div>
 
-              <div className="md:col-span-2">
-                <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3">
-                  <p className="text-xs text-yellow-800">
-                    <strong>Perhatian:</strong> Koreksi kartu akan:
-                  </p>
-                  <ul className="text-xs text-yellow-700 mt-1 ml-4 list-disc">
-                    <li>Card lama ({serialNumber}) return ke IN_STATION</li>
-                    <li>
-                      Wrong card (yang salah dikasih) jadi status DELETED
-                      (permanent)
-                    </li>
-                    <li>Correct card (yang benar) jadi SOLD_ACTIVE</li>
-                    <li>Price transaksi tetap (tidak berubah)</li>
-                  </ul>
+                <Field label="Correct Card Serial (yang benar seharusnya)">
+                  <input
+                    value={correctCardSerial}
+                    onChange={(e) => setCorrectCardSerial(e.target.value)}
+                    placeholder="Contoh: 0111002"
+                    className={base}
+                  />
+                </Field>
+
+                <div className="md:col-span-2">
+                  <Field label="Alasan Koreksi">
+                    <textarea
+                      value={correctionNote}
+                      onChange={(e) => setCorrectionNote(e.target.value)}
+                      className="min-h-[80px] w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
+                      placeholder="Jelaskan alasan koreksi kartu"
+                    />
+                  </Field>
                 </div>
-              </div>
 
-              <div className="md:col-span-2 flex justify-end">
-                <button
-                  type="button"
-                  onClick={handleCorrectCard}
-                  className="rounded-md bg-orange-600 px-6 py-2 text-sm font-medium text-white hover:bg-orange-700"
-                >
-                  Lakukan Koreksi Kartu
-                </button>
-              </div>
-            </>
-          )}
+                <div className="md:col-span-2">
+                  <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3">
+                    <p className="text-xs text-yellow-800">
+                      <strong>Perhatian:</strong> Koreksi kartu akan:
+                    </p>
+                    <ul className="text-xs text-yellow-700 mt-1 ml-4 list-disc">
+                      <li>Card lama ({serialNumber}) return ke IN_STATION</li>
+                      <li>
+                        Wrong card (yang salah dikasih) jadi status DELETED
+                        (permanent)
+                      </li>
+                      <li>Correct card (yang benar) jadi SOLD_ACTIVE</li>
+                      <li>Price transaksi tetap (tidak berubah)</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="md:col-span-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleCorrectCard}
+                    className="rounded-md bg-orange-600 px-6 py-2 text-sm font-medium text-white hover:bg-orange-700"
+                  >
+                    Lakukan Koreksi Kartu
+                  </button>
+                </div>
+              </>
+            )}
           </SectionCard>
         )}
 

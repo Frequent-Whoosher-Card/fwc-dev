@@ -44,6 +44,7 @@ interface Props {
 
   onReset: () => void;
   onExportPDF: () => void;
+  onExportShiftPDF: () => void;
 }
 
 /* ======================
@@ -67,6 +68,7 @@ export default function TransactionFilter({
 
   onReset,
   onExportPDF,
+  onExportShiftPDF,
 }: Props) {
   const purchasedRef = useRef<HTMLInputElement>(null);
   const shiftRef = useRef<HTMLInputElement>(null);
@@ -151,9 +153,7 @@ export default function TransactionFilter({
         focus:bg-[#8D1231] focus:text-white focus:border-[#8D1231]"
       >
         <option value="">
-          {activeTab === "fwc"
-            ? "All Card Category"
-            : "All Voucher Category"}
+          {activeTab === "fwc" ? "All Card Category" : "All Voucher Category"}
         </option>
         {categories.map((c) => (
           <option key={c.id} value={c.id}>
@@ -224,9 +224,7 @@ export default function TransactionFilter({
           ref={purchasedRef}
           type="date"
           value={purchasedDate ?? ""}
-          onChange={(e) =>
-            onPurchasedDateChange(e.target.value || undefined)
-          }
+          onChange={(e) => onPurchasedDateChange(e.target.value || undefined)}
           className="h-9 w-[160px] rounded-md border px-3 pr-9 text-sm
           [&::-webkit-calendar-picker-indicator]:hidden"
         />
@@ -243,9 +241,7 @@ export default function TransactionFilter({
           ref={shiftRef}
           type="date"
           value={shiftDate ?? ""}
-          onChange={(e) =>
-            onShiftDateChange(e.target.value || undefined)
-          }
+          onChange={(e) => onShiftDateChange(e.target.value || undefined)}
           className="h-9 w-[160px] rounded-md border px-3 pr-9 text-sm
           [&::-webkit-calendar-picker-indicator]:hidden"
         />
@@ -276,6 +272,14 @@ export default function TransactionFilter({
         >
           <Download size={16} />
           PDF
+        </button>
+
+        <button
+          onClick={onExportShiftPDF}
+          className="h-9 px-4 rounded-md bg-[#0F766E] text-white flex items-center gap-2 hover:bg-[#0D5F58]"
+        >
+          <Download size={16} />
+          Shift
         </button>
       </div>
 
