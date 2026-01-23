@@ -324,7 +324,7 @@ export default function MembershipPage() {
   ====================== */
   const pageNumbers = Array.from(
     { length: pagination.totalPages },
-    (_, i) => i + 1
+    (_, i) => i + 1,
   ).slice(Math.max(0, pagination.page - 3), pagination.page + 2);
 
   /* ======================
@@ -344,20 +344,6 @@ export default function MembershipPage() {
             onChange={(e) => setSearch(e.target.value)}
             className="h-9 w-96 rounded-md border px-3 text-sm"
           />
-
-          <button
-            onClick={() =>
-              router.push("/dashboard/superadmin/membership/create")
-            }
-            className="
-    flex items-center gap-2 rounded-md
-    bg-[#8D1231] px-4 py-2 text-sm text-white
-    hover:bg-[#73122E] transition
-  "
-          >
-            <Plus size={16} />
-            Add New Members
-          </button>
         </div>
       </div>
 
@@ -589,7 +575,7 @@ export default function MembershipPage() {
                     className="mx-auto cursor-pointer text-gray-500 hover:text-blue-600"
                     onClick={() =>
                       router.push(
-                        `/dashboard/superadmin/membership/view/${item.id}`
+                        `/dashboard/superadmin/membership/view/${item.id}`,
                       )
                     }
                   />
@@ -600,7 +586,7 @@ export default function MembershipPage() {
                     <button
                       onClick={() =>
                         router.push(
-                          `/dashboard/superadmin/membership/edit/${item.id}`
+                          `/dashboard/superadmin/membership/edit/${item.id}`,
                         )
                       }
                       className="rounded bg-gray-200 px-3 py-1 text-xs"

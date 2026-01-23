@@ -59,6 +59,7 @@ export class CardProductService {
           select: {
             id: true,
             typeName: true,
+            typeCode: true,
           },
         },
       },
@@ -67,6 +68,11 @@ export class CardProductService {
     return cardProducts.map((product) => ({
       ...product,
       price: product.price.toString(),
+      type: product.type ? {
+        id: product.type.id,
+        typeName: product.type.typeName,
+        typeCode: product.type.typeCode,
+      } : null,
     }));
   }
 
@@ -96,6 +102,7 @@ export class CardProductService {
     serialTemplate: string,
     price: number,
     userId: string,
+    maxQuantity?: number,
   ) {
     const [cardCategory, cardType] = await Promise.all([
       db.cardCategory.findUnique({
@@ -186,6 +193,7 @@ export class CardProductService {
           price,
           serialTemplate: generatedSerialTemplate.toString(),
           programType: programType,
+          maxQuantity,
           updatedAt: new Date(),
           updatedBy: userId,
         },
@@ -212,6 +220,7 @@ export class CardProductService {
         price,
         serialTemplate: generatedSerialTemplate.toString(),
         programType: programType,
+        maxQuantity,
         isActive: true,
         createdAt: new Date(),
         createdBy: userId,
@@ -243,6 +252,7 @@ export class CardProductService {
     serialTemplate: string,
     price: number,
     userId: string,
+    maxQuantity?: number,
   ) {
     const [cardCategory, cardType] = await Promise.all([
       db.cardCategory.findUnique({
@@ -316,6 +326,7 @@ export class CardProductService {
         price,
         serialTemplate: generatedSerialTemplate.toString(),
         programType: programType,
+        maxQuantity,
         updatedAt: new Date(),
         updatedBy: userId,
       },
