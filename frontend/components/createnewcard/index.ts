@@ -1,9 +1,8 @@
-export { default as CardPageHeader } from './CardPageHeader';
-export { default as CardProductForm } from './CardProductForm';
-export { default as CardProductTable } from './CardProductTable';
-export { default as CardProductVoucherForm } from './CardProductVoucherForm';
-export { default as CardProductVoucherTable } from './CardProductVoucherTable';
-export { default as AddCategoryModal } from './AddCategoryModal';
-export { default as AddTypeModal } from './AddTypeModal';
-export { default as AddCategoryVoucherModal } from './AddCategoryVoucherModal';
-export { default as AddTypeVoucherModal } from './AddTypeVoucherModal';
+export { default as BaseCardProductForm } from './BaseCardProductForm';
+export { default as BaseCardProductTable } from './BaseCardProductTable';
+export { default as BaseCategoryModal } from './BaseCategoryModal';
+export { default as BaseTypeModal } from './BaseTypeModal';
+
+// Keeping these for now if needed by other pages, but typically they'd be replaced by Base versions
+export { default as EditCardProductForm } from './EditCardProductForm';
+export { default as EditCardProductVoucherForm } from './EditCardProductVoucherForm';
