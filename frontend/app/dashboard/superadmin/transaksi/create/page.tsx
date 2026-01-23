@@ -223,10 +223,13 @@ export default function AddPurchasePage() {
                   <p className="mt-1 text-xs text-amber-600">
                     ⚠ Pilih Card Category terlebih dahulu
                   </p>
-                ) : cardCategory && !cardTypeId && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    Pilih tipe kartu
-                  </p>
+                ) : (
+                  cardCategory &&
+                  !cardTypeId && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Pilih tipe kartu
+                    </p>
+                  )
                 )}
                 <FieldError
                   errors={errors.cardTypeId ? [errors.cardTypeId] : undefined}
@@ -269,11 +272,15 @@ export default function AddPurchasePage() {
                     </div>
                   )}
                 </div>
-                {serialNumber && searchResults.length === 0 && !isSearching && serialNumber.length >= 6 && !cardId && (
-                  <p className="mt-1 text-xs text-red-600">
-                    Tidak ada kartu ditemukan dengan serial number ini
-                  </p>
-                )}
+                {serialNumber &&
+                  searchResults.length === 0 &&
+                  !isSearching &&
+                  serialNumber.length >= 6 &&
+                  !cardId && (
+                    <p className="mt-1 text-xs text-red-600">
+                      Tidak ada kartu ditemukan dengan serial number ini
+                    </p>
+                  )}
                 {serialNumber.length > 0 && serialNumber.length < 6 && (
                   <p className="mt-1 text-xs text-gray-500">
                     Ketik minimal 6 karakter untuk mencari serial number

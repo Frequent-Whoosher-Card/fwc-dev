@@ -233,6 +233,157 @@ export default function TransactionPage() {
     doc.save("transaction-fwc.pdf");
   };
 
+  const handleExportShiftPDF = async () => {
+    if (activeTab === "voucher") {
+      alert("Export voucher belum tersedia");
+      return;
+    }
+
+    const res = await getPurchases({
+      search,
+      stationId,
+      startDate: purchasedDate,
+      endDate: shiftDate,
+      categoryId: cardCategoryId,
+      typeId: cardTypeId,
+      limit: 1000,
+    });
+
+    if (!res.success || !res.data?.items?.length) {
+      alert("Data kosong");
+      return;
+    }
+
+    const items = res.data.items;
+
+    // Group by category and type
+    const grouped = items.reduce((acc: any, item: any) => {
+      const category = item.card?.cardProduct?.category?.categoryName || "-";
+      const type = item.card?.cardProduct?.type?.typeName || "-";
+      const key = `${category}|${type}`;
+
+      if (!acc[key]) {
+        acc[key] = {
+          category,
+          type,
+          serialStart: item.card?.serialNumber || "-",
+          serialEnd: item.card?.serialNumber || "-",
+          count: 0,
+          nominal: 0,
+        };
+      }
+
+      acc[key].count += 1;
+      acc[key].nominal += item.price || 0;
+      acc[key].serialEnd = item.card?.serialNumber || "-";
+
+      return acc;
+    }, {});
+
+    const groupedData = Object.values(grouped);
+    const totalCount = groupedData.reduce(
+      (sum: number, g: any) => sum + g.count,
+      0,
+    );
+    const totalNominal = groupedData.reduce(
+      (sum: number, g: any) => sum + g.nominal,
+      0,
+    );
+
+    // Get operator and station info from first item
+    const operatorName = items[0]?.operator?.fullName || "-";
+    const stationName = items[0]?.station?.stationName || "-";
+    const shiftDateStr = formatDateID(items[0]?.shiftDate);
+
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 14;
+
+    // Header info
+    doc.setFontSize(10);
+    doc.text(`Nama Petugas: ${operatorName}`, margin, 20);
+    doc.text(`Shift Waktu: ${stationName}`, pageWidth / 2, 20);
+    doc.text(`Tanggal: ${shiftDateStr}`, margin, 27);
+
+    // Table
+    autoTable(doc, {
+      startY: 32,
+      head: [
+        [
+          "No",
+          "Card Category",
+          "Card Type",
+          "Seri Kartu Awal",
+          "Seri Kartu Akhir",
+          "Jumlah Kartu",
+          "Nominal",
+        ],
+      ],
+      body: [
+        ...groupedData.map((g: any, idx: number) => [
+          idx + 1,
+          g.category,
+          g.type,
+          g.serialStart,
+          g.serialEnd,
+          g.count,
+          `Rp ${g.nominal.toLocaleString("id-ID")}`,
+        ]),
+      ],
+      foot: [
+        [
+          {
+            content: "Total",
+            colSpan: 5,
+            styles: { halign: "right", fontStyle: "bold" },
+          },
+          { content: totalCount.toString(), styles: { fontStyle: "bold" } },
+          {
+            content: `Rp ${totalNominal.toLocaleString()}`,
+            styles: { fontStyle: "bold" },
+          },
+        ],
+      ],
+      headStyles: {
+        fillColor: [141, 18, 49],
+        textColor: 255,
+        fontSize: 9,
+      },
+      bodyStyles: {
+        fontSize: 9,
+      },
+      footStyles: {
+        fillColor: [240, 240, 240],
+        textColor: 0,
+        fontSize: 9,
+      },
+      theme: "grid",
+    });
+
+    // Footer signature section
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    doc.setFontSize(9);
+
+    const col1X = margin;
+    const col2X = pageWidth / 2;
+
+    doc.text("PSAC (Petugas Loket)", col1X, finalY);
+    doc.text("SPV", col2X, finalY);
+
+    doc.line(col1X, finalY + 15, col1X + 50, finalY + 15);
+    doc.line(col2X, finalY + 15, col2X + 50, finalY + 15);
+
+    doc.text(operatorName, col1X, finalY + 20);
+    doc.text("--------", col2X, finalY + 20);
+
+    doc.save(`shift-report-${shiftDateStr}.pdf`);
+  };
+
   /* =====================
      RENDER
   ===================== */
@@ -282,6 +433,7 @@ export default function TransactionPage() {
         }}
         onReset={resetFilter}
         onExportPDF={handleExportPDF}
+        onExportShiftPDF={handleExportShiftPDF}
       />
 
       {activeTab === "fwc" ? (
