@@ -1,34 +1,76 @@
 'use client';
 
 import { useState } from 'react';
-import { CardProductVoucherForm, CardProductVoucherTable, AddCategoryVoucherModal, AddTypeVoucherModal, CardPageHeader } from '@/components/createnewcard';
+import {
+  BaseCardProductForm,
+  BaseCardProductTable,
+  BaseCategoryModal,
+  BaseTypeModal,
+} from '@/components/createnewcard';
+import ConfirmModal from '@/components/ConfirmModal';
+import { useCardBase } from '@/hooks/useCardBase';
 
-import { useCardProductsVoucher } from '@/hooks/useCardProductsVoucher';
-import { useCategoriesVoucher } from '@/hooks/useCategoriesVoucher';
-import { useTypesVoucher } from '@/hooks/useTypesVoucher';
-
-export default function Page() {
-  const { data: products, fetch: fetchProducts } = useCardProductsVoucher();
-  const { data: categories, fetch: fetchCategories } = useCategoriesVoucher();
-  const { data: types, fetch: fetchTypes } = useTypesVoucher();
+export default function VoucherPage() {
+  const {
+    products,
+    categories,
+    types,
+    fetchProducts,
+    fetchCategories,
+    fetchTypes,
+    deleteProduct,
+    confirmDelete,
+    showDeleteConfirm,
+    setShowDeleteConfirm,
+    isDeleting,
+    service,
+  } = useCardBase({ programType: 'VOUCHER' });
 
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showTypeModal, setShowTypeModal] = useState(false);
 
   return (
     <div className="px-6 space-y-8 max-w-full">
-      <CardPageHeader title="Voucher" />
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <CardProductVoucherForm categories={categories} types={types} onSuccess={fetchProducts} onOpenCategory={() => setShowCategoryModal(true)} onOpenType={() => setShowTypeModal(true)} />
+        <BaseCardProductForm
+          programType="VOUCHER"
+          categories={categories}
+          types={types}
+          onSuccess={fetchProducts}
+          onOpenCategory={() => setShowCategoryModal(true)}
+          onOpenType={() => setShowTypeModal(true)}
+          service={service}
+        />
         <div />
       </div>
 
-      <CardProductVoucherTable data={products} onDelete={(id) => console.log('delete voucher', id)} />
+      <BaseCardProductTable programType="VOUCHER" data={products} onDelete={deleteProduct} />
 
-      <AddCategoryVoucherModal open={showCategoryModal} onClose={() => setShowCategoryModal(false)} onSuccess={fetchCategories} />
+      <BaseCategoryModal
+        programType="VOUCHER"
+        open={showCategoryModal}
+        onClose={() => setShowCategoryModal(false)}
+        onSuccess={fetchCategories}
+        service={service}
+      />
 
-      <AddTypeVoucherModal open={showTypeModal} onClose={() => setShowTypeModal(false)} onSuccess={fetchTypes} />
+      <BaseTypeModal
+        programType="VOUCHER"
+        open={showTypeModal}
+        onClose={() => setShowTypeModal(false)}
+        onSuccess={fetchTypes}
+        service={service}
+      />
+
+      <ConfirmModal
+        open={showDeleteConfirm}
+        title="Hapus Voucher"
+        description="Apakah Anda yakin ingin menghapus product Voucher ini? Data yang dihapus tidak dapat dikembalikan."
+        confirmText="Ya, Hapus"
+        loading={isDeleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

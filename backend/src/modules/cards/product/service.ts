@@ -68,11 +68,13 @@ export class CardProductService {
     return cardProducts.map((product) => ({
       ...product,
       price: product.price.toString(),
-      type: product.type ? {
-        id: product.type.id,
-        typeName: product.type.typeName,
-        typeCode: product.type.typeCode,
-      } : null,
+      type: product.type
+        ? {
+            id: product.type.id,
+            typeName: product.type.typeName,
+            typeCode: product.type.typeCode,
+          }
+        : null,
     }));
   }
 
