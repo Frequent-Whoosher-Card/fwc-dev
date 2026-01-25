@@ -56,7 +56,7 @@ jobs:
             bun install
 
             echo "== Generate Prisma client =="
-            bunx prisma generate
+            npx prisma generate
 
 
             echo "== Start backend via PM2 =="
