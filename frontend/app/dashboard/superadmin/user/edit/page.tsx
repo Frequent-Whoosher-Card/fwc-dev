@@ -86,8 +86,8 @@ export default function EditUserPage() {
           username: user.username ?? "",
           email: user.email ?? "",
           phone: user.phone ?? "",
-          roleId: user.role?.id ?? "",
-          stationId: user.station?.id ?? "",
+          roleId: user.roleId ?? "",
+          stationId: user.stationId ?? "",
         });
 
         const roleItems = Array.isArray(roleRes.data)
