@@ -421,8 +421,6 @@ export class StockOutVoucherService {
 
   static async getHistory(params: any) {
     const {
-      page = 1,
-      limit = 10,
       startDate,
       endDate,
       stationId,
@@ -432,6 +430,9 @@ export class StockOutVoucherService {
       categoryName,
       typeName,
     } = params;
+
+    const page = Number(params.page) || 1;
+    const limit = Number(params.limit) || 10;
     const skip = (page - 1) * limit;
     const where: any = { movementType: "OUT" };
 

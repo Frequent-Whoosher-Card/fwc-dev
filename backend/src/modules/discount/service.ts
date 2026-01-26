@@ -34,7 +34,10 @@ export class BulkDiscountService {
       where,
       orderBy: { minQuantity: "asc" },
     });
-    return discounts;
+    return discounts.map((d) => ({
+      ...d,
+      discount: d.discount ? d.discount.toString() : null, // Convert Decimal to string safely
+    }));
   }
 
   /**
@@ -72,7 +75,10 @@ export class BulkDiscountService {
       `Created bulk discount ID: ${discount.id} (Min: ${discount.minQuantity}, Max: ${discount.maxQuantity}, Disc: ${discount.discount})`,
     );
 
-    return discount;
+    return {
+      ...discount,
+      discount: discount.discount ? discount.discount.toString() : null,
+    };
   }
 
   /**
@@ -115,7 +121,10 @@ export class BulkDiscountService {
       `Updated bulk discount ID: ${id}`,
     );
 
-    return updated;
+    return {
+      ...updated,
+      discount: updated.discount ? updated.discount.toString() : null,
+    };
   }
 
   /**

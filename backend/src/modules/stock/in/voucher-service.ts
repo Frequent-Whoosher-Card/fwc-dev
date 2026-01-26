@@ -162,8 +162,8 @@ export class StockInVoucherService {
     typeId?: string;
     search?: string;
   }) {
-    const page = params.page || 1;
-    const limitNum = params.limit || 10;
+    const page = Number(params.page) || 1;
+    const limitNum = Number(params.limit) || 10;
     const skip = (page - 1) * limitNum;
 
     const where: any = {
