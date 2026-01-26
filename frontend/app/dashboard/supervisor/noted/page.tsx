@@ -4,8 +4,18 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import InboxFilter from "./components/InboxFilter";
 import InboxList from "./components/InboxList";
-import { API_BASE_URL } from "@/lib/apiConfig";
-import FormNoted from "./formnoted/page";
+import api from "@/lib/axios";
+import { InboxItemModel, InboxStatus } from "@/lib/services/inbox";
+
+// 🔥 FIREBASE IMPORT
+import {
+  collection,
+  onSnapshot,
+  query,
+  where,
+  orderBy,
+} from "firebase/firestore";
+import { getFirestoreDb } from "@/lib/firebase";
 
 export default function InboxPage() {
   // =========================
@@ -13,150 +23,123 @@ export default function InboxPage() {
   // =========================
   const router = useRouter();
 
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<InboxItemModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeItem, setActiveItem] = useState<any | null>(null);
 
-  // =========================
-  // FETCH INBOX DATA
-  // =========================
-  const fetchInbox = useCallback(
-    async (filters: any = {}) => {
+  // =====================
+  // FETCH DATA FROM BACKEND
+  // =====================
+  const fetchInbox = useCallback(async () => {
+    try {
       setLoading(true);
-      try {
-        const token = localStorage.getItem("fwc_token");
-        if (!token) return router.push("/");
 
-        // Jika tidak ada token → redirect ke login
-        if (!token) {
-          setLoading(false);
-          router.push("/");
-          return;
+      const res = await api.get("/stock/out", {
+        params: { page: 1, limit: 10 },
+        validateStatus: (status) => status < 500,
+      });
+
+      const data = res.data?.found?.data ?? res.data?.data ?? res.data;
+      const rawItems = Array.isArray(data?.items) ? data.items : [];
+
+      const mappedItems: InboxItemModel[] = rawItems.map((item: any) => {
+        const date = new Date(item.movementAt);
+
+        let status: InboxStatus = "PENDING";
+
+        const damagedCount = item.damagedSerialNumbers?.length ?? 0;
+        const lostCount = item.lostSerialNumbers?.length ?? 0;
+        const hasIssue = damagedCount > 0 || lostCount > 0;
+
+        if (item.validationStatus === "COMPLETED") {
+          status = hasIssue ? "ISSUE" : "COMPLETED";
+        } else if (item.validationStatus === "ISSUE") {
+          status = "ISSUE";
         }
 
-        /**
-         * Build query string dengan URLSearchParams
-         * Lebih aman & rapi dibanding string concat manual
-         */
-        const params = new URLSearchParams({ limit: "10" });
+        return {
+          id: item.id,
+          sender: { fullName: item.createdByName || "-" },
+          status,
+          title: `Stock Out - ${item.stationName || "-"}`,
+          message: item.note || "Menunggu validasi stock out",
+          date_label: date.toLocaleDateString("id-ID", {
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+          }),
+          time_label:
+            date.toLocaleTimeString("id-ID", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }) + " WIB",
+          raw: item,
+        };
+      });
 
-        if (filters.status) params.append("status", filters.status);
+      setItems(mappedItems);
+    } catch (error) {
+      console.error("Fetch inbox error:", error);
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-        const url = `${API_BASE_URL}/inbox/?${params.toString()}`;
-
-        // Request ke backend
-        const res = await fetch(`${API_BASE_URL}/inbox/?${params.toString()}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        /**
-         * Jika token expired / unauthorized
-         * → clear localStorage & redirect
-         */
-        if (res.status === 401) {
-          localStorage.clear();
-          return router.push("/");
-        }
-
-        const result = await res.json();
-
-        // MAP DATA FROM BACKEND TO FRONTEND FORMAT
-
-        if (result.success) {
-          let mappedItems = result.data.items.map((item: any) => {
-            const sentDate = new Date(item.sentAt);
-
-            return {
-              id: item.id,
-              title: item.title,
-              message: item.message,
-              sender: item.sender,
-              isRead: item.isRead,
-              readAt: item.readAt,
-
-              // 🔥 SIMPAN DATE ASLI UNTUK FILTER
-              sentAt: sentDate,
-
-              dateLabel: sentDate.toLocaleDateString("id-ID", {
-                day: "2-digit",
-                month: "long",
-                year: "numeric",
-              }),
-              timeLabel:
-                sentDate.toLocaleTimeString("id-ID", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }) + " WIB",
-
-              status: deriveCardCondition(item.message),
-            };
-          });
-
-          /**
-           * ✅ FILTER FRONTEND (INI KUNCINYA)
-           */
-          if (filters.status) {
-            mappedItems = mappedItems.filter(
-              (item) => item.status === filters.status
-            );
-          }
-          if (filters.startDate) {
-            const start = new Date(filters.startDate);
-            start.setHours(0, 0, 0, 0); // awal hari
-
-            mappedItems = mappedItems.filter((item) => item.sentAt >= start);
-          }
-
-          if (filters.endDate) {
-            const end = new Date(filters.endDate);
-            end.setHours(23, 59, 59, 999); // akhir hari
-
-            mappedItems = mappedItems.filter((item) => item.sentAt <= end);
-          }
-
-          setItems(mappedItems);
-        }
-      } catch (error) {
-        console.error("Error fetching inbox:", error);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [router]
-  );
-
-  // INITIAL FETCH
+  // =====================
+  // FIRST LOAD + AUTO POLLING
+  // =====================
   useEffect(() => {
     fetchInbox();
+
+    const interval = setInterval(() => {
+      fetchInbox();
+    }, 15000); // refresh tiap 15 detik
+
+    return () => clearInterval(interval);
   }, [fetchInbox]);
 
-  // ✅ ADD NOTE → HALAMAN FORM BARU
+  // =====================
+  // 🔥 FIREBASE REALTIME TRIGGER
+  // =====================
+  useEffect(() => {
+    const db = getFirestoreDb();
+    if (!db) return;
+
+    const q = query(
+      collection(db, "inbox_notifications"),
+      where("role", "==", "SUPERVISOR"),
+      orderBy("createdAt", "desc")
+    );
+
+    const unsubscribe = onSnapshot(q, () => {
+      console.log("🔔 Firebase inbox trigger");
+      fetchInbox(); // reload backend data
+    });
+
+    return () => unsubscribe();
+  }, [fetchInbox]);
+
   const handleAddNote = () => {
     router.push("/dashboard/supervisor/noted/formnoted");
   };
 
-  // ✅ CLICK ITEM → HALAMAN DETAIL / EDIT
-  const handleOpenDetail = (item: any) => {
-    router.push(`/dashboard/supervisor/noted/${item.id}`);
+  const handleOpenDetail = (item: InboxItemModel) => {
+    router.push(`/dashboard/supervisor/noted/formnoted?id=${item.id}`);
   };
 
   return (
-    <div className="space-y-6 h-full">
-      {/* HEADER */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-gray-900">Noted History</h1>
-      </div>
+    <div className="flex flex-col gap-4 min-h-screen p-3 sm:p-6">
+      <h1 className="text-lg sm:text-xl font-semibold">
+        Stock In Validation
+      </h1>
 
-      {/* FILTER */}
-      <div className="rounded-xl border bg-white px-4 py-3 shadow-sm">
+      <div className="rounded-xl border bg-white p-3 sm:p-4 shadow-sm">
         <InboxFilter onFilter={fetchInbox} onAddNote={handleAddNote} />
       </div>
 
-      {/* LIST */}
-      <div className="rounded-xl border bg-white shadow-sm h-[65vh] overflow-hidden">
-        <div className="h-full overflow-y-auto">
+      <div className="rounded-xl border bg-white shadow-sm flex flex-col min-h-[420px] max-h-[70vh]">
+        <div className="flex-1 overflow-y-auto">
           <InboxList
             items={items}
             loading={loading}
