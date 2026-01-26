@@ -1,6 +1,6 @@
 import { t } from "elysia";
 
-export namespace StockOutModel {
+export namespace StockOutFwcModel {
   // Stock Out Request
   export const stockOutRequest = t.Object({
     movementAt: t.String({ format: "date-time" }),
@@ -12,6 +12,8 @@ export namespace StockOutModel {
     endSerial: t.String({ minLength: 1 }),
 
     note: t.Optional(t.String({ maxLength: 500 })),
+    notaDinas: t.Optional(t.String()),
+    bast: t.Optional(t.String()),
   });
   // Stock Out Response
   export const stockOutResponse = t.Object({
@@ -30,19 +32,19 @@ export namespace StockOutModel {
       t.Array(t.String(), {
         minItems: 0,
         maxItems: 10000,
-      })
+      }),
     ),
     lostSerialNumbers: t.Optional(
       t.Array(t.String(), {
         minItems: 0,
         maxItems: 10000,
-      })
+      }),
     ),
     damagedSerialNumbers: t.Optional(
       t.Array(t.String(), {
         minItems: 0,
         maxItems: 10000,
-      })
+      }),
     ),
     note: t.Optional(t.String({ maxLength: 500 })),
   });
@@ -88,20 +90,24 @@ export namespace StockOutModel {
           quantity: t.Number(),
           stationName: t.Union([t.String(), t.Null()]),
           note: t.Union([t.String(), t.Null()]),
+          notaDinas: t.Union([t.String(), t.Null()]),
+          bast: t.Union([t.String(), t.Null()]),
           createdByName: t.Union([t.String(), t.Null()]),
           cardCategory: t.Object({
             id: t.String(),
             name: t.String(),
+            code: t.String(),
           }),
           cardType: t.Object({
             id: t.String(),
             name: t.String(),
+            code: t.String(),
           }),
           sentSerialNumbers: t.Array(t.String()),
           receivedSerialNumbers: t.Array(t.String()),
           lostSerialNumbers: t.Array(t.String()),
           damagedSerialNumbers: t.Array(t.String()),
-        })
+        }),
       ),
       pagination: t.Object({
         total: t.Number(),
@@ -123,6 +129,8 @@ export namespace StockOutModel {
         batchId: t.Union([t.String(), t.Null()]),
         quantity: t.Number(),
         note: t.Union([t.String(), t.Null()]),
+        notaDinas: t.Union([t.String(), t.Null()]),
+        bast: t.Union([t.String(), t.Null()]),
         createdAt: t.String(),
         createdByName: t.Union([t.String(), t.Null()]),
         validatedAt: t.Union([t.String(), t.Null()]),
@@ -138,10 +146,12 @@ export namespace StockOutModel {
         cardCategory: t.Object({
           id: t.String(),
           name: t.String(),
+          code: t.String(),
         }),
         cardType: t.Object({
           id: t.String(),
           name: t.String(),
+          code: t.String(),
         }),
         sentSerialNumbers: t.Array(t.String()),
         receivedSerialNumbers: t.Array(t.String()),
@@ -158,6 +168,8 @@ export namespace StockOutModel {
     note: t.Optional(t.String({ maxLength: 500 })),
     startSerial: t.Optional(t.String({ minLength: 1 })),
     endSerial: t.Optional(t.String({ minLength: 1 })),
+    notaDinas: t.Optional(t.String()),
+    bast: t.Optional(t.String()),
   });
 
   // Update Response

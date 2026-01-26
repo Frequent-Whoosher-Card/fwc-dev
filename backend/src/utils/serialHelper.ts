@@ -33,7 +33,14 @@ export function parseSmartSerial(
   }
 
   // 3. Extract suffix
-  const suffixPart = input.slice(prefix.length);
+  let suffixPart = input.slice(prefix.length);
+
+  // Enforce 5-digit suffix rule: If the extracted part is longer than 5,
+  // it might contain parts of the date (YYMMDD vs YY).
+  // We strictly take the last 5 characters.
+  if (suffixPart.length > maxSuffixLength) {
+    suffixPart = suffixPart.slice(-maxSuffixLength);
+  }
 
   // Ensure suffix is valid
   if (!/^\d+$/.test(suffixPart)) {

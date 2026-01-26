@@ -1,8 +1,9 @@
 import db from "../../../config/db";
 import { ValidationError } from "../../../utils/errors";
 import { parseSmartSerial } from "../../../utils/serialHelper";
+import { ActivityLogService } from "../../activity-log/service";
 
-export class StockInService {
+export class StockInFwcService {
   /**
    * Stock In
    */
@@ -143,15 +144,15 @@ export class StockInService {
       const formattedStartSerial = String(startNum).padStart(width, "0");
       const movement = await tx.cardStockMovement.create({
         data: {
-          movementAt: new Date(),
+          movementAt: new Date(movementAt),
           movementType: "IN",
           status: "APPROVED",
           categoryId,
           typeId,
           stationId: null,
           quantity,
-          sentSerialNumbers: serialNumbers, // Save serials for tracking/undo
-          receivedSerialNumbers: [],
+          sentSerialNumbers: [], // Consistency: IN should have received
+          receivedSerialNumbers: serialNumbers,
           lostSerialNumbers: [],
           note:
             note ??
@@ -164,6 +165,13 @@ export class StockInService {
       });
 
       /* REMOVED: CardInventory update (Deprecated) */
+
+      // 7. Activity Log
+      await ActivityLogService.createActivityLog(
+        userId,
+        "CREATE_STOCK_IN_FWC",
+        `Stock In FWC Batch: ${quantity} pcs for serial ${product.serialTemplate}${yearSuffix}${formattedStartSerial} - ${endSerialFormatted}`,
+      );
 
       return {
         movementId: movement.id,
@@ -613,10 +621,12 @@ export class StockInService {
         throw new ValidationError("Bukan transaksi Stock In");
       }
 
-      // 2. Identify Cards (from sentSerialNumbers)
-      // Note: We cast to string[] just in case (schema is String[] @db.Text, but Prisma might treat as string in some versions,
-      // but based on our create logic it is stored as array).
-      const serials = (movement as any).sentSerialNumbers as string[];
+      // 2. Identify Cards (Try received, fallback to sent for legacy)
+      const serials = (
+        movement.receivedSerialNumbers?.length
+          ? movement.receivedSerialNumbers
+          : (movement as any).sentSerialNumbers
+      ) as string[];
 
       if (!serials || serials.length === 0) {
         throw new ValidationError(
@@ -658,7 +668,7 @@ export class StockInService {
         data: {
           status: "ON_REQUEST",
           updatedAt: new Date(),
-          updatedBy: userId, // Assuming userId is passed to delete? Wait, the method signature needs checking
+          updatedBy: userId,
         },
       });
 
@@ -669,9 +679,16 @@ export class StockInService {
         where: { id },
       });
 
+      // 7. Log
+      await ActivityLogService.createActivityLog(
+        userId,
+        "DELETE_STOCK_IN_FWC",
+        `Revert Stock In FWC ID: ${id} (${movement.quantity} pcs)`,
+      );
+
       return {
         success: true,
-        message: `Transaksi Stock In dibatalkan. ${movement.quantity} kartu dihapus dari stok.`,
+        message: `Transaksi Stock In dibatalkan. ${movement.quantity} kartu dikembalikan ke status ON_REQUEST.`,
       };
     });
 

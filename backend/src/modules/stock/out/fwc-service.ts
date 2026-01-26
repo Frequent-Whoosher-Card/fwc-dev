@@ -4,6 +4,7 @@ import { parseSmartSerial } from "../../../utils/serialHelper";
 import { InboxService } from "../../inbox/service";
 import { BatchService } from "src/services/batchService";
 import { LowStockService } from "src/services/lowStockService";
+import { ActivityLogService } from "../../activity-log/service";
 
 function normalizeSerials(arr: string[]) {
   return Array.from(
@@ -17,7 +18,7 @@ type DistributionNote = {
   // bisa ada field lain
 };
 
-export class StockOutService {
+export class StockOutFwcService {
   /**
    * Create stock out
    */
@@ -29,6 +30,8 @@ export class StockOutService {
     endSerial: string,
     userId: string,
     note?: string,
+    notaDinas?: string,
+    bast?: string,
   ) {
     // 1. Validate Input - Basic Regex Only
     if (!/^\d+$/.test(startSerial) || !/^\d+$/.test(endSerial)) {
@@ -210,6 +213,8 @@ export class StockOutService {
             batchId,
             quantity: sentCount,
             note: note ?? null,
+            notaDinas: notaDinas ?? null,
+            bast: bast ?? null,
             sentSerialNumbers: sent, // Store array
             receivedSerialNumbers: [],
             lostSerialNumbers: [],
@@ -252,6 +257,12 @@ export class StockOutService {
         maxWait: 5000, // default: 2000
         timeout: 10000, // Increase timeout to 10s for safety
       },
+    );
+
+    await ActivityLogService.createActivityLog(
+      userId,
+      "CREATE_STOCK_OUT_FWC",
+      `Stock Out Distribution created: ${sentCount} cards to ${stationName}.`,
     );
 
     return transaction;
@@ -627,6 +638,12 @@ export class StockOutService {
       },
     );
 
+    await ActivityLogService.createActivityLog(
+      validatorUserId,
+      "VALIDATE_STOCK_OUT_FWC",
+      `Validated Stock Out ${movementId}: Received=${finalReceived.length}, Lost=${finalLost.length}, Damaged=${finalDamaged.length}`,
+    );
+
     return transaction;
   }
 
@@ -761,6 +778,8 @@ export class StockOutService {
       quantity: item.quantity,
       stationName: item.station?.stationName || null,
       note: item.note,
+      notaDinas: item.notaDinas,
+      bast: item.bast,
       createdByName: item.createdBy
         ? userMap.get(item.createdBy) || null
         : null,
@@ -812,23 +831,22 @@ export class StockOutService {
       throw new ValidationError("Bukan transaksi Stock Out");
     }
 
-    let createdByName: string | null = null;
-    let validatedByName: string | null = null;
-
-    const userIds = [movement.createdBy, movement.validatedBy].filter(
-      Boolean,
-    ) as string[];
-
-    if (userIds.length > 0) {
-      const users = await db.user.findMany({
-        where: { id: { in: userIds } },
-        select: { id: true, fullName: true },
+    let createdByName = null;
+    if (movement.createdBy) {
+      const user = await db.user.findUnique({
+        where: { id: movement.createdBy },
+        select: { fullName: true },
       });
-      const uMap = new Map(users.map((u) => [u.id, u.fullName]));
-      if (movement.createdBy)
-        createdByName = uMap.get(movement.createdBy) || null;
-      if (movement.validatedBy)
-        validatedByName = uMap.get(movement.validatedBy) || null;
+      createdByName = user?.fullName || null;
+    }
+
+    let validatedByName = null;
+    if (movement.validatedBy) {
+      const user = await db.user.findUnique({
+        where: { id: movement.validatedBy },
+        select: { fullName: true },
+      });
+      validatedByName = user?.fullName || null;
     }
 
     return {
@@ -839,6 +857,8 @@ export class StockOutService {
         batchId: movement.batchId,
         quantity: movement.quantity,
         note: movement.note,
+        notaDinas: movement.notaDinas,
+        bast: movement.bast,
         createdAt: movement.createdAt.toISOString(),
         createdByName,
         validatedAt: movement.validatedAt
@@ -860,7 +880,6 @@ export class StockOutService {
         cardType: {
           id: movement.type.id,
           name: movement.type.typeName,
-          code: movement.type.typeCode,
         },
         sentSerialNumbers: movement.sentSerialNumbers,
         receivedSerialNumbers: movement.receivedSerialNumbers,
@@ -1108,6 +1127,12 @@ export class StockOutService {
       };
     });
 
+    await ActivityLogService.createActivityLog(
+      userId,
+      "UPDATE_STOCK_OUT_FWC",
+      `Updated Stock Out ${id}`,
+    );
+
     return transaction;
   }
   /**
@@ -1280,6 +1305,12 @@ export class StockOutService {
         );
       }
     });
+
+    await ActivityLogService.createActivityLog(
+      userId,
+      "DELETE_STOCK_OUT_FWC",
+      `Deleted Stock Out ${id}`,
+    );
 
     return transaction;
   }

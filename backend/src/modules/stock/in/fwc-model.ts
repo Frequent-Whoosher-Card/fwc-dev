@@ -1,6 +1,6 @@
 import { t } from "elysia";
 
-export namespace StockInModel {
+export namespace StockInFwcModel {
   // Stock In Request
   export const stockInBatchBody = t.Object({
     movementAt: t.String({
@@ -78,7 +78,7 @@ export namespace StockInModel {
             code: t.String(),
           }),
           sentSerialNumbers: t.Array(t.String()),
-        })
+        }),
       ),
       pagination: t.Object({
         total: t.Number(),
@@ -117,7 +117,7 @@ export namespace StockInModel {
           t.Object({
             serialNumber: t.String(),
             status: t.String(),
-          })
+          }),
         ),
       }),
     }),
@@ -135,7 +135,7 @@ export namespace StockInModel {
       t.String({
         format: "date-time",
         description: "Tanggal produksi (ISO date-time)",
-      })
+      }),
     ),
     note: t.Optional(t.String({ maxLength: 500 })),
     startSerial: t.String({
@@ -158,7 +158,7 @@ export namespace StockInModel {
           t.Literal("DAMAGED"),
           t.Literal("LOST"),
         ]),
-      })
+      }),
     ),
   });
 
@@ -170,7 +170,7 @@ export namespace StockInModel {
       t.Object({
         id: t.String(),
         updatedAt: t.String(),
-      })
+      }),
     ),
   });
 

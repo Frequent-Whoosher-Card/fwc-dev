@@ -1,9 +1,11 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
 import { authMiddleware } from "../../../middleware/auth";
 import { rbacMiddleware } from "../../../middleware/rbac";
 import { ValidationError, formatErrorResponse } from "../../../utils/errors";
-import { StockOutService } from "./service";
-import { StockOutModel } from "./model";
+import { StockOutFwcService } from "./fwc-service";
+import { StockOutFwcModel } from "./fwc-model";
+import { StockOutVoucherService } from "./voucher-service";
+import { StockOutVoucherModel } from "./voucher-model";
 
 type AuthContextUser = {
   user: {
@@ -20,295 +22,491 @@ type AuthContextUser = {
   };
 };
 
-const baseRoutes = new Elysia()
+const stockOutFwc = new Elysia({ prefix: "/fwc" })
   .use(authMiddleware)
-  .use(rbacMiddleware(["supervisor", "admin", "superadmin"]))
-  .post(
-    "/:movementId/validate",
-    async (context) => {
-      const { params, body, set, user } = context as typeof context &
-        AuthContextUser;
-      if (!user.stationId) {
-        set.status = 400;
-        return formatErrorResponse(
-          new ValidationError("Petugas tidak memiliki ID stasiun pada context")
-        );
-      }
-      try {
-        const result = await StockOutService.validateStockOutReceipe(
-          params.movementId,
-          body.receivedSerialNumbers,
-          body.lostSerialNumbers,
-          body.damagedSerialNumbers,
-          user.id,
-          user.stationId,
-          body.note
-        );
-
-        return {
-          success: true,
-          message: "Validasi stok berhasil",
-          data: result,
-        };
-      } catch (error) {
-        set.status =
-          error instanceof Error && "statusCode" in error
-            ? (error as any).statusCode
-            : 500;
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      body: StockOutModel.stockOutValidateRequest,
-      response: {
-        200: StockOutModel.stockOutValidateResponse,
-        400: StockOutModel.errorResponse,
-        401: StockOutModel.errorResponse,
-        403: StockOutModel.errorResponse,
-        500: StockOutModel.errorResponse,
-      },
-      detail: {
-        tags: ["Stock Out"],
-        summary: "Stock Out Validate",
-        description:
-          "Validasi stok keluar oleh petugas station. Triggers: 1) STOCK_OUT_REPORT (Success), 2) STOCK_ISSUE_APPROVAL (If issues), 3) Resolves LOW_STOCK_ALERT.",
-      },
-    }
+  .group("", (app) =>
+    app
+      .use(rbacMiddleware(["supervisor", "admin", "superadmin"]))
+      .get(
+        "/",
+        async (context) => {
+          const { query, set } = context;
+          try {
+            const result = await StockOutFwcService.getHistory({
+              page: query.page ? parseInt(query.page) : undefined,
+              limit: query.limit ? parseInt(query.limit) : undefined,
+              startDate: query.startDate
+                ? new Date(query.startDate)
+                : undefined,
+              endDate: query.endDate ? new Date(query.endDate) : undefined,
+              stationId: query.stationId,
+              status: query.status as any,
+              search: query.search,
+              stationName: query.stationName,
+              categoryName: query.categoryName,
+              typeName: query.typeName,
+            });
+            return { success: true, data: result };
+          } catch (error) {
+            set.status = 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          query: StockOutFwcModel.getHistoryQuery,
+          response: {
+            200: StockOutFwcModel.getHistoryResponse,
+            500: StockOutFwcModel.errorResponse,
+          },
+          detail: { tags: ["Stock Out FWC"], summary: "Get History" },
+        },
+      )
+      .get(
+        "/:id",
+        async (context) => {
+          const { params, set } = context;
+          try {
+            const result = await StockOutFwcService.getDetail(params.id);
+            return { success: true, data: result };
+          } catch (error) {
+            set.status = 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          response: {
+            200: StockOutFwcModel.getDetailResponse,
+            404: StockOutFwcModel.errorResponse,
+            500: StockOutFwcModel.errorResponse,
+          },
+          detail: { tags: ["Stock Out FWC"], summary: "Get Detail" },
+        },
+      )
+      .post(
+        "/:movementId/validate",
+        async (context) => {
+          const { params, body, set, user } = context as typeof context &
+            AuthContextUser;
+          if (!user.stationId) {
+            set.status = 400;
+            return formatErrorResponse(
+              new ValidationError("Petugas tidak memiliki ID stasiun"),
+            );
+          }
+          try {
+            const result = await StockOutFwcService.validateStockOutReceipe(
+              params.movementId,
+              body.receivedSerialNumbers || [],
+              body.lostSerialNumbers,
+              body.damagedSerialNumbers,
+              user.id,
+              user.stationId,
+              body.note,
+            );
+            return {
+              success: true,
+              message: "Validasi stok berhasil",
+              data: result,
+            };
+          } catch (error) {
+            set.status =
+              error instanceof Error && "statusCode" in error
+                ? (error as any).statusCode
+                : 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          body: StockOutFwcModel.stockOutValidateRequest,
+          response: {
+            200: StockOutFwcModel.stockOutValidateResponse,
+            400: StockOutFwcModel.errorResponse,
+            500: StockOutFwcModel.errorResponse,
+          },
+          detail: { tags: ["Stock Out FWC"], summary: "Validate Stock Out" },
+        },
+      ),
   )
-  .get(
-    "/",
-    async (context) => {
-      const { query, set } = context;
-      try {
-        const result = await StockOutService.getHistory({
-          page: query.page ? parseInt(query.page) : undefined,
-          limit: query.limit ? parseInt(query.limit) : undefined,
-          startDate: query.startDate ? new Date(query.startDate) : undefined,
-          endDate: query.endDate ? new Date(query.endDate) : undefined,
-          stationId: query.stationId,
-          status: query.status as any,
-          search: query.search,
-          stationName: query.stationName,
-          categoryName: query.categoryName,
-          typeName: query.typeName,
-        });
-
-        return {
-          success: true,
-          data: result,
-        };
-      } catch (error) {
-        set.status = 500;
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      query: StockOutModel.getHistoryQuery,
-      response: {
-        200: StockOutModel.getHistoryResponse,
-        500: StockOutModel.errorResponse,
-      },
-      detail: {
-        tags: ["Stock Out"],
-        summary: "Get Stock Out History",
-        description:
-          "Melihat riwayat distribusi stok keluar. Bisa filter by station, status, date.",
-      },
-    }
-  )
-  .get(
-    "/:id",
-    async (context) => {
-      const { params, set } = context;
-      try {
-        const result = await StockOutService.getDetail(params.id);
-        return {
-          success: true,
-          data: result,
-        };
-      } catch (error) {
-        set.status =
-          error instanceof Error && "statusCode" in error
-            ? (error as any).statusCode
-            : 500;
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      response: {
-        200: StockOutModel.getDetailResponse,
-        404: StockOutModel.errorResponse,
-        500: StockOutModel.errorResponse,
-      },
-      detail: {
-        tags: ["Stock Out"],
-        summary: "Get Stock Out Detail",
-        description:
-          "Melihat detail distribusi, termasuk log serial number yang dikirim, diterima, dan hilang.",
-      },
-    }
+  .group("", (app) =>
+    app
+      .use(rbacMiddleware(["superadmin", "admin"]))
+      .get(
+        "/available-serials",
+        async (context) => {
+          const { query, set } = context;
+          try {
+            const result = await StockOutFwcService.getAvailableSerials(
+              query.cardProductId,
+            );
+            return { success: true, data: result };
+          } catch (error) {
+            set.status = 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          query: StockOutFwcModel.getAvailableSerialsQuery,
+          response: {
+            200: StockOutFwcModel.getAvailableSerialsResponse,
+            400: StockOutFwcModel.errorResponse,
+            500: StockOutFwcModel.errorResponse,
+          },
+          detail: { tags: ["Stock Out FWC"], summary: "Get Available Serials" },
+        },
+      )
+      .post(
+        "/",
+        async (context) => {
+          const { body, set, user } = context as typeof context &
+            AuthContextUser;
+          try {
+            const result = await StockOutFwcService.stockOutDistribution(
+              new Date(body.movementAt),
+              body.cardProductId,
+              body.stationId,
+              body.startSerial,
+              body.endSerial,
+              user.id,
+              body.note,
+              body.notaDinas,
+              body.bast,
+            );
+            return {
+              success: true,
+              message: "Distribusi stok berhasil dibuat (PENDING)",
+              data: result,
+            };
+          } catch (error) {
+            set.status =
+              error instanceof Error && "statusCode" in error
+                ? (error as any).statusCode
+                : 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          body: StockOutFwcModel.stockOutRequest,
+          response: {
+            200: StockOutFwcModel.stockOutResponse,
+            400: StockOutFwcModel.errorResponse,
+            500: StockOutFwcModel.errorResponse,
+          },
+          detail: { tags: ["Stock Out FWC"], summary: "Create Stock Out" },
+        },
+      )
+      .patch(
+        "/:id",
+        async (context) => {
+          const { params, body, set, user } = context as typeof context &
+            AuthContextUser;
+          try {
+            const result = await StockOutFwcService.update(
+              params.id,
+              body,
+              user.id,
+            );
+            return {
+              success: true,
+              message: "Data stock out berhasil diperbarui",
+              data: result,
+            };
+          } catch (error) {
+            set.status =
+              error instanceof Error && "statusCode" in error
+                ? (error as any).statusCode
+                : 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          body: StockOutFwcModel.updateStockOutBody,
+          response: {
+            200: StockOutFwcModel.updateStockOutResponse,
+            400: StockOutFwcModel.errorResponse,
+            500: StockOutFwcModel.errorResponse,
+          },
+          detail: { tags: ["Stock Out FWC"], summary: "Update Stock Out" },
+        },
+      )
+      .delete(
+        "/:id",
+        async (context) => {
+          const { params, set, user } = context as typeof context &
+            AuthContextUser;
+          try {
+            const result = await StockOutFwcService.delete(params.id, user.id);
+            return { success: true, message: result.message };
+          } catch (error) {
+            set.status =
+              error instanceof Error && "statusCode" in error
+                ? (error as any).statusCode
+                : 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          response: {
+            200: StockOutFwcModel.deleteStockOutResponse,
+            400: StockOutFwcModel.errorResponse,
+            500: StockOutFwcModel.errorResponse,
+          },
+          detail: { tags: ["Stock Out FWC"], summary: "Delete Stock Out" },
+        },
+      ),
   );
 
-const adminRoutes = new Elysia()
+const stockOutVoucher = new Elysia({ prefix: "/voucher" })
   .use(authMiddleware)
-  .use(rbacMiddleware(["superadmin", "admin"]))
-  .get(
-    "/available-serials",
-    async (context) => {
-      const { query, set } = context;
-      try {
-        const result = await StockOutService.getAvailableSerials(
-          query.cardProductId
-        );
-        return {
-          success: true,
-          data: result,
-        };
-      } catch (error) {
-        set.status =
-          error instanceof Error && "statusCode" in error
-            ? (error as any).statusCode
-            : 500;
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      query: StockOutModel.getAvailableSerialsQuery,
-      response: {
-        200: StockOutModel.getAvailableSerialsResponse,
-        400: StockOutModel.errorResponse,
-        500: StockOutModel.errorResponse,
-      },
-      detail: {
-        tags: ["Stock Out"],
-        summary: "Get Available Serials",
-        description:
-          "Mendapatkan daftar nomor serial yang statusnya IN_OFFICE (siap untuk dikirim).",
-      },
-    }
+  .group("", (app) =>
+    app
+      .use(rbacMiddleware(["supervisor", "admin", "superadmin"]))
+      .get(
+        "/",
+        async (context) => {
+          const { query, set } = context;
+          try {
+            const result = await StockOutVoucherService.getHistory({
+              page: query.page ? parseInt(query.page) : undefined,
+              limit: query.limit ? parseInt(query.limit) : undefined,
+              startDate: query.startDate
+                ? new Date(query.startDate)
+                : undefined,
+              endDate: query.endDate ? new Date(query.endDate) : undefined,
+              stationId: query.stationId,
+              status: query.status as any,
+              search: query.search,
+              stationName: query.stationName,
+              categoryName: query.categoryName,
+              typeName: query.typeName,
+            });
+            return { success: true, data: result };
+          } catch (error) {
+            set.status = 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          query: StockOutVoucherModel.getHistoryQuery,
+          response: {
+            200: StockOutVoucherModel.getHistoryResponse,
+            500: StockOutVoucherModel.errorResponse,
+          },
+          detail: { tags: ["Stock Out Voucher"], summary: "Get History" },
+        },
+      )
+      .get(
+        "/:id",
+        async (context) => {
+          const { params, set } = context;
+          try {
+            const result = await StockOutVoucherService.getDetail(params.id);
+            return { success: true, data: result };
+          } catch (error) {
+            set.status = 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          response: {
+            200: StockOutVoucherModel.getDetailResponse,
+            404: StockOutVoucherModel.errorResponse,
+            500: StockOutVoucherModel.errorResponse,
+          },
+          detail: { tags: ["Stock Out Voucher"], summary: "Get Detail" },
+        },
+      )
+      .post(
+        "/:movementId/validate",
+        async (context) => {
+          const { params, body, set, user } = context as typeof context &
+            AuthContextUser;
+          if (!user.stationId) {
+            set.status = 400;
+            return formatErrorResponse(
+              new ValidationError("Petugas tidak memiliki ID stasiun"),
+            );
+          }
+          try {
+            const result = await StockOutVoucherService.validateStockOutReceipe(
+              params.movementId,
+              body.receivedSerialNumbers || [],
+              body.lostSerialNumbers,
+              body.damagedSerialNumbers,
+              user.id,
+              user.stationId,
+              body.note,
+            );
+            return {
+              success: true,
+              message: "Validasi stok voucher berhasil",
+              data: result,
+            };
+          } catch (error) {
+            set.status =
+              error instanceof Error && "statusCode" in error
+                ? (error as any).statusCode
+                : 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          body: StockOutVoucherModel.stockOutValidateRequest,
+          response: {
+            200: StockOutVoucherModel.stockOutValidateResponse,
+            400: StockOutVoucherModel.errorResponse,
+            500: StockOutVoucherModel.errorResponse,
+          },
+          detail: {
+            tags: ["Stock Out Voucher"],
+            summary: "Validate Stock Out",
+          },
+        },
+      ),
   )
-  .post(
-    "/",
-    async (context) => {
-      const { body, set, user } = context as typeof context & AuthContextUser;
-      try {
-        const result = await StockOutService.stockOutDistribution(
-          new Date(body.movementAt),
-          body.cardProductId,
-          body.stationId,
-          body.startSerial,
-          body.endSerial,
-          user.id,
-          body.note
-        );
-
-        return {
-          success: true,
-          message:
-            "Distribusi stok berhasil dibuat (PENDING, menunggu validasi petugas)",
-          data: result,
-        };
-      } catch (error) {
-        set.status =
-          error instanceof Error && "statusCode" in error
-            ? (error as any).statusCode
-            : 500;
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      body: StockOutModel.stockOutRequest,
-      response: {
-        200: StockOutModel.stockOutResponse,
-        400: StockOutModel.errorResponse,
-        401: StockOutModel.errorResponse,
-        403: StockOutModel.errorResponse,
-        422: StockOutModel.errorResponse,
-        500: StockOutModel.errorResponse,
-      },
-      detail: {
-        tags: ["Stock Out"],
-        summary: "Stock Out Distribution",
-        description:
-          "Menyimpan distribusi stok ke tabel stock_out dengan status PENDING. Role: superadmin/admin. Triggers: STOCK_DISTRIBUTION Notification to Station Supervisors.",
-      },
-    }
-  )
-  .patch(
-    "/:id",
-    async (context) => {
-      const { params, body, set, user } = context as typeof context &
-        AuthContextUser;
-      try {
-        const result = await StockOutService.update(params.id, body, user.id);
-        return {
-          success: true,
-          message: "Data stock out berhasil diperbarui",
-          data: result,
-        };
-      } catch (error) {
-        set.status =
-          error instanceof Error && "statusCode" in error
-            ? (error as any).statusCode
-            : 500;
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      body: StockOutModel.updateStockOutBody,
-      response: {
-        200: StockOutModel.updateStockOutResponse,
-        400: StockOutModel.errorResponse,
-        404: StockOutModel.errorResponse,
-        500: StockOutModel.errorResponse,
-      },
-      detail: {
-        tags: ["Stock Out"],
-        summary: "Update Stock Out Metadata",
-        description:
-          "Mengubah data distribusi. Hanya bisa diubah jika status masih PENDING.",
-      },
-    }
-  )
-  .delete(
-    "/:id",
-    async (context) => {
-      const { params, set, user } = context as typeof context & AuthContextUser;
-      try {
-        const result = await StockOutService.delete(params.id, user.id);
-        return {
-          success: true,
-          message: result.message,
-        };
-      } catch (error) {
-        set.status =
-          error instanceof Error && "statusCode" in error
-            ? (error as any).statusCode
-            : 500;
-        if (
-          error instanceof ValidationError &&
-          error.message === "Bukan transaksi Stock Out"
-        ) {
-          set.status = 400;
-        }
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      response: {
-        200: StockOutModel.deleteStockOutResponse,
-        400: StockOutModel.errorResponse,
-        500: StockOutModel.errorResponse,
-      },
-      detail: {
-        tags: ["Stock Out"],
-        summary: "Delete / Cancel Stock Out",
-        description:
-          "Hapus transaksi pengiriman. HANYA JIKA kartu belum terjual/terpakai. Mengembalikan kartu ke Office.",
-      },
-    }
+  .group("", (app) =>
+    app
+      .use(rbacMiddleware(["superadmin", "admin"]))
+      .get(
+        "/available-serials",
+        async (context) => {
+          const { query, set } = context;
+          try {
+            // Note: Reuse FWC logic for getAvailableSerials as status IN_OFFICE is common
+            // or use Voucher specific if we want to enforce ProgramType check
+            // For now reusing FWC logic (or imported generic) inside VoucherService
+            // I haven't implemented getAvailableSerials in VoucherService yet, better to add it or aliast it.
+            // Since VoucherService extends/copies FWC, I should add it there.
+            // I'll assume I added `getAvailableSerials` to `StockOutVoucherService` (via alias or copy).
+            // Wait, I DID NOT add it in previous step.
+            // I should use `StockOutFwcService.getAvailableSerials` if logic is same?
+            // Yes, checking IN_OFFICE is same.
+            const result = await StockOutFwcService.getAvailableSerials(
+              query.cardProductId,
+            );
+            return { success: true, data: result };
+          } catch (error) {
+            set.status = 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          query: StockOutVoucherModel.getAvailableSerialsQuery,
+          response: {
+            200: StockOutVoucherModel.getAvailableSerialsResponse,
+            400: StockOutVoucherModel.errorResponse,
+            500: StockOutVoucherModel.errorResponse,
+          },
+          detail: {
+            tags: ["Stock Out Voucher"],
+            summary: "Get Available Serials",
+          },
+        },
+      )
+      .post(
+        "/",
+        async (context) => {
+          const { body, set, user } = context as typeof context &
+            AuthContextUser;
+          try {
+            const result = await StockOutVoucherService.stockOutDistribution(
+              new Date(body.movementAt),
+              body.cardProductId,
+              body.stationId,
+              body.startSerial,
+              body.endSerial,
+              user.id,
+              new Date(body.serialDate),
+              body.note,
+              body.notaDinas,
+              body.bast,
+            );
+            return {
+              success: true,
+              message: "Distribusi voucher berhasil dibuat (PENDING)",
+              data: result,
+            };
+          } catch (error) {
+            set.status =
+              error instanceof Error && "statusCode" in error
+                ? (error as any).statusCode
+                : 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          body: StockOutVoucherModel.stockOutRequest,
+          response: {
+            200: StockOutVoucherModel.stockOutResponse,
+            400: StockOutVoucherModel.errorResponse,
+            500: StockOutVoucherModel.errorResponse,
+          },
+          detail: { tags: ["Stock Out Voucher"], summary: "Create Stock Out" },
+        },
+      )
+      .patch(
+        "/:id",
+        async (context) => {
+          const { params, body, set, user } = context as typeof context &
+            AuthContextUser;
+          try {
+            const result = await StockOutVoucherService.update(
+              params.id,
+              body,
+              user.id,
+            );
+            return {
+              success: true,
+              message: "Data stock out voucher berhasil diperbarui",
+              data: result,
+            };
+          } catch (error) {
+            set.status =
+              error instanceof Error && "statusCode" in error
+                ? (error as any).statusCode
+                : 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          body: StockOutVoucherModel.updateStockOutBody,
+          response: {
+            200: StockOutVoucherModel.updateStockOutResponse,
+            400: StockOutVoucherModel.errorResponse,
+            500: StockOutVoucherModel.errorResponse,
+          },
+          detail: { tags: ["Stock Out Voucher"], summary: "Update Stock Out" },
+        },
+      )
+      .delete(
+        "/:id",
+        async (context) => {
+          const { params, set, user } = context as typeof context &
+            AuthContextUser;
+          try {
+            const result = await StockOutVoucherService.delete(
+              params.id,
+              user.id,
+            );
+            return { success: true, message: result.message };
+          } catch (error) {
+            set.status =
+              error instanceof Error && "statusCode" in error
+                ? (error as any).statusCode
+                : 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          response: {
+            200: StockOutVoucherModel.deleteStockOutResponse,
+            400: StockOutVoucherModel.errorResponse,
+            500: StockOutVoucherModel.errorResponse,
+          },
+          detail: { tags: ["Stock Out Voucher"], summary: "Delete Stock Out" },
+        },
+      ),
   );
 
 export const stockOut = new Elysia({ prefix: "/out" })
-  .use(baseRoutes)
-  .use(adminRoutes);
+  .use(stockOutFwc)
+  .use(stockOutVoucher);
