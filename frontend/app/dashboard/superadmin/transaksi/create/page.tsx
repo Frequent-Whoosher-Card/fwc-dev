@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
-import SuccessModal from "@/app/dashboard/superadmin/user/components/SuccesModal";
+import SuccessModal from "../../membership/components/ui/SuccessModal";
 import { SectionCard } from "@/components/ui/section-card";
 import {
   Field,
@@ -338,6 +338,11 @@ export default function AddPurchasePage() {
                 {...register("edcReferenceNumber")}
                 className={baseInputClass}
                 maxLength={20}
+                onInput={(e) => {
+                  e.currentTarget.value = e.currentTarget.value
+                    .replace(/\D/g, "")
+                    .slice(0, 20);
+                }}
               />
               <FieldError
                 errors={
@@ -363,9 +368,24 @@ export default function AddPurchasePage() {
 
       <SuccessModal
         open={showConfirm}
-        title="Confirm Save"
-        message="Please review transaction data before saving"
-        confirmText={isSubmitting ? "Saving..." : "Save"}
+        title="Transaction Data"
+        message="Please review the transaction data before continuing"
+        data={{
+          // Customer
+          "Member Name": selectedMember?.name || "-",
+          "Identity Number": selectedMember?.identityNumber || "-",
+          
+          // Card Info
+          "Card Category": cardCategory || "-",
+          "Card Type": cardTypes.find(t => t.id === cardTypeId)?.typeName || "-",
+          "Serial Number": serialNumber || "-",
+          
+          // Transaction
+          "Purchase Date": form.getValues("purchaseDate") || "-",
+          "Shift Date": form.getValues("shiftDate") || "-",
+          "FWC Price": `Rp ${form.getValues("price")?.toLocaleString("id-ID") || 0}`,
+          "No. Reference EDC": form.getValues("edcReferenceNumber") || "-",
+        }}
         onClose={() => setShowConfirm(false)}
         onConfirm={handleConfirm}
       />

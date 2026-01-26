@@ -367,8 +367,58 @@ const correctionRoutes = new Elysia()
     },
   );
 
+// Delete routes - Admin and Superadmin only
+const deleteRoutes = new Elysia()
+  .use(rbacMiddleware(["admin", "superadmin"]))
+  .delete(
+    "/:id",
+    async (context) => {
+      const { params, set, user } = context as typeof context & AuthContextUser;
+      try {
+        const result = await PurchaseService.deletePurchase(params.id, user.id);
+        return result;
+      } catch (error) {
+        set.status = error instanceof Error && error.name === "NotFoundError" ? 404 : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      params: t.Object({
+        id: t.String(),
+      }),
+      response: {
+        200: t.Object({
+          success: t.Boolean(),
+          message: t.String(),
+          id: t.String(),
+        }),
+        401: PurchaseModel.errorResponse,
+        403: PurchaseModel.errorResponse,
+        404: PurchaseModel.errorResponse,
+        500: PurchaseModel.errorResponse,
+      },
+      detail: {
+        tags: ["Purchases"],
+        summary: "Delete a purchase transaction (soft delete)",
+        description: `Soft delete a purchase transaction and restore card to IN_STATION status.
+
+**Process:**
+1. Mark purchase as deleted (set deletedAt timestamp)
+2. Card status changed from SOLD_ACTIVE back to IN_STATION
+3. Deleted purchases won't appear in purchase lists
+
+**Access Control:**
+- Roles allowed: admin, superadmin only
+
+**Note:** This is a soft delete - data is preserved for audit purposes.`,
+      },
+    },
+  );
+
 // Combine all routes
 export const purchases = new Elysia({ prefix: "/purchases" })
   .use(baseRoutes)
   .use(writeRoutes)
-  .use(correctionRoutes);
+  .use(correctionRoutes)
+  .use(deleteRoutes);
+

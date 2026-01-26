@@ -879,4 +879,47 @@ export class PurchaseService {
       };
     });
   }
+
+  /**
+   * Soft delete purchase transaction
+   */
+  static async deletePurchase(id: string, userId: string) {
+    return await db.$transaction(async (tx) => {
+      // 1. Validate purchase exists and not already deleted
+      const purchase = await tx.cardPurchase.findUnique({
+        where: { id },
+        include: {
+          card: true,
+        },
+      });
+
+      if (!purchase || purchase.deletedAt) {
+        throw new NotFoundError("Transaksi tidak ditemukan");
+      }
+
+      // 2. Soft delete purchase
+      const deletedPurchase = await tx.cardPurchase.update({
+        where: { id },
+        data: {
+          deletedAt: new Date(),
+          deletedBy: userId,
+        },
+      });
+
+      // 3. Update card status back to IN_STATION
+      await tx.card.update({
+        where: { id: purchase.cardId },
+        data: {
+          status: "IN_STATION",
+        },
+      });
+
+      return {
+        success: true,
+        message: "Transaksi berhasil dihapus",
+        id: deletedPurchase.id,
+      };
+    });
+  }
 }
+

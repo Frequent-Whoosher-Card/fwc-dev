@@ -383,12 +383,16 @@ export class MemberService {
     returnMultiple: boolean = false,
     minConfidence: number = 0.5
   ): Promise<typeof MemberModel.ktpDetectionResponse.static> {
+    const startTime = performance.now();
+    console.log('🔍 [KTP Detection] Memulai deteksi KTP...');
+    
     // Import services (lazy import to avoid circular dependencies)
     const { ktpDetectionService } = await import("../../services/ktp_detection_service");
     const { tempStorage } = await import("../../utils/temp_storage");
 
     try {
       // Use cached detection daemon service (model loaded once, reused for all requests)
+      const detectionStartTime = performance.now();
       const result = await ktpDetectionService.detectAndCrop(
         imageFile,
         returnMultiple,
@@ -419,6 +423,12 @@ export class MemberService {
           }))
         );
 
+        const detectionTime = performance.now() - detectionStartTime;
+        const totalTime = performance.now() - startTime;
+        console.log(`✅ [KTP Detection] Deteksi selesai dalam ${detectionTime.toFixed(2)}ms`);
+        console.log(`✅ [KTP Detection] Total waktu (termasuk penyimpanan): ${totalTime.toFixed(2)}ms`);
+        console.log(`📊 [KTP Detection] Jumlah KTP terdeteksi: ${result.cropped_images.length}`);
+
         return {
           success: true,
           data: {
@@ -442,6 +452,12 @@ export class MemberService {
           result.confidence
         );
 
+        const detectionTime = performance.now() - detectionStartTime;
+        const totalTime = performance.now() - startTime;
+        console.log(`✅ [KTP Detection] Deteksi selesai dalam ${detectionTime.toFixed(2)}ms`);
+        console.log(`✅ [KTP Detection] Total waktu (termasuk penyimpanan): ${totalTime.toFixed(2)}ms`);
+        console.log(`📊 [KTP Detection] Confidence: ${result.confidence?.toFixed(2)}`);
+
         return {
           success: true,
           data: {
@@ -455,7 +471,10 @@ export class MemberService {
         };
       }
     } catch (error) {
+      const totalTime = performance.now() - startTime;
+      console.error(`❌ [KTP Detection] Gagal setelah ${totalTime.toFixed(2)}ms`);
       if (error instanceof Error) {
+        console.error(`❌ [KTP Detection] Error: ${error.message}`);
         throw new ValidationError(`KTP detection failed: ${error.message}`);
       }
       throw new ValidationError("KTP detection failed: Unknown error");
@@ -470,12 +489,16 @@ export class MemberService {
     imageFileOrBase64OrSessionId: File | string,
     isSessionId: boolean = false
   ): Promise<typeof MemberModel.ocrExtractResponse.static> {
+    const startTime = performance.now();
+    console.log('📝 [KTP Extraction] Memulai ekstraksi data KTP...');
+    
     // Import services (lazy import to avoid circular dependencies)
     const { ocrService } = await import("../../services/ocr_service");
     const { tempStorage } = await import("../../utils/temp_storage");
 
     try {
       let fileObj: File;
+      const prepStartTime = performance.now();
 
       // Handle sessionId, base64 string, or File object
       if (isSessionId && typeof imageFileOrBase64OrSessionId === "string") {
@@ -501,12 +524,22 @@ export class MemberService {
         fileObj = imageFileOrBase64OrSessionId;
       }
 
+      const prepTime = performance.now() - prepStartTime;
+      console.log(`⏱️  [KTP Extraction] Waktu persiapan file: ${prepTime.toFixed(2)}ms`);
+
       // Use cached OCR daemon service (model loaded once, reused for all requests)
+      const ocrStartTime = performance.now();
       const result = await ocrService.processImage(fileObj);
+      const ocrTime = performance.now() - ocrStartTime;
 
       if (!result.success) {
         throw new Error(result.error || "OCR extraction failed");
       }
+
+      const totalTime = performance.now() - startTime;
+      console.log(`✅ [KTP Extraction] OCR processing selesai dalam ${ocrTime.toFixed(2)}ms`);
+      console.log(`✅ [KTP Extraction] Total waktu: ${totalTime.toFixed(2)}ms`);
+      console.log(`📊 [KTP Extraction] Data terektrak: NIK=${result.data?.identityNumber || 'N/A'}, Nama=${result.data?.name || 'N/A'}`);
 
       return {
         success: true,
@@ -520,7 +553,10 @@ export class MemberService {
         message: "KTP fields extracted successfully",
       };
     } catch (error) {
+      const totalTime = performance.now() - startTime;
+      console.error(`❌ [KTP Extraction] Gagal setelah ${totalTime.toFixed(2)}ms`);
       if (error instanceof Error) {
+        console.error(`❌ [KTP Extraction] Error: ${error.message}`);
         throw new ValidationError(`OCR extraction failed: ${error.message}`);
       }
       throw new ValidationError("OCR extraction failed: Unknown error");
