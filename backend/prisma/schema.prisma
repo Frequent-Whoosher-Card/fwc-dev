@@ -54,6 +54,7 @@ enum FilePurpose {
   GENERAL
   LAST_REDEEM
   BARCODE_IMAGE
+  GENERATION_DOCUMENT
 }
 
 enum Gender {
@@ -174,10 +175,6 @@ model CardCategory {
   @@map("card_categories")
 }
 
-////////////////////////////////////////////////////
-// CARD TYPE
-////////////////////////////////////////////////////
-
 model CardType {
   id               String       @id @default(uuid()) @map("type_id") @db.Uuid
   typeCode         String       @map("type_code")
@@ -231,38 +228,38 @@ model Station {
   @@map("stations")
 }
 
-model ProductDetail {
-  id           Int      @id @default(autoincrement()) @map("product_detail_id")
-  discount     Decimal?
-  itemQuantity Int?
+model BulkDiscount {
+  id          Int      @id @default(autoincrement()) @map("bulk_discount_id")
+  discount    Decimal?
+  minQuantity Int?     @map("min_quantity")
+  maxQuantity Int?     @map("max_quantity")
 
-  products CardProduct[]
+  cardPurchase CardPurchase[]
 
-  @@map("product_detail")
+  @@map("bulk_discount")
 }
 
 model CardProduct {
-  id              String       @id @default(uuid()) @map("card_product_id") @db.Uuid
-  categoryId      String       @map("category_id") @db.Uuid
-  typeId          String       @map("type_id") @db.Uuid
-  productDetailId Int?         @map("product_detail_id")
-  totalQuota      Int          @map("total_quota")
-  masaBerlaku     Int          @map("masa_berlaku")
-  maxQuantity     Int?         @map("max_quantity")
-  price           Decimal
-  isActive        Boolean      @map("is_active")
-  serialTemplate  String       @unique @map("serial_template")
-  programType     ProgramType? @map("program_type")
-  createdAt       DateTime     @default(now()) @map("created_at")
-  createdBy       String?      @map("created_by") @db.Uuid
-  updatedAt       DateTime     @default(now()) @map("updated_at")
-  updatedBy       String?      @map("updated_by") @db.Uuid
-  deletedAt       DateTime?    @map("deleted_at")
-  deletedBy       String?      @map("deleted_by") @db.Uuid
+  id             String       @id @default(uuid()) @map("card_product_id") @db.Uuid
+  categoryId     String       @map("category_id") @db.Uuid
+  typeId         String       @map("type_id") @db.Uuid
+  totalQuota     Int          @map("total_quota")
+  masaBerlaku    Int          @map("masa_berlaku")
+  maxQuantity    Int?         @map("max_quantity")
+  price          Decimal
+  isActive       Boolean      @map("is_active")
+  isDiscount     Boolean?     @default(false) @map("is_discount")
+  serialTemplate String       @unique @map("serial_template")
+  programType    ProgramType? @map("program_type")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  createdBy      String?      @map("created_by") @db.Uuid
+  updatedAt      DateTime     @default(now()) @map("updated_at")
+  updatedBy      String?      @map("updated_by") @db.Uuid
+  deletedAt      DateTime?    @map("deleted_at")
+  deletedBy      String?      @map("deleted_by") @db.Uuid
 
   // Relation
   category         CardCategory      @relation(fields: [categoryId], references: [id])
-  productDetail    ProductDetail?    @relation(fields: [productDetailId], references: [id])
   type             CardType          @relation(fields: [typeId], references: [id])
   cards            Card[]
   swapRequests     CardSwapRequest[] @relation("ExpectedProduct")
@@ -316,8 +313,9 @@ model FileObject {
   deletedBy      String?     @map("deleted_by") @db.Uuid
 
   // Relation
-  redeems Redeem[]
-  cards   Card[]
+  redeems        Redeem[]
+  cards          Card[]
+  stockMovements CardStockMovement[]
 
   @@map("file_object")
 }
@@ -399,6 +397,9 @@ model CardStockMovement {
   typeId                String              @map("type_id") @db.Uuid
   stationId             String?             @map("station_id") @db.Uuid
   toStationId           String?             @map("to_station_id") @db.Uuid
+  fileObjectId          String?             @map("file_object_id") @db.Uuid
+  notaDinas             String?             @map("nota_dinas")
+  bast                  String?             @map("bast")
   quantity              Int                 @map("quantity")
   note                  String?             @map("note")
   lostSerialNumbers     String[]            @default([]) @map("lost_serial_numbers")
@@ -415,10 +416,11 @@ model CardStockMovement {
   deletedAt             DateTime?           @map("deleted_at")
   deletedBy             String?             @map("deleted_by")
 
-  category  CardCategory @relation(fields: [categoryId], references: [id])
-  type      CardType     @relation(fields: [typeId], references: [id])
-  station   Station?     @relation(fields: [stationId], references: [id])
-  toStation Station?     @relation("ToStation", fields: [toStationId], references: [id])
+  category   CardCategory @relation(fields: [categoryId], references: [id])
+  type       CardType     @relation(fields: [typeId], references: [id])
+  station    Station?     @relation(fields: [stationId], references: [id])
+  toStation  Station?     @relation("ToStation", fields: [toStationId], references: [id])
+  fileObject FileObject?  @relation(fields: [fileObjectId], references: [id])
 
   @@map("card_stock_movements")
 }
@@ -458,6 +460,7 @@ model CardPurchase {
   memberId                 String?                  @map("member_id") @db.Uuid
   operatorId               String                   @map("operator_id") @db.Uuid
   stationId                String                   @map("station_id") @db.Uuid
+  bulkDiscountId           Int?                     @map("bulk_discount_id")
   edcReferenceNumber       String                   @unique @map("edc_reference_number")
   purchaseDate             DateTime                 @map("purchase_date")
   price                    Decimal                  @map("price")
@@ -479,6 +482,7 @@ model CardPurchase {
   member           Member?           @relation(fields: [memberId], references: [id], onDelete: Restrict)
   operator         User              @relation("PurchaseOperator", fields: [operatorId], references: [id])
   station          Station           @relation(fields: [stationId], references: [id])
+  bulkDiscount     BulkDiscount?     @relation(fields: [bulkDiscountId], references: [id])
   cardSwapRequests CardSwapRequest[]
 
   @@index([purchaseDate])
