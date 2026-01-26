@@ -12,6 +12,7 @@ export interface CardProduct {
   price: number;
   serialTemplate: string;
   isActive: boolean;
+  maxQuantity?: number;
   createdAt: string;
 
   category?: {
@@ -52,6 +53,7 @@ export interface CreateCardProductPayload {
   masaBerlaku: number;
   price: number;
   serialTemplate: string;
+  maxQuantity?: number;
 }
 
 export interface UpdateCardProductPayload {

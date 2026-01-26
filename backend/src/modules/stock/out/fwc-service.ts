@@ -678,6 +678,7 @@ export class StockOutFwcService {
 
     const where: any = {
       movementType: "OUT",
+      category: { programType: "FWC" },
     };
 
     // --- CASE INSENSITIVE SEARCH LOGIC ---
@@ -695,10 +696,12 @@ export class StockOutFwcService {
           },
         },
         {
-          cardType: {
+          type: {
             typeName: { contains: search, mode: "insensitive" },
           },
         },
+        { notaDinas: { contains: search, mode: "insensitive" } },
+        { bast: { contains: search, mode: "insensitive" } },
       ];
     }
 
@@ -880,11 +883,12 @@ export class StockOutFwcService {
         cardType: {
           id: movement.type.id,
           name: movement.type.typeName,
+          code: movement.type.typeCode,
         },
         sentSerialNumbers: movement.sentSerialNumbers,
         receivedSerialNumbers: movement.receivedSerialNumbers,
         lostSerialNumbers: movement.lostSerialNumbers,
-        damagedSerialNumbers: (movement as any).damagedSerialNumbers ?? [],
+        damagedSerialNumbers: movement.damagedSerialNumbers ?? [],
       },
     };
   }

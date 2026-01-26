@@ -444,7 +444,7 @@ export class StockOutVoucherService {
         {
           category: { categoryName: { contains: search, mode: "insensitive" } },
         },
-        { cardType: { typeName: { contains: search, mode: "insensitive" } } },
+        { type: { typeName: { contains: search, mode: "insensitive" } } },
         { notaDinas: { contains: search, mode: "insensitive" } },
         { bast: { contains: search, mode: "insensitive" } },
       ];
@@ -468,7 +468,7 @@ export class StockOutVoucherService {
         categoryName: { contains: categoryName, mode: "insensitive" },
       };
     if (typeName)
-      where.cardType = {
+      where.type = {
         typeName: { contains: typeName, mode: "insensitive" },
       };
 

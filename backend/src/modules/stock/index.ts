@@ -60,11 +60,27 @@ export const stock = new Elysia({ prefix: "/stock" })
 
         // Map basic response shape match schema expecting counts
         const data = {
-          movements: result.movements.map((m) => ({
+          movements: result.movements.map((m: any) => ({
             ...m,
-            sentSerialNumbersCount: m.sentSerialNumbers.length,
-            receivedSerialNumbersCount: m.receivedSerialNumbers.length,
-            lostSerialNumbersCount: m.lostSerialNumbers.length,
+            sentSerialNumbersCount: m.sentSerialNumbers?.length ?? 0,
+            receivedSerialNumbersCount: m.receivedSerialNumbers?.length ?? 0,
+            lostSerialNumbersCount: m.lostSerialNumbers?.length ?? 0,
+            category: {
+              categoryName: m.category?.categoryName ?? "-",
+              categoryCode: m.category?.categoryCode ?? "-",
+            },
+            cardType: m.type
+              ? {
+                  typeName: m.type.typeName ?? "-",
+                  typeCode: m.type.typeCode ?? "-",
+                }
+              : { typeName: "-", typeCode: "-" },
+            station: m.station
+              ? {
+                  stationName: m.station.stationName ?? "-",
+                  stationCode: m.station.stationCode ?? "-",
+                }
+              : null,
           })),
           pagination: result.pagination,
         };
