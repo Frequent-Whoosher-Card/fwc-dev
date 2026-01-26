@@ -24,6 +24,8 @@ import { API_BASE_URL } from "@/lib/apiConfig";
 import { createMember } from "@/lib/services/membership.service";
 import { createPurchase } from "@/lib/services/purchase.service";
 import { KTPUploadDetect } from "@/components/ui/ktp-upload-detect";
+import { useCardSelection } from "@/hooks/useCardSelection";
+import { useCategories } from "@/hooks/useCategories";
 
 /* ======================
    BASE INPUT STYLE
@@ -199,7 +201,30 @@ export default function AddMemberPage() {
     return `${year}-${month}-${day}`; // YYYY-MM-DD
   };
 
-  // Card Products
+  // Card Selection Hook
+  const { categories, loading: loadingCategories } = useCategories();
+  const {
+    cardCategory,
+    categoryId,
+    cardTypes,
+    cardTypeId,
+    cards,
+    cardId,
+    price,
+    serialNumber,
+    setSerialNumber,
+    searchResults,
+    isSearching,
+    loadingTypes,
+    loadingCards,
+    handleCategoryChange,
+    handleTypeChange,
+    handleCardChange,
+    handleCardSearch,
+    handleCardSelect,
+  } = useCardSelection();
+
+  // Card Products (old - will be removed)
   const [cardProducts, setCardProducts] = useState<CardProduct[]>([]);
   const [selectedCardProductId, setSelectedCardProductId] = useState("");
   const [selectedCardProduct, setSelectedCardProduct] =
@@ -314,6 +339,28 @@ export default function AddMemberPage() {
     loadInitialData();
   }, []);
 
+  // Auto-calculate expired date when cardTypeId or purchasedDate changes
+  useEffect(() => {
+    if (!cardTypeId || !form.membershipDate) return;
+
+    // Find the selected card product based on categoryId and typeId
+    const selectedProduct = cardProducts.find(
+      (p) => p.typeId === cardTypeId && p.categoryId === categoryId,
+    );
+
+    if (selectedProduct && selectedProduct.masaBerlaku) {
+      const expDate = calculateExpiredDate(
+        form.membershipDate,
+        selectedProduct.masaBerlaku,
+      );
+      setForm((prev) => ({
+        ...prev,
+        expiredDate: expDate,
+      }));
+    }
+  }, [cardTypeId, categoryId, form.membershipDate, cardProducts]);
+
+  // DEPRECATED: Old useEffect and handlers (kept for reference, will be removed)
   // Load available cards when card product is selected
   useEffect(() => {
     if (!selectedCardProductId) {
@@ -613,17 +660,22 @@ export default function AddMemberPage() {
       return;
     }
 
-    if (!selectedCardProductId) {
-      toast.error("Card Product wajib dipilih");
+    if (!cardCategory) {
+      toast.error("Card Category wajib dipilih");
       return;
     }
 
-    if (!selectedCard) {
+    if (!cardTypeId) {
+      toast.error("Card Type wajib dipilih");
+      return;
+    }
+
+    if (!cardId) {
       toast.error("Serial Number wajib dipilih");
       return;
     }
 
-    if (isKAIProduct && !form.nippKai.trim()) {
+    if (cardCategory === "KAI" && !form.nippKai.trim()) {
       toast.error("Isi NIP / NIPP KAI untuk melanjutkan", {
         icon: "⚠️",
       });
@@ -668,16 +720,6 @@ export default function AddMemberPage() {
       return;
     }
 
-    if (!selectedCardProductId) {
-      toast.error("Card Product wajib dipilih");
-      return;
-    }
-
-    if (!selectedCard) {
-      toast.error("Serial Number wajib dipilih");
-      return;
-    }
-
     if (!form.membershipDate) {
       toast.error("Membership Date tidak valid");
       return;
@@ -693,7 +735,7 @@ export default function AddMemberPage() {
       return;
     }
 
-    if (!form.price) {
+    if (!price) {
       toast.error("FWC Price belum terisi");
       return;
     }
@@ -746,11 +788,15 @@ export default function AddMemberPage() {
       const stationIdFromMe = meData.data.station.id;
 
       // 3. VALIDATION
-      if (!selectedCardProductId) {
-        toast.error("Card Product wajib dipilih");
+      if (!cardCategory) {
+        toast.error("Card Category wajib dipilih");
         return;
       }
-      if (!selectedCard) {
+      if (!cardTypeId) {
+        toast.error("Card Type wajib dipilih");
+        return;
+      }
+      if (!cardId) {
         toast.error("Serial Number wajib dipilih");
         return;
       }
@@ -785,13 +831,13 @@ export default function AddMemberPage() {
 
       // 5. CREATE PURCHASE
       const purchaseRes = await createPurchase({
-        cardId: selectedCard.id,
+        cardId: cardId,
         memberId,
         edcReferenceNumber: form.edcReferenceNumber.trim(),
         purchasedDate: form.membershipDate,
         expiredDate: form.expiredDate,
         shiftDate: form.shiftDate,
-        price: form.price ? parseFloat(form.price) : undefined,
+        // price: price ? parseFloat(price) : undefined,
         operatorName,
         stationId: stationIdFromMe,
       });
@@ -800,7 +846,7 @@ export default function AddMemberPage() {
         throw new Error("Gagal membuat transaksi");
       }
 
-      router.push("/dashboard/superadmin/membership");
+      router.push("/dashboard/superadmin/transaksi");
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Gagal menyimpan data");
@@ -862,7 +908,7 @@ export default function AddMemberPage() {
             </div>
 
             {/* NIK & Nationality */}
-            <Field label="NIK" required>
+            <Field label="NIK / Passport" required>
               <div className="relative">
                 <input
                   name="nik"
@@ -875,7 +921,7 @@ export default function AddMemberPage() {
                     if (value.length > 0 && value.length > 20) {
                       setFieldError((p) => ({
                         ...p,
-                        nik: "Identity Number maksimal 20 digit",
+                        nik: "Identity Number maksimal 20 karakter",
                       }));
                     } else {
                       setFieldError((p) => ({ ...p, nik: undefined }));
@@ -883,7 +929,8 @@ export default function AddMemberPage() {
                   }}
                   onInput={(e) => {
                     e.currentTarget.value = e.currentTarget.value
-                      .replace(/\D/g, "")
+                      .replace(/[^a-zA-Z0-9]/g, "")
+                      .toUpperCase()
                       .slice(0, 20);
                   }}
                   onBlur={() => {
@@ -891,7 +938,7 @@ export default function AddMemberPage() {
                       checkUniqueField("nik", form.nik);
                     }
                   }}
-                  placeholder="Identity Number (max 20 digit)"
+                  placeholder="NIK / Passport (max 20 karakter)"
                   className={`${base} pr-32 ${
                     fieldError.nik ? "border-red-500" : ""
                   }`}
@@ -923,10 +970,11 @@ export default function AddMemberPage() {
                 onInput={onlyNumber}
                 placeholder="Nomor Induk Pegawai (KAI)"
                 className={base}
+                maxLength={5}
               />
 
               <p className="text-[11px] text-gray-400">
-                Diisi jika member merupakan pegawai KAI
+                Diisi jika member merupakan pegawai KAI (maksimal 5 digit)
               </p>
             </Field>
 
@@ -1062,70 +1110,103 @@ export default function AddMemberPage() {
 
             {/* Card Information */}
             <SectionCard title="Card Information">
-              <Field label="Card Product" required>
-                <div className="relative">
-                  <select
-                    name="cardProductId"
-                    value={selectedCardProductId}
-                    onChange={(e) => handleSelectCardProduct(e.target.value)}
-                    className={`${base} appearance-none pr-10`}
-                    required
-                  >
-                    <option value="">Select Card Product</option>
-                    {cardProducts.map((product) => (
-                      <option key={product.id} value={product.id}>
-                        {product.category.categoryName} -{" "}
-                        {product.type.typeName}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown
-                    size={16}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                  />
-                </div>
+              <Field label="Card Category" required>
+                <select
+                  className={base}
+                  value={cardCategory}
+                  onChange={(e) => handleCategoryChange(e.target.value as any)}
+                  disabled={loadingCategories}
+                >
+                  <option value="">
+                    {loadingCategories ? "Loading..." : "Select"}
+                  </option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.value}>
+                      {cat.label}
+                    </option>
+                  ))}
+                </select>
+                {!cardCategory && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Pilih kategori kartu terlebih dahulu
+                  </p>
+                )}
+              </Field>
+
+              <Field label="Card Type" required>
+                <select
+                  className={base}
+                  value={cardTypeId}
+                  onChange={(e) => handleTypeChange(e.target.value)}
+                  disabled={!cardCategory || loadingTypes}
+                >
+                  <option value="">
+                    {loadingTypes ? "Loading..." : "Select"}
+                  </option>
+                  {cardTypes.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.typeName}
+                    </option>
+                  ))}
+                </select>
+                {!cardCategory ? (
+                  <p className="mt-1 text-xs text-amber-600">
+                    ⚠ Pilih Card Category terlebih dahulu
+                  </p>
+                ) : (
+                  cardCategory &&
+                  !cardTypeId && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Pilih tipe kartu
+                    </p>
+                  )
+                )}
               </Field>
 
               <Field label="Serial Number" required>
                 <div className="relative">
-                  <select
-                    name="serialNumber"
-                    value={selectedCardId}
-                    onChange={(e) => handleSelectCard(e.target.value)}
-                    className={`${base} appearance-none pr-10`}
-                    disabled={!selectedCardProductId || isLoadingCards}
-                    required
-                  >
-                    <option value="">
-                      {isLoadingCards
-                        ? "Loading..."
-                        : !selectedCardProductId
-                          ? "Pilih Card Product terlebih dahulu"
-                          : availableCards.length === 0
-                            ? "Tidak ada kartu tersedia"
-                            : "Pilih Serial Number"}
-                    </option>
-                    {availableCards.map((card) => (
-                      <option key={card.id} value={card.id}>
-                        {card.serialNumber}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown
-                    size={16}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                  <input
+                    type="text"
+                    className={base}
+                    value={serialNumber}
+                    onChange={(e) => handleCardSearch(e.target.value)}
+                    placeholder="Ketik minimal 6 karakter untuk mencari..."
+                    autoComplete="off"
                   />
+                  {isSearching && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+                    </div>
+                  )}
+                  {searchResults.length > 0 && (
+                    <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
+                      {searchResults.map((card) => (
+                        <button
+                          key={card.id}
+                          type="button"
+                          onClick={() => handleCardSelect(card)}
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                        >
+                          {card.serialNumber}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-
-                {selectedCardProductId &&
-                  availableCards.length === 0 &&
-                  !isLoadingCards && (
-                    <p className="text-xs text-yellow-600 mt-1">
-                      {isLoadingCards
-                        ? "Memuat kartu..."
-                        : "Tidak ada kartu tersedia untuk product ini dengan status IN_STATION. Pastikan ada kartu yang tersedia di sistem."}
+                {serialNumber &&
+                  searchResults.length === 0 &&
+                  !isSearching &&
+                  serialNumber.length >= 6 &&
+                  !cardId && (
+                    <p className="mt-1 text-xs text-red-600">
+                      Tidak ada kartu ditemukan dengan serial number ini
                     </p>
                   )}
+                {serialNumber.length > 0 && serialNumber.length < 6 && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Ketik minimal 6 karakter untuk mencari serial number
+                  </p>
+                )}
               </Field>
             </SectionCard>
 
@@ -1192,7 +1273,7 @@ export default function AddMemberPage() {
                   />
                   <input
                     name="price"
-                    value={form.price}
+                    value={price || ""}
                     readOnly
                     placeholder="FWC Price"
                     className={`${base} pr-10 bg-gray-50 cursor-not-allowed`}

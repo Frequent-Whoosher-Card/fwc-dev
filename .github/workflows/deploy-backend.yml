@@ -63,7 +63,7 @@ jobs:
             if pm2 list | grep -q 'fwc-backend'; then
               pm2 delete fwc-backend
             fi
-            pm2 start npm --name fwc-backend -- start
+            pm2 start "bun run src/index.ts" --name fwc-backend
 
             echo "== Save PM2 process list =="
             pm2 save
