@@ -1,0 +1,72 @@
+'use client';
+
+import { useState } from 'react';
+import toast from 'react-hot-toast';
+import { cardFWCService } from '@/lib/services/card.fwc.service';
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+export default function AddCategoryModal({ open, onClose, onSuccess }: Props) {
+  const [categoryName, setCategoryName] = useState('');
+  const [categoryCode, setCategoryCode] = useState('');
+  const [description, setDescription] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  if (!open) return null;
+
+  const submit = async () => {
+    if (!categoryName || !categoryCode) {
+      return toast.error('Nama dan Code wajib diisi');
+    }
+
+    setLoading(true);
+    try {
+      await cardFWCService.createCategory({
+        categoryName,
+        categoryCode,
+        description,
+      });
+
+      toast.success('Category berhasil ditambahkan');
+      onSuccess(); // refresh category list
+      onClose(); // tutup modal
+
+      // reset form
+      setCategoryName('');
+      setCategoryCode('');
+      setDescription('');
+    } catch {
+      toast.error('Gagal menambahkan category');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="w-full max-w-md rounded-xl bg-white p-6 space-y-4">
+        <h3 className="text-lg font-semibold">Tambah Category (FWC)</h3>
+
+        <input className="h-11 w-full rounded-lg border px-4" placeholder="Nama Category" value={categoryName} onChange={(e) => setCategoryName(e.target.value)} />
+
+        <input className="h-11 w-full rounded-lg border px-4 font-mono uppercase" placeholder="Category Code" value={categoryCode} onChange={(e) => setCategoryCode(e.target.value.toUpperCase().replace(/\s+/g, '_'))} />
+
+        <textarea className="w-full rounded-lg border px-4 py-2" placeholder="Deskripsi" value={description} onChange={(e) => setDescription(e.target.value)} />
+
+        <div className="flex justify-end gap-2 pt-2">
+          <button onClick={onClose} className="rounded-lg border px-4 py-2">
+            Batal
+          </button>
+
+          <button onClick={submit} disabled={loading} className="rounded-lg bg-[#8D1231] px-4 py-2 text-white disabled:opacity-60">
+            Simpan
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

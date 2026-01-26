@@ -1,161 +1,213 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import axios from 'axios';
+import { useEffect, useState } from 'react';
+import axios from '@/lib/axios'; // tetap dipakai untuk PATCH
 import toast from 'react-hot-toast';
 import { ArrowLeft } from 'lucide-react';
 
-const API_BASE_URL = 'http://localhost:3001';
+/* =====================
+   TYPES
+===================== */
 
-export default function EditStockInPage() {
+type AllCardStatus = 'IN' | 'OUT' | 'TRANSFER' | 'USED' | 'DAMAGED' | string;
+
+interface CardDetailResponse {
+  id: string;
+  status: AllCardStatus;
+  notes?: string | null;
+
+  serialNumber: string;
+  purchaseDate?: string | null;
+  createdAt: string;
+
+  cardProduct?: {
+    category?: {
+      categoryName: string;
+    };
+    type?: {
+      typeName: string;
+    };
+  };
+
+  station?: {
+    stationName: string;
+  } | null;
+
+  previousStation?: {
+    id: string;
+    stationName: string;
+    stationCode: string;
+  } | null;
+}
+
+/* =====================
+   CONSTANT
+===================== */
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+if (!API_BASE_URL) {
+  throw new Error('NEXT_PUBLIC_API_BASE_URL is not defined');
+}
+
+/* =====================
+   COMPONENT
+===================== */
+
+export default function EditAllCardPage() {
   const router = useRouter();
   const params = useParams();
   const id = params?.id as string;
 
   const [loading, setLoading] = useState(false);
-  const [dataLoaded, setDataLoaded] = useState(false);
 
   const [form, setForm] = useState({
     tanggal: '',
-    startSerial: '',
-    endSerial: '',
+    serialNumber: '',
+    category: '',
+    type: '',
+    station: '',
+    status: '' as AllCardStatus,
     note: '',
   });
 
-  // ===============================
-  // GET DATA (GET /stock/in/{id})
-  // ===============================
+  /* =====================
+     FETCH DETAIL (AMAN)
+  ===================== */
+
   useEffect(() => {
     if (!id) return;
 
-    const fetchData = async () => {
+    const fetchDetail = async () => {
       try {
-        const res = await axios.get(`${API_BASE_URL}/stock/in/${id}`, {
-          withCredentials: true,
-        });
+        setLoading(true);
 
-        const item = res.data?.data?.movement;
-        if (!item) {
-          toast.error('Data tidak ditemukan');
-          return;
+        // ✅ FETCH LANGSUNG KE BACKEND 3001
+        const res = await fetch(`${API_BASE_URL}/cards/${id}`, { cache: 'no-store' });
+
+        if (!res.ok) {
+          throw new Error('Gagal fetch detail');
         }
 
-        const serials = item.sentSerialNumbers ?? [];
+        const json = await res.json();
+        const raw = json.data as CardDetailResponse;
+
+        // ✅ NORMALISASI (hindari validation error)
+        const data: CardDetailResponse = {
+          ...raw,
+          previousStation: raw.previousStation ?? null,
+          station: raw.station ?? null,
+          notes: raw.notes ?? '',
+        };
 
         setForm({
-          tanggal: item.movementAt ? item.movementAt.split('T')[0] : '',
-          startSerial: serials[0] ?? '',
-          endSerial: serials[serials.length - 1] ?? '',
-          note: item.note ?? '',
+          tanggal: (data.purchaseDate || data.createdAt).split('T')[0],
+          serialNumber: data.serialNumber ?? '-',
+          category: data.cardProduct?.category?.categoryName ?? '-',
+          type: data.cardProduct?.type?.typeName ?? '-',
+          station: data.station?.stationName ?? '-',
+          status: data.status ?? '',
+          note: data.notes ?? '',
         });
-
-        setDataLoaded(true);
-      } catch (err: any) {
-        toast.error(err.response?.data?.message || 'Gagal mengambil data stock-in');
+      } catch (err) {
+        console.error(err);
+        toast.error('Gagal mengambil detail card');
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchData();
+    fetchDetail();
   }, [id]);
 
-  // ===============================
-  // PATCH UPDATE (PATCH /stock/in/{id})
-  // ===============================
+  /* =====================
+     SUBMIT (PATCH)
+  ===================== */
+
   const handleSubmit = async () => {
-    if (!id) {
-      toast.error('ID tidak valid');
-      return;
-    }
-
-    if (!form.tanggal) {
-      toast.error('Tanggal wajib diisi');
-      return;
-    }
-
-    if (!form.startSerial || !form.endSerial) {
-      toast.error('Start & End Serial wajib diisi');
-      return;
-    }
-
-    // opsional: validasi urutan serial
-    if (form.startSerial > form.endSerial) {
-      toast.error('Start Serial tidak boleh lebih besar dari End Serial');
-      return;
-    }
-
-    setLoading(true);
-
     try {
-      const payload = {
-        movementAt: new Date(form.tanggal + 'T00:00:00').toISOString(),
-        note: form.note ?? '',
-        startSerial: form.startSerial,
-        endSerial: form.endSerial,
-      };
+      setLoading(true);
 
-      console.log('PATCH PAYLOAD:', payload);
-
-      await axios.patch(`${API_BASE_URL}/stock/in/${id}`, payload, {
-        withCredentials: true,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      await axios.patch(`/cards/${id}`, {
+        status: form.status,
+        notes: form.note,
       });
 
-      toast.success('Stock-in berhasil diperbarui');
-      router.push('/dashboard/superadmin/stock/in');
-    } catch (err: any) {
-      console.error('PATCH ERROR:', err.response?.data || err);
-      toast.error(err.response?.data?.message || 'Gagal update stock-in');
+      toast.success('All Card berhasil diperbarui');
+      router.push('/dashboard/superadmin/stock/allcard');
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal update All Card');
     } finally {
       setLoading(false);
     }
   };
 
-  if (!dataLoaded) {
-    return <div className="p-6 text-gray-500">Loading...</div>;
-  }
+  /* =====================
+     UI
+  ===================== */
 
   return (
-    <div className="space-y-8 p-6">
+    <div className="space-y-8">
       {/* HEADER */}
-      <div className="flex items-center gap-4">
-        <button onClick={() => router.back()} className="rounded-lg border p-2 hover:bg-gray-100">
+      <div className="flex items-center gap-4 px-4 sm:px-6">
+        <button onClick={() => router.back()} className="rounded-lg border p-2 text-gray-600 hover:bg-gray-100">
           <ArrowLeft size={18} />
         </button>
-        <h2 className="text-lg font-semibold">Edit Stock-In</h2>
+        <h2 className="text-lg font-semibold">Edit All Card</h2>
       </div>
 
-      {/* FORM */}
-      <div className="space-y-6 rounded-xl border bg-white p-6">
-        <div>
-          <label className="mb-2 block text-sm font-medium">Tanggal</label>
-          <input type="date" className="w-full rounded-lg border px-4 py-2" value={form.tanggal} onChange={(e) => setForm({ ...form, tanggal: e.target.value })} />
-        </div>
+      <div className="w-full px-4 sm:px-6">
+        <div className="rounded-xl border bg-white p-6 sm:p-8 lg:p-10">
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium mb-2">Date</label>
+              <input type="date" className="w-full rounded-lg border px-4 py-3 text-sm bg-gray-100" value={form.tanggal} disabled />
+            </div>
 
-        <div>
-          <label className="mb-2 block text-sm font-medium">Start Serial</label>
-          <input className="w-full rounded-lg border px-4 py-2" value={form.startSerial} onChange={(e) => setForm({ ...form, startSerial: e.target.value })} />
-        </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Serial Number</label>
+              <input className="w-full rounded-lg border px-4 py-3 text-sm bg-gray-100" value={form.serialNumber} disabled />
+            </div>
 
-        <div>
-          <label className="mb-2 block text-sm font-medium">End Serial</label>
-          <input className="w-full rounded-lg border px-4 py-2" value={form.endSerial} onChange={(e) => setForm({ ...form, endSerial: e.target.value })} />
-        </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Category</label>
+              <input className="w-full rounded-lg border px-4 py-3 text-sm bg-gray-100" value={form.category} disabled />
+            </div>
 
-        <div>
-          <label className="mb-2 block text-sm font-medium">Catatan</label>
-          <textarea className="w-full rounded-lg border px-4 py-2" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
-        </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Type</label>
+              <input className="w-full rounded-lg border px-4 py-3 text-sm bg-gray-100" value={form.type} disabled />
+            </div>
 
-        <div className="flex justify-end gap-2 pt-6">
-          <button onClick={() => router.back()} className="rounded-md border px-4 py-2">
-            Batal
-          </button>
-          <button onClick={handleSubmit} disabled={loading} className="rounded-md bg-[#8D1231] px-4 py-2 text-white disabled:opacity-60">
-            {loading ? 'Loading...' : 'Simpan'}
-          </button>
+            <div>
+              <label className="block text-sm font-medium mb-2">Station</label>
+              <input className="w-full rounded-lg border px-4 py-3 text-sm bg-gray-100" value={form.station} disabled />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Status</label>
+              <select className="w-full rounded-lg border px-4 py-3 text-sm" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                <option value="IN">IN</option>
+                <option value="OUT">OUT</option>
+                <option value="TRANSFER">TRANSFER</option>
+                <option value="USED">USED</option>
+                <option value="DAMAGED">DAMAGED</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Note</label>
+              <textarea rows={3} className="w-full rounded-lg border px-4 py-3 text-sm" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
+            </div>
+
+            <div className="flex justify-end pt-6">
+              <button onClick={handleSubmit} disabled={loading} className="rounded-lg bg-[#8D1231] px-8 py-3 text-sm font-medium text-white hover:bg-[#7a102a] disabled:opacity-60 w-full sm:w-auto">
+                {loading ? 'Saving...' : 'Update All Card'}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

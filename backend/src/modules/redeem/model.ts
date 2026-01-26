@@ -6,6 +6,10 @@ export namespace RedeemModel {
       description: "Serial number of the card to check",
       examples: ["01112600001"],
     }),
+    product: t.Optional(t.String({
+      description: "Product type for redeem (FWC or VOUCHER)",
+      examples: ["FWC", "VOUCHER"],
+    })),
   });
 
   export const checkSerialResponse = t.Object({
@@ -28,6 +32,11 @@ export namespace RedeemModel {
         }),
         t.Null(),
       ]),
+      cardProduct: t.Optional(
+        t.Object({
+          totalQuota: t.Optional(t.Number()),
+        })
+      ),
     }),
   });
 
@@ -36,9 +45,15 @@ export namespace RedeemModel {
       description: "Serial number of the card to redeem",
       examples: ["01112600001"],
     }),
-    quotaUsed: t.Number({
-      description: "Quota used for the redemption",
-      examples: [1],
+    redeemType: t.Union([
+      t.Literal("SINGLE"),
+      t.Literal("ROUNDTRIP"),
+    ], {
+      description: "Type of redemption: SINGLE (1 quota) or ROUNDTRIP (2 quota)",
+    }),
+    product: t.String({
+      description: "Product type for redeem (FWC or VOUCHER)",
+      examples: ["FWC", "VOUCHER"],
     }),
     notes: t.Optional(
       t.String({
@@ -55,6 +70,10 @@ export namespace RedeemModel {
     endDate: t.Optional(t.String({ format: "date" })),
     stationId: t.Optional(t.String()),
     search: t.Optional(t.String()),
+    category: t.Optional(t.String()),
+    cardType: t.Optional(t.String()),
+    redeemType: t.Optional(t.String()),
+    product: t.Optional(t.String()),
   });
 
   const redeemData = t.Object({
@@ -65,8 +84,11 @@ export namespace RedeemModel {
     stationId: t.String({ format: "uuid" }),
     shiftDate: t.String({ format: "date-time" }),
     status: t.String(),
+    redeemType: t.String(),
+    quotaUsed: t.Number(),
     notes: t.Union([t.String(), t.Null()]),
     createdAt: t.String({ format: "date-time" }),
+    updatedAt: t.String({ format: "date-time" }),
     station: t.Object({
       id: t.String({ format: "uuid" }),
       stationName: t.String(),
@@ -78,6 +100,15 @@ export namespace RedeemModel {
     card: t.Object({
       id: t.String({ format: "uuid" }),
       serialNumber: t.String(),
+      quotaTicket: t.Number(),
+      member: t.Union([
+        t.Object({
+          id: t.String({ format: "uuid" }),
+          name: t.String(),
+          identityNumber: t.String(),
+        }),
+        t.Null(),
+      ]),
       cardProduct: t.Object({
         category: t.Object({ categoryName: t.String() }),
         type: t.Object({ typeName: t.String() }),
@@ -113,6 +144,16 @@ export namespace RedeemModel {
     success: t.Boolean(),
     message: t.String(),
     data: redeemData,
+  });
+
+  // Upload last redeem documentation (image base64)
+  export const lastDocBody = t.Object({
+    imageBase64: t.String({
+      description: "Base64-encoded image (JPEG/PNG)",
+    }),
+    mimeType: t.Optional(t.String({
+      description: "Optional mimeType override (image/jpeg or image/png)",
+    })),
   });
 
   export const errorResponse = t.Object({

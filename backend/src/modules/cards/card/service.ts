@@ -1,5 +1,6 @@
 import db from "../../../config/db";
 import { ValidationError } from "../../../utils/errors";
+import { getEnumStatus, getFriendlyStatus } from "./constants";
 
 export class CardService {
   // Get All Cards with filters
@@ -35,7 +36,8 @@ export class CardService {
 
     // Filter by status
     if (status) {
-      where.status = status.toUpperCase();
+      const enumStatus = getEnumStatus(status) || status.toUpperCase();
+      where.status = enumStatus;
     }
 
     // Search by serialNumber, Category Name, or Type Name
@@ -158,6 +160,13 @@ export class CardService {
               stationCode: true,
             },
           },
+          previousStation: {
+            select: {
+              id: true,
+              stationName: true,
+              stationCode: true,
+            },
+          },
           notes: true,
         },
       }),
@@ -167,6 +176,7 @@ export class CardService {
     // Convert Date objects to ISO strings
     const formattedCards = cards.map((card) => ({
       ...card,
+      status: getFriendlyStatus(card.status),
       createdAt: card.createdAt.toISOString(),
       purchaseDate: card.purchaseDate?.toISOString() || null,
       expiredDate: card.expiredDate?.toISOString() || null,
@@ -237,6 +247,13 @@ export class CardService {
             stationCode: true,
           },
         },
+        previousStation: {
+          select: {
+            id: true,
+            stationName: true,
+            stationCode: true,
+          },
+        },
       },
     });
 
@@ -247,11 +264,16 @@ export class CardService {
     // Convert Date objects to ISO strings
     return {
       ...card,
+      status: getFriendlyStatus(card.status),
       createdAt: card.createdAt.toISOString(),
       updatedAt: card.updatedAt.toISOString(),
       purchaseDate: card.purchaseDate?.toISOString() || null,
       expiredDate: card.expiredDate?.toISOString() || null,
       member: card.member || null, // Ensure member is always present (can be null)
+      station: card.station || null,
+      previousStation: card.previousStation || null,
+      fileObject: card.fileObject || null,
+      notes: card.notes || null,
     };
   }
 
@@ -294,6 +316,20 @@ export class CardService {
             mimeType: true,
           },
         },
+        station: {
+          select: {
+            id: true,
+            stationName: true,
+            stationCode: true,
+          },
+        },
+        previousStation: {
+          select: {
+            id: true,
+            stationName: true,
+            stationCode: true,
+          },
+        },
       },
     });
 
@@ -304,18 +340,23 @@ export class CardService {
     // Convert Date objects to ISO strings
     return {
       ...card,
+      status: getFriendlyStatus(card.status),
       createdAt: card.createdAt.toISOString(),
       updatedAt: card.updatedAt.toISOString(),
       purchaseDate: card.purchaseDate?.toISOString() || null,
       expiredDate: card.expiredDate?.toISOString() || null,
       member: card.member || null, // Ensure member is always present (can be null)
+      station: card.station || null,
+      previousStation: card.previousStation || null,
+      fileObject: card.fileObject || null,
+      notes: card.notes || null,
     };
   }
 
   // Get First Available Card Serial Number
   static async getFirstAvailableCard(
     cardProductId: string,
-    status: string = "IN_STATION"
+    status: string = "IN_STATION",
   ) {
     // Find first card with matching cardProductId and status sorted by serialNumber ASC
     const card = await db.card.findFirst({
@@ -340,7 +381,7 @@ export class CardService {
   // Update Card
   static async updateCard(
     id: string,
-    data: { status?: string; notes?: string; userId: string }
+    data: { status?: string; notes?: string; userId: string },
   ) {
     const card = await db.card.findUnique({
       where: { id },
@@ -385,16 +426,25 @@ export class CardService {
             mimeType: true,
           },
         },
+        previousStation: {
+          select: {
+            id: true,
+            stationName: true,
+            stationCode: true,
+          },
+        },
       },
     });
 
     // Format response
     return {
       ...updatedCard,
+      status: getFriendlyStatus(updatedCard.status),
       createdAt: updatedCard.createdAt.toISOString(),
       purchaseDate: updatedCard.purchaseDate?.toISOString() || null,
       expiredDate: updatedCard.expiredDate?.toISOString() || null,
       station: updatedCard.station || null,
+      previousStation: updatedCard.previousStation || null,
       fileObject: updatedCard.fileObject || null,
       cardProduct: updatedCard.cardProduct as any,
       notes: updatedCard.notes || null,

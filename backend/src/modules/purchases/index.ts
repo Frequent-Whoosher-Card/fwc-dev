@@ -110,7 +110,7 @@ Supports searching by:
 - **page**: Page number (default: 1)
 - **limit**: Items per page (default: 10)`,
       },
-    }
+    },
   )
   .get(
     "/:id",
@@ -158,7 +158,7 @@ Supports searching by:
 - Operator information (full name, username)
 - Station information (code, name)`,
       },
-    }
+    },
   );
 
 // Write routes (Create) - petugas, supervisor, admin, superadmin
@@ -187,7 +187,7 @@ const writeRoutes = new Elysia()
           body,
           user.id, // operatorId from authenticated user
           user.stationId, // stationId from authenticated user
-          user.id // userId for audit fields
+          user.id, // userId for audit fields
         );
         return {
           success: true,
@@ -239,10 +239,186 @@ Automatically calculated based on purchaseDate + cardProduct.masaBerlaku (in day
 - Roles allowed: petugas, supervisor, admin, superadmin
 - User must have stationId assigned`,
       },
-    }
+    },
+  )
+  .patch(
+    "/:id",
+    async (context) => {
+      const { params, body, set, user } = context as typeof context &
+        AuthContextUser & { params: { id: string } };
+      try {
+        const result = await PurchaseService.updatePurchase(
+          params.id,
+          body,
+          user.id, // userId for audit fields
+        );
+        return {
+          success: true,
+          message: "Purchase transaction updated successfully",
+          data: result,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      body: PurchaseModel.updatePurchaseBody,
+      response: {
+        200: PurchaseModel.updatePurchaseResponse,
+        400: PurchaseModel.errorResponse,
+        401: PurchaseModel.errorResponse,
+        403: PurchaseModel.errorResponse,
+        404: PurchaseModel.errorResponse,
+        500: PurchaseModel.errorResponse,
+      },
+      detail: {
+        tags: ["Purchases"],
+        summary: "Update purchase transaction",
+        description: `Update an existing purchase transaction.
+
+**Editable Fields:**
+- memberId: Update the member associated with this purchase
+- operatorId: Update the operator who handled this transaction
+- stationId: Update the station where transaction occurred
+- edcReferenceNumber: Update EDC reference number (must be unique)
+- price: Update the transaction price
+- notes: Update transaction notes
+- shiftDate: Update the shift date
+
+**Validations:**
+- Purchase must exist and not be deleted
+- Member, operator, and station must exist if provided
+- EDC reference number must be unique if changed
+
+**Access Control:**
+- Roles allowed: petugas, supervisor, admin, superadmin`,
+      },
+    },
+  );
+
+// Correction routes (supervisor, admin, superadmin only)
+const correctionRoutes = new Elysia()
+  .use(rbacMiddleware(["supervisor", "admin", "superadmin"]))
+  .patch(
+    "/:id/correct-card-mismatch",
+    async (context) => {
+      const { params, body, set, user } = context as typeof context &
+        AuthContextUser & { params: { id: string } };
+      try {
+        const result = await PurchaseService.correctCardMismatch(
+          params.id,
+          body,
+          user.id,
+        );
+        return {
+          success: true,
+          message: "Card mismatch corrected successfully",
+          data: result,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      body: PurchaseModel.correctCardMismatchBody,
+      response: {
+        200: PurchaseModel.correctCardMismatchResponse,
+        400: PurchaseModel.errorResponse,
+        401: PurchaseModel.errorResponse,
+        403: PurchaseModel.errorResponse,
+        404: PurchaseModel.errorResponse,
+        500: PurchaseModel.errorResponse,
+      },
+      detail: {
+        tags: ["Purchases"],
+        summary: "Correct card mismatch in purchase",
+        description: `Correct a card mismatch when wrong card was given to customer.
+
+**Process:**
+1. Old card (originally recorded) returns to IN_STATION
+2. Wrong card (mistakenly given) marked as DELETED status (permanent)
+3. Correct card (should have been given) marked as SOLD_ACTIVE
+4. Purchase record updated to point to correct card
+5. Price remains unchanged (keep original transaction price)
+
+**Required Fields:**
+- wrongCardId: Card that was mistakenly given to customer (must be IN_STATION)
+- correctCardId: Card that should have been given (must be IN_STATION)
+- notes: Optional explanation for the correction
+
+**Example Scenario:**
+- Transaction recorded: Card 40 JaBan Gold
+- Mistakenly given: Card 41 JaKa Gold (this becomes DELETED)
+- Corrected with: Card 42 JaBan Gold (this becomes SOLD_ACTIVE)
+- Card 40 returns to IN_STATION
+
+**Access Control:**
+- Roles allowed: supervisor, admin, superadmin
+- Can be corrected anytime (no time limit)`,
+      },
+    },
+  );
+
+// Delete routes - Admin and Superadmin only
+const deleteRoutes = new Elysia()
+  .use(rbacMiddleware(["admin", "superadmin"]))
+  .delete(
+    "/:id",
+    async (context) => {
+      const { params, set, user } = context as typeof context & AuthContextUser;
+      try {
+        const result = await PurchaseService.deletePurchase(params.id, user.id);
+        return result;
+      } catch (error) {
+        set.status = error instanceof Error && error.name === "NotFoundError" ? 404 : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      params: t.Object({
+        id: t.String(),
+      }),
+      response: {
+        200: t.Object({
+          success: t.Boolean(),
+          message: t.String(),
+          id: t.String(),
+        }),
+        401: PurchaseModel.errorResponse,
+        403: PurchaseModel.errorResponse,
+        404: PurchaseModel.errorResponse,
+        500: PurchaseModel.errorResponse,
+      },
+      detail: {
+        tags: ["Purchases"],
+        summary: "Delete a purchase transaction (soft delete)",
+        description: `Soft delete a purchase transaction and restore card to IN_STATION status.
+
+**Process:**
+1. Mark purchase as deleted (set deletedAt timestamp)
+2. Card status changed from SOLD_ACTIVE back to IN_STATION
+3. Deleted purchases won't appear in purchase lists
+
+**Access Control:**
+- Roles allowed: admin, superadmin only
+
+**Note:** This is a soft delete - data is preserved for audit purposes.`,
+      },
+    },
   );
 
 // Combine all routes
 export const purchases = new Elysia({ prefix: "/purchases" })
   .use(baseRoutes)
-  .use(writeRoutes);
+  .use(writeRoutes)
+  .use(correctionRoutes)
+  .use(deleteRoutes);
+

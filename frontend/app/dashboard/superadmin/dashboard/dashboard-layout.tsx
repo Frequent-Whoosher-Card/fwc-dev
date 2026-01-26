@@ -39,7 +39,7 @@ export const UserContext = createContext<{
 /* SUPERADMIN */
 const superadminMenuItems = [
   { title: 'Dashboard', icon: LayoutDashboard, href: '/dashboard/superadmin/dashboard' },
-  { title: 'Redeem Kuota', icon: IdCard, href: '/dashboard/superadmin/redeemkuota' },
+  { title: 'Redeem Kuota', icon: IdCard, href: '/dashboard/superadmin/redeem' },
   {
     title: 'Stock Kartu',
     icon: CreditCard,
@@ -51,7 +51,7 @@ const superadminMenuItems = [
     ],
   },
   { title: 'Generate Number', icon: FilePlus, href: '/dashboard/superadmin/generatenumber' },
-  { title: 'Create New Card', icon: FolderKanban, href: '/dashboard/superadmin/createnewcard' },
+  { title: 'Create New Card', icon: FolderKanban, href: '/dashboard/superadmin/createnewcard/fwc' },
   { title: 'Inbox', icon: Inbox, href: '/dashboard/superadmin/inbox' },
   { title: 'Membership', icon: UserPlus, href: '/dashboard/superadmin/membership' },
   { title: 'Transaksi', icon: Receipt, href: '/dashboard/superadmin/transaksi' },
@@ -78,13 +78,14 @@ const adminMenuItems = [
 const petugasMenuItems = [
   { title: 'Membership', icon: UserPlus, href: '/dashboard/petugas/membership' },
   { title: 'Stock', icon: CreditCard, href: '/dashboard/petugas/stock' },
-  { title: 'Redeem Kuota', icon: IdCard, href: '/dashboard/petugas/redeemkuota' },
+  { title: 'Redeem Kuota', icon: IdCard, href: '/dashboard/petugas/redeem' },
   { title: 'Transaksi', icon: Receipt, href: '/dashboard/petugas/transaksi' },
 ];
 
 /* SUPERVISOR */
 const supervisorMenuItems = [
   { title: 'Membership', icon: UserPlus, href: '/dashboard/supervisor/membership' },
+  { title: 'Redeem Kuota', icon: IdCard, href: '/dashboard/supervisor/redeem' },
   { title: 'Noted', icon: Inbox, href: '/dashboard/supervisor/noted' },
 ];
 
@@ -108,6 +109,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [role, setRole] = useState<Role | null>(null);
   const [userName, setUserName] = useState('User');
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   /* =========================
      AUTH VIA TOKEN + /auth/me
@@ -135,7 +137,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         const json = await res.json();
         const user = json.data;
 
-        const rawRole = user.role.roleCode.toUpperCase();
+        const rawRole = (user.role.roleCode || '').toUpperCase();
 
         const roleMap: Record<string, Role> = {
           SUPERADMIN: 'superadmin',
@@ -148,7 +150,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         const mappedRole = roleMap[rawRole];
         if (!mappedRole) {
-          throw new Error(`Unknown role: ${rawRole}`);
+          setAuthError(`Unknown role: ${rawRole}`);
+          return;
         }
 
         setUserName(user.fullName || user.username);
@@ -158,10 +161,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (!pathname.startsWith(basePath)) {
           router.replace(basePath);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('auth/me error:', err);
+        setAuthError(err?.message || 'Gagal autentikasi');
         localStorage.removeItem('fwc_token');
-        router.replace('/');
+        // router.replace('/');
       } finally {
         setLoading(false);
       }
@@ -170,8 +174,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     loadMe();
   }, [router, pathname]);
 
-  if (loading || !role) {
-    return null;
+  if (loading) {
+    return <div style={{ padding: 32, color: '#b91c1c', fontWeight: 600, fontSize: 18 }}>Loading auth...</div>;
+  }
+  if (authError) {
+    return (
+      <div style={{ padding: 32, color: '#b91c1c', fontWeight: 600, fontSize: 18 }}>
+        AUTH ERROR: {authError}
+        <br />
+        <span style={{ fontWeight: 400, fontSize: 14 }}>Cek token, response /auth/me, dan mapping role di backend.</span>
+      </div>
+    );
+  }
+  if (!role) {
+    return (
+      <div style={{ padding: 32, color: '#b91c1c', fontWeight: 600, fontSize: 18 }}>
+        Tidak ada role terdeteksi.
+        <br />
+        Cek response /auth/me dan mapping role.
+      </div>
+    );
   }
 
   const menuItems = menuByRole[role] ?? [];

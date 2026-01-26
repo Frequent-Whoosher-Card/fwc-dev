@@ -19,7 +19,7 @@ export class UserService {
 
     if (existingRole) {
       throw new ValidationError(
-        `Role with code '${data.roleCode}' already exists`
+        `Role with code '${data.roleCode}' already exists`,
       );
     }
 
@@ -99,7 +99,7 @@ export class UserService {
   static async updateRole(
     roleId: string,
     data: typeof UserModel.updateRoleBody.static,
-    updatedBy?: string
+    updatedBy?: string,
   ) {
     const role = await db.role.findFirst({
       where: {
@@ -159,7 +159,7 @@ export class UserService {
 
     if (usersCount > 0) {
       throw new ValidationError(
-        `Cannot delete role. There are ${usersCount} user(s) using this role.`
+        `Cannot delete role. There are ${usersCount} user(s) using this role.`,
       );
     }
 
@@ -181,7 +181,7 @@ export class UserService {
    */
   static async createUser(
     data: typeof UserModel.createUserBody.static,
-    createdBy?: string
+    createdBy?: string,
   ) {
     // Check if username already exists
     const existingUser = await db.user.findFirst({
@@ -285,12 +285,14 @@ export class UserService {
         roleCode: user.role.roleCode,
         roleName: user.role.roleName,
       },
-      station: user.station ? {
-        id: user.station.id,
-        stationCode: user.station.stationCode,
-        stationName: user.station.stationName,
-        location: user.station.location,
-      } : null,
+      station: user.station
+        ? {
+            id: user.station.id,
+            stationCode: user.station.stationCode,
+            stationName: user.station.stationName,
+            location: user.station.location,
+          }
+        : null,
       isActive: user.isActive,
       lastLogin: user.lastLogin?.toISOString() || null,
       createdAt: user.createdAt.toISOString(),
@@ -469,7 +471,7 @@ export class UserService {
   static async updateUser(
     userId: string,
     data: typeof UserModel.updateUserBody.static,
-    updatedBy?: string
+    updatedBy?: string,
   ) {
     const user = await db.user.findFirst({
       where: {
@@ -572,12 +574,14 @@ export class UserService {
         roleCode: updatedUser.role.roleCode,
         roleName: updatedUser.role.roleName,
       },
-      station: updatedUser.station ? {
-        id: updatedUser.station.id,
-        stationCode: updatedUser.station.stationCode,
-        stationName: updatedUser.station.stationName,
-        location: updatedUser.station.location,
-      } : null,
+      station: updatedUser.station
+        ? {
+            id: updatedUser.station.id,
+            stationCode: updatedUser.station.stationCode,
+            stationName: updatedUser.station.stationName,
+            location: updatedUser.station.location,
+          }
+        : null,
       isActive: updatedUser.isActive,
       lastLogin: updatedUser.lastLogin?.toISOString() || null,
       createdAt: updatedUser.createdAt.toISOString(),
@@ -618,11 +622,11 @@ export class UserService {
     userId: string,
     currentPassword: string,
     newPassword: string,
-    confirmPassword: string
+    confirmPassword: string,
   ) {
     if (newPassword !== confirmPassword) {
       throw new ValidationError(
-        "New password and confirm password do not match"
+        "New password and confirm password do not match",
       );
     }
 
@@ -640,7 +644,7 @@ export class UserService {
     // Verify current password
     const isValid = await Bun.password.verify(
       currentPassword,
-      user.passwordHash
+      user.passwordHash,
     );
     if (!isValid) {
       throw new ValidationError("Current password is incorrect");

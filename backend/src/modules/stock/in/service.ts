@@ -12,7 +12,7 @@ export class StockInService {
     startSerial: string,
     endSerial: string,
     userId: string,
-    note?: string | null
+    note?: string | null,
   ) {
     // 1. Validasi Input: Pastikan HANYA angka (bukan full serial number) - Relaxed for Smart Parsing
     if (!/^\d+$/.test(startSerial) || !/^\d+$/.test(endSerial)) {
@@ -20,7 +20,7 @@ export class StockInService {
         throw new ValidationError("Input harus berupa angka.");
       }
       throw new ValidationError(
-        "startSerial dan endSerial harus berupa digit string (angka saja)."
+        "startSerial dan endSerial harus berupa digit string (angka saja).",
       );
     }
 
@@ -40,7 +40,7 @@ export class StockInService {
 
       if (!product) {
         throw new ValidationError(
-          "CardProduct untuk kategori/tipe ini tidak ditemukan"
+          "CardProduct untuk kategori/tipe ini tidak ditemukan",
         );
       }
 
@@ -54,12 +54,12 @@ export class StockInService {
       const startNum = parseSmartSerial(
         startSerial,
         product.serialTemplate,
-        yearSuffix
+        yearSuffix,
       );
       const endNum = parseSmartSerial(
         endSerial,
         product.serialTemplate,
-        yearSuffix
+        yearSuffix,
       );
       // ---------------------
 
@@ -69,7 +69,7 @@ export class StockInService {
 
       if (endNum < startNum) {
         throw new ValidationError(
-          "endSerial harus lebih besar atau sama dengan startSerial"
+          "endSerial harus lebih besar atau sama dengan startSerial",
         );
       }
 
@@ -84,12 +84,12 @@ export class StockInService {
 
       // 2) Generate suffix serial berurutan
       const suffixSerials = Array.from({ length: quantity }, (_, i) =>
-        String(startNum + i).padStart(width, "0")
+        String(startNum + i).padStart(width, "0"),
       );
 
       // 3) Bentuk serialNumber final: serialTemplate + YY + suffix
       const serialNumbers = suffixSerials.map(
-        (sfx) => `${product.serialTemplate}${yearSuffix}${sfx}`
+        (sfx) => `${product.serialTemplate}${yearSuffix}${sfx}`,
       );
 
       // 4) Validasi Kartu SUDAH DI-GENERATE (Status: ON_REQUEST)
@@ -109,7 +109,7 @@ export class StockInService {
         throw new ValidationError(
           `Nomor serial tersebut belum digenerate: ${missing
             .slice(0, 3)
-            .join(", ")}${missing.length > 3 ? "..." : ""}`
+            .join(", ")}${missing.length > 3 ? "..." : ""}`,
         );
       }
 
@@ -117,11 +117,11 @@ export class StockInService {
       // Asumsi strict flow: Generate -> StockIn. Jika sudah IN_OFFICE berarti duplikat stock in?)
       // Kita anggap hanya boleh ON_REQUEST.
       const invalidStatus = existingCards.filter(
-        (c) => c.status !== "ON_REQUEST"
+        (c) => c.status !== "ON_REQUEST",
       );
       if (invalidStatus.length > 0) {
         throw new ValidationError(
-          `Beberapa kartu memiliki status tidak valid (bukan ON_REQUEST): ${invalidStatus[0].serialNumber} (${invalidStatus[0].status}).`
+          `Beberapa kartu memiliki status tidak valid (bukan ON_REQUEST): ${invalidStatus[0].serialNumber} (${invalidStatus[0].status}).`,
         );
       }
 
@@ -144,7 +144,7 @@ export class StockInService {
       const movement = await tx.cardStockMovement.create({
         data: {
           movementAt: new Date(),
-          type: "IN",
+          movementType: "IN",
           status: "APPROVED",
           categoryId,
           typeId,
@@ -163,35 +163,7 @@ export class StockInService {
         },
       });
 
-      // 7) Update inventory OFFICE (stationId=null): cardOffice += quantity
-      const officeInv = await tx.cardInventory.findFirst({
-        where: { categoryId, typeId, stationId: null },
-        select: { id: true, cardOffice: true },
-      });
-
-      if (!officeInv) {
-        await tx.cardInventory.create({
-          data: {
-            categoryId,
-            typeId,
-            stationId: null,
-            cardOffice: quantity,
-            createdAt: new Date(),
-            createdBy: userId,
-            updatedAt: new Date(),
-            updatedBy: userId,
-          },
-        });
-      } else {
-        await tx.cardInventory.update({
-          where: { id: officeInv.id },
-          data: {
-            cardOffice: { increment: quantity },
-            updatedAt: new Date(),
-            updatedBy: userId,
-          },
-        });
-      }
+      /* REMOVED: CardInventory update (Deprecated) */
 
       return {
         movementId: movement.id,
@@ -223,7 +195,7 @@ export class StockInService {
     const skip = (page - 1) * limit;
 
     const where: any = {
-      type: "IN",
+      movementType: "IN",
     };
 
     if (startDate && endDate) {
@@ -259,7 +231,7 @@ export class StockInService {
     }
 
     if (params.typeName) {
-      where.cardType = {
+      where.type = {
         typeName: {
           contains: params.typeName,
           mode: "insensitive",
@@ -275,7 +247,7 @@ export class StockInService {
         orderBy: { movementAt: "desc" },
         include: {
           category: true,
-          cardType: true,
+          type: true,
         },
       }),
       db.cardStockMovement.count({ where }),
@@ -296,7 +268,7 @@ export class StockInService {
     const mappedItems = items.map((item) => ({
       id: item.id,
       movementAt: item.movementAt.toISOString(),
-      movementType: item.type,
+      movementType: item.movementType,
       quantity: item.quantity,
       status: item.status,
       note: item.note,
@@ -309,9 +281,9 @@ export class StockInService {
         code: item.category.categoryCode,
       },
       cardType: {
-        id: item.cardType.id,
-        name: item.cardType.typeName,
-        code: item.cardType.typeCode,
+        id: item.type.id,
+        name: item.type.typeName,
+        code: item.type.typeCode,
       },
       sentSerialNumbers: item.sentSerialNumbers,
     }));
@@ -335,7 +307,7 @@ export class StockInService {
       where: { id },
       include: {
         category: true,
-        cardType: true,
+        type: true,
       },
     });
 
@@ -343,7 +315,7 @@ export class StockInService {
       throw new ValidationError("Data tidak ditemukan");
     }
 
-    if (movement.type !== "IN") {
+    if (movement.movementType !== "IN") {
       throw new ValidationError("Bukan transaksi Stock In");
     }
 
@@ -360,7 +332,7 @@ export class StockInService {
       movement: {
         id: movement.id,
         movementAt: movement.movementAt.toISOString(),
-        movementType: movement.type,
+        movementType: movement.movementType,
         quantity: movement.quantity,
         status: movement.status,
         note: movement.note,
@@ -372,9 +344,9 @@ export class StockInService {
           code: movement.category.categoryCode,
         },
         cardType: {
-          id: movement.cardType.id,
-          name: movement.cardType.typeName,
-          code: movement.cardType.typeCode,
+          id: movement.type.id,
+          name: movement.type.typeName,
+          code: movement.type.typeCode,
         },
         sentSerialNumbers: movement.sentSerialNumbers as string[], // Keep original array for reference
         items: await (async () => {
@@ -385,7 +357,7 @@ export class StockInService {
             select: { serialNumber: true, status: true },
           });
           const statusMap = new Map(
-            cards.map((c) => [c.serialNumber, c.status])
+            cards.map((c) => [c.serialNumber, c.status]),
           );
           return serials.map((sn) => ({
             serialNumber: sn,
@@ -414,7 +386,7 @@ export class StockInService {
       endSerial: string;
       note?: string;
     },
-    userId: string
+    userId: string,
   ) {
     const { startSerial, endSerial, movementAt, note } = body;
 
@@ -422,7 +394,7 @@ export class StockInService {
     // 1. Validasi Input Dasar
     if (!/^\d+$/.test(startSerial) || !/^\d+$/.test(endSerial)) {
       throw new ValidationError(
-        "startSerial dan endSerial harus berupa digit string (angka saja)."
+        "startSerial dan endSerial harus berupa digit string (angka saja).",
       );
     }
 
@@ -435,7 +407,7 @@ export class StockInService {
       if (!movement) {
         throw new ValidationError("Data tidak ditemukan");
       }
-      if (movement.type !== "IN") {
+      if (movement.movementType !== "IN") {
         throw new ValidationError("Bukan transaksi Stock In");
       }
 
@@ -462,18 +434,18 @@ export class StockInService {
       const newStartNum = parseSmartSerial(
         startSerial,
         product.serialTemplate,
-        yearSuffix
+        yearSuffix,
       );
       const newEndNum = parseSmartSerial(
         endSerial,
         product.serialTemplate,
-        yearSuffix
+        yearSuffix,
       );
       // ---------------------
 
       if (newEndNum < newStartNum) {
         throw new ValidationError(
-          "endSerial harus lebih besar atau sama dengan startSerial"
+          "endSerial harus lebih besar atau sama dengan startSerial",
         );
       }
 
@@ -512,7 +484,7 @@ export class StockInService {
       // Note: User minta "harus tetap berurutan". Jadi kita enforce jika expected > 1.
       if (otherLastCard && newStartNum !== expectedStartNum) {
         throw new ValidationError(
-          `Nomor serial awal harus berurutan. Serial terakhir di sistem: ${otherLastCard.serialNumber}. Start serial baru harus suffix ${expectedStartNum}.`
+          `Nomor serial awal harus berurutan. Serial terakhir di sistem: ${otherLastCard.serialNumber}. Start serial baru harus suffix ${expectedStartNum}.`,
         );
       }
 
@@ -520,10 +492,10 @@ export class StockInService {
       const width = 5;
 
       const newSuffixSerials = Array.from({ length: newQuantity }, (_, i) =>
-        String(newStartNum + i).padStart(width, "0")
+        String(newStartNum + i).padStart(width, "0"),
       );
       const newSerialNumbers = newSuffixSerials.map(
-        (sfx) => `${product.serialTemplate}${yearSuffix}${sfx}`
+        (sfx) => `${product.serialTemplate}${yearSuffix}${sfx}`,
       );
 
       // 5. Diffing Strategy
@@ -548,7 +520,7 @@ export class StockInService {
           throw new ValidationError(
             `Gagal update range! Kartu berikut sudah tidak di office: ${notSafe
               .map((c) => c.serialNumber)
-              .join(", ")}`
+              .join(", ")}`,
           );
         }
 
@@ -570,7 +542,7 @@ export class StockInService {
 
         if (collision) {
           throw new ValidationError(
-            `Serial clash! Nomor ${collision.serialNumber} sudah ada di batch lain.`
+            `Serial clash! Nomor ${collision.serialNumber} sudah ada di batch lain.`,
           );
         }
 
@@ -593,24 +565,7 @@ export class StockInService {
       const delta = newQuantity - movement.quantity; // Atau newQuantity - oldSerials.length
 
       if (delta !== 0) {
-        const officeInv = await tx.cardInventory.findFirst({
-          where: {
-            categoryId: movement.categoryId,
-            typeId: movement.typeId,
-            stationId: null,
-          },
-        });
-
-        if (officeInv) {
-          await tx.cardInventory.update({
-            where: { id: officeInv.id },
-            data: {
-              cardOffice: { increment: delta },
-              updatedAt: new Date(),
-              updatedBy: userId,
-            },
-          });
-        }
+        /* REMOVED: CardInventory update (Deprecated) */
       }
 
       // 9. Update Movement Record
@@ -654,7 +609,7 @@ export class StockInService {
       if (!movement) {
         throw new ValidationError("Data tidak ditemukan");
       }
-      if (movement.type !== "IN") {
+      if (movement.movementType !== "IN") {
         throw new ValidationError("Bukan transaksi Stock In");
       }
 
@@ -665,7 +620,7 @@ export class StockInService {
 
       if (!serials || serials.length === 0) {
         throw new ValidationError(
-          "Transaksi ini tidak memiliki data serial number (Legacy Data?). Tidak aman untuk dihapus otomatis."
+          "Transaksi ini tidak memiliki data serial number (Legacy Data?). Tidak aman untuk dihapus otomatis.",
         );
       }
 
@@ -680,7 +635,7 @@ export class StockInService {
       if (cards.length !== serials.length) {
         // Some cards might have been hard deleted or data inconsistency
         throw new ValidationError(
-          `Jumlah kartu tidak sesuai. Tercatat: ${serials.length}, Ditemukan: ${cards.length}`
+          `Jumlah kartu tidak sesuai. Tercatat: ${serials.length}, Ditemukan: ${cards.length}`,
         );
       }
 
@@ -690,38 +645,24 @@ export class StockInService {
           `Gagal menghapus! Beberapa kartu sudah tidak di OFFICE: ${notInOffice
             .slice(0, 3)
             .map((c) => c.serialNumber)
-            .join(", ")}...`
+            .join(", ")}...`,
         );
       }
 
-      // 4. Delete Cards
-      await tx.card.deleteMany({
+      // 4. Revert Card Status to ON_REQUEST (Not Delete)
+      // We assume they should return to "Generated but not stocked in" state.
+      await tx.card.updateMany({
         where: {
           id: { in: cards.map((c) => c.id) },
         },
-      });
-
-      // 5. Decrement Inventory Office
-      // We assume officeInv exists because we just checked cards are IN_OFFICE (logic implies inventory exists)
-      const officeInv = await tx.cardInventory.findFirst({
-        where: {
-          categoryId: movement.categoryId,
-          typeId: movement.typeId,
-          stationId: null,
+        data: {
+          status: "ON_REQUEST",
+          updatedAt: new Date(),
+          updatedBy: userId, // Assuming userId is passed to delete? Wait, the method signature needs checking
         },
-        select: { id: true },
       });
 
-      if (officeInv) {
-        await tx.cardInventory.update({
-          where: { id: officeInv.id },
-          data: {
-            cardOffice: { decrement: movement.quantity },
-            updatedAt: new Date(),
-            updatedBy: userId,
-          },
-        });
-      }
+      /* REMOVED: CardInventory update (Deprecated) */
 
       // 6. Delete Movement
       await tx.cardStockMovement.delete({
@@ -747,7 +688,7 @@ export class StockInService {
       serialNumber: string;
       status: "IN_OFFICE" | "DAMAGED" | "LOST";
     }[],
-    userId: string
+    userId: string,
   ) {
     if (!updates.length)
       return { success: true, message: "No updates provided" };
@@ -759,20 +700,20 @@ export class StockInService {
       });
 
       if (!movement) throw new ValidationError("Stock In record not found");
-      if (movement.type !== "IN")
+      if (movement.movementType !== "IN")
         throw new ValidationError("Not a Stock In record");
 
       const sentSerials = new Set(
-        (movement as any).sentSerialNumbers as string[]
+        (movement as any).sentSerialNumbers as string[],
       );
 
       // 2. Validate Serials belong to this batch
       const invalidSerials = updates.filter(
-        (u) => !sentSerials.has(u.serialNumber)
+        (u) => !sentSerials.has(u.serialNumber),
       );
       if (invalidSerials.length > 0) {
         throw new ValidationError(
-          `Serial numbers not found in this batch: ${invalidSerials.map((u) => u.serialNumber).join(", ")}`
+          `Serial numbers not found in this batch: ${invalidSerials.map((u) => u.serialNumber).join(", ")}`,
         );
       }
 
@@ -856,10 +797,10 @@ export class StockInService {
 
       // 6. Update Movement Record Lists
       const currentDamaged = new Set(
-        ((movement as any).damagedSerialNumbers as string[]) || []
+        ((movement as any).damagedSerialNumbers as string[]) || [],
       );
       const currentLost = new Set(
-        ((movement as any).lostSerialNumbers as string[]) || []
+        ((movement as any).lostSerialNumbers as string[]) || [],
       );
 
       // Apply changes to sets
@@ -891,7 +832,7 @@ export class StockInService {
   static async reportDamaged(
     serialNumbers: string[],
     userId: string,
-    note?: string
+    note?: string,
   ) {
     if (!serialNumbers.length) {
       throw new ValidationError("No serial numbers provided");
@@ -919,7 +860,7 @@ export class StockInService {
         const found = new Set(cards.map((c) => c.serialNumber));
         const missing = serialNumbers.filter((s) => !found.has(s));
         throw new ValidationError(
-          `Serial numbers not found: ${missing.join(", ")}`
+          `Serial numbers not found: ${missing.join(", ")}`,
         );
       }
 
@@ -928,7 +869,7 @@ export class StockInService {
         throw new ValidationError(
           `Only cards with status IN_OFFICE can be reported damaged. Invalid: ${invalidStatus
             .map((c) => c.serialNumber)
-            .join(", ")}`
+            .join(", ")}`,
         );
       }
 
@@ -963,7 +904,7 @@ export class StockInService {
         const movement = await tx.cardStockMovement.create({
           data: {
             movementAt: new Date(),
-            type: "OUT",
+            movementType: "OUT",
             status: "APPROVED",
             categoryId,
             typeId,

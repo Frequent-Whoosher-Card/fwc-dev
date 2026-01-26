@@ -14,7 +14,7 @@ export class InboxService {
       startDate?: string;
       endDate?: string;
       type?: string;
-    }
+    },
   ) {
     const { page = 1, limit = 10, isRead } = params;
     const skip = (page - 1) * limit;
@@ -302,7 +302,7 @@ export class InboxService {
   static async processStockIssueApproval(
     inboxId: string,
     action: "APPROVE" | "REJECT",
-    adminUserId: string
+    adminUserId: string,
   ) {
     const inbox = await db.inbox.findUnique({
       where: { id: inboxId },
@@ -311,7 +311,7 @@ export class InboxService {
     if (!inbox) throw new ValidationError("Inbox item not found");
     if (inbox.type !== "STOCK_ISSUE_APPROVAL") {
       throw new ValidationError(
-        "Inbox item is not a stock issue approval request"
+        "Inbox item is not a stock issue approval request",
       );
     }
 

@@ -1,12 +1,20 @@
 import db from "../../../config/db";
 import { ValidationError } from "../../../utils/errors";
+import { ActivityLogService } from "../../activity-log/service";
 
 export class CardProductService {
   // Get All Card Product
-  static async getCardProducts(search?: string) {
+  static async getCardProducts(
+    search?: string,
+    programType?: "FWC" | "VOUCHER",
+  ) {
     const where: any = {
       deletedAt: null,
     };
+
+    if (programType) {
+      where.programType = programType;
+    }
 
     if (search) {
       where.OR = [
@@ -51,6 +59,7 @@ export class CardProductService {
           select: {
             id: true,
             typeName: true,
+            typeCode: true,
           },
         },
       },
@@ -59,6 +68,13 @@ export class CardProductService {
     return cardProducts.map((product) => ({
       ...product,
       price: product.price.toString(),
+      type: product.type
+        ? {
+            id: product.type.id,
+            typeName: product.type.typeName,
+            typeCode: product.type.typeCode,
+          }
+        : null,
     }));
   }
 
@@ -82,11 +98,13 @@ export class CardProductService {
   static async createCardProduct(
     categoryId: string,
     typeId: string,
+    programType: "FWC" | "VOUCHER",
     totalQuota: number,
     masaBerlaku: number,
     serialTemplate: string,
     price: number,
-    userId: string
+    userId: string,
+    maxQuantity?: number,
   ) {
     const [cardCategory, cardType] = await Promise.all([
       db.cardCategory.findUnique({
@@ -104,13 +122,32 @@ export class CardProductService {
     if (!cardCategory) {
       throw new ValidationError(
         "Card Category Not Found",
-        "CARD_CATEGORY_NOT_FOUND"
+        "CARD_CATEGORY_NOT_FOUND",
       );
     }
 
     if (!cardType) {
       throw new ValidationError("Card Type Not Found", "CARD_TYPE_NOT_FOUND");
     }
+
+    // Validate Program Type Consistency
+    if (cardCategory.programType !== cardType.programType) {
+      throw new ValidationError(
+        "Program Type tidak cocok antara Kategori dan Tipe.",
+        "PROGRAM_TYPE_MISMATCH",
+      );
+    }
+
+    // Validate Input Program Type matches Category/Type
+    if (programType !== cardCategory.programType) {
+      throw new ValidationError(
+        `Program Type input (${programType}) tidak sesuai dengan Kategori/Tipe (${cardCategory.programType}).`,
+        "PROGRAM_TYPE_INPUT_MISMATCH",
+      );
+    }
+
+    // Generate Serial Template: Program Code (from serialTemplate arg) + Category Code + Type Code
+    const generatedSerialTemplate = `${serialTemplate}${cardCategory.categoryCode}${cardType.typeCode}`;
 
     // Check if product already exists (including soft deleted)
     const existingProduct = await db.cardProduct.findFirst({
@@ -123,20 +160,15 @@ export class CardProductService {
     // Validate Serial Template Uniqueness
     const existingTemplate = await db.cardProduct.findFirst({
       where: {
-        serialTemplate: serialTemplate.toString(),
+        serialTemplate: generatedSerialTemplate.toString(),
       },
     });
 
     if (existingTemplate) {
-      // Allowed only if it belongs to the EXACT product we are about to restore (or if it's the same ID, which implies we are modifying the existing record)
-      // Since existingProduct matches Category+Type, if we find a template collision:
-      // 1. If existingProduct is null (creating new brand new product) -> COLLISION with existingTemplate (some other product)
-      // 2. If existingProduct exists (updating/restoring):
-      //    - If existingTemplate.id !== existingProduct.id -> COLLISION with different product
       if (!existingProduct || existingTemplate.id !== existingProduct.id) {
         throw new ValidationError(
-          "Serial Template sudah digunakan oleh produk lain.",
-          "SERIAL_TEMPLATE_ALREADY_EXISTS"
+          `Serial Template '${generatedSerialTemplate}' sudah digunakan oleh produk lain.`,
+          "SERIAL_TEMPLATE_ALREADY_EXISTS",
         );
       }
     }
@@ -145,7 +177,7 @@ export class CardProductService {
       if (!existingProduct.deletedAt) {
         throw new ValidationError(
           "Produk dengan Kategori dan Tipe ini sudah ada.",
-          "PRODUCT_ALREADY_EXISTS"
+          "PRODUCT_ALREADY_EXISTS",
         );
       }
 
@@ -161,11 +193,19 @@ export class CardProductService {
           totalQuota,
           masaBerlaku,
           price,
-          serialTemplate: serialTemplate.toString(),
+          serialTemplate: generatedSerialTemplate.toString(),
+          programType: programType,
+          maxQuantity,
           updatedAt: new Date(),
           updatedBy: userId,
         },
       });
+
+      await ActivityLogService.createActivityLog(
+        userId,
+        "RESTORE_CARD_PRODUCT",
+        `Restored product ${restoredProduct.serialTemplate} (Category: ${cardCategory.categoryName}, Type: ${cardType.typeName})`,
+      );
 
       return {
         ...restoredProduct,
@@ -180,7 +220,9 @@ export class CardProductService {
         totalQuota,
         masaBerlaku,
         price,
-        serialTemplate: serialTemplate.toString(),
+        serialTemplate: generatedSerialTemplate.toString(),
+        programType: programType,
+        maxQuantity,
         isActive: true,
         createdAt: new Date(),
         createdBy: userId,
@@ -188,6 +230,12 @@ export class CardProductService {
         updatedBy: userId,
       },
     });
+
+    await ActivityLogService.createActivityLog(
+      userId,
+      "CREATE_CARD_PRODUCT",
+      `Created product ${createCardProduct.serialTemplate} (Category: ${cardCategory.categoryName}, Type: ${cardType.typeName})`,
+    );
 
     return {
       ...createCardProduct,
@@ -200,16 +248,61 @@ export class CardProductService {
     id: string,
     categoryId: string,
     typeId: string,
+    programType: "FWC" | "VOUCHER",
     totalQuota: number,
     masaBerlaku: number,
     serialTemplate: string,
     price: number,
-    userId: string
+    userId: string,
+    maxQuantity?: number,
   ) {
+    const [cardCategory, cardType] = await Promise.all([
+      db.cardCategory.findUnique({
+        where: {
+          id: categoryId,
+        },
+      }),
+      db.cardType.findUnique({
+        where: {
+          id: typeId,
+        },
+      }),
+    ]);
+
+    if (!cardCategory) {
+      throw new ValidationError(
+        "Card Category Not Found",
+        "CARD_CATEGORY_NOT_FOUND",
+      );
+    }
+
+    if (!cardType) {
+      throw new ValidationError("Card Type Not Found", "CARD_TYPE_NOT_FOUND");
+    }
+
+    // Validate Program Type Consistency
+    if (cardCategory.programType !== cardType.programType) {
+      throw new ValidationError(
+        "Program Type tidak cocok antara Kategori dan Tipe.",
+        "PROGRAM_TYPE_MISMATCH",
+      );
+    }
+
+    // Validate Input Program Type matches Category/Type
+    if (programType !== cardCategory.programType) {
+      throw new ValidationError(
+        `Program Type input (${programType}) tidak sesuai dengan Kategori/Tipe (${cardCategory.programType}).`,
+        "PROGRAM_TYPE_INPUT_MISMATCH",
+      );
+    }
+
+    // Generate Serial Template: Program Code (from serialTemplate arg) + Category Code + Type Code
+    const generatedSerialTemplate = `${serialTemplate}${cardCategory.categoryCode}${cardType.typeCode}`;
+
     // Validate Serial Template Uniqueness (exclude current product)
     const existingTemplate = await db.cardProduct.findFirst({
       where: {
-        serialTemplate: serialTemplate.toString(),
+        serialTemplate: generatedSerialTemplate.toString(),
         id: {
           not: id,
         },
@@ -218,8 +311,8 @@ export class CardProductService {
 
     if (existingTemplate) {
       throw new ValidationError(
-        "Serial Template sudah digunakan oleh produk lain.",
-        "SERIAL_TEMPLATE_ALREADY_EXISTS"
+        `Serial Template '${generatedSerialTemplate}' sudah digunakan oleh produk lain.`,
+        "SERIAL_TEMPLATE_ALREADY_EXISTS",
       );
     }
 
@@ -233,11 +326,19 @@ export class CardProductService {
         totalQuota,
         masaBerlaku,
         price,
-        serialTemplate: serialTemplate.toString(),
+        serialTemplate: generatedSerialTemplate.toString(),
+        programType: programType,
+        maxQuantity,
         updatedAt: new Date(),
         updatedBy: userId,
       },
     });
+
+    await ActivityLogService.createActivityLog(
+      userId,
+      "UPDATE_CARD_PRODUCT",
+      `Updated product ${updateCardProduct.serialTemplate} (Category: ${cardCategory.categoryName}, Type: ${cardType.typeName})`,
+    );
 
     return {
       ...updateCardProduct,
@@ -248,16 +349,34 @@ export class CardProductService {
 
   // Soft delete card product
   static async deleteCardProduct(id: string, userId: string) {
+    const existingProduct = await db.cardProduct.findUnique({
+      where: { id },
+    });
+
+    if (!existingProduct) {
+      throw new ValidationError(
+        "Card Product Not Found",
+        "CARD_PRODUCT_NOT_FOUND",
+      );
+    }
+
     const deleteCardProduct = await db.cardProduct.update({
       where: {
         id,
       },
       data: {
         isActive: false,
+        serialTemplate: `${existingProduct.serialTemplate}-deleted-${Date.now()}`,
         deletedAt: new Date(),
         deletedBy: userId,
       },
     });
+
+    await ActivityLogService.createActivityLog(
+      userId,
+      "DELETE_CARD_PRODUCT",
+      `Deleted product ${deleteCardProduct.serialTemplate}`,
+    );
 
     return {
       ...deleteCardProduct,

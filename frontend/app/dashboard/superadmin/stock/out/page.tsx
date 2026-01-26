@@ -15,6 +15,23 @@ import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 
 // import { StockSummary } from '@/app/dashboard/superadmin/stock/components/StockSummary';
 
+interface Category {
+  id: string;
+  categoryCode: string;
+  categoryName: string;
+}
+
+interface TypeItem {
+  id: string;
+  typeCode: string;
+  typeName: string;
+}
+interface Station {
+  id: string;
+  stationName: string;
+  stationCode: string;
+}
+
 /* ======================
     TYPES
   ====================== */
@@ -72,11 +89,16 @@ export default function StockOutPage() {
   const [type, setType] = useState('all');
   const fromDateRef = useRef<HTMLInputElement>(null);
   const toDateRef = useRef<HTMLInputElement>(null);
+  const [stations, setStations] = useState<Station[]>([]);
+  const [station, setStation] = useState('all');
 
   // Delete
   const [openDelete, setOpenDelete] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedSerial, setSelectedSerial] = useState<string | null>(null);
+
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [types, setTypes] = useState<TypeItem[]>([]);
 
   /* ======================
       FETCH DATA
@@ -127,12 +149,12 @@ export default function StockOutPage() {
   const filteredData = useMemo(() => {
     return data.filter((item) => {
       const categoryMatch = category === 'all' || item.cardCategory.name === category;
-
       const typeMatch = type === 'all' || item.cardType.name === type;
+      const stationMatch = station === 'all' || item.stationName === station;
 
-      return categoryMatch && typeMatch;
+      return categoryMatch && typeMatch && stationMatch;
     });
-  }, [data, category, type]);
+  }, [data, category, type, station]);
 
   // Handle Page Change
   const handlePageChange = (newPage: number) => {
@@ -163,6 +185,47 @@ export default function StockOutPage() {
       toast.error(message);
     }
   };
+
+  /* ======================
+   FETCH CATEGORY & TYPE
+====================== */
+  useEffect(() => {
+    const fetchCategoryAndType = async () => {
+      try {
+        const [catRes, typeRes] = await Promise.all([axiosInstance.get('/card/category'), axiosInstance.get('/card/types')]);
+
+        setCategories(Array.isArray(catRes.data?.data) ? catRes.data.data : []);
+        setTypes(Array.isArray(typeRes.data?.data) ? typeRes.data.data : []);
+      } catch (err) {
+        console.error('Failed fetch category/type', err);
+        setCategories([]);
+        setTypes([]);
+      }
+    };
+
+    fetchCategoryAndType();
+  }, []);
+
+  useEffect(() => {
+    const fetchStations = async () => {
+      try {
+        const res = await axiosInstance.get('/station/', {
+          params: {
+            page: 1,
+            limit: 100000,
+            search: '',
+          },
+        });
+
+        setStations(Array.isArray(res.data?.data?.items) ? res.data.data.items : []);
+      } catch (err) {
+        console.error('Gagal fetch station', err);
+        setStations([]);
+      }
+    };
+
+    fetchStations();
+  }, []);
 
   /* ======================
       EXPORT PDF
@@ -266,14 +329,11 @@ export default function StockOutPage() {
   "
           >
             <option value="all">All Category</option>
-
-            {Array.from(new Set(data.map((d) => d.cardCategory.name)))
-              .filter(Boolean)
-              .map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.categoryName}>
+                {cat.categoryName}
+              </option>
+            ))}
           </select>
 
           {/* TYPE */}
@@ -293,10 +353,32 @@ export default function StockOutPage() {
   "
           >
             <option value="all">All Type</option>
-
-            {[...new Set(data.map((item) => item.cardType.name))].filter(Boolean).map((typeName) => (
-              <option key={typeName} value={typeName}>
-                {typeName}
+            {types.map((t) => (
+              <option key={t.id} value={t.typeName}>
+                {t.typeName}
+              </option>
+            ))}
+          </select>
+          {/* STATION */}
+          <select
+            value={station}
+            onChange={(e) => {
+              setStation(e.target.value);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            className="
+    rounded-md border border-gray-300
+    bg-white text-black
+    px-3 py-2 text-sm
+    focus:bg-[#8D1231] focus:text-white
+    focus:outline-none focus:ring-0
+    transition-colors
+  "
+          >
+            <option value="all">All Station</option>
+            {stations.map((st) => (
+              <option key={st.id} value={st.stationName}>
+                {st.stationName}
               </option>
             ))}
           </select>
@@ -483,9 +565,9 @@ export default function StockOutPage() {
                             }
                           }}
                           className={`
-      rounded-md border px-3 py-1 text-xs
-      ${row.status === 'APPROVED' ? 'border-gray-300 text-gray-400 bg-gray-100 cursor-not-allowed' : 'border-gray-400 hover:bg-gray-100'}
-    `}
+        rounded-md border px-3 py-1 text-xs transition-colors duration-200
+        ${row.status === 'APPROVED' ? 'border-gray-300 text-gray-400 bg-gray-100 cursor-not-allowed' : 'border-blue-500 text-blue-600 hover:bg-blue-500 hover:text-white'}
+      `}
                           title={row.status === 'APPROVED' ? 'Data sudah APPROVED dan tidak bisa diedit' : 'Edit data'}
                         >
                           Edit
@@ -507,7 +589,7 @@ export default function StockOutPage() {
                             setSelectedSerial(serialRange);
                             setOpenDelete(true);
                           }}
-                          className="rounded-md border border-red-500 px-3 py-1 text-xs text-red-500 hover:bg-red-500 hover:text-white"
+                          className="rounded-md border border-[#8D1231] px-3 py-1 text-xs text-[#8D1231] hover:bg-[#8D1231] hover:text-white"
                         >
                           Hapus
                         </button>
@@ -522,45 +604,23 @@ export default function StockOutPage() {
       </div>
 
       {/* PAGINATION */}
-      <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-600">
-        <button
-          disabled={pagination.page === 1}
-          onClick={() =>
-            setPagination((p) => ({
-              ...p,
-              page: p.page - 1,
-            }))
-          }
-          className="px-2 disabled:opacity-40"
-        >
+      <div className="mt-4 flex justify-center gap-1 text-sm">
+        <button disabled={pagination.page === 1} onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))} className="px-2 py-1 rounded disabled:opacity-40">
           <ChevronLeft size={18} />
         </button>
 
         {pageNumbers.map((p) => (
           <button
             key={p}
-            onClick={() =>
-              setPagination((pg) => ({
-                ...pg,
-                page: p,
-              }))
-            }
-            className={`px-3 py-1 ${p === pagination.page ? 'font-semibold underline' : ''}`}
+            onClick={() => setPagination((pg) => ({ ...pg, page: p }))}
+            className={`px-3 py-1 rounded transition
+        ${p === pagination.page ? 'bg-[#8D1231] text-white font-semibold' : 'hover:bg-gray-100'}`}
           >
             {p}
           </button>
         ))}
 
-        <button
-          disabled={pagination.page === pagination.totalPages}
-          onClick={() =>
-            setPagination((p) => ({
-              ...p,
-              page: p.page + 1,
-            }))
-          }
-          className="px-2 disabled:opacity-40"
-        >
+        <button disabled={pagination.page === pagination.totalPages} onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))} className="px-2 py-1 rounded disabled:opacity-40">
           <ChevronRight size={18} />
         </button>
       </div>

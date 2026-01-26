@@ -1,137 +1,288 @@
-'use client';
+"use client";
 
-import { RotateCcw } from 'lucide-react';
-
-/* ======================
-   STATION OPTIONS
-====================== */
-const STATIONS = [
-  { id: 'HALIM', name: 'Halim' },
-  { id: 'KARAWANG', name: 'Karawang' },
-  { id: 'PADALARANG', name: 'Padalarang' },
-  { id: 'TEGALLUAR', name: 'Tegalluar' },
-];
+import { RotateCcw, Calendar, Download, ChevronDown } from "lucide-react";
+import { useMemo, useRef, useState, useEffect } from "react";
+import axios from "@/lib/axios";
 
 /* ======================
    TYPES
 ====================== */
+interface StationItem {
+  id: string;
+  stationName: string;
+}
+
+interface CategoryItem {
+  id: string;
+  categoryName: string;
+}
+
+interface TypeItem {
+  id: string;
+  typeName: string;
+}
+
+type TabType = "fwc" | "voucher";
+
 interface Props {
-  type: 'ALL' | 'KAI';
+  /* TAB */
+  activeTab: TabType;
+  onTabChange: (tab: TabType) => void;
+
+  /* FILTER */
   stationId?: string;
   purchasedDate?: string;
   shiftDate?: string;
+  cardCategoryId?: string;
+  cardTypeId?: string;
 
-  onTypeChange: (v: 'ALL' | 'KAI') => void;
   onStationChange: (v?: string) => void;
   onPurchasedDateChange: (v?: string) => void;
   onShiftDateChange: (v?: string) => void;
+  onCardCategoryChange: (v?: string) => void;
+  onCardTypeChange: (v?: string) => void;
+
   onReset: () => void;
+  onExportPDF: () => void;
+  onExportShiftPDF: () => void;
 }
 
 /* ======================
    COMPONENT
 ====================== */
 export default function TransactionFilter({
-  type,
+  activeTab,
+  onTabChange,
+
   stationId,
   purchasedDate,
   shiftDate,
-  onTypeChange,
+  cardCategoryId,
+  cardTypeId,
+
   onStationChange,
   onPurchasedDateChange,
   onShiftDateChange,
+  onCardCategoryChange,
+  onCardTypeChange,
+
   onReset,
+  onExportPDF,
+  onExportShiftPDF,
 }: Props) {
+  const purchasedRef = useRef<HTMLInputElement>(null);
+  const shiftRef = useRef<HTMLInputElement>(null);
+  const stationRef = useRef<HTMLDivElement>(null);
+
+  const [openStation, setOpenStation] = useState(false);
+  const [stations, setStations] = useState<StationItem[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [types, setTypes] = useState<TypeItem[]>([]);
+
+  /* ======================
+     FETCH FILTER DATA
+  ====================== */
+  useEffect(() => {
+    const fetchFilters = async () => {
+      try {
+        const [typeRes, categoryRes, stationRes] = await Promise.all([
+          axios.get("/card/types/"),
+          axios.get("/card/category/"),
+          axios.get("/station/?page=&limit=&search="),
+        ]);
+
+        setTypes(typeRes.data?.data ?? []);
+        setCategories(categoryRes.data?.data ?? []);
+        setStations(stationRes.data?.data?.items ?? []);
+      } catch (err) {
+        console.error("Failed load filter data:", err);
+      }
+    };
+
+    fetchFilters();
+  }, []);
+
+  /* ======================
+     CLOSE STATION DROPDOWN
+  ====================== */
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (
+        stationRef.current &&
+        !stationRef.current.contains(e.target as Node)
+      ) {
+        setOpenStation(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  /* ======================
+     HELPERS
+  ====================== */
+  const selectedStation =
+    stations.find((s) => s.id === stationId)?.stationName || "All Station";
+
+  const isFilterActive =
+    !!stationId ||
+    !!purchasedDate ||
+    !!shiftDate ||
+    !!cardCategoryId ||
+    !!cardTypeId;
+
+  const safeTypes = useMemo(
+    () =>
+      types.filter(
+        (t) => typeof t.typeName === "string" && t.typeName.trim() !== "",
+      ),
+    [types],
+  );
+
+  /* ======================
+     RENDER
+  ====================== */
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-white px-4 py-3">
-      {/* ALL */}
-      <button
-        onClick={() => onTypeChange('ALL')}
-        disabled={type === 'ALL'}
-        className={`h-9 rounded-md border px-4 text-sm transition ${
-          type === 'ALL'
-            ? 'cursor-default border-blue-200 bg-blue-50 text-blue-600'
-            : 'border-gray-300 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600'
-        }`}
-      >
-        All
-      </button>
-
-      {/* KAI */}
-      <button
-        onClick={() => onTypeChange('KAI')}
-        disabled={type === 'KAI'}
-        className={`h-9 rounded-md border px-4 text-sm transition ${
-          type === 'KAI'
-            ? 'cursor-default border-blue-200 bg-blue-50 text-blue-600'
-            : 'border-gray-300 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600'
-        }`}
-      >
-        KAI
-      </button>
-
-      {/* STATION */}
+    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center rounded-xl border bg-white px-4 py-3">
+      {/* CATEGORY */}
       <select
-        value={stationId ?? ''}
-        onChange={(e) =>
-          onStationChange(
-            e.target.value ? e.target.value : undefined
-          )
-        }
-        className="h-9 min-w-[160px] rounded-md border bg-white px-3 text-sm"
+        value={cardCategoryId ?? ""}
+        onChange={(e) => onCardCategoryChange(e.target.value || undefined)}
+        className="h-9 w-full sm:w-auto sm:min-w-[180px] rounded-md border px-3 text-sm bg-white text-gray-700 border-gray-300
+        focus:bg-[#8D1231] focus:text-white focus:border-[#8D1231]"
       >
-        <option value="">Station</option>
-        {STATIONS.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.name}
+        <option value="">
+          {activeTab === "fwc" ? "All Card Category" : "All Voucher Category"}
+        </option>
+        {categories.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.categoryName}
           </option>
         ))}
       </select>
 
-      {/* PURCHASED DATE */}
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-gray-500">
-          Purchased
-        </span>
+      {/* TYPE */}
+      <select
+        value={cardTypeId ?? ""}
+        onChange={(e) => onCardTypeChange(e.target.value || undefined)}
+        className="h-9 w-full sm:w-auto sm:min-w-[160px] rounded-md border px-3 text-sm bg-white text-gray-700 border-gray-300
+        focus:bg-[#8D1231] focus:text-white focus:border-[#8D1231]"
+      >
+        <option value="">
+          {activeTab === "fwc" ? "All Card Type" : "All Voucher Type"}
+        </option>
+        {safeTypes.map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.typeName}
+          </option>
+        ))}
+      </select>
+
+      {/* STATION */}
+      <div ref={stationRef} className="relative w-full sm:w-auto">
+        <button
+          type="button"
+          onClick={() => setOpenStation((v) => !v)}
+          className="flex h-9 w-full sm:w-[160px] items-center justify-between rounded-md bg-[#8D1231] px-3 text-sm text-white"
+        >
+          <span className="truncate">{selectedStation}</span>
+          <ChevronDown size={16} />
+        </button>
+
+        {openStation && (
+          <div className="absolute z-30 mt-1 w-full rounded-md bg-[#8D1231] shadow-lg">
+            <button
+              onClick={() => {
+                onStationChange(undefined);
+                setOpenStation(false);
+              }}
+              className="block w-full px-3 py-2 text-left text-sm text-white hover:bg-[#73122E]"
+            >
+              All Station
+            </button>
+
+            {stations.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => {
+                  onStationChange(s.id);
+                  setOpenStation(false);
+                }}
+                className="block w-full px-3 py-2 text-left text-sm text-white hover:bg-[#73122E]"
+              >
+                {s.stationName}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* PURCHASE DATE */}
+      <div className="relative w-full sm:w-auto">
         <input
+          ref={purchasedRef}
           type="date"
-          value={purchasedDate}
-          onChange={(e) =>
-            onPurchasedDateChange(e.target.value)
-          }
-          className="h-9 w-[160px] rounded-md border px-3 text-sm"
+          value={purchasedDate ?? ""}
+          onChange={(e) => onPurchasedDateChange(e.target.value || undefined)}
+          className="h-9 w-full sm:w-[160px] rounded-md border px-3 pr-9 text-sm
+          [&::-webkit-calendar-picker-indicator]:hidden"
+        />
+        <Calendar
+          size={16}
+          className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-[#8D1231]"
+          onClick={() => purchasedRef.current?.showPicker()}
         />
       </div>
 
       {/* SHIFT DATE */}
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-gray-500">
-          Shift
-        </span>
+      <div className="relative w-full sm:w-auto">
         <input
+          ref={shiftRef}
           type="date"
-          value={shiftDate}
-          onChange={(e) =>
-            onShiftDateChange(e.target.value)
-          }
-          className="h-9 w-[160px] rounded-md border px-3 text-sm"
+          value={shiftDate ?? ""}
+          onChange={(e) => onShiftDateChange(e.target.value || undefined)}
+          className="h-9 w-full sm:w-[160px] rounded-md border px-3 pr-9 text-sm
+          [&::-webkit-calendar-picker-indicator]:hidden"
+        />
+        <Calendar
+          size={16}
+          className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-[#8D1231]"
+          onClick={() => shiftRef.current?.showPicker()}
         />
       </div>
 
-      {/* RESET */}
-      <button
-        onClick={onReset}
-        className="flex h-9 w-9 items-center justify-center rounded-md border hover:bg-gray-50"
-      >
-        <RotateCcw size={16} />
-      </button>
+      {/* RESET + PDF */}
+      <div className="flex items-center gap-2 w-full sm:w-auto">
+        <button
+          onClick={onReset}
+          className={`h-9 w-9 rounded-md border flex items-center justify-center shrink-0
+          ${
+            isFilterActive
+              ? "bg-[#8D1231] text-white"
+              : "border-gray-300 text-gray-400"
+          }`}
+        >
+          <RotateCcw size={16} />
+        </button>
 
-      {/* PDF */}
-      <div className="ml-auto">
-        <button className="h-9 rounded-md border px-4 text-sm hover:bg-gray-50">
-          PDF
+        <button
+          onClick={onExportPDF}
+          className="h-9 flex-1 sm:flex-none sm:px-4 rounded-md bg-[#8D1231] text-white flex items-center justify-center gap-2 hover:bg-[#73122E]"
+        >
+          <Download size={16} />
+          <span className="text-sm">PDF</span>
+        </button>
+
+        <button
+          onClick={onExportShiftPDF}
+          className="h-9 flex-1 sm:flex-none sm:px-4 rounded-md bg-[#0F766E] text-white flex items-center justify-center gap-2 hover:bg-[#0D5F58]"
+        >
+          <Download size={16} />
+          <span className="text-sm">Shift</span>
         </button>
       </div>
+
     </div>
   );
 }

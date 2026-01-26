@@ -1,45 +1,16 @@
-// ✅ BENAR
-import { apiFetch } from '@/lib/apiConfig';
+import { apiFetch } from "@/lib/apiConfig";
+import axios from "@/lib/axios";
+import type { Purchase } from "@/types/purchase";
 
-/* =========================
-   TYPES
-========================= */
+export type TransactionType = "fwc" | "voucher";
 
-
-
-export interface CreatePurchasePayload {
-  cardId: string;
-  memberId: string;
-  edcReferenceNumber: string;
-
-  /** TANGGAL PEMBELIAN (WAJIB) */
-  purchasedDate: string;
-
-  /** TANGGAL KADALUARSA (WAJIB) */
-  expiredDate: string;
-
-  /** SHIFT OPSIONAL */
-  shiftDate?: string;
-
-  /** HARGA (READONLY DARI CARD PRODUCT) */
-  price?: number;
-
-  /** OPERATOR YANG MELAYANI */
-  operatorName?: string;
-
-  /** STASIUN (DARI AUTH / ME) */
-  stationId?: string;
-
-  /** CATATAN OPSIONAL */
-  notes?: string;
-}
-
-
-export interface PurchaseListItem {
+export interface FWCPurchaseListItem {
   id: string;
   edcReferenceNumber: string;
   purchaseDate: string;
+  shiftDate?: string | null;
   price: number;
+
   card: {
     id: string;
     serialNumber: string;
@@ -52,37 +23,103 @@ export interface PurchaseListItem {
       };
     };
   };
+
   member: {
     id: string;
     name: string;
     identityNumber: string;
   } | null;
+
   operator: {
     fullName: string;
   };
+
   station: {
     stationName: string;
   };
 }
 
-/* =========================
-   PURCHASE SERVICE
-========================= */
+export interface VoucherTransactionListItem {
+  id: string;
+  edcReferenceNumber: string;
+  purchaseDate: string;
+  shiftDate?: string | null;
+  price: number;
 
-/**
- * CREATE PURCHASE
- */
-export const createPurchase = (payload: CreatePurchasePayload) => {
-  return apiFetch('/purchases', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
-};
+  voucher: {
+    serialNumber: string;
+    voucherProduct: {
+      category: {
+        categoryName: string;
+      };
+      type: {
+        typeName: string;
+      };
+    };
+  };
 
-/**
- * GET ALL PURCHASES
- */
-export const getPurchases = async (params?: {
+  member: {
+    id: string;
+    name: string;
+    identityNumber: string;
+  } | null;
+
+  operator: {
+    fullName: string;
+  };
+
+  station: {
+    stationName: string;
+  };
+}
+
+export interface PurchaseDetail {
+  id: string;
+  edcReferenceNumber: string;
+  purchaseDate: string;
+  price: number;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  createdByName: string;
+  updatedByName: string;
+
+  card: {
+    id: string;
+    serialNumber: string;
+    expiredDate: string;
+    cardProduct: {
+      category: {
+        id: string;
+        categoryName: string;
+      };
+      type: {
+        id: string;
+        typeName: string;
+      };
+    };
+  };
+
+  member: {
+    id: string;
+    name: string;
+    identityNumber: string;
+  };
+
+  operator: {
+    id: string;
+    fullName: string;
+    username: string;
+  };
+
+  station: {
+    id: string;
+    stationCode: string;
+    stationName: string;
+  };
+}
+
+export interface GetPurchasesParams {
   page?: number;
   limit?: number;
   search?: string;
@@ -91,44 +128,49 @@ export const getPurchases = async (params?: {
   categoryId?: string;
   typeId?: string;
   stationId?: string;
-}) => {
+  transactionType?: TransactionType;
+}
+
+export const updatePurchase = (id: string | number, payload: any) => {
+  return apiFetch(`/purchases/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+};
+
+export const deletePurchase = (id: string | number) => {
+  return apiFetch(`/purchases/${id}`, {
+    method: "DELETE",
+  });
+};
+
+export const getPurchases = async (params?: GetPurchasesParams) => {
   const query = new URLSearchParams();
 
-  if (params?.page) {
-    query.append('page', String(params.page));
-  }
-  if (params?.limit) {
-    query.append('limit', String(params.limit));
-  }
-  if (params?.search) {
-    query.append('search', params.search);
-  }
-  if (params?.startDate) {
-    query.append('startDate', params.startDate);
-  }
-  if (params?.endDate) {
-    query.append('endDate', params.endDate);
-  }
-  if (params?.categoryId) {
-    query.append('categoryId', params.categoryId);
-  }
-  if (params?.typeId) {
-    query.append('typeId', params.typeId);
-  }
-  if (params?.stationId) {
-    query.append('stationId', params.stationId);
+  if (params?.page) query.append("page", String(params.page));
+  if (params?.limit) query.append("limit", String(params.limit));
+  if (params?.search) query.append("search", params.search);
+  if (params?.startDate) query.append("startDate", params.startDate);
+  if (params?.endDate) query.append("endDate", params.endDate);
+  if (params?.categoryId) query.append("categoryId", params.categoryId);
+  if (params?.typeId) query.append("typeId", params.typeId);
+  if (params?.stationId) query.append("stationId", params.stationId);
+  if (params?.transactionType) {
+    query.append("transactionType", params.transactionType);
   }
 
-  const res = await apiFetch(`/purchases?${query.toString()}`, {
-    method: 'GET',
+  return apiFetch(`/purchases?${query.toString()}`, {
+    method: "GET",
   });
-
-  return res;
 };
 
-/**
- * GET PURCHASE BY ID
- */
 export const getPurchaseById = (id: string | number) => {
-  return apiFetch(`/purchases/${id}`, { method: 'GET' });
+  return apiFetch(`/purchases/${id}`, {
+    method: "GET",
+  });
 };
+
+export async function createPurchase(payload: any): Promise<Purchase> {
+  const response = await axios.post("/purchases", payload);
+  return response.data.data;
+}
