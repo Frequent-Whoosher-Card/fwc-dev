@@ -1,4 +1,4 @@
-import { Elysia } from "elysia";
+import { Elysia, t } from "elysia";
 import { formatErrorResponse } from "../../utils/errors";
 import { StockModel } from "./model";
 import { StockService } from "./service";
@@ -119,6 +119,9 @@ export const stock = new Elysia({ prefix: "/stock" })
       }
     },
     {
+      params: t.Object({
+        id: t.String({ format: "uuid" }),
+      }),
       response: {
         200: StockModel.getDetailResponse, // Schema defined as Any for flexibility
         400: StockModel.errorResponse,

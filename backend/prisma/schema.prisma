@@ -378,6 +378,7 @@ model CardStockMovement {
   typeId                String              @map("type_id") @db.Uuid
   stationId             String?             @map("station_id") @db.Uuid
   toStationId           String?             @map("to_station_id") @db.Uuid
+  batchId               String?             @map("batch_id")
   fileObjectId          String?             @map("file_object_id") @db.Uuid
   notaDinas             String?             @map("nota_dinas")
   bast                  String?             @map("bast")
@@ -386,6 +387,7 @@ model CardStockMovement {
   createdAt             DateTime            @default(now()) @map("created_at")
   createdBy             String?             @map("created_by")
   lostSerialNumbers     String[]            @default([]) @map("lost_serial_numbers")
+  damagedSerialNumbers  String[]            @default([]) @map("damaged_serial_numbers")
   receivedSerialNumbers String[]            @default([]) @map("received_serial_numbers")
   sentSerialNumbers     String[]            @default([]) @map("sent_serial_numbers")
   validatedAt           DateTime?

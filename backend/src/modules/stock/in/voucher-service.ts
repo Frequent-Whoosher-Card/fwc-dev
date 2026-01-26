@@ -235,6 +235,7 @@ export class StockInVoucherService {
           movementAt: item.movementAt.toISOString(),
           quantity: item.quantity,
           status: item.status,
+          batchId: item.batchId,
           note: item.note,
           createdByName: item.createdBy ? userMap.get(item.createdBy) : null,
           category: {
@@ -295,6 +296,7 @@ export class StockInVoucherService {
       movementAt: movement.movementAt.toISOString(),
       quantity: movement.quantity,
       status: movement.status,
+      batchId: movement.batchId,
       note: movement.note,
       category: {
         id: movement.category.id,

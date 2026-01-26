@@ -26,10 +26,15 @@ export namespace StockModel {
     quantity: t.Number(),
     note: t.Union([t.String(), t.Null()]),
     stationId: t.Union([t.String(), t.Null()]),
+    batchId: t.Union([t.String(), t.Null()]),
+
     // Serial info (summary)
     sentSerialNumbersCount: t.Number(),
     receivedSerialNumbersCount: t.Number(),
     lostSerialNumbersCount: t.Number(),
+
+    notaDinas: t.Union([t.String(), t.Null()]),
+    bast: t.Union([t.String(), t.Null()]),
 
     createdAt: t.String(),
     createdBy: t.Union([t.String(), t.Null()]),
@@ -103,6 +108,9 @@ export namespace StockModel {
           quantity: t.Number(),
           note: t.Union([t.String(), t.Null()]),
           stationId: t.Union([t.String(), t.Null()]),
+          batchId: t.Union([t.String(), t.Null()]),
+          notaDinas: t.Union([t.String(), t.Null()]),
+          bast: t.Union([t.String(), t.Null()]),
 
           createdAt: t.String(),
 
@@ -121,7 +129,7 @@ export namespace StockModel {
             }),
             t.Null(),
           ]),
-        })
+        }),
       ),
       pagination: t.Object({
         total: t.Number(),
@@ -139,7 +147,11 @@ export namespace StockModel {
 
   export const errorResponse = t.Object({
     success: t.Boolean(),
-    message: t.String(),
-    error: t.Optional(t.Any()),
+    message: t.Optional(t.String()),
+    error: t.Object({
+      message: t.String(),
+      code: t.String(),
+      statusCode: t.Number(),
+    }),
   });
 }
