@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { StockProvider } from '@/app/dashboard/superadmin/stock/context/StockContext';
-import SuperadminStockOutPage from '@/app/dashboard/superadmin/stock/out/page';
+import { StockProvider } from "@/app/dashboard/superadmin/stock/context/StockContext";
+import BaseStockOut from "@/components/stock/BaseStockOut";
 
 export default function AdminStockOutPage() {
   return (
     <StockProvider>
-      <SuperadminStockOutPage />
+      <BaseStockOut programType="FWC" />
     </StockProvider>
   );
 }
