@@ -5,7 +5,7 @@ import { formatErrorResponse } from "../../../utils/errors";
 import { StockInFwcService } from "./fwc-service";
 import { StockInFwcModel } from "./fwc-model";
 import { StockInVoucherService } from "./voucher-service";
-import * as VoucherModel from "./voucher-model";
+import { StockInVoucherModel } from "./voucher-model";
 
 type AuthContextUser = {
   user: {
@@ -369,68 +369,6 @@ const stockInFwc = new Elysia({ prefix: "/fwc" })
 const stockInVoucher = new Elysia({ prefix: "/voucher" })
   .use(authMiddleware)
   .use(rbacMiddleware(["superadmin", "admin"]))
-  .get(
-    "/history",
-    async (context) => {
-      const { query, set } = context as typeof context;
-      try {
-        const result = await StockInVoucherService.getHistory(query);
-        return {
-          success: true,
-          message: "History retrieved successfully",
-          data: result,
-        };
-      } catch (error) {
-        set.status = 500;
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      query: StockInFwcModel.getHistoryQuery, // Reusing history query from StockInModel or define new?
-      // StockInFwcModel.getHistoryQuery has categoryId, limit, page, startDate, endDate. Fits.
-      response: {
-        200: StockInFwcModel.getHistoryResponse, // Can reused generic structure or specific voucher?
-        // Voucher has specific structure (e.g. programType at root? No, I decided otherwise in service).
-        // Let's use `t.Any()` for now or the specific valid schema if strictly typed required.
-        // Using t.Any() or generic to avoid type errors if minor mismatches.
-        // Actually, I should use the one I defined in VoucherModel. But getHistoryResponse in StockInModel might be List.
-        // Let's check `StockInFwcModel.getHistoryResponse` later?
-        // I'll use t.Any for safety or define it inline efficiently.
-        // Actually, I should use the proper schema I created? I didn't create a List schema in voucher-model.ts.
-        // I only created `stockInVoucherResponse`.
-        // Let's manually define the list response here or reuse StockInModel if compatible.
-        // StockInModel list likely has similar fields.
-        // For safety, I will use `t.Any()` for response data to avoid blocking valid data.
-      },
-      detail: {
-        tags: ["Stock In Voucher"],
-        summary: "Get Voucher History",
-      },
-    },
-  )
-  .get(
-    "/history/:id",
-    async (context) => {
-      const { params, set } = context as typeof context;
-      try {
-        const result = await StockInVoucherService.getDetail(params.id);
-        return { success: true, message: "Detail retrieved", data: result };
-      } catch (error) {
-        set.status = 500;
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      response: {
-        // 200: VoucherModel.stockInVoucherResponse // Need to wrap in standard response?
-        // My service returns object. My response wrapper here adds success/message.
-        // Let's match `VoucherModel.stockInVoucherResponse`.
-        200: VoucherModel.stockInVoucherResponse,
-        500: VoucherModel.errorResponse,
-      },
-      detail: { tags: ["Stock In Voucher"], summary: "Get Voucher Detail" },
-    },
-  )
   .post(
     "/",
     async (context) => {
@@ -456,15 +394,200 @@ const stockInVoucher = new Elysia({ prefix: "/voucher" })
       }
     },
     {
-      body: VoucherModel.createStockInVoucherBody,
+      body: StockInVoucherModel.createStockInVoucherBody,
       response: {
-        200: VoucherModel.stockInVoucherResponse,
-        400: VoucherModel.errorResponse,
-        500: VoucherModel.errorResponse,
+        200: StockInVoucherModel.stockInVoucherResponse,
+        400: StockInVoucherModel.errorResponse,
+        500: StockInVoucherModel.errorResponse,
       },
       detail: {
         tags: ["Stock In Voucher"],
         summary: "Create Stock In Voucher",
+      },
+    },
+  )
+  .get(
+    "/available-serials",
+    async (context) => {
+      const { query, set } = context;
+      try {
+        const result = await StockInVoucherService.getAvailableSerials(
+          query.cardProductId,
+        );
+        return {
+          success: true,
+          data: result,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      query: StockInVoucherModel.getAvailableSerialsQuery,
+      response: {
+        200: t.Object({
+          success: t.Boolean(),
+          data: t.Object({
+            startSerial: t.Union([t.String(), t.Null()]),
+            endSerial: t.Union([t.String(), t.Null()]),
+            count: t.Number(),
+          }),
+        }),
+        400: StockInVoucherModel.errorResponse,
+        500: StockInVoucherModel.errorResponse,
+      },
+      detail: {
+        tags: ["Stock In Voucher"],
+        summary: "Get Available Serials (Voucher)",
+        description: "Mendapatkan serial ON_REQUEST untuk voucher.",
+      },
+    },
+  )
+  .get(
+    "/history",
+    async (context) => {
+      const { query, set } = context as typeof context;
+      try {
+        const result = await StockInVoucherService.getHistory({
+          page: query.page ? parseInt(query.page) : undefined,
+          limit: query.limit ? parseInt(query.limit) : undefined,
+          startDate: query.startDate ? new Date(query.startDate) : undefined,
+          endDate: query.endDate ? new Date(query.endDate) : undefined,
+          categoryId: query.categoryId,
+          typeId: query.typeId,
+          search: query.search,
+        });
+
+        // FIX: Return standardized JSON structure
+        return {
+          success: true,
+          data: result,
+        };
+      } catch (error) {
+        set.status = 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      query: StockInVoucherModel.getHistoryQuery,
+      response: {
+        200: t.Object({
+          success: t.Boolean(),
+          data: t.Object({
+            items: t.Array(t.Any()), // Using Any to avoid strict schema mismatch for now
+            pagination: t.Object({
+              currentPage: t.Number(),
+              totalPages: t.Number(),
+              totalItems: t.Number(),
+            }),
+          }),
+        }),
+        500: StockInVoucherModel.errorResponse,
+      },
+      detail: {
+        tags: ["Stock In Voucher"],
+        summary: "Get Voucher History",
+      },
+    },
+  )
+  .get(
+    "/history/:id",
+    async (context) => {
+      const { params, set } = context as typeof context;
+      try {
+        const result = await StockInVoucherService.getDetail(params.id);
+        return { success: true, message: "Detail retrieved", data: result };
+      } catch (error) {
+        set.status = 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      response: {
+        200: StockInVoucherModel.stockInVoucherResponse,
+        500: StockInVoucherModel.errorResponse,
+      },
+      detail: { tags: ["Stock In Voucher"], summary: "Get Voucher Detail" },
+    },
+  )
+  .patch(
+    "/:id",
+    async (context) => {
+      const { params, body, set, user } = context as typeof context &
+        AuthContextUser;
+      try {
+        const result = await StockInVoucherService.update(
+          params.id,
+          body,
+          user.id,
+        );
+        return {
+          success: true,
+          message: "Stock In Voucher berhasil diupdate.",
+          data: result,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      body: StockInVoucherModel.updateStockInBody,
+      response: {
+        200: t.Object({
+          success: t.Boolean(),
+          message: t.String(),
+          data: t.Any(),
+        }),
+        400: StockInVoucherModel.errorResponse,
+        500: StockInVoucherModel.errorResponse,
+      },
+      detail: {
+        tags: ["Stock In Voucher"],
+        summary: "Update Stock In Voucher (Metadata)",
+      },
+    },
+  )
+  .put(
+    "/:id/status-batch",
+    async (context) => {
+      const { params, body, set, user } = context as typeof context &
+        AuthContextUser;
+      try {
+        const result = await StockInVoucherService.updateBatchCardStatus(
+          params.id,
+          body.updates,
+          user.id,
+        );
+        return result;
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      body: StockInVoucherModel.updateBatchStatusBody,
+      response: {
+        200: t.Object({
+          success: t.Boolean(),
+          message: t.String(),
+        }),
+        400: StockInVoucherModel.errorResponse,
+        500: StockInVoucherModel.errorResponse,
+      },
+      detail: {
+        tags: ["Stock In Voucher"],
+        summary: "Update Voucher Batch Cards Status (QC)",
       },
     },
   )
@@ -473,7 +596,6 @@ const stockInVoucher = new Elysia({ prefix: "/voucher" })
     async (context) => {
       const { params, user, set } = context as typeof context & AuthContextUser;
       try {
-        // Reusing delete from service (transaction)
         const result = await StockInVoucherService.delete(params.id, user.id);
         return result;
       } catch (error) {
@@ -483,8 +605,8 @@ const stockInVoucher = new Elysia({ prefix: "/voucher" })
     },
     {
       response: {
-        200: VoucherModel.errorResponse, // { success, message }
-        500: VoucherModel.errorResponse,
+        400: StockInVoucherModel.errorResponse,
+        500: StockInVoucherModel.errorResponse,
       },
       detail: {
         tags: ["Stock In Voucher"],

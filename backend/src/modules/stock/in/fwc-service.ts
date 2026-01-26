@@ -596,6 +596,12 @@ export class StockInFwcService {
         },
       });
 
+      await ActivityLogService.createActivityLog(
+        userId,
+        "UPDATE_STOCK_IN_FWC",
+        `Updated Stock In FWC ID: ${id} (New Qty: ${newQuantity})`,
+      );
+
       return updatedMovement;
     });
 

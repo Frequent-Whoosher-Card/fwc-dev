@@ -42,11 +42,15 @@ const redeemRoutes = new Elysia()
         description:
           "Get card details, member info, and status by serial number",
       },
-    }
+    },
   )
   .post(
     "/",
-    async ({ body: { serialNumber, redeemType, product, notes }, user, set }) => {
+    async ({
+      body: { serialNumber, redeemType, product, notes },
+      user,
+      set,
+    }) => {
       try {
         if (!user?.stationId) {
           set.status = 400;
@@ -59,7 +63,7 @@ const redeemRoutes = new Elysia()
           user.id,
           user.stationId,
           product,
-          notes
+          notes,
         );
 
         return {
@@ -80,9 +84,10 @@ const redeemRoutes = new Elysia()
       detail: {
         summary: "Redeem Card Ticket",
         tags: ["Redeem"],
-        description: "Redeem a ticket from the card. Type: SINGLE (1) or ROUNDTRIP (2)",
+        description:
+          "Redeem a ticket from the card. Type: SINGLE (1) or ROUNDTRIP (2)",
       },
-    }
+    },
   );
 
 const listRedeemRoutes = new Elysia()
@@ -93,8 +98,8 @@ const listRedeemRoutes = new Elysia()
     "/",
     async ({ query, set }) => {
       try {
-        const page = query.page ? parseInt(query.page as string) : 1;
-        const limit = query.limit ? parseInt(query.limit as string) : 10;
+        const page = query.page ? parseInt(query.page) : 1;
+        const limit = query.limit ? parseInt(query.limit) : 10;
 
         const result = await RedeemService.getRedeems({
           page,
@@ -121,7 +126,15 @@ const listRedeemRoutes = new Elysia()
             : 500;
         return formatErrorResponse(error);
       }
-    }
+    },
+    {
+      query: RedeemModel.getRedeemsQuery,
+      detail: {
+        summary: "List Redeem Transactions",
+        tags: ["Redeem"],
+        description: "Get list of redeem transactions with filters",
+      },
+    },
   )
   // Get Redeem Detail
   .get(
@@ -153,7 +166,7 @@ const listRedeemRoutes = new Elysia()
         tags: ["Redeem"],
         description: "Get detail of a redeem transaction",
       },
-    }
+    },
   )
   // Update Redeem (Notes)
   .patch(
@@ -186,7 +199,7 @@ const listRedeemRoutes = new Elysia()
         tags: ["Redeem"],
         description: "Update redeem transaction (notes only)",
       },
-    }
+    },
   );
 
 // Delete route (soft delete + restore quota). Not allowed for role 'petugas'.
@@ -217,9 +230,8 @@ const deleteRedeemRoutes = new Elysia()
         tags: ["Redeem"],
         description: "Soft delete redeem and restore consumed quota to card",
       },
-    }
+    },
   );
-
 
 // Export route (all roles). Export daily report in CSV/XLSX
 const exportRedeemRoutes = new Elysia()
@@ -230,16 +242,19 @@ const exportRedeemRoutes = new Elysia()
     async ({ query, user, set }) => {
       try {
         const date = (query as any)?.date as string | undefined; // YYYY-MM-DD
-        const format = ((((query as any)?.format as string | undefined) || "csv") as "csv" | "xlsx" | "pdf" | "jpg"); // csv|xlsx|pdf|jpg
-        const { buffer, contentType, filename } = await RedeemService.exportDailyReport({
-          date,
-          userId: user!.id,
-          stationId: user!.stationId!,
-          format,
-        });
+        const format = (((query as any)?.format as string | undefined) ||
+          "csv") as "csv" | "xlsx" | "pdf" | "jpg"; // csv|xlsx|pdf|jpg
+        const { buffer, contentType, filename } =
+          await RedeemService.exportDailyReport({
+            date,
+            userId: user!.id,
+            stationId: user!.stationId!,
+            format,
+          });
         set.headers["Content-Type"] = contentType;
         set.headers["Content-Disposition"] = `attachment; filename=${filename}`;
-        const body = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+        const body =
+          buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
         return new Response(body as any);
       } catch (error) {
         set.status = 500;
@@ -250,11 +265,11 @@ const exportRedeemRoutes = new Elysia()
       detail: {
         summary: "Export daily redeem report",
         tags: ["Redeem"],
-        description: "Export today's redeem transactions for operator (CSV/XLSX/PDF/JPG)",
+        description:
+          "Export today's redeem transactions for operator (CSV/XLSX/PDF/JPG)",
       },
-    }
+    },
   );
-
 
 // Upload last redeem documentation (role: petugas)
 const lastDocRoutes = new Elysia()
@@ -265,7 +280,12 @@ const lastDocRoutes = new Elysia()
     async ({ params: { id }, body, user, set }) => {
       try {
         const { imageBase64, mimeType } = body as any;
-        const result = await RedeemService.uploadLastRedeemDoc(id, imageBase64, mimeType, user!.id);
+        const result = await RedeemService.uploadLastRedeemDoc(
+          id,
+          imageBase64,
+          mimeType,
+          user!.id,
+        );
         return {
           success: true,
           message: "Last redeem documentation uploaded",
@@ -281,9 +301,10 @@ const lastDocRoutes = new Elysia()
       detail: {
         summary: "Upload last redeem documentation",
         tags: ["Redeem"],
-        description: "Upload a photo when performing the last redeem (prev quota 1 or 2)",
+        description:
+          "Upload a photo when performing the last redeem (prev quota 1 or 2)",
       },
-    }
+    },
   );
 
 export const redeem = new Elysia({ prefix: "/redeem" })
