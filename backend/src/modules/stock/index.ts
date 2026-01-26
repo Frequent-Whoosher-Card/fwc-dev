@@ -1,4 +1,4 @@
-import { Elysia } from "elysia";
+import { Elysia, t } from "elysia";
 import { formatErrorResponse } from "../../utils/errors";
 import { StockModel } from "./model";
 import { StockService } from "./service";
@@ -36,7 +36,7 @@ export const stock = new Elysia({ prefix: "/stock" })
         summary: "Get Low Stock Alerts",
         description: "Mendapatkan notifikasi stok menipis.",
       },
-    }
+    },
   )
   .get(
     "/",
@@ -98,7 +98,7 @@ export const stock = new Elysia({ prefix: "/stock" })
         summary: "Get All Stock Movements",
         description: "Unified history of all Stock IN and Stock OUT movements.",
       },
-    }
+    },
   )
   .get(
     "/:id",
@@ -119,6 +119,9 @@ export const stock = new Elysia({ prefix: "/stock" })
       }
     },
     {
+      params: t.Object({
+        id: t.String({ format: "uuid" }),
+      }),
       response: {
         200: StockModel.getDetailResponse, // Schema defined as Any for flexibility
         400: StockModel.errorResponse,
@@ -133,5 +136,5 @@ export const stock = new Elysia({ prefix: "/stock" })
         tags: ["Stock Analysis"],
         summary: "Get Stock Movement Detail",
       },
-    }
+    },
   );

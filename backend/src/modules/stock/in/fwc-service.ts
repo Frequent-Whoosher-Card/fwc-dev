@@ -279,6 +279,7 @@ export class StockInFwcService {
       movementType: item.movementType,
       quantity: item.quantity,
       status: item.status,
+      batchId: item.batchId,
       note: item.note,
       createdByName: item.createdBy
         ? userMap.get(item.createdBy) || null
@@ -343,6 +344,7 @@ export class StockInFwcService {
         movementType: movement.movementType,
         quantity: movement.quantity,
         status: movement.status,
+        batchId: movement.batchId,
         note: movement.note,
         createdAt: movement.createdAt.toISOString(),
         createdByName,

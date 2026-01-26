@@ -65,6 +65,7 @@ export namespace StockInFwcModel {
           movementType: t.String(),
           quantity: t.Number(),
           status: t.String(),
+          batchId: t.Union([t.String(), t.Null()]),
           note: t.Union([t.String(), t.Null()]),
           createdByName: t.Union([t.String(), t.Null()]),
           cardCategory: t.Object({
@@ -99,6 +100,7 @@ export namespace StockInFwcModel {
         movementType: t.String(),
         quantity: t.Number(),
         status: t.String(),
+        batchId: t.Union([t.String(), t.Null()]),
         note: t.Union([t.String(), t.Null()]),
         createdAt: t.String(),
         createdByName: t.Union([t.String(), t.Null()]),

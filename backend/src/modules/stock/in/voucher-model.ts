@@ -17,6 +17,7 @@ export const stockInVoucherResponse = t.Object({
     movementAt: t.String(),
     quantity: t.Number(),
     status: t.String(),
+    batchId: t.Union([t.String(), t.Null()]),
     note: t.Union([t.String(), t.Null()]),
     category: t.Object({
       id: t.String(),
