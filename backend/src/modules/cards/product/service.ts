@@ -68,6 +68,7 @@ export class CardProductService {
     return cardProducts.map((product) => ({
       ...product,
       price: product.price.toString(),
+      isDiscount: product.isDiscount ?? false,
       type: product.type
         ? {
             id: product.type.id,
@@ -91,6 +92,7 @@ export class CardProductService {
     return {
       ...cardProduct,
       price: cardProduct.price.toString(),
+      isDiscount: cardProduct.isDiscount ?? false,
     };
   }
 
@@ -105,6 +107,7 @@ export class CardProductService {
     price: number,
     userId: string,
     maxQuantity?: number,
+    isDiscount?: boolean,
   ) {
     const [cardCategory, cardType] = await Promise.all([
       db.cardCategory.findUnique({
@@ -196,6 +199,7 @@ export class CardProductService {
           serialTemplate: generatedSerialTemplate.toString(),
           programType: programType,
           maxQuantity,
+          isDiscount: isDiscount ?? false,
           updatedAt: new Date(),
           updatedBy: userId,
         },
@@ -210,6 +214,7 @@ export class CardProductService {
       return {
         ...restoredProduct,
         price: restoredProduct.price.toString(),
+        isDiscount: restoredProduct.isDiscount ?? false,
       };
     }
 
@@ -223,6 +228,7 @@ export class CardProductService {
         serialTemplate: generatedSerialTemplate.toString(),
         programType: programType,
         maxQuantity,
+        isDiscount: isDiscount ?? false,
         isActive: true,
         createdAt: new Date(),
         createdBy: userId,
@@ -240,6 +246,7 @@ export class CardProductService {
     return {
       ...createCardProduct,
       price: createCardProduct.price.toString(),
+      isDiscount: createCardProduct.isDiscount ?? false,
     };
   }
 
@@ -255,6 +262,7 @@ export class CardProductService {
     price: number,
     userId: string,
     maxQuantity?: number,
+    isDiscount?: boolean,
   ) {
     const [cardCategory, cardType] = await Promise.all([
       db.cardCategory.findUnique({
@@ -329,6 +337,7 @@ export class CardProductService {
         serialTemplate: generatedSerialTemplate.toString(),
         programType: programType,
         maxQuantity,
+        isDiscount: isDiscount !== undefined ? isDiscount : undefined,
         updatedAt: new Date(),
         updatedBy: userId,
       },
@@ -344,6 +353,7 @@ export class CardProductService {
       ...updateCardProduct,
       price: updateCardProduct.price.toString(),
       serialTemplate: updateCardProduct.serialTemplate.toString(),
+      isDiscount: updateCardProduct.isDiscount ?? false,
     };
   }
 
@@ -381,6 +391,7 @@ export class CardProductService {
     return {
       ...deleteCardProduct,
       price: deleteCardProduct.price.toString(),
+      isDiscount: deleteCardProduct.isDiscount ?? false,
     };
   }
 }
