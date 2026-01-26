@@ -242,14 +242,18 @@ export default function UserManagementPage() {
           value={station}
           onChange={(e) => setStation(e.target.value)}
           disabled={loadingStation}
-          className="h-10 min-w-[160px] rounded-lg border px-4 text-sm"
+          className={`h-10 min-w-[160px] cursor-pointer rounded-lg border px-4 text-sm outline-none transition-colors ${
+            station !== "all"
+              ? "border-[#8D1231] bg-[#8D1231] text-white"
+              : "border-gray-300 bg-white text-gray-700 hover:border-[#8D1231] focus:bg-[#8D1231] focus:text-white"
+          }`}
         >
-          <option value="all" disabled={loadingStation}>
+          <option value="all" disabled={loadingStation} className="bg-[#8D1231] text-white">
             {loadingStation ? "Loading stasiun..." : "Stasiun"}
           </option>
 
           {stations.map((s) => (
-            <option key={s.id} value={s.id}>
+            <option key={s.id} value={s.id} className="bg-[#8D1231] text-white">
               {s.stationName}
             </option>
           ))}
@@ -260,14 +264,18 @@ export default function UserManagementPage() {
           value={role}
           onChange={(e) => setRole(e.target.value)}
           disabled={loadingRole}
-          className="h-10 min-w-[160px] rounded-lg border px-4 text-sm"
+          className={`h-10 min-w-[160px] cursor-pointer rounded-lg border px-4 text-sm outline-none transition-colors ${
+            role !== "all"
+              ? "border-[#8D1231] bg-[#8D1231] text-white"
+              : "border-gray-300 bg-white text-gray-700 hover:border-[#8D1231] focus:bg-[#8D1231] focus:text-white"
+          }`}
         >
-          <option value="all" disabled={loadingRole}>
+          <option value="all" disabled={loadingRole} className="bg-[#8D1231] text-white">
             {loadingRole ? "Loading role..." : "Role"}
           </option>
 
           {roles.map((r) => (
-            <option key={r.id} value={r.id}>
+            <option key={r.id} value={r.id} className="bg-[#8D1231] text-white">
               {r.roleName}
             </option>
           ))}
@@ -279,7 +287,11 @@ export default function UserManagementPage() {
             setRole("all");
             setStation("all");
           }}
-          className="flex h-10 w-10 items-center justify-center rounded-lg border"
+          className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
+            search || role !== "all" || station !== "all"
+              ? "border-[#8D1231] bg-[#8D1231] text-white hover:bg-[#73122E]"
+              : "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
+          }`}
         >
           <RotateCcw size={16} />
         </button>
