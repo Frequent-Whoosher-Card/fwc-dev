@@ -89,12 +89,12 @@ function cropTight(src: any, pad = 0) {
 export class CardGenerateService {
   static async generate(params: {
     cardProductId: string;
-    startSerial: string;
-    endSerial: string;
+    startSerial?: string;
+    endSerial?: string;
+    quantity?: number;
     userId: string;
   }) {
-    // ... existing generate logic ...
-    const { cardProductId, startSerial, endSerial, userId } = params;
+    const { cardProductId, startSerial, endSerial, quantity, userId } = params;
 
     // --- 1. PRE-TRANSACTION VALIDATION & SETUP ---
 
@@ -111,15 +111,80 @@ export class CardGenerateService {
       throw new ValidationError("Produk tidak ditemukan");
     }
 
-    // Smart Parsing Logic
+    if (product.programType === "VOUCHER") {
+      throw new ValidationError(
+        "Produk voucher harus di-generate melalui endpoint /cards/generate/voucher",
+      );
+    }
+
+    // --- Strategy Selection: Manual vs Auto ---
+    let finalStartSerial = startSerial;
+    let finalEndSerial = endSerial;
+
+    // Condition 1: Missing Serials -> Auto Calculate using Quantity
+    if (!startSerial && !endSerial) {
+      if (!quantity) {
+        throw new ValidationError(
+          "Start/End Serial atau Quantity harus diisi.",
+        );
+      }
+      if (quantity > 1000) {
+        throw new ValidationError("Maksimal 1000 kartu per batch (Auto).");
+      }
+
+      // Auto-Calculate Logic
+      const yearSuffix = new Date().getFullYear().toString().slice(-2);
+      const prefix = `${product.serialTemplate}${yearSuffix}`;
+
+      // Find last serial
+      let lastSuffix = 0;
+      try {
+        const result = await db.$queryRaw<Array<{ serial_number: string }>>`
+          SELECT serial_number 
+          FROM cards 
+          WHERE card_product_id = ${product.id}::uuid
+            AND serial_number LIKE ${prefix || ""} || '%'
+          ORDER BY serial_number DESC 
+          LIMIT 1
+        `;
+        if (result && result.length > 0) {
+          const lastSn = result[0].serial_number;
+          const suffixStr = lastSn.slice(prefix.length);
+          if (/^\d+$/.test(suffixStr)) {
+            lastSuffix = parseInt(suffixStr, 10);
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to check last card sequence (Auto)", e);
+      }
+
+      const startNum = lastSuffix + 1;
+      const endNum = startNum + quantity - 1;
+
+      // Format back to strings
+      finalStartSerial = `${prefix}${startNum.toString().padStart(5, "0")}`;
+      finalEndSerial = `${prefix}${endNum.toString().padStart(5, "0")}`;
+    }
+    // Condition 2: Explicit Serials provided
+    else if (startSerial && endSerial) {
+      // Continue with provided serials
+      finalStartSerial = startSerial;
+      finalEndSerial = endSerial;
+    } else {
+      throw new ValidationError(
+        "Start Serial dan End Serial harus diisi keduanya.",
+      );
+    }
+
+    // Smart Parsing Logic (Validate final calculated serials)
     const yearSuffix = new Date().getFullYear().toString().slice(-2);
     const startNum = parseSmartSerial(
-      startSerial,
+      finalStartSerial!,
       product.serialTemplate,
       yearSuffix,
     );
     const endNum = parseSmartSerial(
-      endSerial,
+      finalEndSerial!,
       product.serialTemplate,
       yearSuffix,
     );
@@ -128,9 +193,9 @@ export class CardGenerateService {
       throw new ValidationError("End Serial harus >= Start Serial");
     }
 
-    // Limit check
-    const quantity = endNum - startNum + 1;
-    if (quantity > 1000) {
+    // Limit check (Recalculate quantity to be sure)
+    const qty = endNum - startNum + 1;
+    if (qty > 1000) {
       throw new ValidationError("Maksimal 1000 kartu per batch");
     }
 
@@ -143,7 +208,7 @@ export class CardGenerateService {
         },
       });
 
-      if (totalCards + quantity > product.maxQuantity) {
+      if (totalCards + qty > product.maxQuantity) {
         const unsoldCardsCount = await db.card.count({
           where: {
             cardProductId: product.id,
@@ -211,7 +276,15 @@ export class CardGenerateService {
     if (lastCard && lastCard.serialNumber.startsWith(prefix)) {
       const lastSuffixStr = lastCard.serialNumber.slice(prefix.length);
       if (/^\d+$/.test(lastSuffixStr)) {
-        expectedStartNum = Number(lastSuffixStr) + 1;
+        // Enforce 5-digit suffix logic: if remaining is longer than 5, it's a mismatch
+        if (lastSuffixStr.length > 5) {
+          // If we are in FWC mode but the suffix is too long, it's likely a data corruption or wrong mode.
+          // But we'll try to just take the last 5.
+          const actualSuffix = lastSuffixStr.slice(-5);
+          expectedStartNum = Number(actualSuffix) + 1;
+        } else {
+          expectedStartNum = Number(lastSuffixStr) + 1;
+        }
       }
     }
 
@@ -229,7 +302,7 @@ export class CardGenerateService {
     const width = 5;
     const serialNumbers: string[] = [];
 
-    for (let i = 0; i < quantity; i++) {
+    for (let i = 0; i < qty; i++) {
       const sfx = String(startNum + i).padStart(width, "0");
       serialNumbers.push(`${product.serialTemplate}${yearSuffix}${sfx}`);
     }
@@ -246,21 +319,17 @@ export class CardGenerateService {
       );
     }
 
-    return await this.processGeneration(
-      product,
-      serialNumbers,
-      userId,
-      product.programType || "FWC",
-    );
+    return await this.processGeneration(product, serialNumbers, userId, "FWC");
   }
 
   static async generateVoucher(params: {
     cardProductId: string;
-    startSerial: string;
-    endSerial: string;
+    startSerial?: string;
+    endSerial?: string;
+    quantity?: number;
     userId: string;
   }) {
-    const { cardProductId, startSerial, endSerial, userId } = params;
+    const { cardProductId, startSerial, endSerial, quantity, userId } = params;
 
     const product = await db.cardProduct.findUnique({
       where: { id: cardProductId },
@@ -274,9 +343,19 @@ export class CardGenerateService {
       throw new ValidationError("Produk tidak ditemukan");
     }
 
+    if (product.programType === "FWC") {
+      throw new ValidationError(
+        "Produk FWC harus di-generate melalui endpoint /cards/generate (POST /)",
+      );
+    }
+
     if (product.programType !== "VOUCHER") {
       throw new ValidationError("Produk ini bukan tipe VOUCHER");
     }
+
+    // --- Strategy Selection: Manual vs Auto ---
+    let finalStartSerial = startSerial;
+    let finalEndSerial = endSerial;
 
     // Smart Parsing for Voucher: Template + YYMMDD + Suffix
     const dateObj = new Date();
@@ -285,13 +364,63 @@ export class CardGenerateService {
     const dd = String(dateObj.getDate()).padStart(2, "0");
     const datePrefix = `${yy}${mm}${dd}`;
 
+    if (!startSerial && !endSerial) {
+      if (!quantity) {
+        throw new ValidationError(
+          "Start/End Serial atau Quantity harus diisi.",
+        );
+      }
+      if (quantity > 1000) {
+        throw new ValidationError("Maksimal 1000 voucher per batch (Auto).");
+      }
+
+      // Auto-Calculate Logic
+      const prefix = `${product.serialTemplate}${datePrefix}`;
+
+      // Find last serial
+      let lastSuffix = 0;
+      try {
+        const result = await db.$queryRaw<Array<{ serial_number: string }>>`
+          SELECT serial_number 
+          FROM cards 
+          WHERE card_product_id = ${product.id}::uuid
+            AND serial_number LIKE ${prefix || ""} || '%'
+          ORDER BY serial_number DESC 
+          LIMIT 1
+        `;
+        if (result && result.length > 0) {
+          const lastSn = result[0].serial_number;
+          const suffixStr = lastSn.slice(prefix.length);
+          if (/^\d+$/.test(suffixStr)) {
+            lastSuffix = parseInt(suffixStr, 10);
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to check last voucher sequence (Auto)", e);
+      }
+
+      const startNum = lastSuffix + 1;
+      const endNum = startNum + quantity - 1;
+
+      // Format back to strings
+      finalStartSerial = `${prefix}${startNum.toString().padStart(5, "0")}`;
+      finalEndSerial = `${prefix}${endNum.toString().padStart(5, "0")}`;
+    } else if (startSerial && endSerial) {
+      finalStartSerial = startSerial;
+      finalEndSerial = endSerial;
+    } else {
+      throw new ValidationError(
+        "Start Serial dan End Serial harus diisi keduanya.",
+      );
+    }
+
     const startNum = parseSmartSerial(
-      startSerial,
+      finalStartSerial!,
       product.serialTemplate,
       datePrefix,
     );
     const endNum = parseSmartSerial(
-      endSerial,
+      finalEndSerial!,
       product.serialTemplate,
       datePrefix,
     );
@@ -300,8 +429,8 @@ export class CardGenerateService {
       throw new ValidationError("End Serial harus >= Start Serial");
     }
 
-    const quantity = endNum - startNum + 1;
-    if (quantity > 1000) {
+    const qty = endNum - startNum + 1;
+    if (qty > 1000) {
       throw new ValidationError("Maksimal 1000 voucher per batch");
     }
 
@@ -314,7 +443,7 @@ export class CardGenerateService {
         },
       });
 
-      if (totalCards + quantity > product.maxQuantity) {
+      if (totalCards + qty > product.maxQuantity) {
         const unsoldCardsCount = await db.card.count({
           where: {
             cardProductId: product.id,
@@ -358,7 +487,9 @@ export class CardGenerateService {
     if (lastCard && lastCard.serialNumber.startsWith(fullPrefix)) {
       const lastSuffixStr = lastCard.serialNumber.slice(fullPrefix.length);
       if (/^\d+$/.test(lastSuffixStr)) {
-        expectedStartNum = Number(lastSuffixStr) + 1;
+        // Enforce 5-digit suffix: take only last 5 digits as number
+        const actualSuffix = lastSuffixStr.slice(-5);
+        expectedStartNum = Number(actualSuffix) + 1;
       }
     }
 
@@ -373,7 +504,7 @@ export class CardGenerateService {
     const serialNumbers: string[] = [];
     const width = 5;
 
-    for (let i = 0; i < quantity; i++) {
+    for (let i = 0; i < qty; i++) {
       const sfx = String(startNum + i).padStart(width, "0");
       serialNumbers.push(`${fullPrefix}${sfx}`);
     }
@@ -594,6 +725,7 @@ export class CardGenerateService {
         firstSerial: serialNumbers[0],
         lastSerial: serialNumbers[serialNumbers.length - 1],
         generatedFilesCount: generatedFiles.length,
+        movementId: transactionResult.id,
       };
     } catch (error) {
       // --- CLEANUP ON ERROR ---
@@ -876,7 +1008,9 @@ export class CardGenerateService {
       lastSerial = lastCard.serialNumber;
       const lastSuffixStr = lastCard.serialNumber.slice(prefix.length);
       if (/^\d+$/.test(lastSuffixStr)) {
-        nextSuffix = Number(lastSuffixStr) + 1;
+        // Enforce 5-digit suffix logic
+        const actualSuffix = lastSuffixStr.slice(-5);
+        nextSuffix = Number(actualSuffix) + 1;
       }
     }
 
@@ -1057,6 +1191,101 @@ export class CardGenerateService {
       return {
         success: true,
         message: `Berhasil menghapus batch kartu (${movement.quantity} kartu).`,
+      };
+    });
+  }
+
+  static async uploadDocument(params: {
+    batchId: string;
+    file: File;
+    userId: string;
+  }) {
+    const { batchId, file, userId } = params;
+
+    const movement = await db.cardStockMovement.findUnique({
+      where: { id: batchId },
+    });
+
+    if (!movement) {
+      throw new ValidationError("Batch generation tidak ditemukan");
+    }
+
+    if (movement.movementType !== "GENERATED") {
+      throw new ValidationError("ID yang diberikan bukan batch generation");
+    }
+
+    // Validation
+    if (file.type !== "application/pdf") {
+      throw new ValidationError("File harus format PDF");
+    }
+
+    const maxSize = 1 * 1024 * 1024; // 1MB
+    if (file.size > maxSize) {
+      throw new ValidationError("Ukuran file maksimal 1MB");
+    }
+
+    const storageRoot = path.join(process.cwd(), "storage/document/generate");
+    if (!fs.existsSync(storageRoot)) {
+      fs.mkdirSync(storageRoot, { recursive: true });
+    }
+
+    const ext = ".pdf";
+    const filename = `DOC-${batchId}-${Date.now()}${ext}`;
+    const absolutePath = path.join(storageRoot, filename);
+    const relativePath = `storage/document/generate/${filename}`;
+
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    await fs.promises.writeFile(absolutePath, buffer);
+
+    return await db.$transaction(async (tx) => {
+      // Create File Object
+      const fileObject = await tx.fileObject.create({
+        data: {
+          originalName: file.name || "document.pdf",
+          storedName: filename,
+          relativePath: relativePath,
+          mimeType: "application/pdf",
+          sizeBytes: file.size,
+          purpose: "GENERATION_DOCUMENT",
+          createdBy: userId,
+        },
+      });
+
+      // Check if old doc exists to delete?
+      if (movement.fileObjectId) {
+        const oldFile = await tx.fileObject.findUnique({
+          where: { id: movement.fileObjectId },
+        });
+        if (oldFile) {
+          // Delete old file physically
+          const oldPath = path.join(process.cwd(), oldFile.relativePath);
+          if (fs.existsSync(oldPath)) {
+            try {
+              await fs.promises.unlink(oldPath);
+            } catch (e) {
+              console.warn("Gagal hapus file lama:", e);
+            }
+          }
+          // Delete old record
+          await tx.fileObject.delete({ where: { id: oldFile.id } });
+        }
+      }
+
+      // Link to movement
+      const updatedMovement = await tx.cardStockMovement.update({
+        where: { id: batchId },
+        data: {
+          fileObjectId: fileObject.id,
+        },
+      });
+
+      return {
+        success: true,
+        message: "Dokumen berhasil diupload",
+        fileId: fileObject.id,
+        filename: fileObject.originalName,
       };
     });
   }

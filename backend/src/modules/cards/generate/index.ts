@@ -28,8 +28,9 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
       try {
         const result = await CardGenerateService.generate({
           cardProductId: body.cardProductId,
-          startSerial: body.startSerial,
-          endSerial: body.endSerial,
+          startSerial: body.startSerial as string,
+          endSerial: body.endSerial as string,
+          quantity: body.quantity,
           userId: user.id || "00000000-0000-0000-0000-000000000000",
         });
 
@@ -73,8 +74,9 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
       try {
         const result = await CardGenerateService.generateVoucher({
           cardProductId: body.cardProductId,
-          startSerial: body.startSerial,
-          endSerial: body.endSerial,
+          startSerial: body.startSerial as string,
+          endSerial: body.endSerial as string,
+          quantity: body.quantity,
           userId: user.id || "00000000-0000-0000-0000-000000000000",
         });
 
@@ -297,6 +299,49 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
         summary: "Delete Generated Batch",
         description:
           "Delete a generated batch. Allowed ONLY if cards are still ON_REQUEST (not stocked in).",
+      },
+    },
+  )
+  .post(
+    "/history/:id/document",
+    async (context) => {
+      const { params, body, set, user } = context as typeof context &
+        AuthContextUser;
+      try {
+        const result = await CardGenerateService.uploadDocument({
+          batchId: params.id,
+          file: body.file,
+          userId: user.id,
+        });
+        return {
+          status: "success",
+          message: result.message,
+          data: result,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      params: t.Object({
+        id: t.String({ format: "uuid" }),
+      }),
+      body: CardGenerateModel.uploadDocumentBody,
+      response: {
+        200: CardGenerateModel.uploadDocumentResponse,
+        400: CardGenerateModel.errorResponse,
+        404: CardGenerateModel.errorResponse,
+        500: CardGenerateModel.errorResponse,
+      },
+      detail: {
+        tags: ["Generate"],
+        summary: "Upload Generation Document",
+        description:
+          "Upload PDF document (Berita Acara/BAST) for a generation batch.",
       },
     },
   );

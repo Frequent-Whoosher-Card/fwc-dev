@@ -14,6 +14,7 @@ export namespace CardProductModel {
         masaBerlaku: t.Number(),
         maxQuantity: t.Nullable(t.Number()),
         price: t.String(),
+        isDiscount: t.Boolean(),
         serialTemplate: t.String(),
         programType: t.Nullable(
           t.Union([t.Literal("FWC"), t.Literal("VOUCHER")]),
@@ -60,6 +61,7 @@ export namespace CardProductModel {
       masaBerlaku: t.Number(),
       maxQuantity: t.Nullable(t.Number()),
       price: t.String(),
+      isDiscount: t.Boolean(),
       serialTemplate: t.String(),
       programType: t.Nullable(
         t.Union([t.Literal("FWC"), t.Literal("VOUCHER")]),
@@ -107,6 +109,9 @@ export namespace CardProductModel {
     price: t.Number({
       description: "Harga",
     }),
+    isDiscount: t.Optional(
+      t.Boolean({ description: "Apakah produk ini diskon bulk?" }),
+    ),
   });
 
   // Create Card Product Response
@@ -121,6 +126,7 @@ export namespace CardProductModel {
       masaBerlaku: t.Number(),
       maxQuantity: t.Nullable(t.Number()),
       price: t.String(),
+      isDiscount: t.Boolean(),
       serialTemplate: t.String(),
       programType: t.Nullable(
         t.Union([t.Literal("FWC"), t.Literal("VOUCHER")]),
@@ -168,6 +174,9 @@ export namespace CardProductModel {
       minLength: 2,
       maxLength: 2,
     }),
+    isDiscount: t.Optional(
+      t.Boolean({ description: "Apakah produk ini diskon bulk?" }),
+    ),
   });
 
   // Update Card Product Response
@@ -182,6 +191,7 @@ export namespace CardProductModel {
       masaBerlaku: t.Number(),
       maxQuantity: t.Nullable(t.Number()),
       price: t.String(),
+      isDiscount: t.Boolean(),
       serialTemplate: t.String(),
       programType: t.Nullable(
         t.Union([t.Literal("FWC"), t.Literal("VOUCHER")]),
@@ -208,6 +218,7 @@ export namespace CardProductModel {
       masaBerlaku: t.Number(),
       maxQuantity: t.Nullable(t.Number()),
       price: t.String(),
+      isDiscount: t.Boolean(),
       isActive: t.Boolean(),
       createdAt: t.Nullable(t.Date()),
       createdBy: t.Nullable(t.String()),

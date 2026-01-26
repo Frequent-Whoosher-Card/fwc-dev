@@ -2,16 +2,17 @@ import { t } from "elysia";
 
 export namespace CardGenerateModel {
   export const generateBody = t.Object({
-    cardProductId: t.String({ format: "uuid" }), // Changed from categoryId/typeId
-    // Removed strict regex pattern to allow alphanumeric full serials (validated by logic)
-    startSerial: t.String(),
-    endSerial: t.String(),
+    cardProductId: t.String({ format: "uuid" }),
+    startSerial: t.Optional(t.String()),
+    endSerial: t.Optional(t.String()),
+    quantity: t.Optional(t.Number()),
   });
 
   export const generateVoucherBody = t.Object({
     cardProductId: t.String({ format: "uuid" }),
-    startSerial: t.String(),
-    endSerial: t.String(),
+    startSerial: t.Optional(t.String()),
+    endSerial: t.Optional(t.String()),
+    quantity: t.Optional(t.Number()),
   });
 
   export const generateVoucherResponse = t.Object({
@@ -22,6 +23,7 @@ export namespace CardGenerateModel {
       firstSerial: t.String(),
       lastSerial: t.String(),
       generatedFilesCount: t.Number(),
+      movementId: t.String(),
     }),
   });
 
@@ -33,6 +35,22 @@ export namespace CardGenerateModel {
       firstSerial: t.String(),
       lastSerial: t.String(),
       generatedFilesCount: t.Number(),
+      movementId: t.String(),
+    }),
+  });
+
+  export const uploadDocumentBody = t.Object({
+    file: t.File(),
+  });
+
+  export const uploadDocumentResponse = t.Object({
+    success: t.Boolean(),
+    message: t.String(),
+    data: t.Object({
+      success: t.Boolean(),
+      message: t.String(),
+      fileId: t.String(),
+      filename: t.String(),
     }),
   });
 
