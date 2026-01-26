@@ -8,7 +8,7 @@ on:
 
 jobs:
   deploy-backend-azure:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - name: Setup SSH
@@ -29,25 +29,24 @@ jobs:
             flock 9
             echo "Lock acquired"
 
-            echo "== Load NVM & Node 24.12.0 =="
+
+            echo "== Set PATH for Node, Bun, and PM2 =="
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-            nvm use 24.12.0
+            export PATH="$HOME/.nvm/versions/node/v24.12.0/bin:$HOME/.bun/bin:$PATH"
+            which node
+            which bun
+            which pm2
 
-            echo "== Load Bun (non-interactive SSH fix) =="
-            export BUN_INSTALL="$HOME/.bun"
-            export PATH="$BUN_INSTALL/bin:$PATH"
 
             echo "== Verify runtime =="
             node -v
             npm -v
-            command -v bun
             bun --version
-
-            PM2="$HOME/.nvm/versions/node/v24.12.0/bin/pm2"
+            pm2 --version
 
             echo "== Ensure branch is main & sync code safely =="
-            cd /home/fwc/fwc-dev
+            cd "$HOME/fwc-prod"
             git fetch origin
             git checkout main
             git reset --hard origin/main
@@ -57,10 +56,20 @@ jobs:
             bun install
 
             echo "== Generate Prisma client =="
-            bunx prisma generate
+            npx prisma generate
 
-            echo "== Restart backend via PM2 =="
-            $PM2 restart fwc-backend --update-env
+
+            echo "== Start backend via PM2 =="
+            if pm2 list | grep -q 'fwc-backend'; then
+              pm2 delete fwc-backend
+            fi
+            pm2 start "bun run src/index.ts" --name fwc-backend
+
+            echo "== Save PM2 process list =="
+            pm2 save
+
+            echo "== PM2 list check =="
+            pm2 list
 
             echo "== Backend deploy finished successfully =="
           EOF

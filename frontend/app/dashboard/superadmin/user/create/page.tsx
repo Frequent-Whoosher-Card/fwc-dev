@@ -53,7 +53,7 @@ export default function CreateUserPage() {
   /* ======================
      HELPERS (BEST PRACTICE)
   ====================== */
-  const sanitizeNip = (value: string) => value.replace(/\D/g, "").slice(0, 20);
+  const sanitizeNip = (value: string) => value.replace(/\D/g, "").slice(0, 8);
 
   const sanitizeUsername = (value: string) =>
     value.toLowerCase().replace(/[^a-z0-9_]/g, "");
@@ -110,8 +110,8 @@ export default function CreateUserPage() {
       newErrors.name = "Name must be at least 3 characters";
 
     if (!form.nip) newErrors.nip = "NIP is required";
-    else if (form.nip.length < 6 || form.nip.length > 20)
-      newErrors.nip = "NIP must be 6–20 digits";
+    else if (form.nip.length > 8)
+      newErrors.nip = "NIP max 8 digits";
 
     if (!form.username) newErrors.username = "Username is required";
     else if (form.username.length < 4)
@@ -215,7 +215,7 @@ export default function CreateUserPage() {
                 className="h-11 w-full rounded-md border px-4 text-sm"
               />
               <p className="mt-1 text-xs text-gray-400">
-                6–20 digit, hanya angka
+                Maksimal 8 digit, hanya angka
               </p>
             </div>
 
@@ -280,7 +280,7 @@ export default function CreateUserPage() {
               />
 
               <p className="mt-1 text-xs text-gray-400">
-                Gunakan format internasional (+kode negara)
+                Masukkan nomor telepon yang valid
               </p>
             </div>
 

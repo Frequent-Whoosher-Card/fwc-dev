@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import axios from "@/lib/axios";
+import SuccessModal from "../../../membership/components/ui/SuccessModal";
 
 /* ======================
    STYLE
@@ -116,6 +117,10 @@ export default function EditTransactionPage() {
   // editable transaksi
   const [edcRef, setEdcRef] = useState("");
   const [note, setNote] = useState("");
+
+  // modal confirmation
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // card mismatch correction
   const [showCorrection, setShowCorrection] = useState(false);
@@ -307,8 +312,14 @@ export default function EditTransactionPage() {
   /* ======================
      SUBMIT
   ====================== */
-  async function handleSubmit(e: React.FormEvent) {
+  function openConfirmDialog(e: React.FormEvent) {
     e.preventDefault();
+    setShowConfirm(true);
+  }
+
+  async function handleConfirmSubmit() {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
 
     try {
       const updateData: any = {};
@@ -327,13 +338,20 @@ export default function EditTransactionPage() {
 
       await axios.patch(`/purchases/${id}`, updateData);
 
-      alert("Transaksi berhasil diperbarui");
       router.back();
     } catch (error: any) {
       const message =
         error.response?.data?.error?.message || "Gagal memperbarui transaksi";
       alert(message);
+    } finally {
+      setIsSubmitting(false);
+      setShowConfirm(false);
     }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    openConfirmDialog(e);
   }
 
   if (loading) return <div className="p-6">Memuat data…</div>;
@@ -614,11 +632,45 @@ export default function EditTransactionPage() {
         )}
 
         <div className="flex justify-end pt-4">
-          <button className="rounded-md bg-[#8B1538] px-8 py-2 text-sm font-medium text-white hover:bg-[#73122E]">
-            Simpan Perubahan
+          <button 
+            type="submit"
+            disabled={isSubmitting}
+            className="rounded-md bg-[#8B1538] px-8 py-2 text-sm font-medium text-white hover:bg-[#73122E] disabled:opacity-50"
+          >
+            {isSubmitting ? "Menyimpan..." : "Simpan Perubahan"}
           </button>
         </div>
       </form>
+
+      <SuccessModal
+        open={showConfirm}
+        title="Edit Transaction Data"
+        message="Please review the transaction data before saving"
+        data={{
+          // Customer
+          "Customer Name": customerName || "-",
+          "Identity Number": identityNumber || "-",
+          "NIP": nip || "-",
+          
+          // Card Info
+          "Card Category": categoryName || "-",
+          "Card Type": typeName || "-",
+          "Serial Number": serialNumber || "-",
+          
+          // Transaction
+          "Purchase Date": formatDate(purchaseDate),
+          "Shift Date": formatDate(shiftDate),
+          "Price": rupiah(price),
+          "No. Reference EDC": edcRef || "-",
+          
+          // Operational
+          "Operator": operatorName || "-",
+          "Station": stationName || "-",
+          "Notes": note || "-",
+        }}
+        onClose={() => setShowConfirm(false)}
+        onConfirm={handleConfirmSubmit}
+      />
     </div>
   );
 }

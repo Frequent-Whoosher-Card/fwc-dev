@@ -8,7 +8,7 @@ on:
 
 jobs:
   deploy-frontend-azure:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - name: Setup SSH
@@ -29,19 +29,23 @@ jobs:
             flock 9
             echo "Lock acquired"
 
-            echo "== Load NVM & Node 24.12.0 =="
+
+            echo "== Set PATH for Node and PM2 =="
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-            nvm use 24.12.0
+            export PATH="$HOME/.nvm/versions/node/v24.12.0/bin:$HOME/.bun/bin:$PATH"
+            which node
+            which pm2
 
-            PM2="$HOME/.nvm/versions/node/v24.12.0/bin/pm2"
 
             echo "== Verify runtime =="
             node -v
             npm -v
+            pm2 --version
+
 
             echo "== Ensure branch is main & sync code safely =="
-            cd /home/fwc/fwc-dev
+            cd "$HOME/fwc-prod"
             git fetch origin
             git checkout main
             git reset --hard origin/main
@@ -53,8 +57,14 @@ jobs:
             echo "== Build frontend =="
             npm run build
 
+
             echo "== Restart frontend via PM2 =="
-            $PM2 restart fwc-frontend --update-env
+            if pm2 list | grep -q 'fwc-frontend'; then
+              pm2 delete fwc-frontend
+            fi
+            pm2 start npm --name fwc-frontend -- start
+            pm2 save
+            pm2 list
 
             echo "== Frontend deploy finished successfully =="
           EOF

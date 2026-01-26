@@ -144,12 +144,12 @@ export default function TransactionFilter({
      RENDER
   ====================== */
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-white px-4 py-3">
+    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center rounded-xl border bg-white px-4 py-3">
       {/* CATEGORY */}
       <select
         value={cardCategoryId ?? ""}
         onChange={(e) => onCardCategoryChange(e.target.value || undefined)}
-        className="h-9 rounded-md border px-3 text-sm bg-white text-gray-700 border-gray-300
+        className="h-9 w-full sm:w-auto sm:min-w-[180px] rounded-md border px-3 text-sm bg-white text-gray-700 border-gray-300
         focus:bg-[#8D1231] focus:text-white focus:border-[#8D1231]"
       >
         <option value="">
@@ -166,7 +166,7 @@ export default function TransactionFilter({
       <select
         value={cardTypeId ?? ""}
         onChange={(e) => onCardTypeChange(e.target.value || undefined)}
-        className="h-9 rounded-md border px-3 text-sm bg-white text-gray-700 border-gray-300
+        className="h-9 w-full sm:w-auto sm:min-w-[160px] rounded-md border px-3 text-sm bg-white text-gray-700 border-gray-300
         focus:bg-[#8D1231] focus:text-white focus:border-[#8D1231]"
       >
         <option value="">
@@ -180,11 +180,11 @@ export default function TransactionFilter({
       </select>
 
       {/* STATION */}
-      <div ref={stationRef} className="relative">
+      <div ref={stationRef} className="relative w-full sm:w-auto">
         <button
           type="button"
           onClick={() => setOpenStation((v) => !v)}
-          className="flex h-9 w-[160px] items-center justify-between rounded-md bg-[#8D1231] px-3 text-sm text-white"
+          className="flex h-9 w-full sm:w-[160px] items-center justify-between rounded-md bg-[#8D1231] px-3 text-sm text-white"
         >
           <span className="truncate">{selectedStation}</span>
           <ChevronDown size={16} />
@@ -219,13 +219,13 @@ export default function TransactionFilter({
       </div>
 
       {/* PURCHASE DATE */}
-      <div className="relative">
+      <div className="relative w-full sm:w-auto">
         <input
           ref={purchasedRef}
           type="date"
           value={purchasedDate ?? ""}
           onChange={(e) => onPurchasedDateChange(e.target.value || undefined)}
-          className="h-9 w-[160px] rounded-md border px-3 pr-9 text-sm
+          className="h-9 w-full sm:w-[160px] rounded-md border px-3 pr-9 text-sm
           [&::-webkit-calendar-picker-indicator]:hidden"
         />
         <Calendar
@@ -236,13 +236,13 @@ export default function TransactionFilter({
       </div>
 
       {/* SHIFT DATE */}
-      <div className="relative">
+      <div className="relative w-full sm:w-auto">
         <input
           ref={shiftRef}
           type="date"
           value={shiftDate ?? ""}
           onChange={(e) => onShiftDateChange(e.target.value || undefined)}
-          className="h-9 w-[160px] rounded-md border px-3 pr-9 text-sm
+          className="h-9 w-full sm:w-[160px] rounded-md border px-3 pr-9 text-sm
           [&::-webkit-calendar-picker-indicator]:hidden"
         />
         <Calendar
@@ -253,10 +253,10 @@ export default function TransactionFilter({
       </div>
 
       {/* RESET + PDF */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 w-full sm:w-auto">
         <button
           onClick={onReset}
-          className={`h-9 w-9 rounded-md border flex items-center justify-center
+          className={`h-9 w-9 rounded-md border flex items-center justify-center shrink-0
           ${
             isFilterActive
               ? "bg-[#8D1231] text-white"
@@ -268,47 +268,21 @@ export default function TransactionFilter({
 
         <button
           onClick={onExportPDF}
-          className="h-9 px-4 rounded-md bg-[#8D1231] text-white flex items-center gap-2 hover:bg-[#73122E]"
+          className="h-9 flex-1 sm:flex-none sm:px-4 rounded-md bg-[#8D1231] text-white flex items-center justify-center gap-2 hover:bg-[#73122E]"
         >
           <Download size={16} />
-          PDF
+          <span className="text-sm">PDF</span>
         </button>
 
         <button
           onClick={onExportShiftPDF}
-          className="h-9 px-4 rounded-md bg-[#0F766E] text-white flex items-center gap-2 hover:bg-[#0D5F58]"
+          className="h-9 flex-1 sm:flex-none sm:px-4 rounded-md bg-[#0F766E] text-white flex items-center justify-center gap-2 hover:bg-[#0D5F58]"
         >
           <Download size={16} />
-          Shift
+          <span className="text-sm">Shift</span>
         </button>
       </div>
 
-      {/* TAB SWITCH (FIXED UI) */}
-      <div className="ml-auto flex shrink-0 overflow-hidden rounded-md border border-gray-300">
-        <button
-          onClick={() => onTabChange("fwc")}
-          className={`h-8 min-w-[64px] px-4 text-xs transition
-          ${
-            activeTab === "fwc"
-              ? "bg-[#8D1231] text-white"
-              : "bg-white text-gray-600 hover:bg-gray-100"
-          }`}
-        >
-          FWC
-        </button>
-
-        <button
-          onClick={() => onTabChange("voucher")}
-          className={`h-8 min-w-[72px] px-4 text-xs transition
-          ${
-            activeTab === "voucher"
-              ? "bg-[#8D1231] text-white"
-              : "bg-white text-gray-600 hover:bg-gray-100"
-          }`}
-        >
-          Voucher
-        </button>
-      </div>
     </div>
   );
 }
