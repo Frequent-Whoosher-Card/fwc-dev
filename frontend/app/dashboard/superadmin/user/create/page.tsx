@@ -184,9 +184,26 @@ export default function CreateUserPage() {
       // ✅ LANGSUNG KE LIST
       router.push("/dashboard/superadmin/user");
     } catch (err: any) {
-      console.error("CREATE USER ERROR FULL:", err);
+      const errorMessage = err?.response?.data?.message || err?.message || "Failed to create user";
 
-      toast.error(err?.response?.data?.message ?? "Failed to create user");
+      // Handle duplicate username explicitly
+      if (
+        errorMessage.includes("Unique constraint failed") && 
+        errorMessage.includes("username")
+      ) {
+        // Suppress console.error for known validation error
+        console.warn("Validation Error: Duplicate username detected.");
+        
+        setErrors((prev) => ({
+          ...prev,
+          username: "Username sudah digunakan, silakan pilih yang lain",
+        }));
+        toast.error("Username sudah terdaftar!");
+      } else {
+        // Log genuine unexpected errors
+        console.error("CREATE USER ERROR FULL:", err);
+        toast.error(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -266,6 +283,9 @@ export default function CreateUserPage() {
               <p className="mt-1 text-xs text-gray-400">
                 Huruf kecil, tanpa spasi
               </p>
+              {errors.username && (
+                <p className="mt-1 text-xs text-red-500">{errors.username}</p>
+              )}
             </div>
 
             {/* ROLE */}
