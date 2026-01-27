@@ -7,7 +7,7 @@ interface SuccessModalProps {
   open: boolean;
   title?: string;
   message?: string;
-  data?: Record<string, any>;
+  data?: Record<string, React.ReactNode>; // Allow ReactNode
   onClose?: () => void;
   onConfirm?: () => void;
 
@@ -101,7 +101,7 @@ export default function SuccessModal({
 
                 {/* VALUE */}
                 <div className="px-4 py-2 text-gray-900 font-medium break-words">
-                  {value || "-"}
+                  {value}
                 </div>
               </div>
             ))}
