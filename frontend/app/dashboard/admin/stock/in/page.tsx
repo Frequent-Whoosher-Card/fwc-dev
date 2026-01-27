@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import toast from 'react-hot-toast';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { StockProvider } from '@/app/dashboard/superadmin/stock/context/StockContext';
-import { StockSummary } from '@/app/dashboard/superadmin/stock/components/StockSummary';
+import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { StockProvider } from "@/app/dashboard/superadmin/stock/context/StockContext";
+import { StockSummary } from "@/components/stock/StockSummary";
 
-type CardCategory = 'Gold' | 'Silver' | 'KAI';
-type CardType = 'JaBan' | 'JaKa' | 'KaBan' | '';
+type CardCategory = "Gold" | "Silver" | "KAI";
+type CardType = "JaBan" | "JaKa" | "KaBan" | "";
 
 interface StockIn {
   id: string;
@@ -22,24 +22,21 @@ export default function AdminStockInPage() {
   const [showForm, setShowForm] = useState(false);
   const [stockData, setStockData] = useState<StockIn[]>([]);
 
-  const [form, setForm] = useState<Omit<StockIn, 'id'>>({
-    tanggal: '',
-    category: 'Gold',
-    type: '',
+  const [form, setForm] = useState<Omit<StockIn, "id">>({
+    tanggal: "",
+    category: "Gold",
+    type: "",
     stock: 0,
   });
 
   const handleSubmit = () => {
     if (!form.tanggal || form.stock <= 0) return;
 
-    setStockData((prev) => [
-      ...prev,
-      { ...form, id: Date.now().toString() },
-    ]);
+    setStockData((prev) => [...prev, { ...form, id: Date.now().toString() }]);
 
-    setForm({ tanggal: '', category: 'Gold', type: '', stock: 0 });
+    setForm({ tanggal: "", category: "Gold", type: "", stock: 0 });
     setShowForm(false);
-    toast.success('Stock berhasil ditambahkan');
+    toast.success("Stock berhasil ditambahkan");
   };
 
   return (
@@ -111,7 +108,7 @@ export default function AdminStockInPage() {
                   <button
                     onClick={() =>
                       setStockData((prev) =>
-                        prev.filter((i) => i.id !== row.id)
+                        prev.filter((i) => i.id !== row.id),
                       )
                     }
                     className="text-red-500 underline"

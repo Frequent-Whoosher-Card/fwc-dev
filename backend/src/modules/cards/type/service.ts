@@ -185,7 +185,7 @@ export class CardTypeService {
       recommendedInt++;
     }
 
-    // Pad with leading zero if single digit, e.g., "01", "02" ... "09", "10"
+    // For numeric gaps, e.g., if 01 and 03 exist, returns "02" as string
     return recommendedInt.toString();
   }
 }

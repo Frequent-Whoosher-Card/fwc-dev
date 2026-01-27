@@ -1,5 +1,6 @@
 import db from "../../config/db";
 import { ValidationError } from "../../utils/errors";
+import { ActivityLogService } from "../activity-log/service";
 
 export class InboxService {
   /**
@@ -361,12 +362,6 @@ export class InboxService {
           });
         }
       }
-      // If REJECT, we typically do nothing to the cards (they remain IN_TRANSIT or whatever they were).
-      // Or we could revert them to IN_OFFICE?
-      // Current agreement: "Approve" confirms the loss/damage. "Reject" implies they are NOT lost/damaged.
-      // If they are not lost, they should probably be "IN_TRANSIT" waiting to be received again?
-      // Leaving them as is seems safest for now.
-
       // Mark Inbox as Processed
       await tx.inbox.update({
         where: { id: inboxId },
@@ -378,6 +373,12 @@ export class InboxService {
           updatedAt: new Date(),
         },
       });
+
+      await ActivityLogService.createActivityLog(
+        adminUserId,
+        "APPROVE_STOCK_ISSUE",
+        `Resolved Stock Issue (Inbox ${inboxId}): ${action}. Lost=${lostSerialNumbers?.length || 0}, Damaged=${damagedSerialNumbers?.length || 0}`,
+      );
     });
 
     return { success: true, action };

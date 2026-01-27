@@ -118,6 +118,8 @@ const adminRoutes = new Elysia()
           body.serialTemplate,
           body.price,
           user.id,
+          body.maxQuantity,
+          body.isDiscount,
         );
 
         return {
@@ -166,6 +168,8 @@ const adminRoutes = new Elysia()
           body.serialTemplate,
           body.price,
           user.id,
+          body.maxQuantity,
+          body.isDiscount,
         );
 
         return {

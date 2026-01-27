@@ -10,6 +10,7 @@ type GetInventoryParams = {
   categoryName?: string;
   typeName?: string;
   stationName?: string;
+  programType?: "FWC" | "VOUCHER";
 };
 
 interface InventoryMonitorOptions {
@@ -21,6 +22,7 @@ interface InventoryMonitorOptions {
   categoryName?: string;
   typeName?: string;
   stationName?: string;
+  programType?: "FWC" | "VOUCHER";
 }
 
 export class CardInventoryService {
@@ -35,6 +37,7 @@ export class CardInventoryService {
       categoryName,
       typeName,
       stationName,
+      programType,
     } = params;
     const skip = (page - 1) * limit;
 
@@ -42,8 +45,13 @@ export class CardInventoryService {
     const cardWhere: any = {};
 
     // Filter by Product (Category/Type)
-    if (categoryId || typeId || categoryName || typeName) {
+    if (categoryId || typeId || categoryName || typeName || programType) {
       const productWhere: any = {};
+      if (programType) {
+        productWhere.category = {
+          programType: programType,
+        };
+      }
       if (categoryId) productWhere.categoryId = categoryId;
       if (typeId) productWhere.typeId = typeId;
       if (categoryName) {
@@ -94,7 +102,13 @@ export class CardInventoryService {
 
     // Include valid statuses for inventory
     cardWhere.status = {
-      in: ["IN_OFFICE", "IN_STATION", "SOLD_ACTIVE", "SOLD_INACTIVE"],
+      in: [
+        "IN_OFFICE",
+        "IN_STATION",
+        "IN_TRANSIT",
+        "SOLD_ACTIVE",
+        "SOLD_INACTIVE",
+      ],
     };
 
     // 2. Aggregate from Cards
@@ -132,7 +146,7 @@ export class CardInventoryService {
       const status = item.status;
 
       if (status === "IN_OFFICE") entry.cardOffice += count;
-      else if (status === "IN_STATION") {
+      else if (status === "IN_STATION" || status === "IN_TRANSIT") {
         entry.cardBelumTerjual += count;
         entry.cardBeredar += count;
       } else if (status === "SOLD_ACTIVE") {
@@ -236,7 +250,13 @@ export class CardInventoryService {
     // Recalculate numbers
     const cardWhere: any = {
       status: {
-        in: ["IN_OFFICE", "IN_STATION", "SOLD_ACTIVE", "SOLD_INACTIVE"],
+        in: [
+          "IN_OFFICE",
+          "IN_STATION",
+          "IN_TRANSIT",
+          "SOLD_ACTIVE",
+          "SOLD_INACTIVE",
+        ],
       },
       cardProduct: {
         categoryId: inventoryMeta.categoryId,
@@ -264,7 +284,7 @@ export class CardInventoryService {
     for (const c of counts) {
       const count = c._count._all;
       if (c.status === "IN_OFFICE") cardOffice += count;
-      else if (c.status === "IN_STATION") {
+      else if (c.status === "IN_STATION" || c.status === "IN_TRANSIT") {
         cardBelumTerjual += count;
         cardBeredar += count;
       } else if (c.status === "SOLD_ACTIVE") {
@@ -304,10 +324,17 @@ export class CardInventoryService {
       categoryName,
       typeName,
       stationName,
+      programType,
     } = opts;
 
     // 1. Build Product Filter (to get Category/Type info)
     const productWhere: any = {};
+    if (programType) {
+      productWhere.category = {
+        programType: programType,
+      };
+    }
+
     if (categoryId) productWhere.categoryId = categoryId;
     if (typeId) productWhere.typeId = typeId;
     if (categoryName) {
@@ -349,6 +376,7 @@ export class CardInventoryService {
         in: [
           "IN_OFFICE",
           "IN_STATION",
+          "IN_TRANSIT",
           "SOLD_ACTIVE",
           "SOLD_INACTIVE",
         ] as any[],
@@ -432,7 +460,8 @@ export class CardInventoryService {
         const status = item.status;
 
         if (status === "IN_OFFICE") entry.totalOffice += count;
-        else if (status === "IN_STATION") entry.totalBelumTerjual += count;
+        else if (status === "IN_STATION" || status === "IN_TRANSIT")
+          entry.totalBelumTerjual += count;
         else if (status === "SOLD_ACTIVE") entry.totalAktif += count;
         else if (status === "SOLD_INACTIVE") entry.totalNonAktif += count;
       }
@@ -460,7 +489,7 @@ export class CardInventoryService {
   }
 
   // Get Station Summary
-  static async getStationSummary() {
+  static async getStationSummary(programType?: "FWC" | "VOUCHER") {
     // 1. Ambil data stasiun dahulu (Master data biasanya tidak terlalu besar)
     const stations = await db.station.findMany({
       select: {
@@ -472,11 +501,16 @@ export class CardInventoryService {
     });
 
     // 2. Aggregate inventory berdasarkan stationId (Realtime Count)
+    const cardWhere: any = {
+      status: "IN_STATION",
+    };
+
+    if (programType) {
+      cardWhere.cardProduct = { category: { programType } };
+    }
     const cardCounts = await db.card.groupBy({
       by: ["stationId", "status"],
-      where: {
-        status: "IN_STATION", // Hanya IN_STATION yang dihitung sebagai stok stasiun?
-      },
+      where: cardWhere,
       _count: { _all: true },
     });
     // Note: cardBelumTerjual = IN_STATION.
@@ -541,6 +575,7 @@ export class CardInventoryService {
       search,
       categoryName,
       typeName,
+      programType,
     } = params;
     const skip = (page - 1) * limit;
 
@@ -550,8 +585,13 @@ export class CardInventoryService {
     };
 
     // Filter by Product (Category/Type)
-    if (categoryId || typeId || categoryName || typeName) {
+    if (categoryId || typeId || categoryName || typeName || programType) {
       const productWhere: any = {};
+      if (programType) {
+        productWhere.category = {
+          programType: programType,
+        };
+      }
       if (categoryId) productWhere.categoryId = categoryId;
       if (typeId) productWhere.typeId = typeId;
       if (categoryName) {
@@ -652,27 +692,40 @@ export class CardInventoryService {
     };
   }
 
-  static async getTotalSummary() {
+  static async getTotalSummary(programType?: "FWC" | "VOUCHER") {
+    const where: any = {};
+    if (programType) {
+      where.cardProduct = { category: { programType } };
+    }
+
     // Menghitung total jumlah seluruh kartu dari tabel Card
     const [totalCards, totalLost, totalDamaged, totalIn, totalOut] =
       await Promise.all([
         // Total All Active = (Office + Transit + Station + Sold)
         db.card.count({
           where: {
+            ...where,
             status: {
-              in: ["IN_OFFICE", "IN_STATION", "SOLD_ACTIVE", "SOLD_INACTIVE"],
+              in: [
+                "IN_OFFICE",
+                "IN_STATION",
+                "IN_TRANSIT",
+                "SOLD_ACTIVE",
+                "SOLD_INACTIVE",
+              ],
             },
           },
         }),
-        db.card.count({ where: { status: "LOST" } }),
-        db.card.count({ where: { status: "DAMAGED" } }),
+        db.card.count({ where: { ...where, status: "LOST" } }),
+        db.card.count({ where: { ...where, status: "DAMAGED" } }),
         // Total In = Currently In Office
-        db.card.count({ where: { status: "IN_OFFICE" } }),
+        db.card.count({ where: { ...where, status: "IN_OFFICE" } }),
         // Total Out = Distributed (Station + Sold) - Exclude Transit
         db.card.count({
           where: {
+            ...where,
             status: {
-              in: ["IN_STATION", "SOLD_ACTIVE", "SOLD_INACTIVE"],
+              in: ["IN_STATION", "IN_TRANSIT", "SOLD_ACTIVE", "SOLD_INACTIVE"],
             },
           },
         }),
@@ -706,18 +759,26 @@ export class CardInventoryService {
       categoryName,
       typeName,
       stationName,
+      programType,
     } = opts;
 
     const cardWhere: any = {
       // stationId: { not: null }, // Allow nulls to catch unassigned/orphaned cards (Sold but no station)
-      status: { in: ["IN_STATION", "SOLD_ACTIVE", "SOLD_INACTIVE"] },
+      status: {
+        in: ["IN_STATION", "IN_TRANSIT", "SOLD_ACTIVE", "SOLD_INACTIVE"],
+      },
     };
 
     if (stationId) cardWhere.stationId = stationId;
 
     // Filter Product
-    if (categoryId || typeId || categoryName || typeName) {
+    if (categoryId || typeId || categoryName || typeName || programType) {
       const productWhere: any = {};
+      if (programType) {
+        productWhere.category = {
+          programType: programType,
+        };
+      }
       if (categoryId) productWhere.categoryId = categoryId;
       if (typeId) productWhere.typeId = typeId;
       if (categoryName) {

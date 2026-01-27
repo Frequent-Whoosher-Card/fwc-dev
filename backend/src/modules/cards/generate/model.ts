@@ -2,15 +2,17 @@ import { t } from "elysia";
 
 export namespace CardGenerateModel {
   export const generateBody = t.Object({
-    cardProductId: t.String({ format: "uuid" }), // Changed from categoryId/typeId
-    // Removed strict regex pattern to allow alphanumeric full serials (validated by logic)
-    startSerial: t.String(),
-    endSerial: t.String(),
+    cardProductId: t.String({ format: "uuid" }),
+    startSerial: t.Optional(t.String()),
+    endSerial: t.Optional(t.String()),
+    quantity: t.Optional(t.Number()),
   });
 
   export const generateVoucherBody = t.Object({
     cardProductId: t.String({ format: "uuid" }),
-    quantity: t.Number({ minimum: 1, maximum: 1000 }),
+    startSerial: t.Optional(t.String()),
+    endSerial: t.Optional(t.String()),
+    quantity: t.Optional(t.Number()),
   });
 
   export const generateVoucherResponse = t.Object({
@@ -21,6 +23,7 @@ export namespace CardGenerateModel {
       firstSerial: t.String(),
       lastSerial: t.String(),
       generatedFilesCount: t.Number(),
+      movementId: t.String(),
     }),
   });
 
@@ -32,12 +35,29 @@ export namespace CardGenerateModel {
       firstSerial: t.String(),
       lastSerial: t.String(),
       generatedFilesCount: t.Number(),
+      movementId: t.String(),
+    }),
+  });
+
+  export const uploadDocumentBody = t.Object({
+    file: t.File(),
+  });
+
+  export const uploadDocumentResponse = t.Object({
+    success: t.Boolean(),
+    message: t.String(),
+    data: t.Object({
+      success: t.Boolean(),
+      message: t.String(),
+      fileId: t.String(),
+      filename: t.String(),
     }),
   });
 
   // Error Response
   export const errorResponse = t.Object({
     success: t.Boolean(),
+    message: t.Optional(t.String()),
     error: t.Object({
       message: t.String(),
       code: t.String(),
@@ -53,6 +73,7 @@ export namespace CardGenerateModel {
     endDate: t.Optional(t.String({ format: "date" })),
     categoryId: t.Optional(t.String({ format: "uuid" })),
     typeId: t.Optional(t.String({ format: "uuid" })),
+    programType: t.Optional(t.Union([t.Literal("FWC"), t.Literal("VOUCHER")])),
   });
 
   // History Response
@@ -68,6 +89,7 @@ export namespace CardGenerateModel {
           status: t.String(),
           note: t.Union([t.String(), t.Null()]),
           createdByName: t.Union([t.String(), t.Null()]),
+          programType: t.Union([t.String(), t.Null()]),
           category: t.Object({
             id: t.String(),
             name: t.String(),
@@ -86,6 +108,14 @@ export namespace CardGenerateModel {
               createdAt: t.String(),
             }),
           ),
+          document: t.Union([
+            t.Object({
+              id: t.String(),
+              filename: t.String(),
+              url: t.String(),
+            }),
+            t.Null(),
+          ]),
         }),
       ),
       pagination: t.Object({
@@ -109,6 +139,7 @@ export namespace CardGenerateModel {
         status: t.String(),
         note: t.Union([t.String(), t.Null()]),
         createdByName: t.Union([t.String(), t.Null()]),
+        programType: t.Union([t.String(), t.Null()]),
         category: t.Object({
           id: t.String(),
           name: t.String(),
@@ -118,6 +149,14 @@ export namespace CardGenerateModel {
           name: t.String(),
         }),
         serialNumbers: t.Array(t.String()),
+        document: t.Union([
+          t.Object({
+            id: t.String(),
+            filename: t.String(),
+            url: t.String(),
+          }),
+          t.Null(),
+        ]),
       }),
       cards: t.Array(
         t.Object({
