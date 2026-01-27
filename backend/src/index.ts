@@ -146,7 +146,7 @@ const app = new Elysia()
     const filePath = path.join(process.cwd(), "storage", cleanPath);
     return Bun.file(filePath);
   })
-  .listen(3001);
+  .listen(3041);
 
 console.log(
   `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
