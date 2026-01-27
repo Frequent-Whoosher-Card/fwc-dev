@@ -70,6 +70,10 @@ export namespace StockInVoucherModel {
 
   export const errorResponse = t.Object({
     success: t.Boolean(),
-    message: t.String(),
+    error: t.Object({
+      message: t.String(),
+      code: t.String(),
+      statusCode: t.Number(),
+    }),
   });
 }
