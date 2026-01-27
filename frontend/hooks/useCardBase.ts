@@ -20,16 +20,16 @@ export const useCardBase = ({ programType }: UseCardBaseProps) => {
   const [types, setTypes] = useState<TypeOption[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // PAGINATION STATES
-  const [page, setPage] = useState(1);
-  const [limit] = useState(10);
-
   // DELETE STATES
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [productIdToDelete, setProductIdToDelete] = useState<string | null>(
     null,
   );
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // PAGINATION STATES
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
