@@ -1,5 +1,5 @@
-import SuperadminTransactionPage from '@/app/dashboard/superadmin/transaksi/page';
+import TransactionPage from "@/components/transaction/TransactionPage";
 
 export default function AdminTransactionPage() {
-  return <SuperadminTransactionPage />;
+  return <TransactionPage role="admin" />;
 }

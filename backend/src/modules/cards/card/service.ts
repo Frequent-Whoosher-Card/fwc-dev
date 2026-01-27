@@ -41,9 +41,10 @@ export class CardService {
       where.status = enumStatus;
     }
 
-    // Search by serialNumber, Category Name, or Type Name
+    // Build search OR conditions
+    const searchConditions: any[] = [];
     if (search) {
-      where.OR = [
+      searchConditions.push(
         { serialNumber: { contains: search, mode: "insensitive" } },
         { notes: { contains: search, mode: "insensitive" } },
         {
@@ -60,8 +61,8 @@ export class CardService {
         },
         {
           station: { stationCode: { contains: search, mode: "insensitive" } },
-        },
-      ];
+        }
+      );
     }
 
     // Filter by Category/Type (Relations)
@@ -115,6 +116,11 @@ export class CardService {
 
     if (Object.keys(cardProductWhere).length > 0) {
       where.cardProduct = cardProductWhere;
+    }
+
+    // Apply search conditions using AND if other filters exist
+    if (searchConditions.length > 0) {
+      where.OR = searchConditions;
     }
 
     const skip = (page - 1) * limit;

@@ -154,6 +154,19 @@ export function useCardSelection() {
       const config = await getAppConfig();
       const availableStatus = config.cardStatus.available as CardStatus;
 
+      // Get user's stationId from localStorage
+      const userStr = localStorage.getItem("fwc_user");
+      let userStationId: string | null = null;
+      
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          userStationId = user.stationId || null;
+        } catch (err) {
+          console.error("Failed to parse user data:", err);
+        }
+      }
+
       // Search cards by serial number with optional filters
       const params: any = {
         search: query,
@@ -166,11 +179,20 @@ export function useCardSelection() {
       // Add filters only if category and type are selected
       if (categoryId) params.categoryId = categoryId;
       if (cardTypeId) params.typeId = cardTypeId;
+      
+      // Add stationId filter for user's station
+      if (userStationId) {
+        params.stationId = userStationId;
+      }
 
       const response = await axios.get("/cards", { params });
 
       const results = response.data?.data?.items || [];
-      setSearchResults(results);
+      // Sort results by serial number in ascending order
+      const sortedResults = results.sort((a: Card, b: Card) =>
+        a.serialNumber.localeCompare(b.serialNumber)
+      );
+      setSearchResults(sortedResults);
     } catch (error) {
       console.error("Error searching cards:", error);
       setSearchResults([]);
