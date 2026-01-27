@@ -34,6 +34,9 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
   const router = useRouter();
   const { categories, loading: loadingCategories } = useCategories();
 
+  // Input mode state
+  const [inputMode, setInputMode] = useState<"" | "manual" | "recommendation">("");
+
   const {
     form,
     isSubmitting,
@@ -172,131 +175,184 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
           <SectionCard title="Card">
             <Field>
               <FieldLabel>
-                Card Category
+                Mode Input Serial Number
                 <span className="ml-1 text-red-500">*</span>
               </FieldLabel>
               <FieldContent>
                 <select
                   className={baseInputClass}
-                  value={cardCategory}
-                  onChange={(e) => handleCategoryChange(e.target.value as any)}
-                  disabled={loadingCategories}
+                  value={inputMode}
+                  onChange={(e) => {
+                    const mode = e.target.value as "" | "manual" | "recommendation";
+                    setInputMode(mode);
+                    // Reset serial number and card states
+                    setSerialNumber("");
+                  }}
                 >
-                  <option value="">
-                    {loadingCategories ? "Loading..." : "Select"}
-                  </option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.value}>
-                      {cat.label}
-                    </option>
-                  ))}
+                  <option value="">Pilih Mode Input</option>
+                  <option value="manual">Input Manual / Scan Barcode</option>
+                  <option value="recommendation">Rekomendasi</option>
                 </select>
-                {!cardCategory && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    Pilih kategori kartu terlebih dahulu
-                  </p>
-                )}
-                <FieldError
-                  errors={
-                    errors.cardCategory ? [errors.cardCategory] : undefined
-                  }
-                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Pilih mode input serial number terlebih dahulu
+                </p>
               </FieldContent>
             </Field>
 
-            <Field>
-              <FieldLabel>
-                Card Type
-                <span className="ml-1 text-red-500">*</span>
-              </FieldLabel>
-              <FieldContent>
-                <select
-                  className={baseInputClass}
-                  value={cardTypeId}
-                  onChange={(e) => handleTypeChange(e.target.value)}
-                  disabled={!cardCategory || loadingTypes}
-                >
-                  <option value="">
-                    {loadingTypes ? "Loading..." : "Select"}
-                  </option>
-                  {cardTypes.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.typeName}
-                    </option>
-                  ))}
-                </select>
-                {!cardCategory ? (
-                  <p className="mt-1 text-xs text-amber-600">
-                    ⚠ Pilih Card Category terlebih dahulu
-                  </p>
-                ) : (
-                  cardCategory &&
-                  !cardTypeId && (
-                    <p className="mt-1 text-xs text-gray-500">
-                      Pilih tipe kartu
-                    </p>
-                  )
-                )}
-                <FieldError
-                  errors={errors.cardTypeId ? [errors.cardTypeId] : undefined}
-                />
-              </FieldContent>
-            </Field>
-
-            <Field>
-              <FieldLabel>
-                Serial Number
-                <span className="ml-1 text-red-500">*</span>
-              </FieldLabel>
-              <FieldContent>
-                <div className="relative">
+            {inputMode === "manual" && (
+              <Field>
+                <FieldLabel>
+                  Serial Number
+                  <span className="ml-1 text-red-500">*</span>
+                </FieldLabel>
+                <FieldContent>
                   <input
                     type="text"
                     className={baseInputClass}
                     value={serialNumber}
-                    onChange={(e) => handleCardSearch(e.target.value)}
-                    placeholder="Masukkan 2 digit tahun kartu dibuat + nomor (min 6 karakter)..."
+                    onChange={(e) => setSerialNumber(e.target.value)}
+                    placeholder="Masukkan atau scan serial number lengkap..."
                     autoComplete="off"
                   />
-                  {isSearching && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
-                    </div>
-                  )}
-                  {searchResults.length > 0 && (
-                    <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
-                      {searchResults.map((card) => (
-                        <button
-                          key={card.id}
-                          type="button"
-                          onClick={() => handleCardSelect(card)}
-                          className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
-                        >
-                          {card.serialNumber}
-                        </button>
+                  <FieldError
+                    errors={errors.cardId ? [errors.cardId] : undefined}
+                  />
+                </FieldContent>
+              </Field>
+            )}
+
+            {inputMode === "recommendation" && (
+              <>
+                <Field>
+                  <FieldLabel>
+                    Card Category
+                    <span className="ml-1 text-red-500">*</span>
+                  </FieldLabel>
+                  <FieldContent>
+                    <select
+                      className={baseInputClass}
+                      value={cardCategory}
+                      onChange={(e) => handleCategoryChange(e.target.value as any)}
+                      disabled={loadingCategories}
+                    >
+                      <option value="">
+                        {loadingCategories ? "Loading..." : "Select"}
+                      </option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.value}>
+                          {cat.label}
+                        </option>
                       ))}
+                    </select>
+                    {!cardCategory && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        Pilih kategori kartu terlebih dahulu
+                      </p>
+                    )}
+                    <FieldError
+                      errors={
+                        errors.cardCategory ? [errors.cardCategory] : undefined
+                      }
+                    />
+                  </FieldContent>
+                </Field>
+
+                <Field>
+                  <FieldLabel>
+                    Card Type
+                    <span className="ml-1 text-red-500">*</span>
+                  </FieldLabel>
+                  <FieldContent>
+                    <select
+                      className={baseInputClass}
+                      value={cardTypeId}
+                      onChange={(e) => handleTypeChange(e.target.value)}
+                      disabled={!cardCategory || loadingTypes}
+                    >
+                      <option value="">
+                        {loadingTypes ? "Loading..." : "Select"}
+                      </option>
+                      {cardTypes.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.typeName}
+                        </option>
+                      ))}
+                    </select>
+                    {!cardCategory ? (
+                      <p className="mt-1 text-xs text-amber-600">
+                        ⚠ Pilih Card Category terlebih dahulu
+                      </p>
+                    ) : (
+                      cardCategory &&
+                      !cardTypeId && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          Pilih tipe kartu
+                        </p>
+                      )
+                    )}
+                    <FieldError
+                      errors={errors.cardTypeId ? [errors.cardTypeId] : undefined}
+                    />
+                  </FieldContent>
+                </Field>
+
+                <Field>
+                  <FieldLabel>
+                    Serial Number
+                    <span className="ml-1 text-red-500">*</span>
+                  </FieldLabel>
+                  <FieldContent>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        className={baseInputClass}
+                        value={serialNumber}
+                        onChange={(e) => handleCardSearch(e.target.value)}
+                        placeholder="Masukkan 2 digit tahun kartu dibuat + nomor (min 6 karakter)..."
+                        autoComplete="off"
+                        disabled={!cardTypeId}
+                      />
+                      {isSearching && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+                        </div>
+                      )}
+                      {searchResults.length > 0 && (
+                        <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
+                          {searchResults.map((card) => (
+                            <button
+                              key={card.id}
+                              type="button"
+                              onClick={() => handleCardSelect(card)}
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                            >
+                              {card.serialNumber}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                {serialNumber &&
-                  searchResults.length === 0 &&
-                  !isSearching &&
-                  serialNumber.length >= 6 &&
-                  !cardId && (
-                    <p className="mt-1 text-xs text-red-600">
-                      Tidak ada kartu ditemukan dengan serial number ini
-                    </p>
-                  )}
-                {serialNumber.length > 0 && serialNumber.length < 6 && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    Masukkan 2 digit tahun kartu dibuat + nomor (minimal 6 karakter total)
-                  </p>
-                )}
-                <FieldError
-                  errors={errors.cardId ? [errors.cardId] : undefined}
-                />
-              </FieldContent>
-            </Field>
+                    {serialNumber &&
+                      searchResults.length === 0 &&
+                      !isSearching &&
+                      serialNumber.length >= 6 &&
+                      !cardId && (
+                        <p className="mt-1 text-xs text-red-600">
+                          Tidak ada kartu ditemukan dengan serial number ini
+                        </p>
+                      )}
+                    {serialNumber.length > 0 && serialNumber.length < 6 && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        Masukkan 2 digit tahun kartu dibuat + nomor (minimal 6 karakter total)
+                      </p>
+                    )}
+                    <FieldError
+                      errors={errors.cardId ? [errors.cardId] : undefined}
+                    />
+                  </FieldContent>
+                </Field>
+              </>
+            )}
 
             <Field>
               <FieldLabel>FWC Price</FieldLabel>
