@@ -1,5 +1,5 @@
 import EditPurchasePage from "@/components/transaction/EditPurchasePage";
 
 export default function Page() {
-  return <EditPurchasePage role="superadmin" />;
+  return <EditPurchasePage role="petugas" />;
 }
