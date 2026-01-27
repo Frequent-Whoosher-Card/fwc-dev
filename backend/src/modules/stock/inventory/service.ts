@@ -784,7 +784,7 @@ export class CardInventoryService {
     } = opts;
 
     const cardWhere: any = {
-      // stationId: { not: null }, // Allow nulls to catch unassigned/orphaned cards (Sold but no station)
+      stationId: { not: null }, // Only show valid stations
       status: {
         in: ["IN_STATION", "IN_TRANSIT", "SOLD_ACTIVE", "SOLD_INACTIVE"],
       },
