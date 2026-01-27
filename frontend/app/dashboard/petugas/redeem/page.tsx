@@ -39,7 +39,7 @@ export default function PetugasRedeemPage() {
   const [stationId, setStationId] = useState('');
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 50 });
+  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 10 });
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [uploadDocModalOpen, setUploadDocModalOpen] = useState(false);
@@ -78,17 +78,17 @@ export default function PetugasRedeemPage() {
   const loadRedeems = async (filters: RedeemFilterParams) => {
     setIsLoadingRedeems(true);
     try {
-      const payload = { ...filters };
+      const payload = { ...filters, limit: 10 };
       if (product === 'FWC' || product === 'VOUCHER') {
         payload.product = product;
       }
       const response = await redeemService.listRedeems(payload);
       setRedeems(response.data || []);
-      setPagination(response.pagination || { total: 0, page: 1, limit: 50 });
+      setPagination(response.pagination || { total: 0, page: 1, limit: 10 });
     } catch (error: any) {
       toast.error(error.message || 'Gagal mengambil data redeem');
       setRedeems([]);
-      setPagination({ total: 0, page: 1, limit: 50 });
+      setPagination({ total: 0, page: 1, limit: 10 });
     } finally {
       setIsLoadingRedeems(false);
     }
@@ -251,7 +251,7 @@ export default function PetugasRedeemPage() {
                 isOpen={createModalOpen}
                 onClose={() => setCreateModalOpen(false)}
                 onSuccess={() => {
-                  loadRedeems({ page: 1, limit: 50 });
+                  loadRedeems({ page: 1, limit: 10 });
                   setCurrentPage(1);
                 }}
                 product={product as 'FWC' | 'VOUCHER'}
@@ -267,7 +267,7 @@ export default function PetugasRedeemPage() {
                 onClose={() => setUploadDocModalOpen(false)}
                 data={selectedRedeem}
                 onSuccess={() => {
-                  loadRedeems({ page: 1, limit: 50 });
+                  loadRedeems({ page: 1, limit: 10 });
                   setCurrentPage(1);
                 }}
               />
@@ -276,7 +276,7 @@ export default function PetugasRedeemPage() {
                 onClose={() => setDeleteDialogOpen(false)}
                 data={selectedRedeem}
                 onSuccess={() => {
-                  loadRedeems({ page: currentPage, limit: 50 });
+                  loadRedeems({ page: currentPage, limit: 10 });
                 }}
               />
               <ExportRedeemModal
