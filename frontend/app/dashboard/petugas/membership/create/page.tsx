@@ -393,6 +393,16 @@ export default function AddMemberPage() {
     }
   }, [cardTypeId, categoryId, form.membershipDate, cardProducts]);
 
+  // Sync price from hook to form
+  useEffect(() => {
+    if (price > 0) {
+      setForm((prev) => ({
+        ...prev,
+        price: price.toString(),
+      }));
+    }
+  }, [price]);
+
   // DEPRECATED: Old useEffect and handlers (kept for reference, will be removed)
   // Load available cards when card product is selected
   useEffect(() => {
@@ -879,7 +889,7 @@ export default function AddMemberPage() {
         throw new Error("Gagal membuat transaksi");
       }
 
-      router.push("/dashboard/superadmin/transaksi");
+      router.push("/dashboard/petugas/transaksi");
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Gagal menyimpan data");
@@ -1449,9 +1459,10 @@ export default function AddMemberPage() {
           Address: form.address,
 
           // CARD
-          "Card Category": selectedCardProduct?.category.categoryName,
-          "Card Type": selectedCardProduct?.type.typeName,
-          "Serial Number": selectedCard?.serialNumber,
+          "Card Category": cardCategory || "-",
+          "Card Type":
+            cardTypes.find((t) => t.id === cardTypeId)?.typeName || "-",
+          "Serial Number": serialNumber || "-",
 
           // MEMBERSHIP
           "Membership Date": form.membershipDate,
@@ -1459,8 +1470,14 @@ export default function AddMemberPage() {
 
           // PURCHASE
           "Purchased Date": form.purchasedDate,
-          "FWC Price": form.price,
-          "Total Quota (Trips)": selectedCardProduct?.totalQuota,
+          "FWC Price": form.price || "-",
+          "Total Quota (Trips)":
+            cardProducts
+              .find(
+                (p: any) =>
+                  p.typeId === cardTypeId && p.categoryId === categoryId,
+              )
+              ?.totalQuota?.toString() || "-",
 
           // OPERATIONAL
           Stasiun: form.station,

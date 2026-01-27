@@ -1,5 +1,5 @@
 import CreatePurchasePage from "@/components/transaction/CreatePurchasePage";
 
 export default function Page() {
-  return <CreatePurchasePage role="petugas" />;
+  return <CreatePurchasePage role="admin" />;
 }
