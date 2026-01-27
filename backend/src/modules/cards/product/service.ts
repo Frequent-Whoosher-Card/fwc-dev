@@ -370,6 +370,20 @@ export class CardProductService {
       );
     }
 
+    // Check if cards have been generated for this product
+    const cardCount = await db.card.count({
+      where: {
+        cardProductId: id,
+      },
+    });
+
+    if (cardCount > 0) {
+      throw new ValidationError(
+        "Produk tidak bisa dihapus karena sudah memiliki data kartu yang dihasilkan (generated).",
+        "PRODUCT_HAS_GENERATED_CARDS",
+      );
+    }
+
     const deleteCardProduct = await db.cardProduct.update({
       where: {
         id,
