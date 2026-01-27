@@ -13,6 +13,7 @@ export interface CardProduct {
   serialTemplate: string;
   isActive: boolean;
   maxQuantity?: number;
+  isDiscount?: boolean;
   createdAt: string;
 
   category?: {

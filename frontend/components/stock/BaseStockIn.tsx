@@ -50,24 +50,6 @@ export default function BaseStockIn({ programType }: BaseStockInProps) {
     handleDelete,
   } = deleteModal;
 
-  if (programType === "VOUCHER") {
-    return (
-      <div className="space-y-6">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-4">
-            <h2 className="text-lg font-semibold whitespace-nowrap">
-              Stock In (Vendor → Office)
-            </h2>
-            <SwitchTab items={tabs} />
-          </div>
-        </div>
-        <div className="rounded-lg border bg-white p-20 text-center text-gray-400">
-          Data Voucher belum tersedia
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4">

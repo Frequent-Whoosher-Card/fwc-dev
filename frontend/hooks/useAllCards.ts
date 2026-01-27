@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import axiosInstance from "@/lib/axios";
 import toast from "react-hot-toast";
+import CardGenerateService from "@/lib/services/card.generate";
 
 export type CardStatus =
   | "ON_REQUEST"
@@ -23,6 +24,7 @@ export interface AllCardItem {
   cardTypeName: string;
   stationName: string;
   note: string;
+  isDiscount?: boolean;
 }
 
 interface PaginationMeta {
@@ -75,6 +77,11 @@ export const useAllCards = ({ programType }: UseAllCardsProps) => {
 
       const { items, pagination: paging } = res.data.data;
 
+      let products: any[] = [];
+      if (programType === "VOUCHER") {
+        products = await CardGenerateService.getProducts("VOUCHER");
+      }
+
       const mapped: AllCardItem[] = items.map((item: any) => ({
         id: item.id,
         serialNumber: item.serialNumber,
@@ -84,6 +91,10 @@ export const useAllCards = ({ programType }: UseAllCardsProps) => {
         cardTypeName: item.cardProduct?.type?.typeName ?? "-",
         stationName: item.station?.stationName ?? "-",
         note: item.notes ?? "-",
+        isDiscount:
+          programType === "VOUCHER"
+            ? products.find((p: any) => p.id === item.cardProductId)?.isDiscount
+            : undefined,
       }));
 
       setData(mapped);

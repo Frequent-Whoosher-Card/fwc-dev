@@ -18,6 +18,7 @@ export default function BaseStockInAdd({ programType }: BaseStockInAddProps) {
     saving,
     fetchAvailableSerial,
     handleSubmit,
+    maxAvailableSerial,
   } = useStockInForm({ programType });
 
   return (
@@ -109,6 +110,11 @@ export default function BaseStockInAdd({ programType }: BaseStockInAddProps) {
                 }
                 disabled={!form.productId}
               />
+              {maxAvailableSerial && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Serial yang tersedia sampai nomor {maxAvailableSerial}
+                </p>
+              )}
             </div>
           </div>
 
