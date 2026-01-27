@@ -4,8 +4,26 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import InboxFilter from "./components/InboxFilter";
 import InboxList from "./components/InboxList";
-import { API_BASE_URL } from "@/lib/apiConfig";
-import FormNoted from "./formnoted/page";
+import { InboxItemModel, InboxStatus } from "@/lib/services/inbox";
+
+// 🔥 FIREBASE IMPORT
+import {
+  collection,
+  onSnapshot,
+  query,
+  where,
+  orderBy,
+} from "firebase/firestore";
+import { getFirestoreDb } from "@/lib/firebase";
+
+import { fwcNotedService } from "./fwc/fwc.service";
+import { voucherNotedService } from "./voucher/voucher.service";
+
+type Product = "FWC" | "VOUCHER";
+
+const getNotedService = (product: Product) => {
+  return product === "FWC" ? fwcNotedService : voucherNotedService;
+};
 
 export default function InboxPage() {
   // =========================
@@ -13,157 +31,181 @@ export default function InboxPage() {
   // =========================
   const router = useRouter();
 
-  const [items, setItems] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeItem, setActiveItem] = useState<any | null>(null);
+  const [product, setProduct] = useState<Product | "">("");
+  const [items, setItems] = useState<InboxItemModel[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [filters, setFilters] = useState<any>({});
 
-  // =========================
-  // FETCH INBOX DATA
-  // =========================
-  const fetchInbox = useCallback(
-    async (filters: any = {}) => {
+  /**
+   * FETCH
+   */
+  const fetchInbox = useCallback(async () => {
+    if (!product) return;
+
+    try {
       setLoading(true);
-      try {
-        const token = localStorage.getItem("fwc_token");
-        if (!token) return router.push("/");
 
-        // Jika tidak ada token → redirect ke login
-        if (!token) {
-          setLoading(false);
-          router.push("/");
-          return;
-        }
+      const service = getNotedService(product);
 
-        /**
-         * Build query string dengan URLSearchParams
-         * Lebih aman & rapi dibanding string concat manual
-         */
-        const params = new URLSearchParams({ limit: "10" });
+      const result = await service.list({
+        page: 1,
+        limit: 10,
+      });
 
-        if (filters.status) params.append("status", filters.status);
+      const data =
+        result?.found?.data ??
+        result?.data ??
+        result;
 
-        const url = `${API_BASE_URL}/inbox/?${params.toString()}`;
+      const rawItems = Array.isArray(data?.items)
+        ? data.items
+        : [];
 
-        // Request ke backend
-        const res = await fetch(`${API_BASE_URL}/inbox/?${params.toString()}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+      const mapped: InboxItemModel[] = rawItems.map(
+        (item: any) => {
+          const date = new Date(item.movementAt);
 
-        /**
-         * Jika token expired / unauthorized
-         * → clear localStorage & redirect
-         */
-        if (res.status === 401) {
-          localStorage.clear();
-          return router.push("/");
-        }
+          let status: InboxStatus = "PENDING";
+          const damaged =
+            item.damagedSerialNumbers?.length ?? 0;
+          const lost =
+            item.lostSerialNumbers?.length ?? 0;
 
-        const result = await res.json();
-
-        // MAP DATA FROM BACKEND TO FRONTEND FORMAT
-
-        if (result.success) {
-          let mappedItems = result.data.items.map((item: any) => {
-            const sentDate = new Date(item.sentAt);
-
-            return {
-              id: item.id,
-              title: item.title,
-              message: item.message,
-              sender: item.sender,
-              isRead: item.isRead,
-              readAt: item.readAt,
-
-              // 🔥 SIMPAN DATE ASLI UNTUK FILTER
-              sentAt: sentDate,
-
-              dateLabel: sentDate.toLocaleDateString("id-ID", {
-                day: "2-digit",
-                month: "long",
-                year: "numeric",
-              }),
-              timeLabel:
-                sentDate.toLocaleTimeString("id-ID", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }) + " WIB",
-
-              status: deriveCardCondition(item.message),
-            };
-          });
-
-          /**
-           * ✅ FILTER FRONTEND (INI KUNCINYA)
-           */
-          if (filters.status) {
-            mappedItems = mappedItems.filter(
-              (item) => item.status === filters.status
-            );
-          }
-          if (filters.startDate) {
-            const start = new Date(filters.startDate);
-            start.setHours(0, 0, 0, 0); // awal hari
-
-            mappedItems = mappedItems.filter((item) => item.sentAt >= start);
+          if (item.validationStatus === "COMPLETED") {
+            status =
+              damaged > 0 || lost > 0
+                ? "ISSUE"
+                : "COMPLETED";
           }
 
-          if (filters.endDate) {
-            const end = new Date(filters.endDate);
-            end.setHours(23, 59, 59, 999); // akhir hari
-
-            mappedItems = mappedItems.filter((item) => item.sentAt <= end);
-          }
-
-          setItems(mappedItems);
+          return {
+            id: item.id,
+            sender: { fullName: item.createdByName || "-" },
+            status,
+            title: `Stock Out - ${item.stationName || "-"}`,
+            message: item.note || "Menunggu validasi",
+            date_label: date.toLocaleDateString("id-ID", {
+              day: "2-digit",
+              month: "long",
+              year: "numeric",
+            }),
+            time_label:
+              date.toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }) + " WIB",
+            raw: item,
+          };
         }
-      } catch (error) {
-        console.error("Error fetching inbox:", error);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [router]
-  );
+      );
 
-  // INITIAL FETCH
+      setItems(mapped);
+    } catch (error) {
+      console.error("❌ FETCH ERROR:", error);
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [product]);
+
+  /**
+   * AUTO LOAD
+   */
   useEffect(() => {
-    fetchInbox();
-  }, [fetchInbox]);
+    if (product) {
+      fetchInbox();
+    }
+  }, [product, fetchInbox]);
 
-  // ✅ ADD NOTE → HALAMAN FORM BARU
+  /**
+   * FIREBASE TRIGGER (tetap)
+   */
+  useEffect(() => {
+    if (!product) return;
+
+    const db = getFirestoreDb();
+    if (!db) return;
+
+    const q = query(
+      collection(db, "inbox_notifications"),
+      where("role", "==", "SUPERVISOR"),
+      orderBy("createdAt", "desc")
+    );
+
+    const unsub = onSnapshot(q, () => {
+      fetchInbox();
+    });
+
+    return () => unsub();
+  }, [fetchInbox, product]);
+
   const handleAddNote = () => {
     router.push("/dashboard/supervisor/noted/formnoted");
   };
 
-  // ✅ CLICK ITEM → HALAMAN DETAIL / EDIT
-  const handleOpenDetail = (item: any) => {
-    router.push(`/dashboard/supervisor/noted/${item.id}`);
+  const handleOpenDetail = (item: InboxItemModel) => {
+   router.push(
+  `/dashboard/supervisor/noted/formnoted?id=${item.id}&product=${product}`
+);
   };
 
   return (
-    <div className="space-y-6 h-full">
-      {/* HEADER */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-gray-900">Noted History</h1>
-      </div>
+    <div className="flex flex-col gap-4 min-h-screen p-3 sm:p-6">
+      <h1 className="text-lg sm:text-xl font-semibold">
+        Stock In Validation
+      </h1>
 
-      {/* FILTER */}
-      <div className="rounded-xl border bg-white px-4 py-3 shadow-sm">
-        <InboxFilter onFilter={fetchInbox} onAddNote={handleAddNote} />
-      </div>
+      {/* PRODUCT SELECT */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <span className="text-sm font-medium whitespace-nowrap text-gray-700">
+          Pilih Jenis Produk:
+        </span>
 
-      {/* LIST */}
-      <div className="rounded-xl border bg-white shadow-sm h-[65vh] overflow-hidden">
-        <div className="h-full overflow-y-auto">
-          <InboxList
-            items={items}
-            loading={loading}
-            onClickItem={handleOpenDetail}
-          />
-        </div>
-      </div>
+        <select
+          value={product}
+          onChange={(e) =>
+            setProduct(e.target.value as Product | "")
+          }
+          className="
+            h-9 w-full sm:w-44
+            rounded-md border
+            px-3 text-sm font-semibold
+            text-[#8D1231]
+            bg-red-50
+            border-[#8D1231]
+            focus:outline-none
+            focus:ring-2
+            focus:ring-[#8D1231]
+          "
+        >
+          <option value="">Pilih Produk</option>
+          <option value="FWC">FWC</option>
+          <option value="VOUCHER">VOUCHER</option>
+        </select>
+    </div>
+
+
+      {/* FILTER + LIST */}
+      {product && (
+        <>
+          <div className="rounded-xl border bg-white p-3 sm:p-4 shadow-sm">
+            <InboxFilter
+              onFilter={setFilters}
+              onAddNote={handleAddNote}
+            />
+          </div>
+
+          <div className="rounded-xl border bg-white shadow-sm flex flex-col min-h-[420px] max-h-[70vh]">
+            <div className="flex-1 overflow-y-auto">
+              <InboxList
+                items={items}
+                loading={loading}
+                onClickItem={handleOpenDetail}
+              />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

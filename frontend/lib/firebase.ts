@@ -1,8 +1,10 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
+import { getFirestore, Firestore } from 'firebase/firestore';
 import { initializeAppCheck, ReCaptchaV3Provider, getToken, AppCheck } from 'firebase/app-check';
 
 let app: FirebaseApp | null = null;
 let appCheck: AppCheck | null = null;
+let db: Firestore | null = null;
 
 // Firebase configuration from environment variables
 const firebaseConfig = {
@@ -36,6 +38,28 @@ export function initializeFirebase(): FirebaseApp | null {
     return app;
   } catch (error) {
     console.error('[Firebase] Initialization error:', error);
+    return null;
+  }
+}
+
+/**
+ * Get Firestore Database instance
+ */
+export function getFirestoreDb(): Firestore | null {
+  if (db) {
+    return db;
+  }
+
+  const firebaseApp = initializeFirebase();
+  if (!firebaseApp) {
+    return null;
+  }
+
+  try {
+    db = getFirestore(firebaseApp);
+    return db;
+  } catch (error) {
+    console.error('[Firebase] Error initializing Firestore:', error);
     return null;
   }
 }

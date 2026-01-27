@@ -1,10 +1,12 @@
 //API Contract
 
 export type InboxStatus =
-  | "ACCEPTED"
-  | "CARD_MISSING"
+  | "COMPLETED"
+  | "ISSUE"
+  | "UNKNOWN"
   | "CARD_DAMAGED"
-  | "UNKNOWN";
+  | "CARD_MISSING";
+
 
 export interface Sender {
   fullName: string;
@@ -21,6 +23,12 @@ export interface Inbox {
   message: string;
   sender: Sender;
   status: InboxStatus;
-  dateLabel: string;                                                                 
+
+  sentAt: Date;
+  dateLabel: string;
   timeLabel: string;
+
+  payload?: {
+    serials?: string[];
+  };
 }
