@@ -22,6 +22,16 @@ interface Station {
   stationName: string;
 }
 
+interface CategoryOption {
+  id: string;
+  categoryName: string;
+}
+
+interface TypeOption {
+  id: string;
+  typeName: string;
+}
+
 interface UseStockOutFormProps {
   programType: "FWC" | "VOUCHER";
   id?: string; // If provided, we are in edit mode
@@ -32,6 +42,8 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
   const today = new Date().toISOString().split("T")[0];
 
   const [products, setProducts] = useState<CardProduct[]>([]);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [types, setTypes] = useState<TypeOption[]>([]);
   const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -40,6 +52,10 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
   const [form, setForm] = useState({
     movementAt: today,
     productId: "",
+    cardCategoryId: "",
+    cardTypeId: "",
+    categoryName: "",
+    typeName: "",
     stationId: "",
     quantity: "",
     startSerial: "",
@@ -52,23 +68,40 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [productList, stationList] = await Promise.all([
-        stockService.getProducts(programType),
-        stockService.getStations(),
-      ]);
+      const [productList, stationList, categoryList, typeList] =
+        await Promise.all([
+          stockService.getProducts(programType),
+          stockService.getStations(),
+          stockService.getCategories(),
+          stockService.getTypes(),
+        ]);
 
       setProducts(productList);
       setStations(stationList);
+      setCategories(categoryList);
+      setTypes(typeList);
 
       if (id) {
         const detail = await stockService.getStockOutById(id);
         setStatus(detail.status);
+
+        // Find matching product to set productId so maxAvailableSerial works
+        const product = productList.find(
+          (p) =>
+            p.category?.id === detail.cardCategory?.id &&
+            p.type?.id === detail.cardType?.id,
+        );
+
         setForm({
           movementAt: detail.movementAt
             ? new Date(detail.movementAt).toISOString().split("T")[0]
             : today,
-          productId: "", // Detail response usually has name, not id unless expanded
-          stationId: "", // Same as above
+          productId: product?.id || "",
+          cardCategoryId: detail.cardCategory?.id || "",
+          cardTypeId: detail.cardType?.id || "",
+          categoryName: detail.cardCategory?.name || "",
+          typeName: detail.cardType?.name || "",
+          stationId: detail.stationId || "",
           quantity: String(detail.quantity || ""),
           startSerial: detail.sentSerialNumbers?.[0]
             ? detail.sentSerialNumbers[0]
@@ -107,23 +140,20 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
         );
         console.log("Serial fetch result:", data);
         if (data?.startSerial) {
-          setForm((prev) => ({
-            ...prev,
-            startSerial: data.startSerial,
-            // Reset end serial and quantity on product change
-            endSerial: "",
-            quantity: "",
-          }));
           setMaxAvailableSerial(data.endSerial || "");
+          // Auto-fill only in Add mode if startSerial is currently empty
+          if (!id && !form.startSerial) {
+            setForm((prev) => ({
+              ...prev,
+              startSerial: data.startSerial,
+              endSerial: "",
+              quantity: "",
+            }));
+          }
         } else {
-          setForm((prev) => ({
-            ...prev,
-            startSerial: "",
-            endSerial: "",
-            quantity: "",
-          }));
           setMaxAvailableSerial("");
-          toast.error("Tidak ada stok tersedia (IN_OFFICE) untuk produk ini.");
+          // User requested: "toastnya walaupun ngga dalam in office tetep bisa yah"
+          // So we don't reset form fields or show toast here.
         }
       } catch (error) {
         console.error("Failed to fetch available serials", error);
@@ -293,6 +323,8 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
     form,
     setForm,
     products,
+    categories,
+    types,
     stations,
     loading,
     saving,

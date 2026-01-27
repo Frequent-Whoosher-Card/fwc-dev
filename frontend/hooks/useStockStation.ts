@@ -20,14 +20,14 @@ interface Filters {
   type: string;
 }
 
-export const useStockStation = (filters: Filters) => {
+export const useStockStation = (filters: Filters, programType?: string) => {
   const [rows, setRows] = useState<StationRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchStation = useCallback(async () => {
     setLoading(true);
     try {
-      const params: Record<string, string> = {};
+      const params: Record<string, string> = { programType: programType ?? "" };
 
       if (filters.station !== "all") params.stationName = filters.station;
       if (filters.category !== "all") params.categoryName = filters.category;
@@ -43,7 +43,7 @@ export const useStockStation = (filters: Filters) => {
     } finally {
       setLoading(false);
     }
-  }, [filters.station, filters.category, filters.type]);
+  }, [filters.station, filters.category, filters.type, programType]);
 
   useEffect(() => {
     fetchStation();

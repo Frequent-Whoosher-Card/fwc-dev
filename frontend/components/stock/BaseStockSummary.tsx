@@ -41,7 +41,7 @@ export default function BaseStockSummary({
       </div>
 
       {/* SUMMARY */}
-      <StockSummary />
+      <StockSummary programType={programType} />
 
       {/* FILTER & MODE SWITCH */}
       <div className="flex flex-col gap-4">
@@ -64,6 +64,7 @@ export default function BaseStockSummary({
         </div>
 
         <StockFilterReusable
+          programType={programType}
           values={filters}
           onFilterChange={(newValues) => {
             setFilters((prev) => ({ ...prev, ...newValues }));
@@ -87,9 +88,13 @@ export default function BaseStockSummary({
       </div>
 
       {/* TABLE SWITCH */}
-      {mode === "all" && <StockTable filters={filters} />}
+      {mode === "all" && (
+        <StockTable filters={filters} programType={programType} />
+      )}
 
-      {mode === "station" && <StockStation filters={filters} />}
+      {mode === "station" && (
+        <StockStation filters={filters} programType={programType} />
+      )}
     </div>
   );
 }

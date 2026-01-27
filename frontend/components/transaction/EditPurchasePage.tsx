@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import SuccessModal from "../../app/dashboard/superadmin/membership/components/ui/SuccessModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import { useCardSelection } from "@/hooks/useCardSelection";
+import { useCategories } from "@/hooks/useCategories";
 
 /* ======================
    STYLE
@@ -97,7 +98,6 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
   const [memberType, setMemberType] = useState("");
 
   // card (dropdown)
-  const [categories, setCategories] = useState<any[]>([]);
   const [cardProducts, setCardProducts] = useState<any[]>([]);
   const [types, setTypes] = useState<any[]>([]);
   const [cards, setCards] = useState<any[]>([]);
@@ -138,16 +138,44 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
 
   // card mismatch correction
   const [showCorrection, setShowCorrection] = useState(false);
-  const [wrongCardSerial, setWrongCardSerial] = useState("");
-  const [correctCardSerial, setCorrectCardSerial] = useState("");
   const [correctionNote, setCorrectionNote] = useState("");
   
-  // Card selection for mismatch correction
-  const correctCardSelection = useCardSelection();
+  // Input mode selection
+  const [wrongCardInputMode, setWrongCardInputMode] = useState<"" | "manual" | "recommendation">("");
+  const [correctCardInputMode, setCorrectCardInputMode] = useState<"" | "manual" | "recommendation">("");
   
-  // Wrong card search (no stationId filter - search all stations)
+  // Station selection for card mismatch
+  const [wrongCardStationId, setWrongCardStationId] = useState("");
+  const [correctCardStationId, setCorrectCardStationId] = useState("");
+  
+  // Wrong card selection states
+  const [wrongCardCategory, setWrongCardCategory] = useState("");
+  const [wrongCardCategoryId, setWrongCardCategoryId] = useState("");
+  const [wrongCardCategoryCode, setWrongCardCategoryCode] = useState("");
+  const [wrongCardTypeId, setWrongCardTypeId] = useState("");
+  const [wrongCardTypeCode, setWrongCardTypeCode] = useState("");
+  const [wrongCardTypes, setWrongCardTypes] = useState<any[]>([]);
+  const [wrongCardProducts, setWrongCardProducts] = useState<any[]>([]);
+  const [wrongCardSerial, setWrongCardSerial] = useState("");
+  const [wrongCardId, setWrongCardId] = useState("");
   const [wrongCardSearchResults, setWrongCardSearchResults] = useState<any[]>([]);
   const [isSearchingWrongCard, setIsSearchingWrongCard] = useState(false);
+  
+  // Correct card selection states
+  const [correctCardCategory, setCorrectCardCategory] = useState("");
+  const [correctCardCategoryId, setCorrectCardCategoryId] = useState("");
+  const [correctCardCategoryCode, setCorrectCardCategoryCode] = useState("");
+  const [correctCardTypeId, setCorrectCardTypeId] = useState("");
+  const [correctCardTypeCode, setCorrectCardTypeCode] = useState("");
+  const [correctCardTypes, setCorrectCardTypes] = useState<any[]>([]);
+  const [correctCardProducts, setCorrectCardProducts] = useState<any[]>([]);
+  const [correctCardSerial, setCorrectCardSerial] = useState("");
+  const [correctCardId, setCorrectCardId] = useState("");
+  const [correctCardSearchResults, setCorrectCardSearchResults] = useState<any[]>([]);
+  const [isSearchingCorrectCard, setIsSearchingCorrectCard] = useState(false);
+  
+  // Categories for card selection
+  const { categories } = useCategories();
 
   /* ======================
      INIT LOAD
@@ -155,9 +183,8 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
   useEffect(() => {
     async function init() {
       try {
-        const [trx, cat, ops, sts] = await Promise.all([
+        const [trx, ops, sts] = await Promise.all([
           axios.get(`/purchases/${id}`),
-          axios.get("/card/category/"),
           axios.get("/users"),
           axios.get("/station"),
         ]);
@@ -195,8 +222,6 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
         // editable
         setEdcRef(p.edcReferenceNumber ?? "");
         setNote(p.notes ?? "");
-
-        setCategories(cat.data?.data ?? []);
       } catch {
         alert("Gagal memuat data transaksi");
       } finally {
@@ -221,7 +246,7 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
     if (!id) return;
 
     const selected = categories.find((c) => c.id === id);
-    setCategoryName(selected?.categoryName ?? "");
+    setCategoryName(selected?.label ?? "");
 
     // Load card products untuk mendapatkan price
     const [typesRes, productsRes] = await Promise.all([
@@ -270,12 +295,104 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
   }
 
   /* ======================
-     WRONG CARD SEARCH (No stationId filter)
+     WRONG CARD HANDLERS
   ====================== */
+  async function handleWrongCardCategoryChange(categoryValue: string) {
+    setWrongCardCategory(categoryValue);
+    setWrongCardTypeId("");
+    setWrongCardTypeCode("");
+    setWrongCardTypes([]);
+    setWrongCardProducts([]);
+    setWrongCardSerial("");
+    setWrongCardId("");
+    setWrongCardSearchResults([]);
+
+    if (!categoryValue) {
+      setWrongCardCategoryCode("");
+      setWrongCardCategoryId("");
+      return;
+    }
+
+    try {
+      const categoryData = categories.find((c) => c.value === categoryValue);
+      if (!categoryData) {
+        console.error("Category not found for value:", categoryValue);
+        return;
+      }
+
+      setWrongCardCategoryId(categoryData.id);
+
+      // Load ALL products for this category (same as useCardSelection)
+      const response = await axios.get("/card/product");
+      const allProducts = response.data?.data || [];
+
+      // Filter products by categoryId
+      const products = allProducts.filter(
+        (product: any) => product.categoryId === categoryData.id,
+      );
+
+      // Store products for later use
+      setWrongCardProducts(products);
+
+      // Extract unique card types from products
+      const uniqueTypes = products.reduce((acc: any[], product: any) => {
+        if (product.type && !acc.find((t) => t.id === product.type.id)) {
+          acc.push(product.type);
+        }
+        return acc;
+      }, []);
+
+      setWrongCardTypes(uniqueTypes);
+    } catch (error) {
+      console.error("Error loading wrong card types:", error);
+    }
+  }
+
+  async function handleWrongCardTypeChange(typeId: string) {
+    setWrongCardTypeId(typeId);
+    setWrongCardId("");
+    setWrongCardSearchResults([]);
+
+    if (!typeId) {
+      setWrongCardTypeCode("");
+      setWrongCardSerial("");
+      return;
+    }
+
+    try {
+      // Use cached products instead of fetching again (same as useCardSelection)
+      const matchedProduct = wrongCardProducts.find(
+        (product: any) => product.type?.id === typeId,
+      );
+      
+      console.log("======= WRONG CARD DEBUG =======");
+      console.log("Selected Category:", wrongCardCategory);
+      console.log("Category ID:", wrongCardCategoryId);
+      console.log("Selected Type ID:", typeId);
+      console.log("Cached Products Count:", wrongCardProducts.length);
+      console.log("Matched Product Category:", matchedProduct?.category?.categoryName);
+      console.log("Matched Product Type:", matchedProduct?.type?.typeName);
+      console.log("Serial Template from Product:", matchedProduct?.serialTemplate);
+      console.log("===============================");
+      
+      // Use serialTemplate from card product (already formatted as 4 digits)
+      const serialTemplate = matchedProduct?.serialTemplate || "";
+      setWrongCardSerial(serialTemplate);
+    } catch (error) {
+      console.error("Error loading wrong card product:", error);
+    }
+  }
+
   async function handleWrongCardSearch(query: string) {
     setWrongCardSerial(query);
+    setWrongCardId("");
 
     if (!query || query.length < 6) {
+      setWrongCardSearchResults([]);
+      return;
+    }
+
+    if (!wrongCardStationId || !wrongCardCategory || !wrongCardTypeId) {
       setWrongCardSearchResults([]);
       return;
     }
@@ -283,16 +400,22 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
     try {
       setIsSearchingWrongCard(true);
 
-      // Search without stationId filter - show cards from all stations
-      const response = await axios.get("/cards", {
+      const categoryData = categories.find((c) => c.value === wrongCardCategory);
+      if (!categoryData) return;
+
+      const res = await axios.get("/cards", {
         params: {
           search: query,
+          stationId: wrongCardStationId,
+          categoryId: categoryData.id,
+          typeId: wrongCardTypeId,
           status: "IN_STATION",
           limit: 100,
         },
       });
 
-      const results = response.data?.data?.items || [];
+      const results = res.data?.data?.items || [];
+      // Sort results by serial number in ascending order
       const sortedResults = results.sort((a: any, b: any) =>
         a.serialNumber.localeCompare(b.serialNumber)
       );
@@ -302,6 +425,140 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
       setWrongCardSearchResults([]);
     } finally {
       setIsSearchingWrongCard(false);
+    }
+  }
+
+  /* ======================
+     CORRECT CARD HANDLERS
+  ====================== */
+  async function handleCorrectCardCategoryChange(categoryValue: string) {
+    setCorrectCardCategory(categoryValue);
+    setCorrectCardTypeId("");
+    setCorrectCardTypeCode("");
+    setCorrectCardTypes([]);
+    setCorrectCardProducts([]);
+    setCorrectCardSerial("");
+    setCorrectCardId("");
+    setCorrectCardSearchResults([]);
+
+    if (!categoryValue) {
+      setCorrectCardCategoryCode("");
+      setCorrectCardCategoryId("");
+      return;
+    }
+
+    try {
+      const categoryData = categories.find((c) => c.value === categoryValue);
+      if (!categoryData) {
+        console.error("Category not found for value:", categoryValue);
+        return;
+      }
+
+      setCorrectCardCategoryId(categoryData.id);
+
+      // Load ALL products for this category (same as useCardSelection)
+      const response = await axios.get("/card/product");
+      const allProducts = response.data?.data || [];
+
+      // Filter products by categoryId
+      const products = allProducts.filter(
+        (product: any) => product.categoryId === categoryData.id,
+      );
+
+      // Store products for later use
+      setCorrectCardProducts(products);
+
+      // Extract unique card types from products
+      const uniqueTypes = products.reduce((acc: any[], product: any) => {
+        if (product.type && !acc.find((t) => t.id === product.type.id)) {
+          acc.push(product.type);
+        }
+        return acc;
+      }, []);
+
+      setCorrectCardTypes(uniqueTypes);
+    } catch (error) {
+      console.error("Error loading correct card types:", error);
+    }
+  }
+
+  async function handleCorrectCardTypeChange(typeId: string) {
+    setCorrectCardTypeId(typeId);
+    setCorrectCardId("");
+    setCorrectCardSearchResults([]);
+
+    if (!typeId) {
+      setCorrectCardTypeCode("");
+      setCorrectCardSerial("");
+      return;
+    }
+
+    try {
+      // Use cached products instead of fetching again (same as useCardSelection)
+      const matchedProduct = correctCardProducts.find(
+        (product: any) => product.type?.id === typeId,
+      );
+      
+      console.log("======= CORRECT CARD DEBUG =======");
+      console.log("Selected Category:", correctCardCategory);
+      console.log("Category ID:", correctCardCategoryId);
+      console.log("Selected Type ID:", typeId);
+      console.log("Cached Products Count:", correctCardProducts.length);
+      console.log("Matched Product Category:", matchedProduct?.category?.categoryName);
+      console.log("Matched Product Type:", matchedProduct?.type?.typeName);
+      console.log("Serial Template from Product:", matchedProduct?.serialTemplate);
+      console.log("===================================");
+      
+      // Use serialTemplate from card product (already formatted as 4 digits)
+      const serialTemplate = matchedProduct?.serialTemplate || "";
+      setCorrectCardSerial(serialTemplate);
+    } catch (error) {
+      console.error("Error loading correct card product:", error);
+    }
+  }
+
+  async function handleCorrectCardSearch(query: string) {
+    setCorrectCardSerial(query);
+    setCorrectCardId("");
+
+    if (!query || query.length < 6) {
+      setCorrectCardSearchResults([]);
+      return;
+    }
+
+    if (!correctCardStationId || !correctCardCategory || !correctCardTypeId) {
+      setCorrectCardSearchResults([]);
+      return;
+    }
+
+    try {
+      setIsSearchingCorrectCard(true);
+
+      const categoryData = categories.find((c) => c.value === correctCardCategory);
+      if (!categoryData) return;
+
+      const res = await axios.get("/cards", {
+        params: {
+          search: query,
+          stationId: correctCardStationId,
+          categoryId: categoryData.id,
+          typeId: correctCardTypeId,
+          status: "IN_STATION",
+          limit: 100,
+        },
+      });
+
+      const results = res.data?.data?.items || [];
+      // Sort results by serial number in ascending order
+      const sortedResults = results.sort((a: any, b: any) =>
+        a.serialNumber.localeCompare(b.serialNumber)
+      );
+      setCorrectCardSearchResults(sortedResults);
+    } catch (error) {
+      console.error("Error searching correct cards:", error);
+      setCorrectCardSearchResults([]);
+    } finally {
+      setIsSearchingCorrectCard(false);
     }
   }
 
@@ -327,31 +584,9 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
     setIsCorrecting(true);
 
     try {
-      // Find wrong card ID by serial number
-      const wrongCardRes = await axios.get("/cards", {
-        params: { search: wrongCardSerial },
-      });
-      const wrongCard = wrongCardRes.data?.data?.items?.find(
-        (c: any) => c.serialNumber === wrongCardSerial,
-      );
-
-      if (!wrongCard) {
-        toast.error(`Card dengan serial ${wrongCardSerial} tidak ditemukan`);
-        setShowCorrectionModal(false);
-        setIsCorrecting(false);
-        return;
-      }
-
-      // Find correct card ID by serial number
-      const correctCardRes = await axios.get("/cards", {
-        params: { search: correctCardSerial },
-      });
-      const correctCard = correctCardRes.data?.data?.items?.find(
-        (c: any) => c.serialNumber === correctCardSerial,
-      );
-
-      if (!correctCard) {
-        toast.error(`Card dengan serial ${correctCardSerial} tidak ditemukan`);
+      // Use cardId from the state
+      if (!wrongCardId || !correctCardId) {
+        toast.error("Card ID tidak ditemukan");
         setShowCorrectionModal(false);
         setIsCorrecting(false);
         return;
@@ -359,8 +594,8 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
 
       // Call correction endpoint
       await axios.patch(`/purchases/${id}/correct-card-mismatch`, {
-        wrongCardId: wrongCard.id,
-        correctCardId: correctCard.id,
+        wrongCardId: wrongCardId,
+        correctCardId: correctCardId,
         notes: correctionNote,
       });
 
@@ -624,7 +859,17 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
                   type="checkbox"
                   id="showCorrection"
                   checked={showCorrection}
-                  onChange={(e) => setShowCorrection(e.target.checked)}
+                  onChange={(e) => {
+                    setShowCorrection(e.target.checked);
+                    if (!e.target.checked) {
+                      setWrongCardInputMode("");
+                      setCorrectCardInputMode("");
+                      setWrongCardSerial("");
+                      setCorrectCardSerial("");
+                      setWrongCardId("");
+                      setCorrectCardId("");
+                    }
+                  }}
                   className="h-4 w-4 rounded border-gray-300"
                 />
                 <label
@@ -638,93 +883,287 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
 
             {showCorrection && (
               <>
-                <Field label="Wrong Card Serial (yang salah dikasih)">
-                  <div className="relative">
-                    <Search
-                      size={16}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                    />
+                {/* Wrong Card Selection */}
+                <div className="md:col-span-2">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                    Wrong Card (yang salah dikasih)
+                  </h4>
+                </div>
+
+                <Field label="Mode Input Serial Number">
+                  <select
+                    className={base}
+                    value={wrongCardInputMode}
+                    onChange={(e) => {
+                      const mode = e.target.value as "" | "manual" | "recommendation";
+                      setWrongCardInputMode(mode);
+                      // Reset states when mode changes
+                      setWrongCardSerial("");
+                      setWrongCardId("");
+                      setWrongCardSearchResults([]);
+                      if (mode === "manual") {
+                        setWrongCardStationId("");
+                        setWrongCardCategory("");
+                        setWrongCardTypeId("");
+                      }
+                    }}
+                  >
+                    <option value="">Pilih Mode Input</option>
+                    <option value="manual">Input Manual / Scan Barcode</option>
+                    <option value="recommendation">Rekomendasi</option>
+                  </select>
+                </Field>
+
+                {wrongCardInputMode === "manual" && (
+                  <Field label="Serial Number">
                     <input
                       value={wrongCardSerial}
                       onChange={(e) => {
-                        handleWrongCardSearch(e.target.value);
+                        setWrongCardSerial(e.target.value);
+                        setWrongCardId("");
                       }}
-                      placeholder="Ketik minimal 6 karakter serial number (dari semua stasiun)"
-                      className={`${base} pl-10`}
+                      placeholder="Masukkan atau scan serial number..."
+                      className={base}
                     />
-                    {isSearchingWrongCard && (
-                      <Loader2
-                        size={16}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 animate-spin"
-                      />
-                    )}
-                  </div>
-                  {wrongCardSearchResults.length > 0 && (
-                    <div className="mt-1 max-h-40 overflow-y-auto rounded-md border border-gray-300 bg-white">
-                      {wrongCardSearchResults.map((card) => (
-                        <button
-                          key={card.id}
-                          type="button"
-                          onClick={() => {
-                            setWrongCardSerial(card.serialNumber);
-                            setWrongCardSearchResults([]);
-                          }}
-                          className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex justify-between items-center"
-                        >
-                          <span className="font-medium">{card.serialNumber}</span>
-                          <span className="text-xs text-gray-500">
-                            {card.cardProduct?.category?.categoryName} - {card.cardProduct?.type?.typeName}
-                            {card.station?.stationName && ` (${card.station.stationName})`}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  </Field>
+                )}
+
+                {wrongCardInputMode === "recommendation" && (
+                  <>
+                    <Field label="Stasiun">
+                      <select
+                        className={base}
+                        value={wrongCardStationId}
+                        onChange={(e) => setWrongCardStationId(e.target.value)}
+                      >
+                        <option value="">Pilih Stasiun</option>
+                        {stations.map((st) => (
+                          <option key={st.id} value={st.id}>
+                            {st.stationName}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+
+                    <Field label="Card Category">
+                      <select
+                        className={base}
+                        value={wrongCardCategory}
+                        onChange={(e) =>
+                          handleWrongCardCategoryChange(e.target.value)
+                        }
+                        disabled={!wrongCardStationId}
+                      >
+                        <option value="">Pilih Category</option>
+                        {categories.map((cat) => (
+                          <option key={cat.id} value={cat.value}>
+                            {cat.label}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+
+                    <Field label="Card Type">
+                      <select
+                        className={base}
+                        value={wrongCardTypeId}
+                        onChange={(e) =>
+                          handleWrongCardTypeChange(e.target.value)
+                        }
+                        disabled={!wrongCardCategory}
+                      >
+                        <option value="">Pilih Type</option>
+                        {wrongCardTypes.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.typeName}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+
+                    <Field label="Serial Number">
+                      <div className="relative">
+                        <input
+                          value={wrongCardSerial}
+                          onChange={(e) =>
+                            handleWrongCardSearch(e.target.value)
+                          }
+                          placeholder="Masukkan 2 digit tahun kartu dibuat + nomor (min 6 karakter)..."
+                          className={base}
+                          disabled={!wrongCardTypeId}
+                        />
+                        {isSearchingWrongCard && (
+                          <Loader2
+                            size={16}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 animate-spin"
+                          />
+                        )}
+                        {wrongCardSearchResults.length > 0 && (
+                          <div className="mt-1 max-h-40 overflow-y-auto rounded-md border border-gray-300 bg-white absolute z-10 left-0 right-0">
+                            {wrongCardSearchResults.map((card) => (
+                              <button
+                                key={card.id}
+                                type="button"
+                                onClick={() => {
+                                  setWrongCardSerial(card.serialNumber);
+                                  setWrongCardId(card.id);
+                                  setWrongCardSearchResults([]);
+                                }}
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex justify-between items-center"
+                              >
+                                <span className="font-medium">{card.serialNumber}</span>
+                                <span className="text-xs text-gray-500">
+                                  {card.station?.stationName || "-"}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </Field>
+                  </>
+                )}
+
+                {/* Correct Card Selection */}
+                <div className="md:col-span-2">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3 mt-4">
+                    Correct Card (yang benar seharusnya)
+                  </h4>
+                </div>
+
+                <Field label="Mode Input Serial Number">
+                  <select
+                    className={base}
+                    value={correctCardInputMode}
+                    onChange={(e) => {
+                      const mode = e.target.value as "" | "manual" | "recommendation";
+                      setCorrectCardInputMode(mode);
+                      // Reset states when mode changes
+                      setCorrectCardSerial("");
+                      setCorrectCardId("");
+                      setCorrectCardSearchResults([]);
+                      if (mode === "manual") {
+                        setCorrectCardStationId("");
+                        setCorrectCardCategory("");
+                        setCorrectCardTypeId("");
+                      }
+                    }}
+                  >
+                    <option value="">Pilih Mode Input</option>
+                    <option value="manual">Input Manual / Scan Barcode</option>
+                    <option value="recommendation">Rekomendasi</option>
+                  </select>
                 </Field>
 
-                <Field label="Correct Card Serial (yang benar seharusnya)">
-                  <div className="relative">
-                    <Search
-                      size={16}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                    />
+                {correctCardInputMode === "manual" && (
+                  <Field label="Serial Number">
                     <input
                       value={correctCardSerial}
                       onChange={(e) => {
-                        const val = e.target.value;
-                        setCorrectCardSerial(val);
-                        correctCardSelection.handleCardSearch(val);
+                        setCorrectCardSerial(e.target.value);
+                        setCorrectCardId("");
                       }}
-                      placeholder="Ketik minimal 6 karakter serial number"
-                      className={`${base} pl-10`}
+                      placeholder="Masukkan atau scan serial number..."
+                      className={base}
                     />
-                    {correctCardSelection.isSearching && (
-                      <Loader2
-                        size={16}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 animate-spin"
-                      />
-                    )}
-                  </div>
-                  {correctCardSelection.searchResults.length > 0 && (
-                    <div className="mt-1 max-h-40 overflow-y-auto rounded-md border border-gray-300 bg-white">
-                      {correctCardSelection.searchResults.map((card) => (
-                        <button
-                          key={card.id}
-                          type="button"
-                          onClick={() => {
-                            setCorrectCardSerial(card.serialNumber);
-                          }}
-                          className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex justify-between items-center"
-                        >
-                          <span className="font-medium">{card.serialNumber}</span>
-                          <span className="text-xs text-gray-500">
-                            {(card as any).cardProduct?.category?.categoryName} - {(card as any).cardProduct?.type?.typeName}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </Field>
+                  </Field>
+                )}
+
+                {correctCardInputMode === "recommendation" && (
+                  <>
+                    <Field label="Stasiun">
+                      <select
+                        className={base}
+                        value={correctCardStationId}
+                        onChange={(e) => setCorrectCardStationId(e.target.value)}
+                      >
+                        <option value="">Pilih Stasiun</option>
+                        {stations.map((st) => (
+                          <option key={st.id} value={st.id}>
+                            {st.stationName}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+
+                    <Field label="Card Category">
+                      <select
+                        className={base}
+                        value={correctCardCategory}
+                        onChange={(e) =>
+                          handleCorrectCardCategoryChange(e.target.value)
+                        }
+                        disabled={!correctCardStationId}
+                      >
+                        <option value="">Pilih Category</option>
+                        {categories.map((cat) => (
+                          <option key={cat.id} value={cat.value}>
+                            {cat.label}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+
+                    <Field label="Card Type">
+                      <select
+                        className={base}
+                        value={correctCardTypeId}
+                        onChange={(e) =>
+                          handleCorrectCardTypeChange(e.target.value)
+                        }
+                        disabled={!correctCardCategory}
+                      >
+                        <option value="">Pilih Type</option>
+                        {correctCardTypes.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.typeName}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+
+                    <Field label="Serial Number">
+                      <div className="relative">
+                        <input
+                          value={correctCardSerial}
+                          onChange={(e) =>
+                            handleCorrectCardSearch(e.target.value)
+                          }
+                          placeholder="Masukkan 2 digit tahun kartu dibuat + nomor (min 6 karakter)..."
+                          className={base}
+                          disabled={!correctCardTypeId}
+                        />
+                        {isSearchingCorrectCard && (
+                          <Loader2
+                            size={16}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 animate-spin"
+                          />
+                        )}
+                        {correctCardSearchResults.length > 0 && (
+                          <div className="mt-1 max-h-40 overflow-y-auto rounded-md border border-gray-300 bg-white absolute z-10 left-0 right-0">
+                            {correctCardSearchResults.map((card) => (
+                              <button
+                                key={card.id}
+                                type="button"
+                                onClick={() => {
+                                  setCorrectCardSerial(card.serialNumber);
+                                  setCorrectCardId(card.id);
+                                  setCorrectCardSearchResults([]);
+                                }}
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex justify-between items-center"
+                              >
+                                <span className="font-medium">{card.serialNumber}</span>
+                                <span className="text-xs text-gray-500">
+                                  {card.station?.stationName || "-"}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </Field>
+                  </>
+                )}
 
                 <div className="md:col-span-2">
                   <Field label="Alasan Koreksi">

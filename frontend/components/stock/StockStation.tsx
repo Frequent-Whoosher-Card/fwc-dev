@@ -3,6 +3,7 @@
 import { useStockStation } from "@/hooks/useStockStation";
 
 interface StockStationProps {
+  programType?: string;
   filters: {
     station: string;
     category: string;
@@ -12,8 +13,8 @@ interface StockStationProps {
 
 const fmt = (n: number) => n.toLocaleString();
 
-export function StockStation({ filters }: StockStationProps) {
-  const { rows, loading, totals } = useStockStation(filters);
+export function StockStation({ filters, programType }: StockStationProps) {
+  const { rows, loading, totals } = useStockStation(filters, programType);
 
   if (loading) {
     return <div className="p-6 text-gray-500">Loading station stock...</div>;
