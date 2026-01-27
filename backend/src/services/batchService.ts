@@ -9,7 +9,7 @@ export class BatchService {
     tx: any, // Prisma Transaction Client
     categoryId: string,
     typeId: string,
-    stationId: string
+    stationId: string,
   ): Promise<string> {
     const category = await tx.cardCategory.findUnique({
       where: { id: categoryId },
@@ -19,7 +19,7 @@ export class BatchService {
 
     if (!category || !type || !station) {
       throw new ValidationError(
-        "Data Category, Type, atau Station tidak valid"
+        "Data Category, Type, atau Station tidak valid",
       );
     }
 

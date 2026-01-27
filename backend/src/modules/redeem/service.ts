@@ -28,7 +28,9 @@ export class RedeemService {
 
     // Product type validation (moved here)
     if (product && card.programType !== product) {
-      throw new ValidationError(`Kartu ini bukan produk yang sesuai (${product}). Produk kartu: ${card.programType}`);
+      throw new ValidationError(
+        `Kartu ini bukan produk yang sesuai (${product}). Produk kartu: ${card.programType}`,
+      );
     }
 
     // Determine status text
@@ -89,9 +91,13 @@ export class RedeemService {
     operatorId: string,
     stationId: string,
     product: "FWC" | "VOUCHER",
-    notes?: string
-  ): Promise<{ transactionNumber: string; remainingQuota: number; quotaUsed: number; redeemType: string }> {
-
+    notes?: string,
+  ): Promise<{
+    transactionNumber: string;
+    remainingQuota: number;
+    quotaUsed: number;
+    redeemType: string;
+  }> {
     return await db.$transaction(
       async (tx) => {
         const card = await tx.card.findUnique({
@@ -105,7 +111,9 @@ export class RedeemService {
 
         // Product type validation
         if (card.programType !== product) {
-          throw new ValidationError(`Card product type mismatch. Expected: ${product}, Found: ${card.programType}`);
+          throw new ValidationError(
+            `Card product type mismatch. Expected: ${product}, Found: ${card.programType}`,
+          );
         }
 
         // Check if card is active
@@ -131,8 +139,8 @@ export class RedeemService {
         // Calculate transaction number with new format
         const date = new Date();
         const yy = date.getFullYear().toString().slice(-2);
-        const mm = (date.getMonth() + 1).toString().padStart(2, '0');
-        const dd = date.getDate().toString().padStart(2, '0');
+        const mm = (date.getMonth() + 1).toString().padStart(2, "0");
+        const dd = date.getDate().toString().padStart(2, "0");
         const dateStr = `${yy}${mm}${dd}`;
         const count = await tx.redeem.count({
           where: {
@@ -143,8 +151,9 @@ export class RedeemService {
             programType: product,
           },
         });
-        let productCode = product === 'FWC' ? 'FW' : (product === 'VOUCHER' ? 'VC' : 'XX');
-        const transactionNumber = `RDM-${productCode}-${dateStr}-${(count + 1).toString().padStart(4, '0')}`;
+        let productCode =
+          product === "FWC" ? "FW" : product === "VOUCHER" ? "VC" : "XX";
+        const transactionNumber = `RDM-${productCode}-${dateStr}-${(count + 1).toString().padStart(4, "0")}`;
 
         // Create Redeem Record
         const redeem = await tx.redeem.create({
@@ -191,7 +200,7 @@ export class RedeemService {
       },
       {
         timeout: 10000,
-      }
+      },
     );
   }
 
@@ -205,7 +214,8 @@ export class RedeemService {
     search?: string;
     category?: string;
     cardType?: string;
-    product?: 'FWC' | 'VOUCHER';
+    redeemType?: string;
+    product?: "FWC" | "VOUCHER";
   }) {
     const {
       page = 1,
@@ -216,6 +226,7 @@ export class RedeemService {
       search,
       category,
       cardType,
+      redeemType,
       product,
     } = params;
     const skip = (page - 1) * limit;
@@ -250,7 +261,9 @@ export class RedeemService {
     }
 
     // RedeemType Filter
-    // RedeemType filter removed
+    if (redeemType) {
+      where.redeem_type = redeemType;
+    }
 
     // Category Filter
     if (category) {
@@ -369,7 +382,8 @@ export class RedeemService {
     ]);
 
     const formattedItems = items.map((item) => {
-      const fallbackMember = item.card.member || item.card.purchases?.[0]?.member || null;
+      const fallbackMember =
+        item.card.member || item.card.purchases?.[0]?.member || null;
       return {
         id: item.id,
         transactionNumber: item.transactionNumber, // <-- tambahkan field ini
@@ -424,40 +438,40 @@ export class RedeemService {
             fullName: true,
           },
         },
-          card: {
-            select: {
-              id: true,
-              serialNumber: true,
-              quotaTicket: true,
-              programType: true,
-              member: {
-                select: {
-                  id: true,
-                  name: true,
-                  identityNumber: true,
-                },
+        card: {
+          select: {
+            id: true,
+            serialNumber: true,
+            quotaTicket: true,
+            programType: true,
+            member: {
+              select: {
+                id: true,
+                name: true,
+                identityNumber: true,
               },
-              cardProduct: {
-                select: {
-                  category: { select: { categoryName: true } },
-                  type: { select: { typeName: true } },
-                },
+            },
+            cardProduct: {
+              select: {
+                category: { select: { categoryName: true } },
+                type: { select: { typeName: true } },
               },
-              purchases: {
-                orderBy: { purchaseDate: "desc" },
-                take: 1,
-                select: {
-                  member: {
-                    select: {
-                      id: true,
-                      name: true,
-                      identityNumber: true,
-                    },
+            },
+            purchases: {
+              orderBy: { purchaseDate: "desc" },
+              take: 1,
+              select: {
+                member: {
+                  select: {
+                    id: true,
+                    name: true,
+                    identityNumber: true,
                   },
                 },
               },
             },
           },
+        },
       },
     });
 
@@ -466,7 +480,7 @@ export class RedeemService {
     }
 
     // Fallback quotaUsed: SINGLE=1, ROUNDTRIP=2 (skip usageLogs to avoid DB column mismatch)
-    const quotaUsed = redeem.redeem_type === 'SINGLE' ? 1 : 2;
+    const quotaUsed = redeem.redeem_type === "SINGLE" ? 1 : 2;
 
     const fallbackMember =
       redeem.card.member || redeem.card.purchases?.[0]?.member || null;
@@ -520,7 +534,9 @@ export class RedeemService {
               orderBy: { purchaseDate: "desc" },
               take: 1,
               select: {
-                member: { select: { id: true, name: true, identityNumber: true } },
+                member: {
+                  select: { id: true, name: true, identityNumber: true },
+                },
               },
             },
           },
@@ -536,8 +552,9 @@ export class RedeemService {
     await db.redeem.update({ where: { id }, data: { notes: data.notes } });
 
     // Fallback quotaUsed: SINGLE=1, ROUNDTRIP=2
-    const quotaUsed = redeem.redeem_type === 'SINGLE' ? 1 : 2;
-    const fallbackMember = redeem.card.member || redeem.card.purchases?.[0]?.member || null;
+    const quotaUsed = redeem.redeem_type === "SINGLE" ? 1 : 2;
+    const fallbackMember =
+      redeem.card.member || redeem.card.purchases?.[0]?.member || null;
 
     return {
       id: redeem.id,
@@ -567,7 +584,10 @@ export class RedeemService {
   // Delete Redeem (soft delete) and restore quota
   static async deleteRedeem(id: string, userId?: string) {
     return await db.$transaction(async (tx) => {
-      const redeem = await tx.redeem.findUnique({ where: { id }, include: { card: true } });
+      const redeem = await tx.redeem.findUnique({
+        where: { id },
+        include: { card: true },
+      });
       if (!redeem) throw new NotFoundError("Redeem transaction not found");
       if (redeem.deletedAt) throw new ValidationError("Redeem already deleted");
 
@@ -575,7 +595,9 @@ export class RedeemService {
       // Example: if (product && redeem.card.programType !== product) { throw new ValidationError(...) }
 
       // Cari log usage terkait redeem ini
-      const usageLog = await tx.cardUsageLog.findFirst({ where: { redeemId: id, deletedAt: null } });
+      const usageLog = await tx.cardUsageLog.findFirst({
+        where: { redeemId: id, deletedAt: null },
+      });
       if (!usageLog) throw new NotFoundError("Usage log for redeem not found");
       const quotaToRestore = usageLog.quotaUsed;
 
@@ -601,7 +623,12 @@ export class RedeemService {
       // Mark redeem as deleted
       const deleted = await tx.redeem.update({
         where: { id },
-        data: { deletedAt: new Date(), deletedBy: userId || null, updatedAt: new Date(), updatedBy: userId || null },
+        data: {
+          deletedAt: new Date(),
+          deletedBy: userId || null,
+          updatedAt: new Date(),
+          updatedBy: userId || null,
+        },
       });
 
       return { id: deleted.id, restoredQuota: quotaToRestore };
@@ -609,7 +636,12 @@ export class RedeemService {
   }
 
   // Export daily report for a given date and operator's station
-  static async exportDailyReport(params: { date?: string; userId: string; stationId: string; format: "csv" | "xlsx" | "pdf" | "jpg" }) {
+  static async exportDailyReport(params: {
+    date?: string;
+    userId: string;
+    stationId: string;
+    format: "csv" | "xlsx" | "pdf" | "jpg";
+  }) {
     const { date, stationId, format, userId } = params;
     const target = date ? new Date(date) : new Date();
     const start = new Date(target);
@@ -656,11 +688,12 @@ export class RedeemService {
         deletedAt: null,
       },
     });
-    const usageLogMap = new Map(usageLogs.map(log => [log.redeemId, log]));
+    const usageLogMap = new Map(usageLogs.map((log) => [log.redeemId, log]));
     const rows = items.map((it) => {
       const product = it.card.cardProduct;
       const usageLog = usageLogMap.get(it.id);
-      const quotaUsed = usageLog?.quotaUsed ?? (it.redeem_type === 'SINGLE' ? 1 : 2);
+      const quotaUsed =
+        usageLog?.quotaUsed ?? (it.redeem_type === "SINGLE" ? 1 : 2);
       const remainingQuota = usageLog?.remainingQuota ?? 0;
       const unit = Number(product.price) / product.totalQuota;
       const nominal = unit * quotaUsed;
@@ -677,17 +710,17 @@ export class RedeemService {
       };
     });
 
-    const filenameBase = `redeem_${start.toISOString().slice(0,10)}_${stationId}`;
+    const filenameBase = `redeem_${start.toISOString().slice(0, 10)}_${stationId}`;
 
-    const nomorReport = `REDEEM-${start.toISOString().slice(0,10).replace(/-/g, "")}-${stationId.substring(0,6)}`;
+    const nomorReport = `REDEEM-${start.toISOString().slice(0, 10).replace(/-/g, "")}-${stationId.substring(0, 6)}`;
     const petugasName = operator?.fullName || "-";
     const shiftKerja = ""; // not used for now
-    const tanggalDinas = start.toISOString().slice(0,10);
+    const tanggalDinas = start.toISOString().slice(0, 10);
 
     if (format === "csv") {
       // Header dan meta sesuai role
       let metaRows: string[][] = [];
-      if (operator?.role?.roleCode === 'petugas') {
+      if (operator?.role?.roleCode === "petugas") {
         metaRows = [
           ["Laporan Transaksi Redeem Frequent Whoosher Card"],
           ["Nama Petugas", petugasName],
@@ -701,10 +734,38 @@ export class RedeemService {
           [],
         ];
       }
-      const headerRow = ["Nomor Transaksi","Seri Kartu","Kategori","Tipe Kartu","Tipe Redeem","Kuota Dipakai","Sisa Kuota","Stasiun","Nominal"];
-      const dataRows = rows.map(r => [r.trxnumber,r.serialnum,r.cardcategory,r.cardtype,r.redeem_type,r.quota_used,r.remaining_quota,r.station,r.nominal]);
-      const csv = metaRows.map(r=>r.join(",")).concat([headerRow.join(",")]).concat(dataRows.map(r=>r.join(","))).join("\n");
-      return { buffer: new TextEncoder().encode(csv), contentType: "text/csv", filename: `${filenameBase}.csv` };
+      const headerRow = [
+        "Nomor Transaksi",
+        "Seri Kartu",
+        "Kategori",
+        "Tipe Kartu",
+        "Tipe Redeem",
+        "Kuota Dipakai",
+        "Sisa Kuota",
+        "Stasiun",
+        "Nominal",
+      ];
+      const dataRows = rows.map((r) => [
+        r.trxnumber,
+        r.serialnum,
+        r.cardcategory,
+        r.cardtype,
+        r.redeem_type,
+        r.quota_used,
+        r.remaining_quota,
+        r.station,
+        r.nominal,
+      ]);
+      const csv = metaRows
+        .map((r) => r.join(","))
+        .concat([headerRow.join(",")])
+        .concat(dataRows.map((r) => r.join(",")))
+        .join("\n");
+      return {
+        buffer: new TextEncoder().encode(csv),
+        contentType: "text/csv",
+        filename: `${filenameBase}.csv`,
+      };
     }
 
     // xlsx
@@ -715,20 +776,48 @@ export class RedeemService {
       ["Shift Kerja", shiftKerja],
       ["Tanggal Dinas", tanggalDinas],
       [],
-      ["Nomor Transaksi","Seri Kartu","Kategori","Tipe Kartu","Tipe Redeem","Kuota Dipakai","Sisa Kuota","Stasiun","Nominal"],
-      ...rows.map(r => [r.trxnumber,r.serialnum,r.cardcategory,r.cardtype,r.redeem_type,r.quota_used,r.remaining_quota,r.station,r.nominal]),
+      [
+        "Nomor Transaksi",
+        "Seri Kartu",
+        "Kategori",
+        "Tipe Kartu",
+        "Tipe Redeem",
+        "Kuota Dipakai",
+        "Sisa Kuota",
+        "Stasiun",
+        "Nominal",
+      ],
+      ...rows.map((r) => [
+        r.trxnumber,
+        r.serialnum,
+        r.cardcategory,
+        r.cardtype,
+        r.redeem_type,
+        r.quota_used,
+        r.remaining_quota,
+        r.station,
+        r.nominal,
+      ]),
     ];
     const worksheet = XLSX.utils.aoa_to_sheet(aoa);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Redeem");
     const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "buffer" });
     if (format === "xlsx") {
-      return { buffer: wbout as unknown as Buffer, contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename: `${filenameBase}.xlsx` };
+      return {
+        buffer: wbout as unknown as Buffer,
+        contentType:
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename: `${filenameBase}.xlsx`,
+      };
     }
 
     // Build grouped summary for PDF/JPG layout
     type Key = string;
-    const groups = new Map<Key, { serials: string[]; uniqueCards: Set<string>; nominal: number }>();
+    const groups = new Map<
+      Key,
+      { serials: string[]; uniqueCards: Set<string>; nominal: number }
+    >();
     const keyOf = (cat: string, typ: string) => `${cat}|${typ}`;
     for (const it of items) {
       const cat = it.card.cardProduct.category.categoryName;
@@ -736,10 +825,14 @@ export class RedeemService {
       const k = keyOf(cat, typ);
       const product = it.card.cardProduct;
       const unit = Number(product.price) / product.totalQuota;
-      const g = groups.get(k) || { serials: [], uniqueCards: new Set<string>(), nominal: 0 };
+      const g = groups.get(k) || {
+        serials: [],
+        uniqueCards: new Set<string>(),
+        nominal: 0,
+      };
       g.serials.push(it.card.serialNumber);
       g.uniqueCards.add(it.card.serialNumber);
-      g.nominal += unit * (((it as any).quotaUsed) ?? 0);
+      g.nominal += unit * ((it as any).quotaUsed ?? 0);
       groups.set(k, g);
     }
 
@@ -772,12 +865,16 @@ export class RedeemService {
       const doc = new PDFDocument({ size: "A4", margin: 36 });
       const chunks: Buffer[] = [];
       doc.on("data", (d: Buffer) => chunks.push(d));
-      const done = new Promise<Buffer>((resolve) => doc.on("end", () => resolve(Buffer.concat(chunks))));
+      const done = new Promise<Buffer>((resolve) =>
+        doc.on("end", () => resolve(Buffer.concat(chunks))),
+      );
 
       // Header
       doc.fontSize(14).text("Laporan", { align: "center" });
       doc.moveDown(0.2);
-      doc.fontSize(14).text("Penjualan Frequent Whoosher Card", { align: "center" });
+      doc
+        .fontSize(14)
+        .text("Penjualan Frequent Whoosher Card", { align: "center" });
       doc.moveDown();
 
       // Meta table
@@ -798,12 +895,18 @@ export class RedeemService {
         doc.text(r.label, colX[0], doc.y);
         doc.text(r.startSerial || "-", colX[1], doc.y);
         doc.text(r.endSerial || "-", colX[2], doc.y);
-        doc.text(`${r.count} / Rp${r.nominal.toLocaleString("id-ID")}`, colX[3], doc.y);
+        doc.text(
+          `${r.count} / Rp${r.nominal.toLocaleString("id-ID")}`,
+          colX[3],
+          doc.y,
+        );
         doc.moveDown(0.3);
       }
       doc.moveDown();
       doc.text(`Total Keseluruhan Terjual: ${totalTerjual}`);
-      doc.text(`Nominal Keseluruhan: Rp${totalNominal.toLocaleString("id-ID")}`);
+      doc.text(
+        `Nominal Keseluruhan: Rp${totalNominal.toLocaleString("id-ID")}`,
+      );
       doc.moveDown(2);
       doc.text("PSAC", 200);
       doc.text("SPV", 360);
@@ -813,12 +916,17 @@ export class RedeemService {
 
       doc.end();
       const pdfBuf = await done;
-      return { buffer: pdfBuf, contentType: "application/pdf", filename: `${filenameBase}.pdf` };
+      return {
+        buffer: pdfBuf,
+        contentType: "application/pdf",
+        filename: `${filenameBase}.pdf`,
+      };
     }
 
     // JPG using canvas
     const { createCanvas } = await import("canvas");
-    const width = 1024, height = 1440;
+    const width = 1024,
+      height = 1440;
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = "#ffffff";
@@ -826,8 +934,8 @@ export class RedeemService {
     ctx.fillStyle = "#000";
     ctx.font = "bold 24px Sans";
     ctx.textAlign = "center";
-    ctx.fillText("Laporan", width/2, 40);
-    ctx.fillText("Penjualan Frequent Whoosher Card", width/2, 72);
+    ctx.fillText("Laporan", width / 2, 40);
+    ctx.fillText("Penjualan Frequent Whoosher Card", width / 2, 72);
     ctx.textAlign = "left";
     ctx.font = "16px Sans";
     ctx.fillText(`Nama Petugas: ${petugasName}`, 40, 120);
@@ -846,13 +954,22 @@ export class RedeemService {
       ctx.fillText(r.label, 40, y);
       ctx.fillText(r.startSerial || "-", 300, y);
       ctx.fillText(r.endSerial || "-", 520, y);
-      ctx.fillText(`${r.count} / Rp${r.nominal.toLocaleString("id-ID")}`, 760, y);
+      ctx.fillText(
+        `${r.count} / Rp${r.nominal.toLocaleString("id-ID")}`,
+        760,
+        y,
+      );
       y += 22;
     }
     y += 24;
     ctx.font = "bold 16px Sans";
-    ctx.fillText(`Total Keseluruhan Terjual: ${totalTerjual}`, 40, y); y+=24;
-    ctx.fillText(`Nominal Keseluruhan: Rp${totalNominal.toLocaleString("id-ID")}`, 40, y);
+    ctx.fillText(`Total Keseluruhan Terjual: ${totalTerjual}`, 40, y);
+    y += 24;
+    ctx.fillText(
+      `Nominal Keseluruhan: Rp${totalNominal.toLocaleString("id-ID")}`,
+      40,
+      y,
+    );
     y += 80;
     ctx.font = "16px Sans";
     ctx.fillText("PSAC", 300, y);
@@ -862,10 +979,19 @@ export class RedeemService {
     ctx.fillText("(Nama Jelas)", 660, y);
 
     const jpgBuf = canvas.toBuffer("image/jpeg", { quality: 0.92 });
-    return { buffer: jpgBuf, contentType: "image/jpeg", filename: `${filenameBase}.jpg` };
+    return {
+      buffer: jpgBuf,
+      contentType: "image/jpeg",
+      filename: `${filenameBase}.jpg`,
+    };
   }
 
-  static async uploadLastRedeemDoc(id: string, imageBase64: string, mimeType: string | undefined, userId: string) {
+  static async uploadLastRedeemDoc(
+    id: string,
+    imageBase64: string,
+    mimeType: string | undefined,
+    userId: string,
+  ) {
     const redeem = await db.redeem.findUnique({
       where: { id },
       include: {
@@ -875,13 +1001,21 @@ export class RedeemService {
     if (!redeem) throw new NotFoundError("Redeem transaction not found");
     // Only allow upload if card quotaTicket is 0 (last redeem)
     if (redeem.card.quotaTicket !== 0) {
-      throw new ValidationError("Upload allowed only when card quota is 0 (last redeem)");
+      throw new ValidationError(
+        "Upload allowed only when card quota is 0 (last redeem)",
+      );
     }
 
-    const type = mimeType && (mimeType === "image/jpeg" || mimeType === "image/png") ? mimeType : "image/jpeg";
+    const type =
+      mimeType && (mimeType === "image/jpeg" || mimeType === "image/png")
+        ? mimeType
+        : "image/jpeg";
     const ext = type === "image/png" ? "png" : "jpg";
     const buf = Buffer.from(imageBase64, "base64");
-    const checksumSha256 = (await import("crypto")).createHash("sha256").update(buf).digest("hex");
+    const checksumSha256 = (await import("crypto"))
+      .createHash("sha256")
+      .update(buf)
+      .digest("hex");
 
     const dir = `assets/uploads/redeem`;
     const storedName = `${id}.${ext}`;
@@ -891,7 +1025,9 @@ export class RedeemService {
     await fs.writeFile(relativePath, buf);
 
     // Delete existing fileObject with same relativePath (if any)
-    const existing = await db.fileObject.findUnique({ where: { relativePath } });
+    const existing = await db.fileObject.findUnique({
+      where: { relativePath },
+    });
     if (existing) {
       await db.fileObject.delete({ where: { id: existing.id } });
     }

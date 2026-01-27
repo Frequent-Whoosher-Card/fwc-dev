@@ -2,25 +2,37 @@
 
 import { useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Upload } from "lucide-react";
+import { ArrowLeft, Upload, Eye } from "lucide-react";
 import { useGenerateNumber } from "@/hooks/useGenerateNumber";
 
 export default function BaseViewGenerateNumber() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { batch, loadingBatch, fetchHistoryDetail, handleExportZip } =
-    useGenerateNumber();
+  const {
+    batch,
+    loadingBatch,
+    fetchHistoryDetail,
+    handleExportZip,
+    handleUploadDocument,
+    handleViewDocument,
+    loadingUpload,
+  } = useGenerateNumber();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
-    if (file) {
-      console.log("Selected file:", file.name);
-      // Future implementation for file processing can go here
+    if (file && batch) {
+      await handleUploadDocument(file, batch.id);
+      // Reset input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
@@ -72,15 +84,26 @@ export default function BaseViewGenerateNumber() {
             ref={fileInputRef}
             onChange={handleFileChange}
             className="hidden"
-            accept=".csv, .xlsx, .xls"
+            accept=".pdf, .jpg, .jpeg, .png" // Updated accept types based on likely document types
           />
           <button
             onClick={handleUploadClick}
-            className="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-gray-50"
+            disabled={loadingUpload}
+            className="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
           >
             <Upload size={18} />
-            Upload
+            {loadingUpload ? "Uploading..." : "Upload Document"}
           </button>
+
+          {batch.documentUrl && (
+            <button
+              onClick={() => handleViewDocument(batch.id)}
+              className="flex items-center gap-2 rounded-lg border border-[#8D1231] px-4 py-2 text-sm font-medium text-[#8D1231] hover:bg-[#8D1231] hover:text-white transition-colors"
+            >
+              <Eye size={18} />
+              View Document
+            </button>
+          )}
           <button
             onClick={() => handleExportZip(batch)}
             className="rounded-lg bg-[#8D1231] px-6 py-2 text-white"

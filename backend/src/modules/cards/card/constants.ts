@@ -11,6 +11,7 @@ export const CARD_STATUS_MAPPING: Record<CardStatus, string> = {
   [CardStatus.SOLD_INACTIVE]: "Non-Aktif",
   [CardStatus.BLOCKED]: "Diblokir",
   [CardStatus.DELETED]: "Dihapus",
+  [CardStatus.ON_TRANSFER]: "Transfer",
 };
 
 export const REVERSE_CARD_STATUS_MAPPING: Record<string, CardStatus> =

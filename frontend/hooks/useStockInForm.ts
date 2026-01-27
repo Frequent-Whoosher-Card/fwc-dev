@@ -36,14 +36,17 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
     lastSerial: "",
   });
 
+  const [maxAvailableSerial, setMaxAvailableSerial] = useState<string>("");
+  const [fullStartSerial, setFullStartSerial] = useState<string>("");
+
   const fetchProducts = useCallback(async () => {
     try {
-      const data = await stockService.getProducts();
+      const data = await stockService.getProducts(programType);
       setProducts(data);
     } catch (err) {
       toast.error("Gagal mengambil data card product");
     }
-  }, []);
+  }, [programType]);
 
   useEffect(() => {
     fetchProducts();
@@ -52,7 +55,10 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
   const fetchAvailableSerial = async (productId: string) => {
     try {
       setLoadingSerial(true);
-      const data = await stockService.getAvailableSerials(productId);
+      const data = await stockService.getAvailableSerials(
+        productId,
+        programType,
+      );
       const startSerial = data?.startSerial;
 
       if (!startSerial) {
@@ -66,6 +72,11 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
       }
 
       const lastFiveDigits = startSerial.slice(-5);
+      const endSerialLastFive = data?.endSerial ? data.endSerial.slice(-5) : "";
+
+      setMaxAvailableSerial(endSerialLastFive);
+      setFullStartSerial(startSerial);
+
       setForm((prev) => ({
         ...prev,
         initialSerial: lastFiveDigits,
@@ -109,12 +120,32 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
 
     try {
       setSaving(true);
+
+      // Extract serialDate if Voucher
+      let serialDate: string | undefined;
+      // Assuming structure ...YYMMDDxxxxx
+      if (
+        programType === "VOUCHER" &&
+        fullStartSerial &&
+        fullStartSerial.length >= 11
+      ) {
+        const datePart = fullStartSerial.slice(-11, -5); // YYMMDD
+        if (/^\d{6}$/.test(datePart)) {
+          const year = `20${datePart.slice(0, 2)}`;
+          const month = datePart.slice(2, 4);
+          const day = datePart.slice(4, 6);
+          serialDate = `${year}-${month}-${day}T12:00:00`;
+        }
+      }
+
       await stockService.createStockIn({
         movementAt: new Date(form.tanggal).toISOString(),
         cardProductId: form.productId,
         startSerial: form.initialSerial.padStart(5, "0"),
         endSerial: form.lastSerial.padStart(5, "0"),
         note: "",
+        programType,
+        serialDate,
       });
 
       toast.success("Stock berhasil ditambahkan");
@@ -137,5 +168,6 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
     saving,
     fetchAvailableSerial,
     handleSubmit,
+    maxAvailableSerial,
   };
 };

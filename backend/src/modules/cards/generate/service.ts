@@ -798,6 +798,9 @@ export class CardGenerateService {
             select: { id: true, categoryName: true, programType: true },
           },
           type: { select: { id: true, typeName: true } },
+          fileObject: {
+            select: { id: true, originalName: true },
+          },
         },
       }),
       db.cardStockMovement.count({ where }),
@@ -866,6 +869,13 @@ export class CardGenerateService {
           barcodeUrl: c.fileObject ? `/${c.fileObject.relativePath}` : null,
           createdAt: c.createdAt.toISOString(),
         })),
+        document: (item as any).fileObject
+          ? {
+              id: (item as any).fileObject.id,
+              filename: (item as any).fileObject.originalName,
+              url: `/cards/generate/history/${item.id}/document`,
+            }
+          : null,
       };
     });
 
@@ -889,6 +899,9 @@ export class CardGenerateService {
           select: { id: true, categoryName: true, programType: true },
         },
         type: { select: { id: true, typeName: true } },
+        fileObject: {
+          select: { id: true, originalName: true },
+        },
       },
     });
 
@@ -945,6 +958,13 @@ export class CardGenerateService {
           name: movement.type.typeName,
         },
         serialNumbers: serials,
+        document: (movement as any).fileObject
+          ? {
+              id: (movement as any).fileObject.id,
+              filename: (movement as any).fileObject.originalName,
+              url: `/cards/generate/history/${movement.id}/document`,
+            }
+          : null,
       },
       cards: cards.map((c) => ({
         ...c,
@@ -1288,5 +1308,36 @@ export class CardGenerateService {
         filename: fileObject.originalName,
       };
     });
+  }
+
+  static async getDocument(batchId: string) {
+    const movement = await db.cardStockMovement.findUnique({
+      where: { id: batchId },
+      include: { fileObject: true },
+    });
+
+    if (!movement) {
+      throw new ValidationError("Batch generation tidak ditemukan");
+    }
+
+    if (!movement.fileObject) {
+      throw new ValidationError("Dokumen belum diupload");
+    }
+
+    const absolutePath = path.join(
+      process.cwd(),
+      movement.fileObject.relativePath,
+    );
+    if (!fs.existsSync(absolutePath)) {
+      throw new ValidationError("File fisik tidak ditemukan");
+    }
+
+    const fileBuffer = await fs.promises.readFile(absolutePath);
+
+    return {
+      buffer: fileBuffer,
+      filename: movement.fileObject.originalName,
+      mimeType: movement.fileObject.mimeType,
+    };
   }
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useGenerateNumber } from "@/hooks/useGenerateNumber";
@@ -56,6 +57,7 @@ export default function BaseGenerateNumber({
 
       {/* FORM */}
       <div className="rounded-xl border bg-white p-6 space-y-4 max-w-xl">
+        <div className="text-sm font-medium text-gray-700">Pilih Product:</div>
         <select
           className="w-full rounded-lg border px-4 py-2 disabled:bg-gray-100"
           value={selectedProductId}
@@ -70,6 +72,9 @@ export default function BaseGenerateNumber({
           ))}
         </select>
 
+        <div className="text-sm font-medium text-gray-700">
+          Next Serial Number:
+        </div>
         <input
           className="w-full rounded-lg border px-4 py-2 font-mono bg-gray-100"
           value={startNumber}
@@ -77,6 +82,7 @@ export default function BaseGenerateNumber({
         />
 
         <div className="space-y-1">
+          <div className="text-sm font-medium text-gray-700">Jumlah:</div>
           <input
             className="w-full rounded-lg border px-4 py-2 font-mono disabled:bg-gray-100"
             placeholder={
@@ -106,7 +112,7 @@ export default function BaseGenerateNumber({
 
         <button
           onClick={handleGenerate}
-          disabled={loading}
+          disabled={loading || !selectedProductId}
           className="flex items-center justify-center gap-2 rounded-lg bg-[#8D1231] px-6 py-2 text-white disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {loading ? (
@@ -130,6 +136,8 @@ export default function BaseGenerateNumber({
                 <th className="px-4 py-3">Product</th>
                 <th className="px-4 py-3">Serial</th>
                 <th className="px-4 py-3 text-center">Qty</th>
+                <th className="px-4 py-3 text-center">Created By</th>
+                <th className="px-4 py-3 text-center">Diskon</th>
                 <th className="px-4 py-3 text-center">Action</th>
               </tr>
             </thead>
@@ -137,47 +145,68 @@ export default function BaseGenerateNumber({
             <tbody className="divide-y">
               {loadingHistory ? (
                 <tr>
-                  <td colSpan={5} className="py-6 text-center text-gray-400">
+                  <td colSpan={7} className="py-6 text-center text-gray-400">
                     Loading...
                   </td>
                 </tr>
               ) : history.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-6 text-center text-gray-400">
+                  <td colSpan={7} className="py-6 text-center text-gray-400">
                     Belum ada data
                   </td>
                 </tr>
               ) : (
-                history.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      {formatDateDMY(item.movementAt)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium">{item.category?.name}</div>
-                      <div className="text-xs text-gray-500">
-                        {item.type?.name}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs">
-                      {item.serialNumbers?.[0]} –{" "}
-                      {item.serialNumbers?.[item.serialNumbers.length - 1]}
-                    </td>
-                    <td className="px-4 py-3 text-center">{item.quantity}</td>
-                    <td className="px-4 py-3 text-center">
-                      <button
-                        onClick={() =>
-                          router.push(
-                            `/dashboard/superadmin/generatenumber/${(programType || "fwc").toLowerCase()}/${item.id}/view`,
-                          )
-                        }
-                        className="text-[#8D1231] hover:underline"
-                      >
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                history.map((item) => {
+                  const isDiscount =
+                    programType === "VOUCHER"
+                      ? products.find(
+                          (p) =>
+                            p.category.categoryName === item.category?.name &&
+                            p.type.typeName === item.type?.name,
+                        )?.isDiscount
+                      : false;
+
+                  return (
+                    <tr key={item.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        {formatDateDMY(item.movementAt)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium">{item.category?.name}</div>
+                        <div className="text-xs text-gray-500">
+                          {item.type?.name}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs">
+                        {item.serialNumbers?.[0]} –{" "}
+                        {item.serialNumbers?.[item.serialNumbers.length - 1]}
+                      </td>
+                      <td className="px-4 py-3 text-center">{item.quantity}</td>
+                      <td className="px-4 py-3 text-center text-gray-500">
+                        {item.createdByName || "-"}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {programType === "VOUCHER"
+                          ? isDiscount
+                            ? "Ya"
+                            : "Tidak"
+                          : "-"}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          onClick={() =>
+                            router.push(
+                              `/dashboard/superadmin/generatenumber/${(programType || "fwc").toLowerCase()}/${item.id}/view`,
+                            )
+                          }
+                          className="text-[#8D1231] hover:underline"
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

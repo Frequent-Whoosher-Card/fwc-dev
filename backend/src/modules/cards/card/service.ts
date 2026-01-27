@@ -14,6 +14,7 @@ export class CardService {
     typeName?: string;
     stationId?: string;
     stationName?: string;
+    programType?: "FWC" | "VOUCHER";
     page?: number;
     limit?: number;
   }) {
@@ -103,6 +104,13 @@ export class CardService {
           contains: params.stationName,
           mode: "insensitive",
         },
+      };
+    }
+
+    if (params?.programType) {
+      cardProductWhere.category = {
+        ...cardProductWhere.category,
+        programType: params.programType,
       };
     }
 

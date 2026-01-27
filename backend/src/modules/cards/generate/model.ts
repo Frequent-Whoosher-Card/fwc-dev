@@ -108,6 +108,14 @@ export namespace CardGenerateModel {
               createdAt: t.String(),
             }),
           ),
+          document: t.Union([
+            t.Object({
+              id: t.String(),
+              filename: t.String(),
+              url: t.String(),
+            }),
+            t.Null(),
+          ]),
         }),
       ),
       pagination: t.Object({
@@ -141,6 +149,14 @@ export namespace CardGenerateModel {
           name: t.String(),
         }),
         serialNumbers: t.Array(t.String()),
+        document: t.Union([
+          t.Object({
+            id: t.String(),
+            filename: t.String(),
+            url: t.String(),
+          }),
+          t.Null(),
+        ]),
       }),
       cards: t.Array(
         t.Object({

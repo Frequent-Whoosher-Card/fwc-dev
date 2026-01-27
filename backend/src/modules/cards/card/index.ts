@@ -44,6 +44,7 @@ const baseRoutes = new Elysia()
               typeName: query.typeName as string | undefined,
               stationId: query.stationId as string | undefined,
               stationName: query.stationName as string | undefined,
+              programType: query.programType as "FWC" | "VOUCHER" | undefined,
               page,
               limit,
             });
@@ -74,9 +75,9 @@ const baseRoutes = new Elysia()
             tags: ["Card"],
             summary: "Get all cards",
             description:
-              "Get all cards with optional filters. Supports filtering by cardProductId, status (IN_STATION, IN_OFFICE, SOLD_ACTIVE, etc.), and searching by serial number. Includes pagination support.",
+              "Get all cards with optional filters. Supports filtering by cardProductId, status, search, and programType (FWC/VOUCHER).",
           },
-        }
+        },
       )
       // Get First Available Card
       .get(
@@ -86,7 +87,7 @@ const baseRoutes = new Elysia()
           try {
             const card = await CardService.getFirstAvailableCard(
               query.cardProductId,
-              query.status
+              query.status,
             );
 
             return {
@@ -119,7 +120,7 @@ const baseRoutes = new Elysia()
             description:
               "Get the first matching card based on Category, Type and Status (sorted by Serial Number ASC). status defaults to IN_STATION.",
           },
-        }
+        },
       )
       // Get Card By ID
       .get(
@@ -157,7 +158,7 @@ const baseRoutes = new Elysia()
             description:
               "Get detailed card information by card ID. Returns card data including card product information (category and type), member information (if assigned), and card status.",
           },
-        }
+        },
       )
       // Get Card By Serial Number
       .get(
@@ -166,7 +167,7 @@ const baseRoutes = new Elysia()
           const { params, set } = context as typeof context;
           try {
             const card = await CardService.getCardBySerialNumber(
-              params.serialNumber
+              params.serialNumber,
             );
 
             return {
@@ -197,8 +198,8 @@ const baseRoutes = new Elysia()
             description:
               "Get detailed card information by serial number. Useful for looking up cards when you only have the serial number. Returns card data including card product information (category and type).",
           },
-        }
-      )
+        },
+      ),
   )
   .group("", (app) =>
     app
@@ -245,8 +246,8 @@ const baseRoutes = new Elysia()
             description:
               "Update card status and notes. Only allows status and notes modifications.",
           },
-        }
-      )
+        },
+      ),
   );
 
 export const cards = new Elysia({ prefix: "/cards" }).use(baseRoutes);
