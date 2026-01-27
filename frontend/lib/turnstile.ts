@@ -1,6 +1,6 @@
 /**
  * Cloudflare Turnstile Helper
- * 
+ *
  * Cloudflare Turnstile Managed: Checkbox terlihat dengan branding Cloudflare, auto-check jika mendeteksi user adalah human
  */
 
@@ -138,6 +138,9 @@ export async function initializeTurnstile(containerId: string = 'turnstile-conta
         // Ignore remove errors
       }
     }
+   
+    // Clear stale token
+    turnstileToken = null;
 
     turnstileWidgetId = window.turnstile.render(container, {
       sitekey: siteKey,
@@ -165,7 +168,7 @@ export async function initializeTurnstile(containerId: string = 'turnstile-conta
     return turnstileWidgetId;
   } catch (error: any) {
     const errorMessage = error?.message || String(error);
-    
+   
     if (errorMessage.includes('Invalid site key') || errorMessage.includes('not loaded')) {
       console.warn(
         '[Turnstile] Site key invalid or domain not registered. ' +
@@ -202,7 +205,7 @@ export async function executeTurnstile(): Promise<string | null> {
         return null;
       }
       turnstileWidgetId = widgetId;
-      
+     
       // Wait a bit for widget to render and potentially auto-check
       await new Promise(resolve => setTimeout(resolve, 500));
     }
@@ -233,10 +236,10 @@ export async function executeTurnstile(): Promise<string | null> {
     return new Promise<string | null>((resolve) => {
       let attempts = 0;
       const maxAttempts = 80; // 8 seconds (100ms * 80)
-      
+     
       const checkInterval = setInterval(() => {
         attempts++;
-        
+       
         // Check if token is available
         if (turnstileToken) {
           clearInterval(checkInterval);
@@ -278,3 +281,19 @@ export async function executeTurnstile(): Promise<string | null> {
 export function isTurnstileEnabled(): boolean {
   return !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 }
+
+/**
+ * Reset Turnstile Widget
+ */
+export function resetTurnstile(): void {
+  if (window.turnstile && turnstileWidgetId !== null) {
+    try {
+      window.turnstile.reset(turnstileWidgetId);
+      turnstileToken = null;
+      console.log('[Turnstile] Widget reset');
+    } catch (e) {
+      console.error('[Turnstile] Failed to reset widget:', e);
+    }
+  }
+}
+

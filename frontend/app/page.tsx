@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { API_BASE_URL } from '../lib/apiConfig';
 import { setupAppCheck, getAppCheckToken, isAppCheckEnabled } from '../lib/firebase';
-import { executeTurnstile, isTurnstileEnabled, initializeTurnstile } from '../lib/turnstile';
+import { executeTurnstile, isTurnstileEnabled, initializeTurnstile, resetTurnstile } from '../lib/turnstile';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
@@ -97,6 +97,7 @@ export default function LoginPage() {
       if (!response.ok || !json?.success) {
         setAuthErrorMessage(json?.error?.message || 'Login gagal');
         setShowAuthError(true);
+        if (isTurnstileEnabled()) resetTurnstile(); // Reset on api error
         setIsLoading(false);
         return;
       }
@@ -193,6 +194,7 @@ export default function LoginPage() {
       console.error(err);
       setAuthErrorMessage('Terjadi kesalahan sistem');
       setShowAuthError(true);
+      if (isTurnstileEnabled()) resetTurnstile(); // Reset on caught error
     } finally {
       setIsLoading(false);
     }
@@ -230,8 +232,19 @@ export default function LoginPage() {
                 <input type={showPassword ? 'text' : 'password'} className="h-11 w-full rounded-md border px-3 text-sm" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
 
                 {/* BUTTON */}
-                <button type="submit" className="h-12 w-full rounded-md bg-[var(--kcic)] text-white font-semibold">
-                  Sign In
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="h-12 w-full rounded-md bg-[var(--kcic)] text-white font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isLoading ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      <span>Signing In...</span>
+                    </>
+                  ) : (
+                    'Sign In'
+                  )}
                 </button>
 
                 {/* 🔥 TURNSTILE DI BAWAH BUTTON */}
