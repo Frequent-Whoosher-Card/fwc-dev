@@ -8,6 +8,7 @@ export interface StockInItem {
   id: string;
   tanggal: string;
   category: string;
+  categoryId: string; // Added for filtering
   type: string;
   stock: number;
   sentSerialNumbers?: string[];
@@ -106,8 +107,10 @@ const stockService = {
     return res.data?.data ?? [];
   },
 
-  getProducts: async () => {
-    const res = await axios.get("/card/product");
+  getProducts: async (programType?: string) => {
+    const res = await axios.get("/card/product", {
+      params: { programType },
+    });
     return res.data?.data ?? [];
   },
 
@@ -118,10 +121,29 @@ const stockService = {
     return res.data?.data?.items ?? [];
   },
 
-  getAvailableSerials: async (cardProductId: string) => {
-    const res = await axios.get("/stock/in/available-serials", {
-      params: { cardProductId },
-    });
+  getAvailableSerials: async (
+    cardProductId: string,
+    programType: string = "fwc",
+  ) => {
+    const res = await axios.get(
+      `/stock/in/${programType.toLowerCase()}/available-serials`,
+      {
+        params: { cardProductId },
+      },
+    );
+    return res.data?.data;
+  },
+
+  getAvailableSerialsStockOut: async (
+    cardProductId: string,
+    programType: string = "fwc",
+  ) => {
+    const res = await axios.get(
+      `/stock/out/${programType.toLowerCase()}/available-serials`,
+      {
+        params: { cardProductId },
+      },
+    );
     return res.data?.data;
   },
 
@@ -152,6 +174,7 @@ const stockService = {
           item.category?.name ||
           item.category ||
           "-",
+        categoryId: item.cardCategory?.id || item.category?.id || "",
         type: item.cardType?.name || item.type?.name || item.type || "-",
         stock: item.quantity,
         sentSerialNumbers: item.sentSerialNumbers ?? [],
@@ -159,7 +182,7 @@ const stockService = {
       pagination: {
         total: pagination.total ?? pagination.totalItems ?? 0,
         page: pagination.page ?? pagination.currentPage ?? 1,
-        limit: pagination.limit ?? pagination.limit ?? 10,
+        limit: pagination.limit ?? pagination.limitNum ?? 10,
         totalPages: pagination.totalPages ?? 0,
       },
     };
@@ -172,6 +195,7 @@ const stockService = {
     endSerial: string;
     note?: string;
     programType?: string;
+    serialDate?: string;
   }) => {
     const { programType = "fwc", ...rest } = payload;
     return axios.post(`/stock/in/${programType.toLowerCase()}`, rest);
@@ -236,7 +260,16 @@ const stockService = {
     const res = await axios.get(`/stock/out/${programType.toLowerCase()}`, {
       params: rest,
     });
-    return res.data.data;
+    const data = res.data.data;
+    return {
+      items: data.items,
+      pagination: {
+        total: data.pagination.total ?? data.pagination.totalItems ?? 0,
+        page: data.pagination.page ?? data.pagination.currentPage ?? 1,
+        limit: data.pagination.limit ?? data.pagination.limitNum ?? 10,
+        totalPages: data.pagination.totalPages ?? 0,
+      },
+    };
   },
 
   createStockOut: async (payload: {

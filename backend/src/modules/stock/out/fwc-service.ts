@@ -1137,6 +1137,12 @@ export class StockOutFwcService {
       `Updated Stock Out ${id}`,
     );
 
+    await ActivityLogService.createActivityLog(
+      userId,
+      "UPDATE_STOCK_OUT_FWC",
+      `Updated Stock Out ${id}`,
+    );
+
     return transaction;
   }
   /**

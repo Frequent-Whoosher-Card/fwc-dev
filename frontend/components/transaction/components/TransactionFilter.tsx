@@ -29,6 +29,9 @@ interface Props {
   activeTab: TabType;
   onTabChange: (tab: TabType) => void;
 
+  /* ROLE */
+  role?: "superadmin" | "admin" | "supervisor" | "petugas";
+
   /* FILTER */
   stationId?: string;
   purchasedDate?: string;
@@ -53,6 +56,8 @@ interface Props {
 export default function TransactionFilter({
   activeTab,
   onTabChange,
+
+  role,
 
   stationId,
   purchasedDate,
@@ -218,39 +223,43 @@ export default function TransactionFilter({
         )}
       </div>
 
-      {/* PURCHASE DATE */}
-      <div className="relative w-full sm:w-auto">
-        <input
-          ref={purchasedRef}
-          type="date"
-          value={purchasedDate ?? ""}
-          onChange={(e) => onPurchasedDateChange(e.target.value || undefined)}
-          className="h-9 w-full sm:w-[160px] rounded-md border px-3 pr-9 text-sm
-          [&::-webkit-calendar-picker-indicator]:hidden"
-        />
-        <Calendar
-          size={16}
-          className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-[#8D1231]"
-          onClick={() => purchasedRef.current?.showPicker()}
-        />
-      </div>
+      {/* PURCHASE DATE - Hidden for petugas */}
+      {role !== "petugas" && (
+        <div className="relative w-full sm:w-auto">
+          <input
+            ref={purchasedRef}
+            type="date"
+            value={purchasedDate ?? ""}
+            onChange={(e) => onPurchasedDateChange(e.target.value || undefined)}
+            className="h-9 w-full sm:w-[160px] rounded-md border px-3 pr-9 text-sm
+            [&::-webkit-calendar-picker-indicator]:hidden"
+          />
+          <Calendar
+            size={16}
+            className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-[#8D1231]"
+            onClick={() => purchasedRef.current?.showPicker()}
+          />
+        </div>
+      )}
 
-      {/* SHIFT DATE */}
-      <div className="relative w-full sm:w-auto">
-        <input
-          ref={shiftRef}
-          type="date"
-          value={shiftDate ?? ""}
-          onChange={(e) => onShiftDateChange(e.target.value || undefined)}
-          className="h-9 w-full sm:w-[160px] rounded-md border px-3 pr-9 text-sm
-          [&::-webkit-calendar-picker-indicator]:hidden"
-        />
-        <Calendar
-          size={16}
-          className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-[#8D1231]"
-          onClick={() => shiftRef.current?.showPicker()}
-        />
-      </div>
+      {/* SHIFT DATE - Hidden for petugas */}
+      {role !== "petugas" && (
+        <div className="relative w-full sm:w-auto">
+          <input
+            ref={shiftRef}
+            type="date"
+            value={shiftDate ?? ""}
+            onChange={(e) => onShiftDateChange(e.target.value || undefined)}
+            className="h-9 w-full sm:w-[160px] rounded-md border px-3 pr-9 text-sm
+            [&::-webkit-calendar-picker-indicator]:hidden"
+          />
+          <Calendar
+            size={16}
+            className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-[#8D1231]"
+            onClick={() => shiftRef.current?.showPicker()}
+          />
+        </div>
+      )}
 
       {/* RESET + PDF */}
       <div className="flex items-center gap-2 w-full sm:w-auto">

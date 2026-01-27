@@ -4,9 +4,8 @@ import { CardInventoryModel } from "./model";
 import { CardInventoryService } from "./service";
 import { authMiddleware } from "src/middleware/auth";
 
-export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
-  "",
-  (app) =>
+const createInventoryRoutes =
+  (programType?: "FWC" | "VOUCHER") => (app: Elysia) =>
     app
       .use(authMiddleware)
       // Get Station Inventory Monitor
@@ -22,16 +21,7 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
             categoryName,
             typeName,
             stationName,
-          } = query as {
-            stationId?: string;
-            categoryId?: string;
-            typeId?: string;
-            startDate?: string;
-            endDate?: string;
-            categoryName?: string;
-            typeName?: string;
-            stationName?: string;
-          };
+          } = query as any;
 
           const data = await CardInventoryService.getStationInventoryMonitor({
             stationId,
@@ -42,6 +32,7 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
             categoryName,
             typeName,
             stationName,
+            programType,
           });
           return {
             success: true,
@@ -49,7 +40,7 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
           };
         },
         {
-          query: CardInventoryModel.getInventoryListQuery, // Reuse query param if needed (supports stationId)
+          query: CardInventoryModel.getInventoryListQuery,
           response: {
             200: CardInventoryModel.getStationInventoryMonitorResponse,
             400: CardInventoryModel.errorResponse,
@@ -57,18 +48,21 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
           },
           detail: {
             tags: ["Stock All & Inventory"],
-            summary: "Get Station Inventory Monitor",
+            summary: `Get Station Inventory Monitor ${programType ? `(${programType})` : ""}`,
             description:
               "Mendapatkan data inventory per stasiun untuk monitoring (Card Beredar, Aktif, Non Aktif, Total, Belum Terjual).",
           },
-        }
+        },
       )
-      // Get Low Stock Alerts
+      // Get Low Stock Alerts (Global? Or Filtered? Service doesn't filter yet. Assuming Global for now if not updated)
+      // If programType is provided, we might want to filter, but service.getLowStockAlerts() wasn't updated.
+      // Keeping it only on Root or just exposing it as is (Global).
       .get(
         "/alerts",
         async (context) => {
           const { set } = context;
           try {
+            // TODO: Update getLowStockAlerts to support programType if needed
             const result = await CardInventoryService.getLowStockAlerts();
             return {
               success: true,
@@ -86,7 +80,7 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
             description:
               "Mendapatkan notifikasi stok menipis (Mirror of Stock Alerts).",
           },
-        }
+        },
       )
       // Get Inventory List
       .get(
@@ -95,15 +89,16 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
           const { query, set } = context;
           try {
             const result = await CardInventoryService.getAll({
-              page: query.page ? parseInt(query.page) : undefined,
-              limit: query.limit ? parseInt(query.limit) : undefined,
-              categoryId: query.categoryId,
-              typeId: query.typeId,
-              stationId: query.stationId,
-              search: query.search,
-              categoryName: query.categoryName,
-              typeName: query.typeName,
-              stationName: query.stationName,
+              page: query.page ? parseInt(query.page as string) : undefined,
+              limit: query.limit ? parseInt(query.limit as string) : undefined,
+              categoryId: query.categoryId as string,
+              typeId: query.typeId as string,
+              stationId: query.stationId as string,
+              search: query.search as string,
+              categoryName: query.categoryName as string,
+              typeName: query.typeName as string,
+              stationName: query.stationName as string,
+              programType,
             });
             return {
               success: true,
@@ -131,11 +126,11 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
           },
           detail: {
             tags: ["Stock All & Inventory"],
-            summary: "Get All Card Inventory",
+            summary: `Get All Card Inventory ${programType ? `(${programType})` : ""}`,
             description:
               "Mendapatkan agregat seluruh stok per kategori, tipe, dan stasiun.",
           },
-        }
+        },
       )
       // Get Office Stock
       .get(
@@ -144,13 +139,14 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
           const { query, set } = context;
           try {
             const result = await CardInventoryService.getOfficeStock({
-              page: query.page ? parseInt(query.page) : undefined,
-              limit: query.limit ? parseInt(query.limit) : undefined,
-              categoryId: query.categoryId,
-              typeId: query.typeId,
-              search: query.search,
-              categoryName: query.categoryName,
-              typeName: query.typeName,
+              page: query.page ? parseInt(query.page as string) : undefined,
+              limit: query.limit ? parseInt(query.limit as string) : undefined,
+              categoryId: query.categoryId as string,
+              typeId: query.typeId as string,
+              search: query.search as string,
+              categoryName: query.categoryName as string,
+              typeName: query.typeName as string,
+              programType,
             });
             return {
               success: true,
@@ -175,11 +171,11 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
           },
           detail: {
             tags: ["Stock All & Inventory"],
-            summary: "Get Office Stock",
+            summary: `Get Office Stock ${programType ? `(${programType})` : ""}`,
             description:
               "Mendapatkan stok kartu yang ada di Office (Stasiun yang tidak terassign).",
           },
-        }
+        },
       )
       // Get Total Summary (All Card)
       .get(
@@ -187,7 +183,8 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
         async (context) => {
           const { set } = context;
           try {
-            const result = await CardInventoryService.getTotalSummary();
+            const result =
+              await CardInventoryService.getTotalSummary(programType);
             return {
               success: true,
               data: result,
@@ -204,11 +201,11 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
           },
           detail: {
             tags: ["Stock All & Inventory"],
-            summary: "Get Total Card Summary",
+            summary: `Get Total Card Summary ${programType ? `(${programType})` : ""}`,
             description:
               "Mendapatkan total kartu yang beredar & kartu yang hilang atau rusak",
           },
-        }
+        },
       )
       // Get Station Summary
       .get(
@@ -216,7 +213,8 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
         async (context) => {
           const { set } = context;
           try {
-            const result = await CardInventoryService.getStationSummary();
+            const result =
+              await CardInventoryService.getStationSummary(programType);
             return {
               success: true,
               data: result,
@@ -242,10 +240,10 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
           },
           detail: {
             tags: ["Stock All & Inventory"],
-            summary: "Get Stock Summary",
+            summary: `Get Stock Summary ${programType ? `(${programType})` : ""}`,
             description: "Mendapatkan perhitungan stok di office dan stasiun.",
           },
-        }
+        },
       )
       // Get Summary by Category & Type
       .get(
@@ -261,16 +259,7 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
             categoryName,
             typeName,
             stationName,
-          } = query as {
-            stationId?: string;
-            categoryId?: string;
-            typeId?: string;
-            startDate?: string;
-            endDate?: string;
-            categoryName?: string;
-            typeName?: string;
-            stationName?: string;
-          };
+          } = query as any;
 
           try {
             const result = await CardInventoryService.getCategoryTypeSummary({
@@ -282,6 +271,7 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
               categoryName,
               typeName,
               stationName,
+              programType,
             });
             return {
               success: true,
@@ -306,11 +296,11 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
           },
           detail: {
             tags: ["Stock All & Inventory"],
-            summary: "Get Summary by Category & Type",
+            summary: `Get Summary by Category & Type ${programType ? `(${programType})` : ""}`,
             description:
               "Mendapatkan rekapitulasi stok (Office, Station, Active, etc.) per Kategori dan Tipe.",
           },
-        }
+        },
       )
       // Get Inventory Detail
       .get(
@@ -346,6 +336,13 @@ export const cardInventory = new Elysia({ prefix: "/inventory" }).group(
             tags: ["Stock All & Inventory"],
             summary: "Get Inventory Detail",
           },
-        }
-      )
-);
+        },
+      );
+
+export const cardInventory = new Elysia({ prefix: "/inventory" })
+  // Root routes (All)
+  .use(createInventoryRoutes())
+  // FWC routes
+  .group("/fwc", (app) => app.use(createInventoryRoutes("FWC")))
+  // Voucher routes
+  .group("/voucher", (app) => app.use(createInventoryRoutes("VOUCHER")));

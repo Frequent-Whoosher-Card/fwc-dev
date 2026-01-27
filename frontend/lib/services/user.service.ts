@@ -243,3 +243,34 @@ export const updateUser = (
 export const deleteUser = (id: string | number) => {
   return apiFetch(`/users/${id}`, { method: "DELETE" });
 };
+
+/**
+ * CHANGE PASSWORD
+ */
+export const changePassword = (
+  id: string,
+  payload: {
+    currentPassword?: string; // Optional for admin overrides
+    newPassword: string;
+    confirmPassword: string;
+  }
+) => {
+  // Backend expects: currentPassword, newPassword, confirmPassword
+  // Since superadmin overrides user's password, currentPassword might not be needed
+  // depending on backend implementation. Based on investigation,
+  // admin override might need a specific endpoint or bypass check.
+  // Checking api definition...
+  // Based on backend routes: POST /users/:id/change-password
+  // Payload: currentPassword, newPassword, confirmPassword.
+  // BUT for admins, currentPassword check is skipped in backend logic!
+  // So we can send an empty string or dummy for currentPassword if not provided.
+
+  return apiFetch(`/users/${id}/change-password`, {
+    method: "POST",
+    body: JSON.stringify({
+      currentPassword: payload.currentPassword || "", // Admin doesn't need this
+      newPassword: payload.newPassword,
+      confirmPassword: payload.confirmPassword,
+    }),
+  });
+};

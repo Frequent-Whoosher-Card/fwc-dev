@@ -1,4 +1,4 @@
-  // const [redeemType, setRedeemType] = useState('');
+// const [redeemType, setRedeemType] = useState('');
   // setRedeemType('');
   // redeemType removed
   // redeemType removed
@@ -78,7 +78,7 @@ export default function RedeemPage() {
   const [pagination, setPagination] = useState({
     total: 0,
     page: 1,
-    limit: 50,
+    limit: 10,
   });
   // State for modals
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -95,7 +95,7 @@ export default function RedeemPage() {
     if (isProductSelected && startDate && endDate) {
       loadRedeems({
         page: 1,
-        limit: 50,
+        limit: 10,
         startDate: new Date(startDate).toISOString(),
         endDate: (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })(),
         category: category || undefined,
@@ -126,17 +126,17 @@ export default function RedeemPage() {
     try {
       const response = await redeemService.listRedeems(mergedFilters);
       const items = response.data || [];
-      const paginationData = response.pagination || { page: 1, limit: 50, total: 0 };
+      const paginationData = response.pagination || { page: 1, limit: 10, total: 0 };
       setRedeems(Array.isArray(items) ? items : []);
       setPagination({
         page: paginationData.page || 1,
-        limit: paginationData.limit || 50,
+        limit: paginationData.limit || 10,
         total: paginationData.total || 0,
       });
     } catch (error: any) {
       toast.error(error.message || 'Gagal mengambil data redeem');
       setRedeems([]);
-      setPagination({ page: 1, limit: 50, total: 0 });
+      setPagination({ page: 1, limit: 10, total: 0 });
     } finally {
       setIsLoadingRedeems(false);
     }
@@ -147,7 +147,7 @@ export default function RedeemPage() {
     if (!isProductSelected) return;
     loadRedeems({
       page: 1,
-      limit: 50,
+      limit: 10,
       startDate: startDate ? new Date(startDate).toISOString() : undefined,
       endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
       category: category || undefined,
@@ -158,6 +158,22 @@ export default function RedeemPage() {
     });
     setCurrentPage(1);
   }, [startDate, endDate, category, cardType, stationId, search, product]);
+
+  // Trigger loadRedeems setiap currentPage berubah (pagination)
+  useEffect(() => {
+    if (!isProductSelected) return;
+    loadRedeems({
+      page: currentPage,
+      limit: 10,
+      startDate: startDate ? new Date(startDate).toISOString() : undefined,
+      endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
+      category: category || undefined,
+      cardType: cardType || undefined,
+      stationId: stationId || undefined,
+      search: search || undefined,
+      ...(product === 'FWC' || product === 'VOUCHER' ? { product } : {})
+    });
+  }, [currentPage]);
   // Ambil role user dari context yang sudah di-provide oleh dashboard-layout
   const userCtx = useContext(UserContext);
   const currentRole = userCtx?.role;
@@ -174,7 +190,7 @@ export default function RedeemPage() {
       loadStations();
       loadCategories();
       loadCardTypes();
-      loadRedeems({ page: 1, limit: 50 });
+      loadRedeems({ page: 1, limit: 10 });
     }
   }, [product]);
 
@@ -232,7 +248,7 @@ export default function RedeemPage() {
   const handleCreateSuccess = () => {
     loadRedeems({
       page: 1,
-      limit: 50,
+      limit: 10,
       startDate: startDate ? new Date(startDate).toISOString() : undefined,
       endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
       category: category || undefined,
@@ -247,7 +263,7 @@ export default function RedeemPage() {
   const handleDeleteSuccess = () => {
     loadRedeems({
       page: currentPage,
-      limit: 50,
+      limit: 10,
       startDate: startDate ? new Date(startDate).toISOString() : undefined,
       endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
       category: category || undefined,
@@ -265,9 +281,9 @@ export default function RedeemPage() {
   ).slice(Math.max(0, pagination.page - 3), pagination.page + 2);
 
   return (
-    <div className="min-h-screen space-y-6 p-2 sm:p-4 lg:p-6">
+    <div className="min-h-screen space-y-6 p-0 sm:p-0 lg:p-0">
       <div className="max-w-7xl mx-auto">
-        <div className="rounded-xl border border-gray-200 p-4 sm:p-6 lg:p-8">
+        <div className="p-2 sm:p-3 lg:p-4">
           {/* Responsive Header: Title always on top, controls below, shrink buttons if needed */}
           <div className="flex flex-col gap-2 mb-6 w-full">
             <h1 className="text-lg sm:text-xl font-semibold flex-shrink-0 mb-1">Redeem Kuota</h1>
@@ -286,7 +302,7 @@ export default function RedeemPage() {
                   setSearch('');
                   setCurrentPage(1);
                   setRedeems([]);
-                  setPagination({ total: 0, page: 1, limit: 50 });
+                  setPagination({ total: 0, page: 1, limit: 10 });
                 }}
                 className="h-9 w-full sm:w-44 rounded-md border px-3 text-sm font-semibold text-[#8D1231] bg-red-50 border-[#8D1231] focus:outline-none focus:ring-2 focus:ring-[#8D1231]"
               >

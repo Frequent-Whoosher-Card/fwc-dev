@@ -59,7 +59,26 @@ export const useStockIn = ({ programType }: UseStockInProps) => {
         programType,
       });
 
-      setData(items);
+      // Frontend Filtering for FWC Mix Issue (No Backend Mod Constraint)
+      // Because FWC endpoint returns mixed data, we filter by category's programType.
+      // We need to fetch categories to check which ID belongs to which program.
+      // Optimization: Fetch categories once or use cached logic ?
+      // For now, fetch to ensure correctness.
+      if (programType === "FWC") {
+        const categories = await stockService.getCategories();
+        const validCategoryIds = new Set(
+          categories
+            .filter((c: any) => c.programType === "FWC")
+            .map((c: any) => c.id),
+        );
+
+        const filteredItems = items.filter((item) =>
+          validCategoryIds.has(item.categoryId),
+        );
+        setData(filteredItems);
+      } else {
+        setData(items);
+      }
       setPagination(paging);
     } catch (err: any) {
       toast.error(err?.message || "Gagal mengambil data stock-in");

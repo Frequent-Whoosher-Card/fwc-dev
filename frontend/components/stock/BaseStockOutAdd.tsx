@@ -13,12 +13,14 @@ export default function BaseStockOutAdd({ programType }: BaseStockOutAddProps) {
   const {
     form,
     setForm,
-    categories,
-    types,
+    products,
     stations,
     loading,
     saving,
     handleSubmit,
+    maxAvailableSerial,
+    handleQuantityChange,
+    handleEndSerialChange,
   } = useStockOutForm({ programType });
 
   if (loading) {
@@ -77,36 +79,19 @@ export default function BaseStockOutAdd({ programType }: BaseStockOutAddProps) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium">Category</label>
+            <div className="col-span-2">
+              <label className="text-sm font-medium">Card Product</label>
               <select
                 className="w-full rounded-lg border px-4 py-2"
-                value={form.cardCategoryId}
+                value={form.productId}
                 onChange={(e) =>
-                  setForm({ ...form, cardCategoryId: e.target.value })
+                  setForm({ ...form, productId: e.target.value })
                 }
               >
-                <option value="">Pilih Category</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.categoryName}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Type</label>
-              <select
-                className="w-full rounded-lg border px-4 py-2"
-                value={form.cardTypeId}
-                onChange={(e) =>
-                  setForm({ ...form, cardTypeId: e.target.value })
-                }
-              >
-                <option value="">Pilih Type</option>
-                {types.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.typeName}
+                <option value="">Pilih Card Product</option>
+                {products.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.category?.categoryName} - {p.type?.typeName}
                   </option>
                 ))}
               </select>
@@ -114,16 +99,6 @@ export default function BaseStockOutAdd({ programType }: BaseStockOutAddProps) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium">Batch</label>
-              <input
-                type="text"
-                className="w-full rounded-lg border px-4 py-2"
-                value={form.batchId}
-                onChange={(e) => setForm({ ...form, batchId: e.target.value })}
-                placeholder="Masukkan Batch ID"
-              />
-            </div>
             <div>
               <label className="text-sm font-medium">Nota Dinas</label>
               <input
@@ -155,9 +130,37 @@ export default function BaseStockOutAdd({ programType }: BaseStockOutAddProps) {
                 type="number"
                 className="w-full rounded-lg border px-4 py-2"
                 value={form.quantity}
-                onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+                onChange={(e) => handleQuantityChange(e.target.value)}
                 placeholder="Masukkan jumlah kartu"
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium">Initial Serial</label>
+              <input
+                type="text"
+                className="w-full rounded-lg border px-4 py-2 bg-gray-100"
+                value={form.startSerial}
+                readOnly
+                placeholder="Otomatis dari stok tersedia"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Last Serial</label>
+              <input
+                type="text"
+                className="w-full rounded-lg border px-4 py-2"
+                value={form.endSerial}
+                onChange={(e) => handleEndSerialChange(e.target.value)}
+                placeholder="Masukkan Last Serial"
+              />
+              {maxAvailableSerial && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Tersedia sampai serial: {maxAvailableSerial}
+                </p>
+              )}
             </div>
           </div>
 

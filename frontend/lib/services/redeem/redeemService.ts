@@ -39,6 +39,7 @@ export interface RedeemItem {
   status: string;
   redeemType: string;
   quotaUsed: number;
+  remainingQuota: number;
   nominal?: number; // Calculated field
   notes: string | null;
   createdAt: string;

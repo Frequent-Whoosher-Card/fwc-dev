@@ -5,14 +5,16 @@ import { useRouter } from "next/navigation";
 import stockService from "@/lib/services/stock.service";
 import toast from "react-hot-toast";
 
-interface Category {
+interface CardProduct {
   id: string;
-  categoryName: string;
-}
-
-interface TypeItem {
-  id: string;
-  typeName: string;
+  category?: {
+    id: string;
+    categoryName: string;
+  };
+  type?: {
+    id: string;
+    typeName: string;
+  };
 }
 
 interface Station {
@@ -29,8 +31,7 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
   const router = useRouter();
   const today = new Date().toISOString().split("T")[0];
 
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [types, setTypes] = useState<TypeItem[]>([]);
+  const [products, setProducts] = useState<CardProduct[]>([]);
   const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -38,14 +39,12 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
 
   const [form, setForm] = useState({
     movementAt: today,
-    cardCategoryId: "",
-    cardTypeId: "",
+    productId: "",
     stationId: "",
     quantity: "",
     startSerial: "",
     endSerial: "",
     note: "",
-    batchId: "",
     notaDinas: "",
     bast: "",
   });
@@ -53,14 +52,12 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [catList, typeList, stationList] = await Promise.all([
-        stockService.getCategories(),
-        stockService.getTypes(),
+      const [productList, stationList] = await Promise.all([
+        stockService.getProducts(programType),
         stockService.getStations(),
       ]);
 
-      setCategories(catList);
-      setTypes(typeList);
+      setProducts(productList);
       setStations(stationList);
 
       if (id) {
@@ -70,22 +67,18 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
           movementAt: detail.movementAt
             ? new Date(detail.movementAt).toISOString().split("T")[0]
             : today,
-          cardCategoryId: "", // Detail response usually has name, not id unless expanded
-          cardTypeId: "",
+          productId: "", // Detail response usually has name, not id unless expanded
           stationId: "", // Same as above
           quantity: String(detail.quantity || ""),
           startSerial: detail.sentSerialNumbers?.[0]
-            ? detail.sentSerialNumbers[0].slice(-5).replace(/^0+/, "") || "0"
+            ? detail.sentSerialNumbers[0]
             : "",
           endSerial: detail.sentSerialNumbers?.[
             detail.sentSerialNumbers.length - 1
           ]
             ? detail.sentSerialNumbers[detail.sentSerialNumbers.length - 1]
-                .slice(-5)
-                .replace(/^0+/, "") || "0"
             : "",
           note: detail.note || "",
-          batchId: detail.batchId || "",
           notaDinas: detail.notaDinas || "",
           bast: detail.bast || "",
         });
@@ -101,6 +94,97 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
     fetchData();
   }, [fetchData]);
 
+  const [maxAvailableSerial, setMaxAvailableSerial] = useState<string>("");
+
+  // Fetch available serial when product changes
+  useEffect(() => {
+    const fetchSerial = async () => {
+      if (!form.productId) return;
+      try {
+        const data = await stockService.getAvailableSerialsStockOut(
+          form.productId,
+          programType,
+        );
+        console.log("Serial fetch result:", data);
+        if (data?.startSerial) {
+          setForm((prev) => ({
+            ...prev,
+            startSerial: data.startSerial,
+            // Reset end serial and quantity on product change
+            endSerial: "",
+            quantity: "",
+          }));
+          setMaxAvailableSerial(data.endSerial || "");
+        } else {
+          setForm((prev) => ({
+            ...prev,
+            startSerial: "",
+            endSerial: "",
+            quantity: "",
+          }));
+          setMaxAvailableSerial("");
+          toast.error("Tidak ada stok tersedia (IN_OFFICE) untuk produk ini.");
+        }
+      } catch (error) {
+        console.error("Failed to fetch available serials", error);
+        toast.error("Gagal mengambil data serial stok.");
+      }
+    };
+    fetchSerial();
+  }, [form.productId, programType]);
+
+  // Calculate endSerial when quantity or startSerial changes
+  // Calculate helpers
+  const calculateEndSerial = (start: string, qty: number) => {
+    const match = start.match(/^(.*?)(\d+)$/);
+    if (match) {
+      const prefix = match[1];
+      const numberPart = match[2];
+      const startNum = parseInt(numberPart, 10);
+      const endNum = startNum + qty - 1;
+      return `${prefix}${String(endNum).padStart(numberPart.length, "0")}`;
+    }
+    return "";
+  };
+
+  const calculateQuantity = (start: string, end: string) => {
+    const startMatch = start.match(/^(.*?)(\d+)$/);
+    const endMatch = end.match(/^(.*?)(\d+)$/);
+    if (startMatch && endMatch && startMatch[1] === endMatch[1]) {
+      const startNum = parseInt(startMatch[2], 10);
+      const endNum = parseInt(endMatch[2], 10);
+      const diff = endNum - startNum + 1;
+      return diff > 0 ? diff : 0;
+    }
+    return 0;
+  };
+
+  const handleQuantityChange = (val: string) => {
+    setForm((prev) => {
+      const qty = parseInt(val);
+      let newEnd = prev.endSerial;
+      if (!isNaN(qty) && qty > 0 && prev.startSerial) {
+        newEnd = calculateEndSerial(prev.startSerial, qty);
+      } else {
+        newEnd = "";
+      }
+      return { ...prev, quantity: val, endSerial: newEnd };
+    });
+  };
+
+  const handleEndSerialChange = (val: string) => {
+    setForm((prev) => {
+      let newQty = prev.quantity;
+      if (val && prev.startSerial) {
+        const qty = calculateQuantity(prev.startSerial, val);
+        newQty = qty > 0 ? String(qty) : "";
+      } else {
+        newQty = "";
+      }
+      return { ...prev, endSerial: val, quantity: newQty };
+    });
+  };
+
   const handleSubmit = async () => {
     // Validation
     if (id && status !== "PENDING") {
@@ -113,8 +197,8 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
       ? [form.movementAt, form.stationId, form.startSerial, form.endSerial]
       : [
           form.movementAt,
-          form.cardCategoryId,
-          form.cardTypeId,
+          form.movementAt,
+          form.productId,
           form.stationId,
           form.quantity,
         ];
@@ -135,19 +219,62 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
       if (isEdit) {
         payload.startSerial = form.startSerial;
         payload.endSerial = form.endSerial;
-        payload.batchId = form.batchId;
+        // payload.batchId = form.batchId; // Auto/Immutable
         payload.notaDinas = form.notaDinas;
         payload.bast = form.bast;
         await stockService.updateStockOut(id, payload);
         toast.success("Stock out berhasil diperbarui");
       } else {
-        payload.cardCategoryId = form.cardCategoryId;
-        payload.cardTypeId = form.cardTypeId;
+        const selectedProduct = products.find((p) => p.id === form.productId);
+        if (!selectedProduct) {
+          toast.error("Invalid Product");
+          setSaving(false);
+          return;
+        }
+
+        // Fix Payload for Create
+        payload.cardProductId = form.productId;
+        payload.startSerial = form.startSerial;
+        payload.endSerial = form.endSerial;
         payload.quantity = Number(form.quantity);
         payload.programType = programType;
-        payload.batchId = form.batchId;
+
+        // Add serialDate for Voucher (required by validation)
+        if (programType === "VOUCHER") {
+          // Heuristic: If startSerial is a full serial (length > 10), extract the date and suffix.
+          // Voucher Format: Template + YYMMDD + Suffix(5)
+          // We assume suffix is last 5 digits and date is 6 digits before that.
+          if (form.startSerial && form.startSerial.length > 10) {
+            const suffix = form.startSerial.slice(-5);
+            const datePart = form.startSerial.slice(-11, -5); // YYMMDD
+            // Reconstruct Date: 20YY-MM-DD
+            // Note: This matches the format used in backend (YY year suffix)
+            const year = `20${datePart.slice(0, 2)}`;
+            const month = datePart.slice(2, 4);
+            const day = datePart.slice(4, 6);
+            const parsedDate = new Date(`${year}-${month}-${day}`);
+
+            if (!isNaN(parsedDate.getTime())) {
+              payload.serialDate = parsedDate.toISOString();
+              payload.startSerial = suffix; // Send only suffix
+            } else {
+              // Fallback if parsing fails
+              payload.serialDate = form.movementAt;
+            }
+
+            // Also handle endSerial if it's full
+            if (form.endSerial && form.endSerial.length > 10) {
+              payload.endSerial = form.endSerial.slice(-5);
+            }
+          } else {
+            // Fallback for manual short input
+            payload.serialDate = form.movementAt;
+          }
+        }
+
         payload.notaDinas = form.notaDinas;
         payload.bast = form.bast;
+
         await stockService.createStockOut(payload);
         toast.success("Stock out berhasil dibuat");
       }
@@ -165,8 +292,7 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
   return {
     form,
     setForm,
-    categories,
-    types,
+    products,
     stations,
     loading,
     saving,
@@ -174,5 +300,8 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
     handleSubmit,
     isEdit: !!id,
     isEditable: !id || status === "PENDING",
+    maxAvailableSerial,
+    handleQuantityChange,
+    handleEndSerialChange,
   };
 };
