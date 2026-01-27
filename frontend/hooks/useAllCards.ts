@@ -72,6 +72,7 @@ export const useAllCards = ({ programType }: UseAllCardsProps) => {
           search: search || undefined,
           startDate: startDate || undefined,
           endDate: endDate || undefined,
+          programType,
         },
       });
 
@@ -124,7 +125,7 @@ export const useAllCards = ({ programType }: UseAllCardsProps) => {
   // Fetch status options for filter
   useEffect(() => {
     axiosInstance
-      .get("/cards", { params: { page: 1, limit: 100000 } })
+      .get("/cards", { params: { page: 1, limit: 100000, programType } })
       .then((res) => {
         const items = res.data?.data?.items ?? [];
         const unique = Array.from(
@@ -133,7 +134,7 @@ export const useAllCards = ({ programType }: UseAllCardsProps) => {
         setStatusOptions(unique);
       })
       .catch(() => {});
-  }, []);
+  }, [programType]);
 
   const handleExportPDF = () => {
     toast("Export PDF (coming soon)");

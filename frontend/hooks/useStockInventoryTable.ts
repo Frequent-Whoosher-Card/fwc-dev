@@ -23,14 +23,17 @@ interface Filters {
   endDate: string;
 }
 
-export const useStockInventoryTable = (filters: Filters) => {
+export const useStockInventoryTable = (
+  filters: Filters,
+  programType?: string,
+) => {
   const [rows, setRows] = useState<StockRow[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchSummary = useCallback(async () => {
     setLoading(true);
     try {
-      const params: Record<string, string> = {};
+      const params: Record<string, string> = { programType: programType ?? "" };
 
       if (filters.station !== "all") params.stationName = filters.station;
       if (filters.category !== "all") params.categoryName = filters.category;
@@ -69,6 +72,7 @@ export const useStockInventoryTable = (filters: Filters) => {
     filters.type,
     filters.startDate,
     filters.endDate,
+    programType,
   ]);
 
   useEffect(() => {

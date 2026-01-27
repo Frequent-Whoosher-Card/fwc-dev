@@ -8,12 +8,14 @@ import stockService, {
 import toast from "react-hot-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { useAuthClient } from "./useAuthClient";
 
 interface UseStockInProps {
   programType: "FWC" | "VOUCHER";
 }
 
 export const useStockIn = ({ programType }: UseStockInProps) => {
+  const auth = useAuthClient();
   const [data, setData] = useState<StockInItem[]>([]);
   const [pagination, setPagination] = useState<StockPaginationMeta>({
     total: 0,
@@ -57,47 +59,32 @@ export const useStockIn = ({ programType }: UseStockInProps) => {
       const { items, pagination: paging } = await stockService.getStockInList({
         ...params,
         programType,
+        categoryName: category !== "all" ? category : undefined,
+        typeName: type !== "all" ? type : undefined,
       });
 
-      // Frontend Filtering for FWC Mix Issue (No Backend Mod Constraint)
-      // Because FWC endpoint returns mixed data, we filter by category's programType.
-      // We need to fetch categories to check which ID belongs to which program.
-      // Optimization: Fetch categories once or use cached logic ?
-      // For now, fetch to ensure correctness.
-      if (programType === "FWC") {
-        const categories = await stockService.getCategories();
-        const validCategoryIds = new Set(
-          categories
-            .filter((c: any) => c.programType === "FWC")
-            .map((c: any) => c.id),
-        );
-
-        const filteredItems = items.filter((item) =>
-          validCategoryIds.has(item.categoryId),
-        );
-        setData(filteredItems);
-      } else {
-        setData(items);
-      }
+      setData(items);
       setPagination(paging);
     } catch (err: any) {
       toast.error(err?.message || "Gagal mengambil data stock-in");
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit, fromDate, toDate, programType]);
+  }, [
+    pagination.page,
+    pagination.limit,
+    fromDate,
+    toDate,
+    category,
+    type,
+    programType,
+  ]);
 
   useEffect(() => {
     fetchStockIn();
   }, [fetchStockIn]);
 
-  const filteredData = useMemo(() => {
-    return data.filter((item) => {
-      const categoryMatch = category === "all" || item.category === category;
-      const typeMatch = type === "all" || item.type === type;
-      return categoryMatch && typeMatch;
-    });
-  }, [data, category, type]);
+  const filteredData = data; // Backend does the filtering now
 
   const handleDelete = async () => {
     if (!selectedId) return;
@@ -115,10 +102,63 @@ export const useStockIn = ({ programType }: UseStockInProps) => {
 
   const handleExportPDF = async () => {
     try {
+      const doc = new jsPDF("p", "mm", "a4");
+      const title = `Laporan Stock In ${programType} (Vendor ke Office)`;
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.text(title, pageWidth / 2, 15, { align: "center" });
+
+      // Filter Info
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      let filterY = 22;
+      const filtersArr = [];
+      if (fromDate || toDate) {
+        const start = fromDate
+          ? fromDate.split("-").reverse().join("-")
+          : "...";
+        const end = toDate ? toDate.split("-").reverse().join("-") : "...";
+        filtersArr.push(`Periode: ${start} s/d ${end}`);
+      }
+      if (category !== "all") filtersArr.push(`Kategori: ${category}`);
+      if (type !== "all") filtersArr.push(`Tipe: ${type}`);
+
+      if (filtersArr.length > 0) {
+        doc.text(`Filter: ${filtersArr.join(" | ")}`, 14, filterY);
+        filterY += 6;
+      }
+
+      // User & Time Info
+      doc.setFontSize(9);
+      doc.setTextColor(100);
+      const exportTime = new Date().toLocaleString("id-ID", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+      doc.text(
+        `Export oleh: ${auth?.name || auth?.username || "Admin"} | Waktu: ${exportTime}`,
+        14,
+        filterY,
+      );
+      filterY += 4;
+      doc.setTextColor(0);
+
+      doc.line(14, filterY, pageWidth - 14, filterY);
+
       const { items: allData } = await stockService.getStockInList({
         page: 1,
         limit: 100000,
         programType,
+        startDate: fromDate
+          ? new Date(fromDate + "T00:00:00Z").toISOString()
+          : undefined,
+        endDate: toDate
+          ? new Date(toDate + "T23:59:59Z").toISOString()
+          : undefined,
+        categoryName: category !== "all" ? category : undefined,
+        typeName: type !== "all" ? type : undefined,
       });
 
       if (allData.length === 0) {
@@ -126,26 +166,17 @@ export const useStockIn = ({ programType }: UseStockInProps) => {
         return;
       }
 
-      const doc = new jsPDF("p", "mm", "a4");
-      const title = `Laporan Stock In ${programType} (Vendor ke Office)`;
-      const pageWidth = doc.internal.pageSize.getWidth();
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
-      doc.text(title, pageWidth / 2, 18, { align: "center" });
-      doc.line(14, 22, pageWidth - 14, 22);
-
       autoTable(doc, {
-        startY: 26,
+        startY: filterY + 4,
         head: [["No", "Tanggal", "Category", "Type", "Stock Masuk"]],
         body: allData.map((item: any, index: number) => [
           index + 1,
-          new Date(item.movementAt)
+          new Date(item.tanggal)
             .toLocaleDateString("id-ID")
             .replace(/\//g, "-"),
-          item.cardCategory?.name ?? "-",
-          item.cardType?.name ?? "-",
-          item.quantity.toLocaleString(),
+          item.category ?? "-",
+          item.type ?? "-",
+          item.stock.toLocaleString(),
         ]),
         styles: {
           font: "helvetica",

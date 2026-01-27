@@ -19,8 +19,6 @@ export default function BaseStockOutEdit({
   const {
     form,
     setForm,
-    categories,
-    types,
     stations,
     loading,
     saving,
@@ -102,33 +100,21 @@ export default function BaseStockOutEdit({
               <label className="text-sm font-medium text-gray-400 block mb-1">
                 Category (Read Only)
               </label>
-              <select
+              <input
                 disabled
                 className="w-full rounded-lg border px-4 py-2 bg-gray-50 text-gray-500"
-                value={form.cardCategoryId}
-              >
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.categoryName}
-                  </option>
-                ))}
-              </select>
+                value={form.categoryName}
+              />
             </div>
             <div>
               <label className="text-sm font-medium text-gray-400 block mb-1">
                 Type (Read Only)
               </label>
-              <select
+              <input
                 disabled
                 className="w-full rounded-lg border px-4 py-2 bg-gray-50 text-gray-500"
-                value={form.cardTypeId}
-              >
-                {types.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.typeName}
-                  </option>
-                ))}
-              </select>
+                value={form.typeName}
+              />
             </div>
           </div>
 
