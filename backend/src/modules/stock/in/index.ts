@@ -398,6 +398,7 @@ const stockInVoucher = new Elysia({ prefix: "/voucher" })
       response: {
         200: StockInVoucherModel.stockInVoucherResponse,
         400: StockInVoucherModel.errorResponse,
+        422: StockInVoucherModel.errorResponse,
         500: StockInVoucherModel.errorResponse,
       },
       detail: {

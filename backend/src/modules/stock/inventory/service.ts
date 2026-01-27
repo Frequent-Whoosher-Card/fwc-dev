@@ -102,7 +102,13 @@ export class CardInventoryService {
 
     // Include valid statuses for inventory
     cardWhere.status = {
-      in: ["IN_OFFICE", "IN_STATION", "SOLD_ACTIVE", "SOLD_INACTIVE"],
+      in: [
+        "IN_OFFICE",
+        "IN_STATION",
+        "IN_TRANSIT",
+        "SOLD_ACTIVE",
+        "SOLD_INACTIVE",
+      ],
     };
 
     // 2. Aggregate from Cards
@@ -140,7 +146,7 @@ export class CardInventoryService {
       const status = item.status;
 
       if (status === "IN_OFFICE") entry.cardOffice += count;
-      else if (status === "IN_STATION") {
+      else if (status === "IN_STATION" || status === "IN_TRANSIT") {
         entry.cardBelumTerjual += count;
         entry.cardBeredar += count;
       } else if (status === "SOLD_ACTIVE") {
@@ -244,7 +250,13 @@ export class CardInventoryService {
     // Recalculate numbers
     const cardWhere: any = {
       status: {
-        in: ["IN_OFFICE", "IN_STATION", "SOLD_ACTIVE", "SOLD_INACTIVE"],
+        in: [
+          "IN_OFFICE",
+          "IN_STATION",
+          "IN_TRANSIT",
+          "SOLD_ACTIVE",
+          "SOLD_INACTIVE",
+        ],
       },
       cardProduct: {
         categoryId: inventoryMeta.categoryId,
@@ -272,7 +284,7 @@ export class CardInventoryService {
     for (const c of counts) {
       const count = c._count._all;
       if (c.status === "IN_OFFICE") cardOffice += count;
-      else if (c.status === "IN_STATION") {
+      else if (c.status === "IN_STATION" || c.status === "IN_TRANSIT") {
         cardBelumTerjual += count;
         cardBeredar += count;
       } else if (c.status === "SOLD_ACTIVE") {
@@ -364,6 +376,7 @@ export class CardInventoryService {
         in: [
           "IN_OFFICE",
           "IN_STATION",
+          "IN_TRANSIT",
           "SOLD_ACTIVE",
           "SOLD_INACTIVE",
         ] as any[],
@@ -447,7 +460,8 @@ export class CardInventoryService {
         const status = item.status;
 
         if (status === "IN_OFFICE") entry.totalOffice += count;
-        else if (status === "IN_STATION") entry.totalBelumTerjual += count;
+        else if (status === "IN_STATION" || status === "IN_TRANSIT")
+          entry.totalBelumTerjual += count;
         else if (status === "SOLD_ACTIVE") entry.totalAktif += count;
         else if (status === "SOLD_INACTIVE") entry.totalNonAktif += count;
       }
@@ -692,7 +706,13 @@ export class CardInventoryService {
           where: {
             ...where,
             status: {
-              in: ["IN_OFFICE", "IN_STATION", "SOLD_ACTIVE", "SOLD_INACTIVE"],
+              in: [
+                "IN_OFFICE",
+                "IN_STATION",
+                "IN_TRANSIT",
+                "SOLD_ACTIVE",
+                "SOLD_INACTIVE",
+              ],
             },
           },
         }),
@@ -705,7 +725,7 @@ export class CardInventoryService {
           where: {
             ...where,
             status: {
-              in: ["IN_STATION", "SOLD_ACTIVE", "SOLD_INACTIVE"],
+              in: ["IN_STATION", "IN_TRANSIT", "SOLD_ACTIVE", "SOLD_INACTIVE"],
             },
           },
         }),
@@ -744,7 +764,9 @@ export class CardInventoryService {
 
     const cardWhere: any = {
       // stationId: { not: null }, // Allow nulls to catch unassigned/orphaned cards (Sold but no station)
-      status: { in: ["IN_STATION", "SOLD_ACTIVE", "SOLD_INACTIVE"] },
+      status: {
+        in: ["IN_STATION", "IN_TRANSIT", "SOLD_ACTIVE", "SOLD_INACTIVE"],
+      },
     };
 
     if (stationId) cardWhere.stationId = stationId;
