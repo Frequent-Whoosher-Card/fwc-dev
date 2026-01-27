@@ -115,6 +115,12 @@ export default function LoginPage() {
             roleCode: string;
             roleName: string;
           };
+          station: {
+            id: string;
+            stationCode: string;
+            stationName: string;
+            location: string | null;
+          } | null;
         };
         token: string;
       };
@@ -135,6 +141,7 @@ export default function LoginPage() {
           fullName: user.fullName,
           email: user.email,
           role: user.role.roleCode,
+          stationId: user.station?.id || null,
         })
       );
 
@@ -156,7 +163,7 @@ export default function LoginPage() {
           // belum dikirim backend → aman set null
           nip: null,
           phone: null,
-          station: null,
+          station: user.station || null,
         })
       );
 
