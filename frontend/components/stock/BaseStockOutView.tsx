@@ -1,0 +1,136 @@
+"use client";
+
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
+import { useStockOutView } from "@/hooks/useStockOutView";
+
+export default function BaseStockOutView() {
+  const params = useParams();
+  const id =
+    typeof params === "object" && params !== null ? (params as any).id : "";
+  const router = useRouter();
+
+  const { data, loading } = useStockOutView(id);
+
+  if (loading) {
+    return (
+      <div className="p-6 text-center text-gray-500">
+        Loading detail stock out...
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4 px-6">
+        <button
+          onClick={() => router.back()}
+          className="rounded-lg border p-2 hover:bg-gray-100"
+        >
+          <ArrowLeft size={18} />
+        </button>
+        <h2 className="text-lg font-semibold">Detail Stock Out</h2>
+      </div>
+
+      <div className="px-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 rounded-xl border bg-white p-6">
+          <div>
+            <p className="text-sm text-gray-500">Category</p>
+            <p className="font-medium">{data.cardCategory.name}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Type</p>
+            <p className="font-medium">{data.cardType.name}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Station</p>
+            <p className="font-medium">{data.stationName}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Tanggal</p>
+            <p className="font-medium">
+              {data.movementAt
+                ? new Date(data.movementAt).toLocaleDateString("id-ID", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                : "-"}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Batch</p>
+            <p className="font-medium">{data.batchId || "-"}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Nota Dinas</p>
+            <p className="font-medium">{data.notaDinas || "-"}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">BAST</p>
+            <p className="font-medium">{data.bast || "-"}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Status</p>
+            <span
+              className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${data.status === "APPROVED" ? "bg-green-100 text-green-700" : data.status === "PENDING" ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-700"}`}
+            >
+              {data.status}
+            </span>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Quantity</p>
+            <p className="font-medium">{data.quantity.toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Created By</p>
+            <p className="font-medium">{data.createdByName}</p>
+          </div>
+          <div className="md:col-span-3">
+            <p className="text-sm text-gray-500">Note</p>
+            <p className="font-medium">{data.note || "-"}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-6">
+        <div className="rounded-xl border bg-white overflow-hidden">
+          <div className="border-b px-4 py-3 font-medium">Serial Number</div>
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="px-4 py-3 text-center w-16">No</th>
+                <th className="px-4 py-3 text-left">Serial</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.sentSerialNumbers.length > 0 ? (
+                data.sentSerialNumbers.map((serial, index) => (
+                  <tr key={serial} className="border-b">
+                    <td className="px-4 py-2 text-center">{index + 1}</td>
+                    <td className="px-4 py-2 font-mono">{serial}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan={2}
+                    className="px-4 py-6 text-center text-gray-500"
+                  >
+                    Tidak ada serial number
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-3 text-sm text-gray-500">
+          Total Serial:{" "}
+          <span className="font-medium text-gray-700">
+            {data.sentSerialNumbers.length}
+          </span>
+        </p>
+      </div>
+    </div>
+  );
+}

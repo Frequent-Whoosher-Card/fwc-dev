@@ -30,6 +30,7 @@ import {
   UserRoundPlus,
   FilePlus,
   Inbox,
+  PercentCircle,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -74,21 +75,21 @@ const superadminMenuItems = [
   {
     title: "Stock Kartu",
     icon: CreditCard,
-    href: "/dashboard/superadmin/stock",
+    href: "/dashboard/superadmin/stock/fwc",
     children: [
       {
         title: "Stock In",
-        href: "/dashboard/superadmin/stock/in",
+        href: "/dashboard/superadmin/stock/fwc/in",
         icon: ArrowDownToLine,
       },
       {
         title: "Stock Out",
-        href: "/dashboard/superadmin/stock/out",
+        href: "/dashboard/superadmin/stock/fwc/out",
         icon: ArrowUpNarrowWide,
       },
       {
         title: "Card All",
-        href: "/dashboard/superadmin/stock/allcard",
+        href: "/dashboard/superadmin/stock/fwc/all",
         icon: UserCircle,
       },
     ],
@@ -108,6 +109,11 @@ const superadminMenuItems = [
     title: "Membership",
     icon: UserPlus,
     href: "/dashboard/superadmin/membership",
+  },
+  {
+    title: "Manage Diskon",
+    icon: PercentCircle,
+    href: "/dashboard/superadmin/managediskon",
   },
   {
     title: "Transaksi",
@@ -138,7 +144,7 @@ const adminMenuItems = [
     ],
   },
   { title: "Membership", icon: UserPlus, href: "/dashboard/admin/membership" },
-  { title: "Transaksi", icon: Receipt, href: "/dashboard/admin/transaction" },
+  { title: "Transaksi", icon: Receipt, href: "/dashboard/admin/transaksi" },
 ];
 
 /* PETUGAS */
@@ -161,11 +167,6 @@ const supervisorMenuItems = [
     href: "/dashboard/supervisor/membership",
   },
   { title: "Redeem Kuota", icon: IdCard, href: "/dashboard/supervisor/redeem" },
-  {
-    title: "Transaksi",
-    icon: Receipt,
-    href: "/dashboard/supervisor/transaksi",
-  },
   { title: "Noted", icon: Inbox, href: "/dashboard/supervisor/noted" },
 ];
 
