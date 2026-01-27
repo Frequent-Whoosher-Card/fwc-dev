@@ -6,7 +6,7 @@ export default function DashboardContent() {
   const [error, setError] = useState(false);
 
   // Superset embedded dashboard - Public role dengan permalink
-  const embedUrl = 'https://superset.fwc-kcic.me/superset/dashboard/p/R6jGe42bamV/?standalone=3&show_filters=0';
+  const embedUrl = 'https://superset.fwc-kcic.me/superset/dashboard/1138237b-ff01-4ad9-be19-a576acdfb8ae/?permalink_key=10mGzypPl5O&standalone=3&show_filters=0';
 
   return (
     <>

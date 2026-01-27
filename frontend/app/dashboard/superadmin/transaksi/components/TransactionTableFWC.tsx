@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import ConfirmDeleteModal from "./ui/ConfirmDeleteModal";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle } from "lucide-react";
 
 /* ======================
    TYPES
@@ -45,6 +44,7 @@ interface Props {
   pagination: Pagination;
   onPageChange: (page: number) => void;
   onEdit?: (id: string) => void;
+  onDelete?: () => void;
   canEdit?: boolean;
   canDelete?: boolean;
 }
@@ -87,6 +87,7 @@ export default function TransactionTable({
   pagination,
   onPageChange,
   onEdit,
+  onDelete,
   canEdit = false,
   canDelete = false,
 }: Props) {
@@ -94,8 +95,9 @@ export default function TransactionTable({
      DELETE STATE
   ====================== */
   const [openDelete, setOpenDelete] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<Purchase | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const pageNumbers = Array.from(
     { length: pagination.totalPages },
@@ -105,34 +107,48 @@ export default function TransactionTable({
   /* ======================
      DELETE HANDLER
   ====================== */
-  const handleOpenDelete = (id: string) => {
-    setSelectedId(id);
+  const handleOpenDelete = (transaction: Purchase) => {
+    setSelectedTransaction(transaction);
     setOpenDelete(true);
   };
 
   const handleCloseDelete = () => {
     if (deleteLoading) return;
     setOpenDelete(false);
-    setSelectedId(null);
+    setSelectedTransaction(null);
   };
 
   const handleConfirmDelete = async () => {
-    if (!selectedId) return;
+    if (!selectedTransaction) return;
 
     try {
       setDeleteLoading(true);
 
-      await fetch(`/api/purchases/${selectedId}`, {
+      const token = localStorage.getItem("fwc_token");
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+      
+      const response = await fetch(`${API_URL}/purchases/${selectedTransaction.id}`, {
         method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
-      setOpenDelete(false);
-      setSelectedId(null);
+      if (!response.ok) {
+        throw new Error("Gagal menghapus transaksi");
+      }
 
-      // refresh current page
-      onPageChange(pagination.page);
+      setOpenDelete(false);
+      setSelectedTransaction(null);
+      setShowSuccessModal(true);
+
+      // refresh data
+      if (onDelete) {
+        onDelete();
+      }
     } catch (error) {
       console.error("Delete failed:", error);
+      alert("Gagal menghapus transaksi");
     } finally {
       setDeleteLoading(false);
     }
@@ -230,7 +246,7 @@ export default function TransactionTable({
 
                       {canDelete && (
                         <button
-                          onClick={() => handleOpenDelete(item.id)}
+                          onClick={() => handleOpenDelete(item)}
                           className="px-3 py-1 text-xs rounded bg-[#8D1231] text-white hover:bg-[#741026]"
                         >
                           Hapus
@@ -281,13 +297,93 @@ export default function TransactionTable({
       )}
 
       {/* DELETE MODAL */}
-      <ConfirmDeleteModal
-        open={openDelete}
-        title="Delete Purchase"
-        description="Are you sure want to delete this purchase data? This action cannot be undone."
-        onCancel={handleCloseDelete}
-        onConfirm={handleConfirmDelete}
-      />
+      {openDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-[420px] rounded-2xl bg-white p-6 shadow-xl">
+            {/* ICON */}
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
+              <AlertTriangle className="text-red-600" size={22} />
+            </div>
+
+            {/* TITLE */}
+            <h2 className="text-center text-lg font-semibold text-gray-800">
+              Delete Transaction
+            </h2>
+
+            <p className="mt-1 text-center text-sm text-gray-600">
+              Are you sure you want to delete this transaction?
+            </p>
+
+            {/* INFO BOX */}
+            <div className="mt-4 rounded-lg bg-gray-50 px-4 py-3 text-sm">
+              <div className="flex justify-between gap-3">
+                <span className="text-gray-500">Customer Name</span>
+                <span className="max-w-[240px] truncate font-medium text-gray-800">
+                  {selectedTransaction?.member?.name || "-"}
+                </span>
+              </div>
+
+              <div className="mt-1 flex justify-between gap-3">
+                <span className="text-gray-500">Serial Number</span>
+                <span className="max-w-[240px] truncate font-mono text-gray-800">
+                  {selectedTransaction?.card.serialNumber || "-"}
+                </span>
+              </div>
+
+              <div className="mt-1 flex justify-between gap-3">
+                <span className="text-gray-500">Price</span>
+                <span className="max-w-[240px] truncate font-medium text-gray-800">
+                  {selectedTransaction ? formatCurrency(selectedTransaction.price) : "-"}
+                </span>
+              </div>
+            </div>
+
+            {/* ACTION */}
+            <div className="mt-6 flex justify-center gap-3">
+              <button
+                onClick={handleCloseDelete}
+                disabled={deleteLoading}
+                className="h-9 w-24 rounded-md bg-gray-100 text-sm text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleConfirmDelete}
+                disabled={deleteLoading}
+                className="rounded-md bg-[#8D1231] px-5 py-2 text-sm text-white transition hover:bg-[#73122E] active:scale-95 disabled:opacity-50"
+              >
+                {deleteLoading ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SUCCESS MODAL */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-[380px] rounded-xl bg-white p-6 text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
+              <CheckCircle className="text-green-600" size={28} />
+            </div>
+
+            <h2 className="text-xl font-semibold">Success</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Transaction has been deleted successfully
+            </p>
+
+            <button
+              onClick={() => {
+                setShowSuccessModal(false);
+              }}
+              className="mt-6 rounded-md bg-[#8B1538] px-6 py-2 text-sm text-white hover:bg-[#73122E]"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

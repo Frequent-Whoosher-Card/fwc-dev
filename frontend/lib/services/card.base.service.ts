@@ -1,6 +1,6 @@
-import axios from '@/lib/axios';
+import axios from "@/lib/axios";
 
-export type ProgramType = 'FWC' | 'VOUCHER';
+export type ProgramType = "FWC" | "VOUCHER";
 
 export const createCardService = (programType: ProgramType) => {
   return {
@@ -9,7 +9,7 @@ export const createCardService = (programType: ProgramType) => {
     ====================== */
 
     getProducts: async () => {
-      const res = await axios.get('/card/product', {
+      const res = await axios.get("/card/product", {
         params: { programType },
       });
       return res.data?.data || [];
@@ -20,8 +20,15 @@ export const createCardService = (programType: ProgramType) => {
       return res.data?.data;
     },
 
-    createProduct: async (payload: { categoryId: string; typeId: string; totalQuota: number; masaBerlaku: number; price: number; serialTemplate: string }) => {
-      return axios.post('/card/product', {
+    createProduct: async (payload: {
+      categoryId: string;
+      typeId: string;
+      totalQuota: number;
+      masaBerlaku: number;
+      price: number;
+      serialTemplate: string;
+    }) => {
+      return axios.post("/card/product", {
         ...payload,
         programType, // ✅ hanya di CREATE
       });
@@ -48,14 +55,18 @@ export const createCardService = (programType: ProgramType) => {
     ====================== */
 
     getCategories: async () => {
-      const res = await axios.get('/card/category', {
+      const res = await axios.get("/card/category", {
         params: { programType },
       });
       return res.data?.data || [];
     },
 
-    createCategory: async (payload: { categoryCode: string; categoryName: string; description?: string }) => {
-      return axios.post('/card/category', {
+    createCategory: async (payload: {
+      categoryCode: string;
+      categoryName: string;
+      description?: string;
+    }) => {
+      return axios.post("/card/category", {
         ...payload,
         programType,
       });
@@ -79,19 +90,30 @@ export const createCardService = (programType: ProgramType) => {
       return axios.delete(`/card/category/${id}`);
     },
 
+    getCategoryRecommend: async () => {
+      const res = await axios.get("/card/category/recommend", {
+        params: { programType },
+      });
+      return res.data?.data?.recommendedCode;
+    },
+
     /* ======================
        TYPE
     ====================== */
 
     getTypes: async () => {
-      const res = await axios.get('/card/types', {
+      const res = await axios.get("/card/types", {
         params: { programType },
       });
       return res.data?.data || [];
     },
 
-    createType: async (payload: { typeCode: string; typeName: string; routeDescription?: string }) => {
-      return axios.post('/card/types', {
+    createType: async (payload: {
+      typeCode: string;
+      typeName: string;
+      routeDescription?: string;
+    }) => {
+      return axios.post("/card/types", {
         ...payload,
         programType,
       });
@@ -113,6 +135,13 @@ export const createCardService = (programType: ProgramType) => {
 
     deleteType: async (id: string) => {
       return axios.delete(`/card/types/${id}`);
+    },
+
+    getTypeRecommend: async () => {
+      const res = await axios.get("/card/types/recommend", {
+        params: { programType },
+      });
+      return res.data?.data?.recommendedCode;
     },
   };
 };
