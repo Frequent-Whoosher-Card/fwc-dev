@@ -1,17 +1,19 @@
 import { InboxStatus } from "../models/inbox.model";
 
 const LABELS: Record<InboxStatus, string> = {
-  ACCEPTED: "Accepted",
-  CARD_MISSING: "Card Missing",
-  CARD_DAMAGED: "Card Damaged",
+  COMPLETED: "Completed",
+  ISSUE: "Issue",
   UNKNOWN: "Unknown",
+  CARD_DAMAGED: "Card Damaged",
+  CARD_MISSING: "Card Missing",
 };
 
 const STYLES: Record<InboxStatus, string> = {
-  ACCEPTED: "bg-green-100 text-green-700",
-  CARD_MISSING: "bg-yellow-100 text-yellow-700",
-  CARD_DAMAGED: "bg-red-100 text-red-700",
+  COMPLETED: "bg-green-100 text-green-700",
+  ISSUE: "bg-orange-100 text-orange-700",
   UNKNOWN: "bg-gray-100 text-gray-600",
+  CARD_DAMAGED: "bg-red-100 text-red-700",
+  CARD_MISSING: "bg-red-100 text-red-700",
 };
 
 export default function StatusBadge({ status }: { status?: InboxStatus }) {

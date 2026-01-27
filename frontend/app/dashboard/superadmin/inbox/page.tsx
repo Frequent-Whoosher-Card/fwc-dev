@@ -1,10 +1,23 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { API_BASE_URL } from "@/lib/apiConfig";
 import InboxFilter from "./components/InboxFilter";
 import InboxList from "./components/InboxList";
+import { InboxStatus } from "./models/inbox.model";
+import { fwcInboxService } from "./fwc/fwc.service";
+import { voucherInboxService } from "./voucher/voucher.service";
+
+/**
+ * PRODUCT TYPE
+ */
+type InboxProduct = "FWC" | "VOUCHER";
+
+/**
+ * SERVICE RESOLVER
+ */
+const getInboxService = (product: InboxProduct) => {
+  return product === "FWC" ? fwcInboxService : voucherInboxService;
+};
 
 interface InboxFilters {
   status?: string;
@@ -13,83 +26,50 @@ interface InboxFilters {
 }
 
 /**
- * Derive card condition from backend message
- * (temporary until backend provides explicit field)
+ * DERIVE STATUS
  */
-function deriveCardCondition(message: string): string {
-  const msg = message.toLowerCase();
+function deriveCardCondition(
+  message: string,
+  backendStatus?: string
+): InboxStatus {
+  if (backendStatus === "COMPLETED") return "COMPLETED";
+  if (backendStatus === "ISSUE") return "ISSUE";
 
-  if (msg.includes("diterima")) return "ACCEPTED";
-  if (msg.includes("hilang")) return "CARD_MISSING";
-  if (msg.includes("rusak")) return "CARD_DAMAGED";
+  const msg = (message || "").toLowerCase();
+  if (msg.includes("completed") || msg.includes("selesai"))
+    return "COMPLETED";
+  if (msg.includes("issue") || msg.includes("masalah")) return "ISSUE";
 
   return "UNKNOWN";
 }
 
 export default function InboxPage() {
-  // =========================
-  // STATE DATA & LOADING
-  // =========================
-  const router = useRouter();
-
+  /**
+   * STATE
+   */
+  const [product, setProduct] = useState<InboxProduct | "">("");
   const [items, setItems] = useState<any[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(false);
 
-  // =========================
-  // FETCH INBOX DATA
-  // =========================
+  /**
+   * FETCH INBOX
+   */
   const fetchInbox = useCallback(
     async (filters: InboxFilters = {}) => {
+      if (!product) return;
+
       setLoading(true);
-
       try {
-        const token =
-          typeof window !== "undefined"
-            ? localStorage.getItem("fwc_token")
-            : null;
+        const service = getInboxService(product);
 
-        // Jika tidak ada token → redirect ke login
-        if (!token) {
-          setLoading(false);
-          router.push("/");
-          return;
-        }
-
-        /**
-         * Build query string dengan URLSearchParams
-         * Lebih aman & rapi dibanding string concat manual
-         */
-        const params = new URLSearchParams({ limit: "10" });
-
-        if (filters.status) params.append("status", filters.status);
-
-        const url = `${API_BASE_URL}/inbox/?${params.toString()}`;
-
-        // Request ke backend
-        const res = await fetch(url, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+        const result = await service.getInbox({
+          page: 1,
+          limit: 10,
+          status: filters.status,
         });
 
-        /**
-         * Jika token expired / unauthorized
-         * → clear localStorage & redirect
-         */
-        if (res.status === 401) {
-          localStorage.removeItem("fwc_token");
-          localStorage.removeItem("fwc_user");
-          router.push("/");
-          return;
-        }
-
-        const result = await res.json();
-
-        // MAP DATA FROM BACKEND TO FRONTEND FORMAT
-
-        if (result.success) {
-          let mappedItems = result.data.items.map((item: any) => {
+        if (result?.success) {
+          let mapped = result.data.items.map((item: any) => {
             const sentDate = new Date(item.sentAt);
 
             return {
@@ -99,10 +79,7 @@ export default function InboxPage() {
               sender: item.sender,
               isRead: item.isRead,
               readAt: item.readAt,
-
-              // 🔥 SIMPAN DATE ASLI UNTUK FILTER
               sentAt: sentDate,
-
               dateLabel: sentDate.toLocaleDateString("id-ID", {
                 day: "2-digit",
                 month: "long",
@@ -113,67 +90,90 @@ export default function InboxPage() {
                   hour: "2-digit",
                   minute: "2-digit",
                 }) + " WIB",
-
-              status: deriveCardCondition(item.message),
+              status: deriveCardCondition(item.message, item.status),
             };
           });
 
-          /**
-           * ✅ FILTER FRONTEND (INI KUNCINYA)
-           */
-          if (filters.status) {
-            mappedItems = mappedItems.filter(
-              (item) => item.status === filters.status
-            );
-          }
+          // frontend date filter
           if (filters.startDate) {
             const start = new Date(filters.startDate);
-            start.setHours(0, 0, 0, 0); // awal hari
-
-            mappedItems = mappedItems.filter((item) => item.sentAt >= start);
+            start.setHours(0, 0, 0, 0);
+            mapped = mapped.filter((i: any) => i.sentAt >= start);
           }
 
           if (filters.endDate) {
             const end = new Date(filters.endDate);
-            end.setHours(23, 59, 59, 999); // akhir hari
-
-            mappedItems = mappedItems.filter((item) => item.sentAt <= end);
+            end.setHours(23, 59, 59, 999);
+            mapped = mapped.filter((i: any) => i.sentAt <= end);
           }
 
-          setItems(mappedItems);
+          setItems(mapped);
+        } else {
+          setItems([]);
         }
       } catch (error) {
-        console.error("Error fetching inbox:", error);
+        console.error("Fetch inbox failed:", error);
+        setItems([]);
       } finally {
         setLoading(false);
       }
     },
-    [router]
+    [product]
   );
 
-  // INITIAL FETCH
+  /**
+   * AUTO LOAD WHEN PRODUCT SELECTED
+   */
   useEffect(() => {
-    fetchInbox();
-  }, [fetchInbox]);
+    if (product) {
+      fetchInbox();
+    }
+  }, [product, fetchInbox]);
 
   return (
     <div className="space-y-6 h-full">
       {/* HEADER */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2">
         <h1 className="text-xl font-semibold text-gray-900">List Inbox</h1>
-      </div>
 
-      {/* FILTER */}
-      <div className="rounded-xl border bg-white px-4 py-3 shadow-sm">
-        <InboxFilter onFilter={fetchInbox} />
-      </div>
+        {/* PRODUCT SELECT */}
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-gray-700">
+            Pilih Jenis Produk:
+          </span>
 
-      {/* LIST */}
-      <div className="rounded-xl border bg-white shadow-sm h-[65vh] overflow-hidden">
-        <div className="h-full overflow-y-auto">
-          <InboxList items={items} loading={loading} />
+          <select
+            value={product}
+            onChange={(e) =>
+              setProduct(e.target.value as InboxProduct | "")
+            }
+            className="h-9 w-44 rounded-md border px-3 text-sm font-semibold
+              text-[#8D1231] bg-red-50 border-[#8D1231]
+              focus:outline-none focus:ring-2 focus:ring-[#8D1231]"
+          >
+            <option value="">Pilih Produk</option>
+            <option value="FWC">FWC</option>
+            <option value="VOUCHER">VOUCHER</option>
+          </select>
         </div>
       </div>
+
+      {/* FILTER + LIST ONLY WHEN PRODUCT SELECTED */}
+      {product && (
+        <>
+          {/* FILTER */}
+          <div className="rounded-xl border bg-white px-4 py-3 shadow-sm">
+            <InboxFilter onFilter={fetchInbox} />
+          </div>
+
+          {/* LIST */}
+          <div className="rounded-xl border bg-white shadow-sm h-[65vh] overflow-hidden">
+            <div className="h-full overflow-y-auto">
+              <InboxList items={items} loading={loading} />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

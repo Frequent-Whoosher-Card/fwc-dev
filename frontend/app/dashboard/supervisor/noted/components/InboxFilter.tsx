@@ -34,11 +34,9 @@ export default function InboxFilter({
   });
 
   const update = (key: keyof InboxFilters, value: string) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const applyFilter = () => {
-    onFilter(filters);
+    const newFilters = { ...filters, [key]: value };
+    setFilters(newFilters);
+    onFilter(newFilters);
   };
 
   const reset = () => {
@@ -78,14 +76,6 @@ export default function InboxFilter({
             </option>
           ))}
         </select>
-
-        <button
-          onClick={applyFilter}
-          className="bg-[#8B1538] text-white px-5 py-2 rounded-md text-sm flex items-center gap-2 shadow hover:bg-[#70112d] transition-colors"
-        >
-          <Filter size={16} />
-          Filter
-        </button>
 
         {/* RESET */}
         <button

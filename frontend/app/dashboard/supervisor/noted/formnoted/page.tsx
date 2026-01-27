@@ -12,6 +12,22 @@ const base =
   "h-10 w-full rounded-md border border-gray-300 px-3 text-sm focus:border-gray-400 focus:outline-none";
 
 /* ======================
+   PRODUCT TYPE
+====================== */
+type Product = "FWC" | "VOUCHER";
+
+/* ======================
+   ENDPOINT RESOLVER
+====================== */
+const getDetailEndpoint = (product: Product, id: string) => {
+  if (product === "VOUCHER") {
+    return `/voucher/stock/out/${id}`;
+  }
+  // default FWC (endpoint lama)
+  return `/stock/out/${id}`;
+};
+
+/* ======================
    SMALL COMPONENTS
 ====================== */
 
@@ -152,7 +168,10 @@ function Tag({ text }: { text: string }) {
 export default function FormNoted() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
   const id = searchParams.get("id");
+  const product =
+    (searchParams.get("product") as Product) || "FWC";
 
   const [loading, setLoading] = useState(true);
 
@@ -188,12 +207,15 @@ export default function FormNoted() {
 
     async function fetchDetail() {
       try {
-        const res = await api.get(`/stock/out/${id}`, {
+        const endpoint = getDetailEndpoint(product, id);
+
+        const res = await api.get(endpoint, {
           validateStatus: (status) => status < 500,
         });
 
         let movement =
-          res.data?.data?.movement ?? res.data?.found?.data?.movement;
+          res.data?.data?.movement ??
+          res.data?.found?.data?.movement;
 
         if (!movement) {
           alert("Data stock out tidak ditemukan");
@@ -231,7 +253,7 @@ export default function FormNoted() {
     }
 
     fetchDetail();
-  }, [id]);
+  }, [id, product]);
 
   /* ======================
      SUBMIT (SIMPLIFIED)
@@ -250,11 +272,8 @@ export default function FormNoted() {
 
     if (!id) return alert("ID tidak valid.");
 
-    // 🔴 Backend endpoint validasi belum tersedia
-    // 🔴 Jangan panggil approve endpoint (403)
-    // 👉 Simulasi sukses dulu
-
     console.log("✅ VALIDATION PAYLOAD (SIMULATED):", {
+      product,
       stockOutId: id,
       damagedSerialNumbers: damagedSerials.filter((s) => s.trim()),
       lostSerialNumbers: missingSerials.filter((s) => s.trim()),
@@ -284,7 +303,9 @@ export default function FormNoted() {
         <button onClick={() => router.back()}>
           <ArrowLeft size={20} />
         </button>
-        <h1 className="text-xl font-semibold">Validasi Stock In</h1>
+        <h1 className="text-xl font-semibold">
+          Validasi Stock In
+        </h1>
       </div>
 
       {/* SUMMARY */}
