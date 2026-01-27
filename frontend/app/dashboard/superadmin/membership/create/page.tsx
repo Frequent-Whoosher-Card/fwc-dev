@@ -290,16 +290,49 @@ export default function AddMemberPage() {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
+        const token = localStorage.getItem("fwc_token");
+        
         // Get operator name from localStorage
         const userStr = localStorage.getItem("fwc_user");
         if (userStr) {
           const user = JSON.parse(userStr);
+          console.log("[DEBUG] User data:", user);
           setOperatorName(user.fullName || user.username || "");
+          
+          // Auto-fetch and set station name from user's stationId
+          if (user.stationId) {
+            console.log("[DEBUG] Fetching station ID:", user.stationId);
+            try {
+              const stationRes = await fetch(`${API_BASE_URL}/station/${user.stationId}`, {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              });
+              
+              console.log("[DEBUG] Station response status:", stationRes.status);
+              
+              if (stationRes.ok) {
+                const stationData = await stationRes.json();
+                console.log("[DEBUG] Station data:", stationData);
+                const stationName = stationData.data?.stationName || "";
+                console.log("[DEBUG] Setting station name:", stationName);
+                
+                setForm((prev) => ({
+                  ...prev,
+                  station: stationName,
+                }));
+              } else {
+                console.error("[DEBUG] Station fetch failed:", await stationRes.text());
+              }
+            } catch (error) {
+              console.error("Failed to load station data:", error);
+            }
+          } else {
+            console.warn("[DEBUG] User has no stationId");
+          }
         }
 
         // Load card products
-        // Load card products
-        const token = localStorage.getItem("fwc_token");
         const productsRes = await fetch(`${API_BASE_URL}/card/product`, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -1066,6 +1099,7 @@ export default function AddMemberPage() {
                   placeholder="Masukkan nomor telepon"
                   className="h-10 w-full rounded-r-md border border-l-0 border-gray-300 px-3 text-sm focus:outline-none focus:border-gray-400"
                   disabled={!form.nationality}
+                  maxLength={15}
                   required
                 />
               </div>
@@ -1170,7 +1204,7 @@ export default function AddMemberPage() {
                     className={base}
                     value={serialNumber}
                     onChange={(e) => handleCardSearch(e.target.value)}
-                    placeholder="Ketik minimal 6 karakter untuk mencari..."
+                    placeholder="Masukkan 2 digit tahun kartu dibuat + nomor (min 6 karakter)..."
                     autoComplete="off"
                   />
                   {isSearching && (
@@ -1204,7 +1238,7 @@ export default function AddMemberPage() {
                   )}
                 {serialNumber.length > 0 && serialNumber.length < 6 && (
                   <p className="mt-1 text-xs text-gray-500">
-                    Ketik minimal 6 karakter untuk mencari serial number
+                    Masukkan 2 digit tahun kartu dibuat + nomor (minimal 6 karakter total)
                   </p>
                 )}
               </Field>
@@ -1285,21 +1319,16 @@ export default function AddMemberPage() {
 
             {/* Operational Information */}
             <SectionCard title="Operational Information">
-              {/* Stasiun */}
+              {/* Stasiun - Auto-filled from user account */}
               <Field label="Stasiun" required>
-                <select
+                <input
+                  type="text"
                   name="station"
                   value={form.station}
-                  onChange={handleChange}
-                  className={base}
-                  required
-                >
-                  <option value="">Select</option>
-                  <option value="Halim">Halim</option>
-                  <option value="Karawang">Karawang</option>
-                  <option value="Padalarang">Padalarang</option>
-                  <option value="Tegalluar">Tegalluar</option>
-                </select>
+                  readOnly
+                  className={`${base} bg-gray-50 cursor-not-allowed`}
+                  placeholder="Auto-filled from your account"
+                />
               </Field>
 
               {/* Shift Date - READ ONLY */}
@@ -1347,6 +1376,7 @@ export default function AddMemberPage() {
                   className={`${base} pr-40 ${
                     fieldError.edcReferenceNumber ? "border-red-500" : ""
                   }`}
+                  maxLength={20}
                   required
                 />
 

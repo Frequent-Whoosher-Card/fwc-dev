@@ -14,6 +14,7 @@ export interface CardProduct {
     typeName: string;
   };
   maxQuantity?: number;
+  isDiscount: boolean;
 }
 
 export interface GenerateHistoryItem {
@@ -27,6 +28,7 @@ export interface GenerateHistoryItem {
     name: string;
   };
   serialNumbers: string[];
+  createdByName?: string | null;
 }
 
 export interface Pagination {
@@ -115,6 +117,56 @@ const CardGenerateService = {
       startSerial: payload.startSerial,
       endSerial: payload.endSerial,
     });
+  },
+
+  downloadZip: async (id: string) => {
+    const res = await axios.get(`/cards/generate/history/${id}/download-zip`, {
+      responseType: "blob",
+    });
+    // Extract filename from content-disposition if available, or default
+    const contentDisposition = res.headers["content-disposition"];
+    let filename = `barcode-batch-${id}.zip`;
+    if (contentDisposition) {
+      const fileNameMatch = contentDisposition.match(/filename="?(.+)"?/);
+      if (fileNameMatch && fileNameMatch.length === 2)
+        filename = fileNameMatch[1];
+    }
+    return { blob: res.data, filename };
+  },
+
+  uploadDocument: async (payload: {
+    batchId: string;
+    file: File;
+    userId?: string;
+  }) => {
+    const formData = new FormData();
+    formData.append("file", payload.file);
+
+    const res = await axios.post(
+      `/cards/generate/history/${payload.batchId}/document`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      },
+    );
+    return res.data;
+  },
+
+  viewDocument: async (batchId: string) => {
+    const res = await axios.get(`/cards/generate/history/${batchId}/document`, {
+      responseType: "blob",
+    });
+    // Try to get filename
+    const contentDisposition = res.headers["content-disposition"];
+    let filename = `document-${batchId}.pdf`;
+    if (contentDisposition) {
+      const fileNameMatch = contentDisposition.match(/filename="?(.+)"?/);
+      if (fileNameMatch && fileNameMatch.length === 2)
+        filename = fileNameMatch[1];
+    }
+    return { blob: res.data, filename };
   },
 };
 

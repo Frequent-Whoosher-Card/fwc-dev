@@ -141,7 +141,21 @@ export class StockInVoucherService {
       );
 
       return {
-        ...movement,
+        id: movement.id,
+        movementAt: movement.movementAt.toISOString(),
+        quantity: movement.quantity,
+        status: movement.status,
+        batchId: movement.batchId,
+        note: movement.note,
+        category: {
+          id: movement.category.id,
+          name: movement.category.categoryName,
+          programType: movement.category.programType,
+        },
+        type: {
+          id: movement.type.id,
+          name: movement.type.typeName,
+        },
         product: {
           id: product.id,
           name: `${product.category.categoryName} - ${product.type.typeName}`,
@@ -159,9 +173,11 @@ export class StockInVoucherService {
     startDate?: Date;
     endDate?: Date;
     categoryId?: string;
+    typeId?: string;
+    search?: string;
   }) {
-    const page = params.page || 1;
-    const limitNum = params.limit || 10;
+    const page = Number(params.page) || 1;
+    const limitNum = Number(params.limit) || 10;
     const skip = (page - 1) * limitNum;
 
     const where: any = {
@@ -176,10 +192,27 @@ export class StockInVoucherService {
         gte: params.startDate,
         lte: params.endDate,
       };
+    } else if (params.startDate) {
+      where.movementAt = { gte: params.startDate };
+    } else if (params.endDate) {
+      where.movementAt = { lte: params.endDate };
     }
 
     if (params.categoryId) {
       where.categoryId = params.categoryId;
+    }
+
+    if (params.typeId) {
+      where.typeId = params.typeId;
+    }
+
+    if (params.search) {
+      where.OR = [
+        { batchId: { contains: params.search, mode: "insensitive" } },
+        { note: { contains: params.search, mode: "insensitive" } },
+        // Optional: search by card product name if joined?
+        // Basic search: BatchID or Note
+      ];
     }
 
     const [items, total] = await Promise.all([
@@ -199,17 +232,6 @@ export class StockInVoucherService {
     ]);
 
     // Format Response
-    // Need Product Info? Movement doesn't store ProductID.
-    // Usually inferred. Or we can just return what we have.
-    // The model expects `product` object?
-    // Let's check `voucher-model.ts`:
-    // product: t.Object({ id: t.String(), name: t.String() })
-    // Since movement doesn't strictly link to a SINGLE product (technically category/type could have multiple products, but usually 1:1 in this domain?),
-    // For listing, maybe we skip product details or fetch based on match?
-    // Actually, for Vouchers, Type usually maps to one Product.
-    // I will try to fetch the product associated with this Category+Type.
-
-    // Fetch user names
     const userIds = [
       ...(new Set(
         items.map((i) => i.createdBy).filter(Boolean),
@@ -362,5 +384,214 @@ export class StockInVoucherService {
 
       return { success: true, message: "Stock In berhasil dibatalkan" };
     });
+  }
+
+  /**
+   * Update Metadata (Note, MovementAt)
+   */
+  static async update(
+    id: string,
+    updates: { movementAt?: string; note?: string },
+    userId: string,
+  ) {
+    const movement = await db.cardStockMovement.findUnique({ where: { id } });
+    if (!movement) throw new ValidationError("Stock In not found");
+    if (movement.movementType !== "IN")
+      throw new ValidationError("Not a stock in record");
+
+    // Only allow edit metadata, not serial numbers or quantities
+    const result = await db.cardStockMovement.update({
+      where: { id },
+      data: {
+        movementAt: updates.movementAt
+          ? new Date(updates.movementAt)
+          : undefined,
+        note: updates.note,
+        updatedAt: new Date(),
+      },
+    });
+
+    await ActivityLogService.createActivityLog(
+      userId,
+      "UPDATE_STOCK_IN_VOUCHER",
+      `Updated Stock In Voucher ID: ${id}`,
+    );
+
+    return result;
+  }
+
+  /**
+   * Update Batch Card Status (Quality Control)
+   */
+  static async updateBatchCardStatus(
+    movementId: string,
+    updates: {
+      serialNumber: string;
+      status: "IN_OFFICE" | "DAMAGED" | "LOST";
+    }[],
+    userId: string,
+  ) {
+    if (!updates.length)
+      return { success: true, message: "No updates provided" };
+
+    return await db.$transaction(async (tx) => {
+      // 1. Get Movement
+      const movement = await tx.cardStockMovement.findUnique({
+        where: { id: movementId },
+      });
+
+      if (!movement) throw new ValidationError("Stock In record not found");
+      if (movement.movementType !== "IN")
+        throw new ValidationError("Not a Stock In record");
+
+      const receivedSerials = new Set(
+        (movement as any).receivedSerialNumbers as string[],
+      );
+
+      // 2. Validate Serials belong to this batch
+      const invalidSerials = updates.filter(
+        (u) => !receivedSerials.has(u.serialNumber),
+      );
+      if (invalidSerials.length > 0) {
+        throw new ValidationError(
+          `Serial numbers not found in this batch: ${invalidSerials.map((u) => u.serialNumber).join(", ")}`,
+        );
+      }
+
+      // 3. Process Updates
+      let officeStockDelta = 0;
+      const damagedToAdd: string[] = [];
+      const damagedToRemove: string[] = [];
+      const lostToAdd: string[] = [];
+      const lostToRemove: string[] = [];
+
+      // Get current card statuses
+      const cards = await tx.card.findMany({
+        where: { serialNumber: { in: updates.map((u) => u.serialNumber) } },
+        select: { serialNumber: true, status: true },
+      });
+      const cardMap = new Map(cards.map((c) => [c.serialNumber, c.status]));
+
+      for (const update of updates) {
+        const currentStatus = cardMap.get(update.serialNumber);
+        const newStatus = update.status;
+
+        if (!currentStatus) continue; // Should have been caught by validation, but safe check
+        if (currentStatus === newStatus) continue; // No change
+
+        // Logic for Inventory Delta (Office Stock)
+        // IN_OFFICE -> DAMAGED/LOST : Decrease Stock
+        // DAMAGED/LOST -> IN_OFFICE : Increase Stock
+        // DAMAGED <-> LOST : No Stock Change
+
+        const isCurrentActive = currentStatus === "IN_OFFICE";
+        const isNewActive = newStatus === "IN_OFFICE";
+
+        if (isCurrentActive && !isNewActive) {
+          officeStockDelta--;
+        } else if (!isCurrentActive && isNewActive) {
+          officeStockDelta++;
+        }
+
+        // Lists Update
+        if (newStatus === "DAMAGED") damagedToAdd.push(update.serialNumber);
+        if (newStatus === "LOST") lostToAdd.push(update.serialNumber);
+
+        if (currentStatus === "DAMAGED")
+          damagedToRemove.push(update.serialNumber);
+        if (currentStatus === "LOST") lostToRemove.push(update.serialNumber);
+      }
+
+      // 4. Update Cards
+      for (const update of updates) {
+        await tx.card.update({
+          where: { serialNumber: update.serialNumber },
+          data: {
+            status: update.status as any,
+            updatedAt: new Date(),
+            updatedBy: userId,
+          },
+        });
+      }
+
+      // 5. Update Inventory (if needed)
+      if (officeStockDelta !== 0) {
+        const officeInv = await tx.cardInventory.findFirst({
+          where: {
+            categoryId: movement.categoryId,
+            typeId: movement.typeId,
+            stationId: null, // HQ Inventory
+          },
+        });
+
+        if (officeInv) {
+          await tx.cardInventory.update({
+            where: { id: officeInv.id },
+            data: {
+              cardOffice: { increment: officeStockDelta },
+              updatedAt: new Date(),
+            },
+          });
+        }
+      }
+
+      await ActivityLogService.createActivityLog(
+        userId,
+        "UPDATE_BATCH_STATUS_VOUCHER",
+        `Updated status for ${updates.length} cards in Batch ${movementId}`,
+      );
+
+      return {
+        success: true,
+        message: "Status kartu berhasil diupdate.",
+      };
+    });
+  }
+
+  /**
+   * Get Available Serials for Voucher
+   */
+  static async getAvailableSerials(cardProductId: string) {
+    // 1. Get Count
+    const count = await db.card.count({
+      where: {
+        cardProductId: cardProductId,
+        status: "ON_REQUEST",
+      },
+    });
+
+    if (count === 0) {
+      return {
+        startSerial: null,
+        endSerial: null,
+        count: 0,
+      };
+    }
+
+    // 2. Get Min (Start)
+    const firstCard = await db.card.findFirst({
+      where: {
+        cardProductId: cardProductId,
+        status: "ON_REQUEST",
+      },
+      orderBy: { serialNumber: "asc" },
+      select: { serialNumber: true },
+    });
+
+    // 3. Get Max (End)
+    const lastCard = await db.card.findFirst({
+      where: {
+        cardProductId: cardProductId,
+        status: "ON_REQUEST",
+      },
+      orderBy: { serialNumber: "desc" },
+      select: { serialNumber: true },
+    });
+
+    return {
+      startSerial: firstCard?.serialNumber || null,
+      endSerial: lastCard?.serialNumber || null,
+      count,
+    };
   }
 }
