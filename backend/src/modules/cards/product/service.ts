@@ -202,6 +202,7 @@ export class CardProductService {
           isDiscount: isDiscount ?? false,
           updatedAt: new Date(),
           updatedBy: userId,
+          createdAt: new Date(),
         },
       });
 
