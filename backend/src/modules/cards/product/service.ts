@@ -202,6 +202,7 @@ export class CardProductService {
           isDiscount: isDiscount ?? false,
           updatedAt: new Date(),
           updatedBy: userId,
+          createdAt: new Date(),
         },
       });
 
@@ -367,6 +368,20 @@ export class CardProductService {
       throw new ValidationError(
         "Card Product Not Found",
         "CARD_PRODUCT_NOT_FOUND",
+      );
+    }
+
+    // Check if cards have been generated for this product
+    const cardCount = await db.card.count({
+      where: {
+        cardProductId: id,
+      },
+    });
+
+    if (cardCount > 0) {
+      throw new ValidationError(
+        "Produk tidak bisa dihapus karena sudah memiliki data kartu yang dihasilkan (generated).",
+        "PRODUCT_HAS_GENERATED_CARDS",
       );
     }
 

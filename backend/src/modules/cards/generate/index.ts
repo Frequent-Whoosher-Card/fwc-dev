@@ -314,7 +314,7 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
           userId: user.id,
         });
         return {
-          status: "success",
+          success: true,
           message: result.message,
           data: result,
         };
@@ -341,7 +341,40 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
         tags: ["Generate"],
         summary: "Upload Generation Document",
         description:
-          "Upload PDF document (Berita Acara/BAST) for a generation batch.",
+          "Upload PDF document (Berita Acara/BAST) for a generation batch. Response will include the document URL immediately.",
+      },
+    },
+  )
+  .get(
+    "/history/:id/document",
+    async (context) => {
+      const { params, set } = context as typeof context;
+      try {
+        const result = await CardGenerateService.getDocument(params.id);
+
+        return new Response(result.buffer, {
+          headers: {
+            "Content-Type": result.mimeType,
+            "Content-Disposition": "inline", // Inline so browser opens it
+          },
+        });
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      params: t.Object({
+        id: t.String({ format: "uuid" }),
+      }),
+      detail: {
+        tags: ["Generate"],
+        summary: "Get Generation Document",
+        description:
+          "Get uploaded PDF document. Returns inline content (not attachment).",
       },
     },
   );

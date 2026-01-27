@@ -8,6 +8,7 @@ import stockService, {
 import toast from "react-hot-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { useAuthClient } from "./useAuthClient";
 
 export type StockOutStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
 
@@ -16,6 +17,7 @@ interface UseStockOutProps {
 }
 
 export const useStockOut = ({ programType }: UseStockOutProps) => {
+  const auth = useAuthClient();
   const [data, setData] = useState<StockOutItem[]>([]);
   const [pagination, setPagination] = useState<StockPaginationMeta>({
     total: 0,
@@ -59,6 +61,9 @@ export const useStockOut = ({ programType }: UseStockOutProps) => {
       const { items, pagination: paging } = await stockService.getStockOutList({
         ...params,
         programType,
+        categoryName: category !== "all" ? category : undefined,
+        typeName: type !== "all" ? type : undefined,
+        stationName: station !== "all" ? station : undefined,
       });
       setData(items);
       setPagination(paging);
@@ -67,22 +72,22 @@ export const useStockOut = ({ programType }: UseStockOutProps) => {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit, fromDate, toDate, programType]);
+  }, [
+    pagination.page,
+    pagination.limit,
+    fromDate,
+    toDate,
+    category,
+    type,
+    station,
+    programType,
+  ]);
 
   useEffect(() => {
     fetchStockOut();
   }, [fetchStockOut]);
 
-  const filteredData = useMemo(() => {
-    return data.filter((item) => {
-      const categoryMatch =
-        category === "all" || item.cardCategory.name === category;
-      const typeMatch = type === "all" || item.cardType.name === type;
-      const stationMatch = station === "all" || item.stationName === station;
-
-      return categoryMatch && typeMatch && stationMatch;
-    });
-  }, [data, category, type, station]);
+  const filteredData = data; // Backend does the filtering now
 
   const handleDelete = async () => {
     if (!selectedId) return;
@@ -100,10 +105,65 @@ export const useStockOut = ({ programType }: UseStockOutProps) => {
 
   const handleExportPDF = async () => {
     try {
+      const doc = new jsPDF("p", "mm", "a4");
+      const title = `Laporan Stock Out ${programType} (Admin ke Stasiun)`;
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.text(title, pageWidth / 2, 15, { align: "center" });
+
+      // Filter Info
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      let filterY = 22;
+      const filtersArr = [];
+      if (fromDate || toDate) {
+        const start = fromDate
+          ? fromDate.split("-").reverse().join("-")
+          : "...";
+        const end = toDate ? toDate.split("-").reverse().join("-") : "...";
+        filtersArr.push(`Periode: ${start} s/d ${end}`);
+      }
+      if (category !== "all") filtersArr.push(`Kategori: ${category}`);
+      if (type !== "all") filtersArr.push(`Tipe: ${type}`);
+      if (station !== "all") filtersArr.push(`Stasiun: ${station}`);
+
+      if (filtersArr.length > 0) {
+        doc.text(`Filter: ${filtersArr.join(" | ")}`, 14, filterY);
+        filterY += 6;
+      }
+
+      // User & Time Info
+      doc.setFontSize(9);
+      doc.setTextColor(100);
+      const exportTime = new Date().toLocaleString("id-ID", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+      doc.text(
+        `Export oleh: ${auth?.name || auth?.username || "Admin"} | Waktu: ${exportTime}`,
+        14,
+        filterY,
+      );
+      filterY += 4;
+      doc.setTextColor(0);
+
+      doc.line(14, filterY, pageWidth - 14, filterY);
+
       const { items: allData } = await stockService.getStockOutList({
         page: 1,
         limit: 100000,
         programType,
+        startDate: fromDate
+          ? new Date(fromDate + "T00:00:00Z").toISOString()
+          : undefined,
+        endDate: toDate
+          ? new Date(toDate + "T23:59:59Z").toISOString()
+          : undefined,
+        categoryName: category !== "all" ? category : undefined,
+        typeName: type !== "all" ? type : undefined,
+        stationName: station !== "all" ? station : undefined,
       });
 
       if (allData.length === 0) {
@@ -111,17 +171,8 @@ export const useStockOut = ({ programType }: UseStockOutProps) => {
         return;
       }
 
-      const doc = new jsPDF("p", "mm", "a4");
-      const title = `Laporan Stock Out ${programType} (Admin ke Stasiun)`;
-      const pageWidth = doc.internal.pageSize.getWidth();
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
-      doc.text(title, pageWidth / 2, 18, { align: "center" });
-      doc.line(14, 22, pageWidth - 14, 22);
-
       autoTable(doc, {
-        startY: 26,
+        startY: filterY + 4,
         head: [
           [
             "No",
@@ -129,10 +180,8 @@ export const useStockOut = ({ programType }: UseStockOutProps) => {
             "Card Category",
             "Card Type",
             "Batch",
-            "Nota Dinas",
-            "BAST",
             "Stasiun",
-            "Serial Awal",
+            "Serial Number",
             "Status",
             "Note",
           ],
@@ -145,17 +194,17 @@ export const useStockOut = ({ programType }: UseStockOutProps) => {
           item.cardCategory?.name ?? "-",
           item.cardType?.name ?? "-",
           item.batchId ?? "-",
-          item.notaDinas ?? "-",
-          item.bast ?? "-",
           item.stationName ?? "-",
-          item.sentSerialNumbers?.[0] ?? "-",
+          item.sentSerialNumbers?.length > 0
+            ? `${item.sentSerialNumbers[0]} - ${item.sentSerialNumbers[item.sentSerialNumbers.length - 1]}`
+            : "-",
           item.status ?? "-",
           item.note ?? "-",
         ]),
         styles: {
           font: "helvetica",
-          fontSize: 9,
-          cellPadding: 3,
+          fontSize: 8,
+          cellPadding: 2,
           halign: "center",
         },
         headStyles: {
@@ -164,7 +213,11 @@ export const useStockOut = ({ programType }: UseStockOutProps) => {
           fontStyle: "bold",
           halign: "center",
         },
-        columnStyles: { 0: { cellWidth: 10 }, 10: { halign: "left" } },
+        columnStyles: {
+          0: { cellWidth: 8 },
+          6: { cellWidth: 40 },
+          8: { halign: "left" },
+        },
       });
 
       doc.save(`laporan-stock-out-${programType.toLowerCase()}.pdf`);

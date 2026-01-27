@@ -57,19 +57,19 @@ export namespace CardModel {
         format: "uuid",
         description:
           "Filter by card product ID. Returns only cards belonging to the specified card product.",
-      })
+      }),
     ),
     status: t.Optional(
       t.String({
         description:
           "Filter by card status. Accepts both raw Enum (e.g., IN_OFFICE) and friendly names (e.g., Office, Stasiun, Hilang)",
-      })
+      }),
     ),
     search: t.Optional(
       t.String({
         description:
           "Search by serial number (case-insensitive partial match). Useful for finding cards by serial number.",
-      })
+      }),
     ),
     categoryId: t.Optional(t.String({ format: "uuid" })),
     typeId: t.Optional(t.String({ format: "uuid" })),
@@ -80,12 +80,17 @@ export namespace CardModel {
     page: t.Optional(
       t.String({
         description: "Page number for pagination (default: 1). Minimum: 1",
-      })
+      }),
     ),
     limit: t.Optional(
       t.String({
         description: "Number of items per page (default: 50). Maximum: 100",
-      })
+      }),
+    ),
+    programType: t.Optional(
+      t.Union([t.Literal("FWC"), t.Literal("VOUCHER")], {
+        description: "Filter by program type (FWC or VOUCHER)",
+      }),
     ),
   });
 
@@ -96,7 +101,7 @@ export namespace CardModel {
       t.String({
         description:
           "Card status to search for (default: IN_STATION). Valid values: IN_OFFICE, IN_STATION, etc.",
-      })
+      }),
     ),
   });
 
@@ -183,7 +188,7 @@ export namespace CardModel {
       t.String({
         description:
           "New status for the card (e.g., IN_OFFICE, IN_STATION, LOST, DAMAGED)",
-      })
+      }),
     ),
     notes: t.Optional(t.String({ description: "Notes for the card" })),
   });

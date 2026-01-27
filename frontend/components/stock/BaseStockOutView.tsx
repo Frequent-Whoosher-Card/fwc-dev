@@ -71,12 +71,14 @@ export default function BaseStockOutView() {
             <p className="font-medium">{data.bast || "-"}</p>
           </div>
           <div>
-            <p className="text-sm text-gray-500">Status</p>
-            <span
-              className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${data.status === "APPROVED" ? "bg-green-100 text-green-700" : data.status === "PENDING" ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-700"}`}
-            >
-              {data.status}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-gray-500">Status:</span>
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-medium ${data.status === "APPROVED" ? "bg-green-100 text-green-700" : data.status === "PENDING" ? "bg-yellow-100 text-yellow-700" : data.status === "REJECTED" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600"}`}
+              >
+                {data.status}
+              </span>
+            </div>
           </div>
           <div>
             <p className="text-sm text-gray-500">Quantity</p>
@@ -95,41 +97,44 @@ export default function BaseStockOutView() {
 
       <div className="px-6">
         <div className="rounded-xl border bg-white overflow-hidden">
-          <div className="border-b px-4 py-3 font-medium">Serial Number</div>
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="px-4 py-3 text-center w-16">No</th>
-                <th className="px-4 py-3 text-left">Serial</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.sentSerialNumbers.length > 0 ? (
-                data.sentSerialNumbers.map((serial, index) => (
-                  <tr key={serial} className="border-b">
-                    <td className="px-4 py-2 text-center">{index + 1}</td>
-                    <td className="px-4 py-2 font-mono">{serial}</td>
-                  </tr>
-                ))
-              ) : (
+          <div className="border-b px-4 py-3 font-medium bg-gray-50 flex justify-between items-center">
+            <span>Serial Number</span>
+            <span className="text-xs font-normal text-gray-500">
+              Total: {data.sentSerialNumbers.length}
+            </span>
+          </div>
+          <div className="max-h-[400px] overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-100 border-b sticky top-0 z-10">
                 <tr>
-                  <td
-                    colSpan={2}
-                    className="px-4 py-6 text-center text-gray-500"
-                  >
-                    Tidak ada serial number
-                  </td>
+                  <th className="px-4 py-2 text-center w-16">No</th>
+                  <th className="px-4 py-2 text-left">Serial</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {data.sentSerialNumbers.length > 0 ? (
+                  data.sentSerialNumbers.map((serial, index) => (
+                    <tr key={serial} className="hover:bg-gray-50">
+                      <td className="px-4 py-2 text-center text-gray-400">
+                        {index + 1}
+                      </td>
+                      <td className="px-4 py-2 font-mono">{serial}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={2}
+                      className="px-4 py-6 text-center text-gray-500"
+                    >
+                      Tidak ada serial number
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-        <p className="mt-3 text-sm text-gray-500">
-          Total Serial:{" "}
-          <span className="font-medium text-gray-700">
-            {data.sentSerialNumbers.length}
-          </span>
-        </p>
       </div>
     </div>
   );

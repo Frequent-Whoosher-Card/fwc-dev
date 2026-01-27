@@ -20,6 +20,7 @@ export interface BatchData {
   start: string;
   end: string;
   serials: SerialItem[];
+  documentUrl?: string | null;
 }
 
 interface UseGenerateNumberProps {
@@ -46,6 +47,7 @@ export function useGenerateNumber({
 
   const [batch, setBatch] = useState<BatchData | null>(null);
   const [loadingBatch, setLoadingBatch] = useState(false);
+  const [loadingUpload, setLoadingUpload] = useState(false);
 
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -130,6 +132,7 @@ export function useGenerateNumber({
         start: movement.serialNumbers[0],
         end: movement.serialNumbers[movement.serialNumbers.length - 1],
         serials,
+        documentUrl: movement.document?.url,
       });
     } catch {
       toast.error("Gagal mengambil data generate");
@@ -140,41 +143,54 @@ export function useGenerateNumber({
   }, []);
 
   const handleExportZip = async (currentBatch: BatchData | null) => {
-    if (!currentBatch || !currentBatch.serials.length) {
-      toast.error("Tidak ada barcode untuk diexport");
+    if (!currentBatch) {
+      toast.error("Data tidak ditemukan");
       return;
     }
 
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
-    const safeLabel = currentBatch.productLabel.replace(/\s+/g, "");
-    const zip = new JSZip();
-    const folder = zip.folder(`barcode-${safeLabel}`);
-
-    for (const item of currentBatch.serials) {
-      if (!item.barcodeUrl) continue;
-
-      try {
-        const res = await fetch(`${API_BASE_URL}${item.barcodeUrl}`, {
-          credentials: "include",
-        });
-
-        if (!res.ok) continue;
-
-        const blob = await res.blob();
-        if (!blob.type.startsWith("image/")) continue;
-
-        const cleanSerial = item.serial.replace(/^_+/, "");
-        folder?.file(`${safeLabel}-${cleanSerial}.png`, blob);
-      } catch (err) {
-        console.error("Error fetch barcode:", err);
-      }
+    try {
+      const { blob, filename } = await CardGenerateService.downloadZip(
+        currentBatch.id,
+      );
+      saveAs(blob, filename);
+      toast.success("Export ZIP berhasil");
+    } catch (error) {
+      console.error("Export ZIP error:", error);
+      toast.error("Gagal mendownload ZIP");
     }
+  };
 
-    const zipBlob = await zip.generateAsync({ type: "blob" });
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const handleUploadDocument = async (file: File, batchId: string) => {
+    try {
+      setLoadingUpload(true);
+      await CardGenerateService.uploadDocument({
+        batchId,
+        file,
+      });
+      toast.success("Upload dokumen berhasil");
+      await fetchHistoryDetail(batchId); // Refresh details
+    } catch (error) {
+      console.error("Upload document error:", error);
+      toast.error("Gagal mengupload dokumen");
+    } finally {
+      setLoadingUpload(false);
+    }
+  };
 
-    saveAs(zipBlob, `barcode-${safeLabel}-${timestamp}.zip`);
-    toast.success("Export ZIP berhasil");
+  const handleViewDocument = async (batchId: string) => {
+    try {
+      const { blob } = await CardGenerateService.viewDocument(batchId);
+      const url = window.URL.createObjectURL(blob);
+      const newWindow = window.open(url, "_blank");
+      if (!newWindow) {
+        toast.error("Pop-up diblokir. Izinkan pop-up untuk melihat dokumen.");
+      }
+      // Cleanup? Usually tough for opened windows. URL.revokeObjectURL(url) should ideally happen later.
+      // But keeping it alive for the window session is fine for now.
+    } catch (error) {
+      console.error("View document error:", error);
+      toast.error("Gagal membuka dokumen (Mungkin file tidak ditemukan)");
+    }
   };
 
   const fetchNextSerial = useCallback(async (productId: string) => {
@@ -277,5 +293,8 @@ export function useGenerateNumber({
     fetchHistory,
     fetchHistoryDetail,
     handleExportZip,
+    handleUploadDocument,
+    handleViewDocument,
+    loadingUpload,
   };
 }

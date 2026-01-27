@@ -623,6 +623,7 @@ export class UserService {
     currentPassword: string,
     newPassword: string,
     confirmPassword: string,
+    ignoreCurrentPassword = false,
   ) {
     if (newPassword !== confirmPassword) {
       throw new ValidationError(
@@ -641,13 +642,15 @@ export class UserService {
       throw new NotFoundError("User not found");
     }
 
-    // Verify current password
-    const isValid = await Bun.password.verify(
-      currentPassword,
-      user.passwordHash,
-    );
-    if (!isValid) {
-      throw new ValidationError("Current password is incorrect");
+    // Verify current password only if not ignored
+    if (!ignoreCurrentPassword) {
+      const isValid = await Bun.password.verify(
+        currentPassword,
+        user.passwordHash,
+      );
+      if (!isValid) {
+        throw new ValidationError("Current password is incorrect");
+      }
     }
 
     // Hash new password

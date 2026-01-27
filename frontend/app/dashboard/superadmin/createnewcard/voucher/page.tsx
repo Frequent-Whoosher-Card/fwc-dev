@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
+import { useState } from "react";
 import {
   BaseCardProductForm,
   BaseCardProductTable,
   BaseCategoryModal,
   BaseTypeModal,
-} from '@/components/createnewcard';
-import ConfirmModal from '@/components/ConfirmModal';
-import { useCardBase } from '@/hooks/useCardBase';
+} from "@/components/createnewcard";
+import ConfirmModal from "@/components/ConfirmModal";
+import { useCardBase } from "@/hooks/useCardBase";
 
 export default function VoucherPage() {
   const {
@@ -24,7 +24,10 @@ export default function VoucherPage() {
     setShowDeleteConfirm,
     isDeleting,
     service,
-  } = useCardBase({ programType: 'VOUCHER' });
+    page,
+    setPage,
+    totalPages,
+  } = useCardBase({ programType: "VOUCHER" });
 
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showTypeModal, setShowTypeModal] = useState(false);
@@ -44,7 +47,14 @@ export default function VoucherPage() {
         <div />
       </div>
 
-      <BaseCardProductTable programType="VOUCHER" data={products} onDelete={deleteProduct} />
+      <BaseCardProductTable
+        programType="VOUCHER"
+        data={products}
+        onDelete={deleteProduct}
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+      />
 
       <BaseCategoryModal
         programType="VOUCHER"
