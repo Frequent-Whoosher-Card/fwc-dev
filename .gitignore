@@ -57,6 +57,7 @@ backend/build/
 backend/logs/
 backend/*.log
 backend/backups/
+backend/storage/
 
 backend/.vscode/
 backend/.idea/
