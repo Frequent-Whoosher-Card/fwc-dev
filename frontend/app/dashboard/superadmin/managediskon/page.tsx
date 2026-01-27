@@ -1,174 +1,330 @@
 "use client";
 
-import { useState } from "react";
-import { PercentCircle, Save, Plus, Trash2 } from "lucide-react";
-import toast from "react-hot-toast";
-
-interface DiscountRule {
-  id: string;
-  minQty: number;
-  maxQty: number | null; // null for > X
-  discountPercent: number;
-}
+import ConfirmModal from "@/components/ConfirmModal";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useDiscount } from "@/hooks/useDiscount";
+import { Edit2, Plus, Save, Trash2, X } from "lucide-react";
 
 export default function ManageDiskonPage() {
-  const [rules, setRules] = useState<DiscountRule[]>([
-    { id: "1", minQty: 0, maxQty: 49, discountPercent: 0 },
-    { id: "2", minQty: 50, maxQty: 100, discountPercent: 10 },
-    { id: "3", minQty: 101, maxQty: 500, discountPercent: 15 },
-    { id: "4", minQty: 501, maxQty: null, discountPercent: 20 },
-  ]);
-
-  const [loading, setLoading] = useState(false);
-
-  const handleSave = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      toast.success("Pengaturan diskon berhasil disimpan");
-    }, 1000);
-  };
-
-  const updateRule = (id: string, field: keyof DiscountRule, value: any) => {
-    setRules((prev) =>
-      prev.map((rule) => {
-        if (rule.id === id) {
-          return { ...rule, [field]: value };
-        }
-        return rule;
-      }),
-    );
-  };
+  const {
+    rules,
+    loading,
+    isAdding,
+    setIsAdding,
+    newRule,
+    setNewRule,
+    editingId,
+    editForm,
+    setEditForm,
+    create,
+    update,
+    startEdit,
+    cancelEdit,
+    deletingId,
+    startDelete,
+    confirmDelete,
+    cancelDelete,
+  } = useDiscount();
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Manage Diskon</h2>
-          <p className="text-sm text-gray-500 text-pretty">
-            Atur persentase diskon berdasarkan jumlah pembelian kartu / voucher.
-          </p>
-        </div>
-        <button
-          onClick={handleSave}
-          disabled={loading}
-          className="flex items-center gap-2 rounded-lg bg-[#8D1231] px-6 py-2.5 text-sm font-semibold text-white transition-all hover:bg-[#a6153a] disabled:opacity-50"
+        <h1 className="text-2xl font-bold">Manage Diskon Grosir</h1>
+        <Button
+          onClick={() => setIsAdding(true)}
+          disabled={loading || isAdding}
         >
-          <Save size={18} />
-          {loading ? "Menyimpan..." : "Simpan Perubahan"}
-        </button>
+          <Plus className="mr-2 h-4 w-4" />
+          Tambah Aturan
+        </Button>
       </div>
 
-      <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50/50 border-b">
-            <tr>
-              <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Rentang Jumlah (Qty)
-              </th>
-              <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Diskon (%)
-              </th>
-              <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500 text-right">
-                Preview Label
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {rules.map((rule) => (
-              <tr
-                key={rule.id}
-                className="group hover:bg-gray-50/50 transition-colors"
-              >
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        value={rule.minQty}
-                        onChange={(e) =>
-                          updateRule(
-                            rule.id,
-                            "minQty",
-                            parseInt(e.target.value) || 0,
-                          )
-                        }
-                        className="w-20 rounded-lg border bg-gray-50 px-3 py-1.5 text-sm focus:border-[#8D1231] focus:ring-1 focus:ring-[#8D1231] outline-none transition-all"
-                      />
-                      <span className="text-gray-400">sampai</span>
-                      {rule.maxQty !== null ? (
-                        <input
-                          type="number"
-                          value={rule.maxQty}
-                          onChange={(e) =>
-                            updateRule(
-                              rule.id,
-                              "maxQty",
-                              parseInt(e.target.value) || 0,
-                            )
-                          }
-                          className="w-20 rounded-lg border bg-gray-50 px-3 py-1.5 text-sm focus:border-[#8D1231] focus:ring-1 focus:ring-[#8D1231] outline-none transition-all"
-                        />
-                      ) : (
-                        <span className="text-sm font-medium text-gray-600 px-2 italic">
-                          Tak Terhingga
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Live Preview */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Preview Perhitungan</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="rounded-lg bg-blue-50 p-4 text-sm text-blue-700">
+                <p className="font-semibold">Cara kerja diskon:</p>
+                <ul className="mt-2 list-inside list-disc space-y-1">
+                  <li>
+                    Diskon diterapkan berdasarkan total jumlah item dalam
+                    keranjang.
+                  </li>
+                  <li>Aturan dievaluasi dari jumlah terbesar ke terkecil.</li>
+                  <li>
+                    Jika jumlah item memenuhi syarat minimum, diskon tersebut
+                    yang akan digunakan.
+                  </li>
+                </ul>
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="font-medium text-gray-900">Aturan Aktif:</h3>
+                {rules.length === 0 ? (
+                  <p className="text-sm text-gray-500">
+                    Belum ada aturan diskon.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {rules.map((rule) => (
+                      <div
+                        key={rule.id}
+                        className="flex items-center justify-between rounded border p-2 text-sm"
+                      >
+                        <span>
+                          {rule.minQuantity} - {rule.maxQuantity || "∞"} pcs
                         </span>
-                      )}
-                    </div>
+                        <span className="font-bold text-green-600">
+                          Diskon {Number(rule.discount)}%
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <input
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Form / List */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Daftar Aturan</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Min. Qty</TableHead>
+                  <TableHead>Max. Qty</TableHead>
+                  <TableHead>Diskon (%)</TableHead>
+                  <TableHead className="w-[100px]">Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {/* Form Tambah Baru */}
+                {isAdding && (
+                  <TableRow className="bg-muted/50">
+                    <TableCell>
+                      <Input
                         type="number"
-                        value={rule.discountPercent}
+                        min="0"
+                        placeholder="Min"
+                        value={newRule.minQuantity ?? ""}
                         onChange={(e) =>
-                          updateRule(
-                            rule.id,
-                            "discountPercent",
-                            parseInt(e.target.value) || 0,
-                          )
+                          setNewRule({
+                            ...newRule,
+                            minQuantity:
+                              e.target.valueAsNumber || e.target.value,
+                          })
                         }
-                        className="w-24 rounded-lg border bg-gray-50 pl-3 pr-8 py-1.5 text-sm font-semibold text-gray-700 focus:border-[#8D1231] focus:ring-1 focus:ring-[#8D1231] outline-none transition-all"
+                        className="h-8 w-20"
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
-                        %
-                      </span>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FFF1F2] px-3 py-1 text-xs font-bold text-[#8D1231]">
-                    <PercentCircle size={12} />
-                    {rule.maxQty !== null
-                      ? `${rule.minQty} - ${rule.maxQty} Qty: ${rule.discountPercent}% OFF`
-                      : `> ${rule.minQty - 1} Qty: ${rule.discountPercent}% OFF`}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="Max"
+                        value={newRule.maxQuantity ?? ""}
+                        onChange={(e) =>
+                          setNewRule({
+                            ...newRule,
+                            maxQuantity:
+                              e.target.value === ""
+                                ? null
+                                : e.target.valueAsNumber || e.target.value,
+                          })
+                        }
+                        className="h-8 w-20"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="%"
+                        value={newRule.discount ?? ""}
+                        onChange={(e) =>
+                          setNewRule({
+                            ...newRule,
+                            discount: e.target.valueAsNumber || e.target.value,
+                          })
+                        }
+                        className="h-8 w-24"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => create()}
+                          disabled={loading}
+                          className="h-8 w-8 text-green-600 hover:text-green-700"
+                        >
+                          <Save className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => setIsAdding(false)}
+                          className="h-8 w-8 text-red-600 hover:text-red-700"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+
+                {/* Daftar Rules */}
+                {rules.map((rule) => {
+                  const isEditing = editingId === rule.id;
+
+                  if (isEditing && editForm) {
+                    return (
+                      <TableRow key={rule.id} className="bg-blue-50/50">
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={editForm.minQuantity ?? ""}
+                            onChange={(e) =>
+                              setEditForm({
+                                ...editForm,
+                                minQuantity:
+                                  e.target.valueAsNumber || e.target.value,
+                              })
+                            }
+                            className="h-8 w-20"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={editForm.maxQuantity ?? ""}
+                            onChange={(e) =>
+                              setEditForm({
+                                ...editForm,
+                                maxQuantity:
+                                  e.target.value === ""
+                                    ? null
+                                    : e.target.valueAsNumber || e.target.value,
+                              })
+                            }
+                            className="h-8 w-20"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={editForm.discount ?? ""}
+                            onChange={(e) =>
+                              setEditForm({
+                                ...editForm,
+                                discount:
+                                  e.target.valueAsNumber || e.target.value,
+                              })
+                            }
+                            className="h-8 w-24"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => update(rule.id)}
+                              disabled={loading}
+                              className="h-8 w-8 text-green-600 hover:text-green-700"
+                            >
+                              <Save className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={cancelEdit}
+                              className="h-8 w-8 text-red-600 hover:text-red-700"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+
+                  return (
+                    <TableRow key={rule.id}>
+                      <TableCell>{rule.minQuantity}</TableCell>
+                      <TableCell>{rule.maxQuantity || "∞"}</TableCell>
+                      <TableCell>{Number(rule.discount)}%</TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => startEdit(rule)}
+                            disabled={loading || isAdding}
+                            className="h-8 w-8 text-blue-600 hover:text-blue-700"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => startDelete(rule.id)}
+                            disabled={loading}
+                            className="h-8 w-8 text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+
+                {!loading && rules.length === 0 && !isAdding && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center">
+                      Tidak ada aturan diskon
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4">
-        <div className="flex gap-3">
-          <div className="h-5 w-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-            <span className="text-blue-600 text-xs font-bold">i</span>
-          </div>
-          <div className="space-y-1">
-            <p className="text-sm font-semibold text-blue-900">
-              Informasi Pengaturan Diskon
-            </p>
-            <p className="text-xs text-blue-800 leading-relaxed">
-              Pengaturan ini akan diterapkan secara otomatis pada saat checkout
-              pembelian kartu atau voucher. Pastikan rentang jumlah (Qty) tidak
-              saling tumpang tindih untuk menghindari kesalahan kalkulasi.
-            </p>
-          </div>
-        </div>
-      </div>
+      <ConfirmModal
+        open={!!deletingId}
+        title="Hapus Aturan Diskon"
+        description="Apakah Anda yakin ingin menghapus aturan diskon ini? Tindakan ini tidak dapat dibatalkan."
+        confirmText="Hapus"
+        cancelText="Batal"
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+        loading={loading}
+      />
     </div>
   );
 }

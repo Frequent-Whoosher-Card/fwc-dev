@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Phone, Mail, ChevronDown } from "lucide-react";
+import { ArrowLeft, Phone, Mail, ChevronDown, Eye, EyeOff } from "lucide-react";
 
 import SuccessModal from "../components/SuccesModal";
 // sesuaikan path aslinya
@@ -23,6 +23,8 @@ interface UserForm {
   phone: string;
   roleId: string;
   stationId: string;
+  password?: string;
+  confirmPassword?: string;
 }
 
 /* ======================
@@ -40,6 +42,8 @@ export default function CreateUserPage() {
     phone: "",
     roleId: "",
     stationId: "",
+    password: "",
+    confirmPassword: "",
   });
 
   const [roles, setRoles] = useState<RoleItem[]>([]);
@@ -48,7 +52,14 @@ export default function CreateUserPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  // Simpan data text biasa di state
   const [confirmData, setConfirmData] = useState<Record<string, string>>({});
+  
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+  // State khusus untuk toggle password di dalam modal
+  const [showModalPassword, setShowModalPassword] = useState(false);
 
   /* ======================
      HELPERS (BEST PRACTICE)
@@ -126,6 +137,21 @@ export default function CreateUserPage() {
 
     if (!form.roleId) newErrors.roleId = "Role is required";
     if (!form.stationId) newErrors.stationId = "Stasiun is required";
+    
+    // PASSWORD VALIDATION
+    if (!form.password) {
+      newErrors.password = "Password is required";
+    } else {
+       // Rules: 8 chars, Start with Uppercase, Contain Number
+       const passwordRegex = /^[A-Z](?=.*\d).{7,}$/;
+       if (!passwordRegex.test(form.password)) {
+          newErrors.password = "Password harus 8+ karakter, berawalan Huruf Besar, & mengandung Angka";
+       }
+    }
+
+    if (form.password !== form.confirmPassword) {
+      newErrors.confirmPassword = "Passwords do not match";
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -138,7 +164,7 @@ export default function CreateUserPage() {
 
       const payload = {
         username: form.username,
-        password: "Default@123",
+        password: form.password!, // Pass dynamic password
         fullName: form.name,
         email: form.email,
         phone: form.phone,
@@ -196,6 +222,7 @@ export default function CreateUserPage() {
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 className="h-11 w-full rounded-md border px-4 text-sm"
+                autoComplete="off"
               />
               <p className="mt-1 text-xs text-gray-400">Minimal 3 karakter</p>
             </div>
@@ -234,6 +261,7 @@ export default function CreateUserPage() {
                   })
                 }
                 className="h-11 w-full rounded-md border px-4 text-sm"
+                autoComplete="off"
               />
               <p className="mt-1 text-xs text-gray-400">
                 Huruf kecil, tanpa spasi
@@ -294,6 +322,7 @@ export default function CreateUserPage() {
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 className="h-11 w-full rounded-md border px-4 pr-10 text-sm"
+                autoComplete="off"
               />
               <Mail className="absolute right-3 top-[55%] h-4 w-4 text-gray-400" />
               <p className="mt-1 text-xs text-gray-400">
@@ -323,6 +352,139 @@ export default function CreateUserPage() {
               </select>
               <ChevronDown className="absolute right-3 top-[55%] h-4 w-4 text-gray-400" />
             </div>
+
+            {/* PASSWORD */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Password<span className="ml-1 text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password"
+                  value={form.password}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setForm({ ...form, password: val });
+                    
+                    // Real-time validation
+                    if (val) {
+                      const passwordRegex = /^[A-Z](?=.*\d).{7,}$/;
+                      if (!passwordRegex.test(val)) {
+                        setErrors((prev) => ({
+                          ...prev,
+                          password: "Must start with Uppercase, contain Number, min 8 chars",
+                        }));
+                      } else {
+                        setErrors((prev) => {
+                          const newErr = { ...prev };
+                          delete newErr.password;
+                          return newErr;
+                        });
+                      }
+                    } else {
+                       setErrors((prev) => {
+                          const newErr = { ...prev };
+                          delete newErr.password;
+                          return newErr;
+                        });
+                    }
+                  }}
+                  className={`h-11 w-full rounded-md border px-4 pr-10 text-sm ${
+                    errors.password ? "border-red-500 ring-1 ring-red-500" : ""
+                  }`}
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+              
+               {/* PASSWORD REQUIREMENTS CHECKLIST */}
+               {form.password && (
+                <div className="mt-2 text-xs space-y-1 p-2 bg-gray-50 rounded-md border text-gray-600">
+                  <p className="font-semibold mb-1">Syarat Password:</p>
+                  <div className={`flex items-center gap-2 ${form.password.length >= 8 ? "text-green-600" : "text-gray-500"}`}>
+                    <span>{form.password.length >= 8 ? "✅" : "○"}</span> Minimal 8 Karakter
+                  </div>
+                  <div className={`flex items-center gap-2 ${/^[A-Z]/.test(form.password) ? "text-green-600" : "text-gray-500"}`}>
+                     <span>{/^[A-Z]/.test(form.password) ? "✅" : "○"}</span> Berawalan Huruf Besar
+                  </div>
+                  <div className={`flex items-center gap-2 ${/\d/.test(form.password) ? "text-green-600" : "text-gray-500"}`}>
+                     <span>{/\d/.test(form.password) ? "✅" : "○"}</span> Mengandung Angka
+                  </div>
+                </div>
+               )}
+
+              {errors.password && (
+                <p className="mt-1 text-xs text-red-500">{errors.password}</p>
+              )}
+            </div>
+
+            {/* CONFIRM PASSWORD */}
+            {/* CONFIRM PASSWORD */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Confirm Password<span className="ml-1 text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Confirm Password"
+                  value={form.confirmPassword}
+                  onChange={(e) =>
+                    setForm({ ...form, confirmPassword: e.target.value })
+                  }
+                  className="h-11 w-full rounded-md border px-4 pr-10 text-sm"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+
+               {/* CONFIRM PASSWORD CHECKLIST */}
+               {form.confirmPassword && (
+                <div className="mt-2 text-xs space-y-1 p-2 bg-gray-50 rounded-md border text-gray-600">
+                  <p className="font-semibold mb-1">Syarat Password:</p>
+                  <div className={`flex items-center gap-2 ${form.confirmPassword.length >= 8 ? "text-green-600" : "text-gray-500"}`}>
+                    <span>{form.confirmPassword.length >= 8 ? "✅" : "○"}</span> Minimal 8 Karakter
+                  </div>
+                  <div className={`flex items-center gap-2 ${/^[A-Z]/.test(form.confirmPassword) ? "text-green-600" : "text-gray-500"}`}>
+                     <span>{/^[A-Z]/.test(form.confirmPassword) ? "✅" : "○"}</span> Berawalan Huruf Besar
+                  </div>
+                  <div className={`flex items-center gap-2 ${/\d/.test(form.confirmPassword) ? "text-green-600" : "text-gray-500"}`}>
+                     <span>{/\d/.test(form.confirmPassword) ? "✅" : "○"}</span> Mengandung Angka
+                  </div>
+                  {/* MATCH CHECK */}
+                   <div className={`flex items-center gap-2 ${form.confirmPassword === form.password && form.confirmPassword !== "" ? "text-green-600" : "text-gray-500"}`}>
+                     <span>{form.confirmPassword === form.password && form.confirmPassword !== "" ? "✅" : "○"}</span> Password Cocok
+                  </div>
+                </div>
+               )}
+
+              {errors.confirmPassword && (
+                <p className="mt-1 text-xs text-red-500">
+                  {errors.confirmPassword}
+                </p>
+              )}
+            </div>
           </div>
 
           {/* ACTION */}
@@ -342,9 +504,11 @@ export default function CreateUserPage() {
                   Stasiun:
                     stations.find((s) => s.id === form.stationId)
                       ?.stationName || "-",
+                  // Password tidak disimpan di state confirmData karena butuh interaksi
                 });
 
-                setShowConfirm(true); // ✅ buka modal SETELAH data disimpan
+                setShowConfirm(true); 
+                setShowModalPassword(false); // Reset toggle modal saat dibuka
               }}
               className="h-11 rounded-md bg-[#7A0C2E] px-10 text-sm text-white disabled:opacity-50"
             >
@@ -367,14 +531,21 @@ export default function CreateUserPage() {
         message="Please review the user data before saving"
         confirmText="Save"
         data={{
-          Name: form.name || "-",
-          NIP: form.nip || "-",
-          Username: form.username || "-",
-          Role: roles.find((r) => r.id === form.roleId)?.roleName || "-",
-          "Phone Number": form.phone || "-",
-          "Email Address": form.email || "-",
-          Stasiun:
-            stations.find((s) => s.id === form.stationId)?.stationName || "-",
+          ...confirmData,
+          Password: (
+             <div className="flex items-center justify-between">
+              <span>
+                {showModalPassword ? form.password : "•".repeat(8)}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowModalPassword((prev) => !prev)}
+                 className="ml-2 text-gray-400 hover:text-gray-600"
+              >
+                  {showModalPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          ),
         }}
         onClose={() => {
           setShowConfirm(false);

@@ -141,7 +141,21 @@ export class StockInVoucherService {
       );
 
       return {
-        ...movement,
+        id: movement.id,
+        movementAt: movement.movementAt.toISOString(),
+        quantity: movement.quantity,
+        status: movement.status,
+        batchId: movement.batchId,
+        note: movement.note,
+        category: {
+          id: movement.category.id,
+          name: movement.category.categoryName,
+          programType: movement.category.programType,
+        },
+        type: {
+          id: movement.type.id,
+          name: movement.type.typeName,
+        },
         product: {
           id: product.id,
           name: `${product.category.categoryName} - ${product.type.typeName}`,

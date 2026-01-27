@@ -142,6 +142,9 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
               <th className="px-4 py-3">Type</th>
               <th className="px-4 py-3">Station</th>
               <th className="px-4 py-3">Status</th>
+              {programType === "VOUCHER" && (
+                <th className="px-4 py-3">Diskon</th>
+              )}
               <th className="px-4 py-3">Note</th>
               <th className="px-4 py-3">Aksi</th>
             </tr>
@@ -190,6 +193,11 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
                   <td className="px-4 py-3 text-center">
                     <StatusBadge status={row.status} />
                   </td>
+                  {programType === "VOUCHER" && (
+                    <td className="px-4 py-3 text-center">
+                      {row.isDiscount ? "Ya" : "Tidak"}
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-center">{row.note}</td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex justify-center gap-2">

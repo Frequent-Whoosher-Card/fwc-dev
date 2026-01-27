@@ -47,24 +47,6 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
   const { openDelete, setOpenDelete, setSelectedId, handleDelete } =
     deleteModal;
 
-  if (programType === "VOUCHER") {
-    return (
-      <div className="space-y-6">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-4">
-            <h2 className="text-lg font-semibold whitespace-nowrap">
-              Stock Out (Admin → Stasiun)
-            </h2>
-            <SwitchTab items={tabs} />
-          </div>
-        </div>
-        <div className="rounded-lg border bg-white p-20 text-center text-gray-400">
-          Data Voucher belum tersedia
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4">
@@ -133,7 +115,7 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
                 <th className="px-3 py-2 text-center">BAST</th>
                 <th className="px-3 py-2 text-center">Stasiun</th>
                 <th className="px-3 py-2 text-center whitespace-nowrap">
-                  Serial Number Awal
+                  Serial Number
                 </th>
                 <th className="px-3 py-2 text-center">Status</th>
                 <th className="px-3 py-2 text-center">Note</th>
@@ -188,8 +170,10 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
                     <td className="px-3 py-2 text-center">
                       {row.stationName || "-"}
                     </td>
-                    <td className="px-3 py-2 text-center font-medium">
-                      {row.sentSerialNumbers?.[0] || "-"}
+                    <td className="px-3 py-2 text-center font-medium whitespace-nowrap">
+                      {row.sentSerialNumbers?.length > 0
+                        ? `${row.sentSerialNumbers[0]} - ${row.sentSerialNumbers[row.sentSerialNumbers.length - 1]}`
+                        : "-"}
                     </td>
                     <td className="px-3 py-2 text-center">
                       <span
