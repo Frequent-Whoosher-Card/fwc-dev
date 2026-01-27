@@ -1,4 +1,5 @@
 import path from "path";
+import { config } from "dotenv";
 import { Elysia } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { docsConfig } from "./docs";
@@ -22,6 +23,9 @@ import { inbox } from "./modules/inbox";
 import { redeem } from "./modules/redeem";
 import { cardSwaps } from "./modules/card-swaps";
 import { bulkDiscount } from "./modules/discount";
+
+config();
+const PORT = process.env.APP_PORT ? Number(process.env.APP_PORT) : 3001;
 
 const app = new Elysia()
   .use(docsConfig)
@@ -146,7 +150,7 @@ const app = new Elysia()
     const filePath = path.join(process.cwd(), "storage", cleanPath);
     return Bun.file(filePath);
   })
-  .listen(3041);
+  .listen(PORT);
 
 console.log(
   `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
