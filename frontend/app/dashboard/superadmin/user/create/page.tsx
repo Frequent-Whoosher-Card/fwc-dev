@@ -271,12 +271,20 @@ export default function CreateUserPage() {
               <input
                 placeholder="username"
                 value={form.username}
-                onChange={(e) =>
+                onChange={(e) => {
                   setForm({
                     ...form,
                     username: sanitizeUsername(e.target.value),
-                  })
-                }
+                  });
+                  // Clear error when user types
+                  if (errors.username) {
+                    setErrors((prev) => {
+                      const newErr = { ...prev };
+                      delete newErr.username;
+                      return newErr;
+                    });
+                  }
+                }}
                 className="h-11 w-full rounded-md border px-4 text-sm"
                 autoComplete="off"
               />
