@@ -31,6 +31,7 @@ import {
   FilePlus,
   Inbox,
   PercentCircle,
+  Briefcase,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -121,6 +122,11 @@ const superadminMenuItems = [
     href: "/dashboard/superadmin/transaksi",
   },
   { title: "User", icon: Users, href: "/dashboard/superadmin/user" },
+  {
+    title: "Employee Type",
+    icon: Briefcase,
+    href: "/dashboard/superadmin/employee-types",
+  },
 ];
 
 /* ADMIN */
@@ -167,7 +173,11 @@ const supervisorMenuItems = [
     href: "/dashboard/supervisor/membership",
   },
   { title: "Redeem Kuota", icon: IdCard, href: "/dashboard/supervisor/redeem" },
-  { title: "Transaksi", icon: Receipt, href: "/dashboard/supervisor/transaksi" },
+  {
+    title: "Transaksi",
+    icon: Receipt,
+    href: "/dashboard/supervisor/transaksi",
+  },
   { title: "Noted", icon: Inbox, href: "/dashboard/supervisor/noted" },
 ];
 
