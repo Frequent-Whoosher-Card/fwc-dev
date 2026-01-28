@@ -239,7 +239,7 @@ export class StockInVoucherService {
         where,
         skip,
         take: limitNum,
-        orderBy: { movementAt: "desc" },
+        orderBy: { createdAt: "desc" },
         include: {
           category: {
             select: {
@@ -366,10 +366,13 @@ export class StockInVoucherService {
           name: productName,
         },
         sentSerialNumbers: movement.sentSerialNumbers as string[],
-        receivedSerialNumbers: [],
+        receivedSerialNumbers: movement.receivedSerialNumbers as string[],
         items: await (async () => {
-          const serials = movement.sentSerialNumbers as string[];
-          if (!serials?.length) return [];
+          const serials = [
+            ...((movement.sentSerialNumbers as string[]) || []),
+            ...((movement.receivedSerialNumbers as string[]) || []),
+          ];
+          if (!serials.length) return [];
           const cards = await db.card.findMany({
             where: { serialNumber: { in: serials } },
             select: { serialNumber: true, status: true },
@@ -402,7 +405,10 @@ export class StockInVoucherService {
 
       // Revert Cards Status -> ON_REQUEST
       // Only if current status is IN_OFFICE (not distributed yet)
-      const serials = movement.receivedSerialNumbers || [];
+      const serials = [
+        ...((movement.sentSerialNumbers as string[]) || []),
+        ...((movement.receivedSerialNumbers as string[]) || []),
+      ];
 
       const cards = await tx.card.findMany({
         where: { serialNumber: { in: serials } },
