@@ -19,6 +19,7 @@ import { Plus, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 // Search input for toolbar
 import React from 'react';
 import ExportRedeemModal from '@/components/redeem/ExportRedeemModal';
+import DeletedRedeemTable from '@/components/redeem/DeletedRedeemTable';
 import { getStations } from '@/lib/services/station.service';
 import { getCardCategories, getCardTypes } from '@/lib/services/cardcategory';
 
@@ -59,6 +60,18 @@ export default function RedeemPage() {
   const [categories, setCategories] = useState<any[]>([]);
   const [cardTypes, setCardTypes] = useState<any[]>([]);
   const [isLoadingRedeems, setIsLoadingRedeems] = useState(false);
+
+  // Deleted Redeems State
+  const [deletedRedeems, setDeletedRedeems] = useState<RedeemItem[]>([]);
+  const [isLoadingDeleted, setIsLoadingDeleted] = useState(false);
+  const [deletedPage, setDeletedPage] = useState(1);
+  const [deletedPagination, setDeletedPagination] = useState({
+    total: 0,
+    page: 1,
+    limit: 10,
+    totalPages: 1,
+  });
+
   // Filter state
   // Helper to get today in YYYY-MM-DD
   const getToday = () => {
@@ -74,6 +87,16 @@ export default function RedeemPage() {
   const [stationId, setStationId] = useState('');
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
+
+  // Debounce search input
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      setSearch(searchInput);
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchInput]);
+
   // State for filters
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState({
@@ -143,6 +166,35 @@ export default function RedeemPage() {
     }
   };
 
+  const loadDeletedRedeems = async (filters: RedeemFilterParams) => {
+    setIsLoadingDeleted(true);
+    const mergedFilters = {
+      ...filters,
+      isDeleted: true,
+      limit: 10,
+      ...(product === 'FWC' || product === 'VOUCHER' ? { product } : {})
+    };
+    try {
+      const response = await redeemService.listRedeems(mergedFilters);
+
+      const items = response.data || [];
+      const paginationData = response.pagination || { page: 1, limit: 10, total: 0, totalPages: 1 };
+      setDeletedRedeems(Array.isArray(items) ? items : []);
+      setDeletedPagination({
+        page: paginationData.page || 1,
+        limit: paginationData.limit || 10,
+        total: paginationData.total || 0,
+        totalPages: paginationData.totalPages || 1,
+      });
+    } catch (error) {
+      console.error('Failed to load deleted redeems', error);
+      setDeletedRedeems([]);
+      setDeletedPagination({ page: 1, limit: 10, total: 0, totalPages: 1 });
+    } finally {
+      setIsLoadingDeleted(false);
+    }
+  };
+
   // Trigger loadRedeems setiap filter berubah
   useEffect(() => {
     if (!isProductSelected) return;
@@ -157,8 +209,35 @@ export default function RedeemPage() {
       search: search || undefined,
       ...(product === 'FWC' || product === 'VOUCHER' ? { product } : {})
     });
+    loadDeletedRedeems({
+      page: 1,
+      limit: 10,
+      startDate: startDate ? new Date(startDate).toISOString() : undefined,
+      endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
+      category: category || undefined,
+      cardType: cardType || undefined,
+      stationId: stationId || undefined,
+      search: search || undefined,
+      ...(product === 'FWC' || product === 'VOUCHER' ? { product } : {})
+    });
     setCurrentPage(1);
   }, [startDate, endDate, category, cardType, stationId, search, product]);
+
+  // Trigger loadDeletedRedeems setiap deletedPage berubah
+  useEffect(() => {
+    if (!isProductSelected) return;
+    loadDeletedRedeems({
+      page: deletedPage,
+      limit: 10,
+      startDate: startDate ? new Date(startDate).toISOString() : undefined,
+      endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
+      category: category || undefined,
+      cardType: cardType || undefined,
+      stationId: stationId || undefined,
+      search: search || undefined,
+      ...(product === 'FWC' || product === 'VOUCHER' ? { product } : {})
+    });
+  }, [deletedPage]); // Trigger only on deletedPage change (filters handled by separate effect)
 
   // Trigger loadRedeems setiap currentPage berubah (pagination)
   useEffect(() => {
@@ -261,11 +340,35 @@ export default function RedeemPage() {
       ...(product === 'FWC' || product === 'VOUCHER' ? { product } : {})
     });
     setCurrentPage(1);
+    // Reload deleted list as well
+    loadDeletedRedeems({
+      page: 1,
+      limit: 10,
+      startDate: startDate ? new Date(startDate).toISOString() : undefined,
+      endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
+      category: category || undefined,
+      cardType: cardType || undefined,
+      stationId: stationId || undefined,
+      search: search || undefined,
+      ...(product === 'FWC' || product === 'VOUCHER' ? { product } : {})
+    });
   };
 
   const handleDeleteSuccess = () => {
     loadRedeems({
       page: currentPage,
+      limit: 10,
+      startDate: startDate ? new Date(startDate).toISOString() : undefined,
+      endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
+      category: category || undefined,
+      cardType: cardType || undefined,
+      stationId: stationId || undefined,
+      search: search || undefined,
+      ...(product === 'FWC' || product === 'VOUCHER' ? { product } : {})
+    });
+    // Reload deleted list to show newly deleted item
+    loadDeletedRedeems({
+      page: 1,
       limit: 10,
       startDate: startDate ? new Date(startDate).toISOString() : undefined,
       endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
@@ -407,6 +510,7 @@ export default function RedeemPage() {
                   canDelete={canDelete}
                   isLoading={isLoadingRedeems}
                   noDataMessage={isProductSelected ? undefined : 'Pilih produk terlebih dulu'}
+                  total={pagination.total}
                 />
               </div>
 
@@ -449,6 +553,17 @@ export default function RedeemPage() {
                   <ChevronRight size={18} />
                 </button>
               </div>
+
+              {/* Deleted Redeem Table */}
+              <DeletedRedeemTable
+                data={deletedRedeems}
+                isLoading={isLoadingDeleted}
+                noDataMessage="Tidak ada data redeem yang dihapus"
+                currentPage={deletedPagination.page}
+                totalPages={deletedPagination.totalPages}
+                totalCount={deletedPagination.total}
+                onPageChange={setDeletedPage}
+              />
 
               {/* Modals */}
               <CreateRedeemModal

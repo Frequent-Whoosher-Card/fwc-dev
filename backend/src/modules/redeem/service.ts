@@ -130,6 +130,7 @@ export class RedeemService {
     cardType?: string;
     redeemType?: string;
     product?: "FWC" | "VOUCHER";
+    isDeleted?: boolean;
   }) {
 
     const page = params.page ?? 1;
@@ -143,15 +144,38 @@ export class RedeemService {
       cardType,
       redeemType,
       product,
+      isDeleted,
     } = params;
     const skip = (page - 1) * limit;
-    const where: any = { deletedAt: null };
-    if (product) { if (!where.card) where.card = {}; where.card.programType = product; }
-    if (startDate || endDate) {
-      where.createdAt = {};
-      if (startDate) where.createdAt.gte = new Date(startDate);
-      if (endDate) { const end = new Date(endDate); end.setHours(23, 59, 59, 999); where.createdAt.lte = end; }
+
+    const where: any = {};
+    if (isDeleted) {
+      // Logic for Deleted Items: Filter by deletedAt
+      if (startDate || endDate) {
+        where.deletedAt = {};
+        if (startDate) where.deletedAt.gte = new Date(startDate);
+        if (endDate) {
+          const end = new Date(endDate);
+          end.setHours(23, 59, 59, 999);
+          where.deletedAt.lte = end;
+        }
+      } else {
+        where.deletedAt = { not: null };
+      }
+    } else {
+      // Logic for Active Items: deletedAt is null, filter by createdAt
+      where.deletedAt = null;
+      if (startDate || endDate) {
+        where.createdAt = {};
+        if (startDate) where.createdAt.gte = new Date(startDate);
+        if (endDate) {
+          const end = new Date(endDate);
+          end.setHours(23, 59, 59, 999);
+          where.createdAt.lte = end;
+        }
+      }
     }
+    if (product) { if (!where.card) where.card = {}; where.card.programType = product; }
     if (stationId) where.stationId = stationId;
     if (category) {
       if (!where.card) where.card = {};
@@ -202,6 +226,7 @@ export class RedeemService {
     ]);
     const usageLogs = await db.cardUsageLog.findMany({ where: { redeemId: { in: items.map((it) => it.id) }, deletedAt: null } });
     const usageLogMap = new Map(usageLogs.map(log => [log.redeemId, log]));
+
     const formattedItems = items.map((item) => {
       const fallbackMember = item.card.member || item.card.purchases?.[0]?.member || null;
       const usageLog = usageLogMap.get(item.id);
@@ -398,7 +423,7 @@ export class RedeemService {
     };
   }
 
-  static async deleteRedeem(id: string, userId?: string) {
+  static async deleteRedeem(id: string, userId: string | undefined, notes?: string) {
     return await db.$transaction(async (tx) => {
       const redeem = await tx.redeem.findUnique({
         where: { id },
@@ -411,7 +436,17 @@ export class RedeemService {
       const quotaToRestore = usageLog.quotaUsed;
       await tx.card.update({ where: { id: redeem.cardId }, data: { quotaTicket: { increment: quotaToRestore }, updatedAt: new Date() } });
       await tx.cardUsageLog.update({ where: { id: usageLog.id }, data: { deletedAt: new Date(), deletedBy: userId || null, quotaUsed: 0 } });
-      const deleted = await tx.redeem.update({ where: { id }, data: { deletedAt: new Date(), deletedBy: userId || null, updatedAt: new Date(), updatedBy: userId || null } });
+
+      const deleted = await tx.redeem.update({
+        where: { id },
+        data: {
+          deletedAt: new Date(),
+          deletedBy: userId || null,
+          updatedAt: new Date(),
+          updatedBy: userId || null,
+          notes: notes || redeem.notes // Update notes with deletion reason if provided
+        }
+      });
       return { id: deleted.id, restoredQuota: quotaToRestore };
     });
   }

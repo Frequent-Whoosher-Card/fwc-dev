@@ -29,11 +29,18 @@ export default function CreateRedeemModal({
   useEffect(() => {
     if (!isOpen) return;
     axios.get('/card/product')
-      .then(res => setProducts(res.data?.data || []))
+      .then(res => {
+        const allProducts = res.data?.data || [];
+        // Filter sesuai dengan prop 'product' yang sedang aktif (FWC / VOUCHER)
+        const filtered = allProducts.filter((p: any) => p.programType === product);
+        setProducts(filtered);
+      })
       .catch((err) => {
-        // Jika error 422 tapi ada data produk, tetap tampilkan
+        // Jika error 422 tapi ada data produk, tetap tampilkan & filter
         if (err?.response?.data?.found?.data) {
-          setProducts(err.response.data.found.data);
+          const allProducts = err.response.data.found.data;
+          const filtered = allProducts.filter((p: any) => p.programType === product);
+          setProducts(filtered);
           toast.error('Gagal mengambil card product, tapi data tetap ditampilkan.');
         } else {
           toast.error('Gagal mengambil card product');
@@ -45,7 +52,7 @@ export default function CreateRedeemModal({
           console.error('Card product error:', err);
         }
       });
-  }, [isOpen]);
+  }, [isOpen, product]);
 
   // Update selected product
   useEffect(() => {
@@ -78,7 +85,7 @@ export default function CreateRedeemModal({
   }, [selectedProduct, serialLast5]);
   const [cardData, setCardData] = useState<RedeemCheckResponse | null>(null);
   const [redeemType, setRedeemType] = useState<'SINGLE' | 'ROUNDTRIP'>('SINGLE');
-  const [notes, setNotes] = useState('');
+  // notes state removed
   const [isLoading, setIsLoading] = useState(false);
   const [userInfo, setUserInfo] = useState<any>(null);
 
@@ -89,6 +96,7 @@ export default function CreateRedeemModal({
         const user = await import('@/lib/services/auth.service').then(m => m.getAuthMe());
         setUserInfo(user);
       } catch (err) {
+        console.error('Failed to fetch user info', err);
         setUserInfo(null);
       }
     }
@@ -167,7 +175,6 @@ export default function CreateRedeemModal({
         operatorId: userInfo.id || userInfo.operatorId || userInfo.userId,
         stationId: userInfo.stationId || userInfo.station?.id,
         product: selectedProduct?.programType || product, // use selected card's programType for backend
-        notes: notes.trim() || undefined,
       };
       const result = await redeemService.createRedeem(payload);
       // Show result summary
@@ -189,12 +196,11 @@ export default function CreateRedeemModal({
       setSerialNumber('');
       setCardData(null);
       setRedeemType('SINGLE');
-      setNotes('');
       onSuccess();
       onClose();
     } catch (error: any) {
       let errorMessage = 'Terjadi kesalahan saat melakukan redeem';
-      // Handle specific error messages
+      // Handle specifi errors (omitted)
       if (error.message.includes('not found') || error.message.includes('Not found')) {
         errorMessage = 'Data kartu tidak ditemukan. Silakan periksa kembali.';
       } else if (error.message.includes('Not enough quota') || error.message.includes('quota') || error.message.includes('kuota')) {
@@ -216,7 +222,6 @@ export default function CreateRedeemModal({
     setSerialNumber('');
     setCardData(null);
     setRedeemType('SINGLE');
-    setNotes('');
     onClose();
   };
 
@@ -347,8 +352,8 @@ export default function CreateRedeemModal({
                 <p className="text-gray-600 text-sm">Status</p>
                 <span
                   className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${cardData.statusActive === 'ACTIVE'
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-red-100 text-red-800'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
                     }`}
                 >
                   {cardData.statusActive}
@@ -398,25 +403,11 @@ export default function CreateRedeemModal({
               </div>
             </div>
 
-            {/* Notes */}
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Catatan (Opsional)
-              </label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Masukkan catatan..."
-                className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none h-20"
-              />
-            </div>
-
             {/* Action Buttons */}
             <div className="flex gap-3">
               <button
                 onClick={() => {
                   setCardData(null);
-                  setSerialNumber('');
                 }}
                 className="flex-1 px-4 py-2 border rounded-md text-sm font-medium hover:bg-gray-50"
               >
