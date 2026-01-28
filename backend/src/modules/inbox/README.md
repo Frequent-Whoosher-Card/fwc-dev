@@ -125,7 +125,46 @@ if (inbox.type === "STOCK_DISTRIBUTION") {
       ```
     - _Catatan: API ini otomatis mendeteksi tipe program (FWC/Voucher) dan mengupdate status Inbox terkait menjadi COMPLETED._
 
-### Tips untuk Developer Frontend
-
-- **Satu Tombol untuk Semua**: Anda tidak perlu membuat logic if-else untuk membedakan URL validasi FWC atau Voucher. Cukup gunakan endpoint `/out/validate/:movementId` untuk semua jenis notifikasi "STOCK_DISTRIBUTION".
 - **Response Konsisten**: Struktur response sukses akan selalu sama untuk kedua tipe, memudahkan parsing data.
+
+---
+
+## Skenario Lengkap: Validasi & Approval (Integration Guide)
+
+Berikut adalah urutan integrasi **End-to-End** untuk fitur Stock Out Validation, yang melibatkan Supervisor (Mobile/Frontend) dan Admin (CMS).
+
+### Phase 1: Supervisor Validation (Station Side)
+
+1.  **Receive**: Supervisor menerima notifikasi Inbox `type: "STOCK_DISTRIBUTION"`.
+2.  **Display**: Frontend menampilkan detail barang (Nama, Quantity).
+3.  **Scan**: Supervisor melakukan scan barcode fisik.
+    - _Frontend logic_: Membandingkan hasil scan dengan `quantity` di payload.
+4.  **Submit**:
+    - Jika **Semua Diterima**: Kirim array `receivedSerialNumbers`.
+    - Jika **Ada Masalah**: Masukkan serial yang tidak ada ke `lostSerialNumbers` atau `damagedSerialNumbers`.
+5.  **API Call**: `POST /out/validate/:movementId`.
+6.  **Result**:
+    - Status Inbox Supervisor berubah jadi `COMPLETED`.
+    - Stok yang diterima (`received`) langsung masuk ke Inventory Stasiun (`IN_STATION`).
+    - Barang `Lost` atau `Damaged` **belum berubah status** (masih `IN_TRANSIT` di backend, menunggu approval Admin).
+
+### Phase 2: Admin Approval for Issues (Center Side)
+
+_Catatan: Flow ini akan aktif jika Supervisor melaporkan `lostCount > 0` atau `damagedCount > 0`._
+
+1.  **Receive**: Admin mendapatkan notifikasi Inbox `type: "STOCK_ISSUE_REPORT"`.
+2.  **Review**: Admin melihat laporan ("Station X melaporkan 2 kartu hilang").
+3.  **Approve**:
+    - Admin menekan **"Approve Changes"**.
+    - Backend merubah status kartu tersebut dari `IN_TRANSIT` menjadi `LOST` atau `DAMAGED` secara permanen.
+    - Stok Station bersih/sesuai.
+4.  **Reject** (Opsional):
+    - Admin menolak laporan (misal: "Cari lagi!").
+    - Kartu tetap `IN_TRANSIT`.
+
+### Rekomendasi UI (Frontend)
+
+- **Inbox List**: Gunakan badge warna untuk membedakan type pesan.
+  - 🔵 `STOCK_DISTRIBUTION` (Butuh Validasi)
+  - 🔴 `STOCK_ISSUE_REPORT` (Admin Only - Butuh Approval)
+  - ⚪ `INFO` (Hanya info)
