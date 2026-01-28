@@ -26,6 +26,10 @@ import { createPurchase } from "@/lib/services/purchase.service";
 import { KTPUploadDetect } from "@/components/ui/ktp-upload-detect";
 import { useCardSelection } from "@/hooks/useCardSelection";
 import { useCategories } from "@/hooks/useCategories";
+import {
+  getEmployeeTypes,
+  EmployeeType,
+} from "@/lib/services/employee-type.service";
 
 /* ======================
    BASE INPUT STYLE
@@ -255,11 +259,16 @@ export default function AddMemberPage() {
     edcReferenceNumber?: boolean;
   }>({});
 
+  // Employee Types
+  const [employeeTypes, setEmployeeTypes] = useState<EmployeeType[]>([]);
+  const [loadingEmployeeTypes, setLoadingEmployeeTypes] = useState(false);
+
   // Form State
   const [form, setForm] = useState({
     name: "",
     nik: "",
     nippKai: "",
+    employeeTypeId: "",
     nationality: "",
     phone: "",
     gender: "",
@@ -317,6 +326,18 @@ export default function AddMemberPage() {
                   },
                 },
               );
+
+              // Load employee types
+              setLoadingEmployeeTypes(true);
+              try {
+                const employeeTypesRes = await getEmployeeTypes();
+                setEmployeeTypes(employeeTypesRes.data || []);
+              } catch (error) {
+                console.error("Failed to load employee types:", error);
+                toast.error("Gagal memuat tipe pegawai");
+              } finally {
+                setLoadingEmployeeTypes(false);
+              }
 
               console.log(
                 "[DEBUG] Station response status:",
@@ -862,6 +883,7 @@ export default function AddMemberPage() {
         phone: getFullPhoneNumber() || undefined, // ✅ FIX DI SINI
         gender: form.gender || undefined,
         alamat: form.address || undefined,
+        employeeTypeId: form.employeeTypeId || undefined,
       };
 
       // ✅ HANYA KIRIM nippKai JIKA ADA ISINYA
@@ -1009,22 +1031,53 @@ export default function AddMemberPage() {
               </div>
             </Field>
 
-            <Field label="NIP / NIPP KAI" required={isKAIProduct}>
-              <input
-                ref={nippKaiRef}
-                name="nippKai"
-                value={form.nippKai}
-                onChange={handleChange}
-                onInput={onlyNumber}
-                placeholder="Nomor Induk Pegawai (KAI)"
-                className={base}
-                maxLength={5}
-              />
-
-              <p className="text-[11px] text-gray-400">
-                Diisi jika member merupakan pegawai KAI (maksimal 5 digit)
-              </p>
+            <Field label="Employee Type" required>
+              <div className="relative">
+                <select
+                  name="employeeTypeId"
+                  value={form.employeeTypeId}
+                  onChange={handleChange}
+                  className={`${base} appearance-none pr-10`}
+                  required
+                  disabled={loadingEmployeeTypes}
+                >
+                  <option value="">
+                    {loadingEmployeeTypes ? "Loading..." : "Pilih Tipe Pegawai"}
+                  </option>
+                  {employeeTypes.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={16}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                />
+              </div>
             </Field>
+
+            {/* NIP / NIPP KAI - Only show if NOT Umum */}
+            {form.employeeTypeId &&
+              employeeTypes.find((t) => t.id === form.employeeTypeId)?.code !==
+                "UMUM" && (
+                <Field label="NIP / NIPP KAI" required={isKAIProduct}>
+                  <input
+                    ref={nippKaiRef}
+                    name="nippKai"
+                    value={form.nippKai}
+                    onChange={handleChange}
+                    onInput={onlyNumber}
+                    placeholder="Nomor Induk Pegawai (KAI)"
+                    className={base}
+                    maxLength={5}
+                  />
+
+                  <p className="text-[11px] text-gray-400">
+                    Diisi jika member merupakan pegawai KAI (maksimal 5 digit)
+                  </p>
+                </Field>
+              )}
 
             <Field label="Nationality" required>
               <Select

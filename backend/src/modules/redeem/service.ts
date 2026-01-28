@@ -131,7 +131,7 @@ export class RedeemService {
     redeemType?: string;
     product?: "FWC" | "VOUCHER";
   }) {
-    
+
     const page = params.page ?? 1;
     const limit = params.limit ?? 10;
     const {
@@ -187,7 +187,7 @@ export class RedeemService {
               quotaTicket: true,
               programType: true,
               member: { select: { id: true, name: true, identityNumber: true } },
-              cardProduct: { select: { category: { select: { categoryName: true } }, type: { select: { typeName: true } } } },
+              cardProduct: { select: { totalQuota: true, category: { select: { categoryName: true } }, type: { select: { typeName: true } } } },
               purchases: {
                 orderBy: { purchaseDate: "desc" },
                 take: 1,
@@ -195,6 +195,7 @@ export class RedeemService {
               },
             },
           },
+          fileObject: true,
         },
       }),
       db.redeem.count({ where }),
@@ -228,9 +229,15 @@ export class RedeemService {
           member: fallbackMember,
           cardProduct: item.card.cardProduct,
         },
+        fileObject: item.fileObject ? {
+          id: item.fileObject.id,
+          path: `${process.env.BASE_URL}:${process.env.APP_PORT}/${item.fileObject.relativePath}`,
+          mimeType: item.fileObject.mimeType,
+          createdAt: item.fileObject.createdAt.toISOString(),
+        } : undefined,
       };
     });
-    console.log('[DEBUG BACKEND] Jumlah items dikirim ke FE:', formattedItems.length);
+
     return {
       items: formattedItems,
       pagination: {
@@ -242,6 +249,104 @@ export class RedeemService {
     };
   }
 
+  // Get Redeem By ID (Detail)
+  static async getRedeemById(id: string) {
+    const redeem = await db.redeem.findUnique({
+      where: { id },
+      include: {
+        station: {
+          select: {
+            id: true,
+            stationName: true,
+          },
+        },
+        operator: {
+          select: {
+            id: true,
+            fullName: true,
+          },
+        },
+        card: {
+          select: {
+            id: true,
+            serialNumber: true,
+            quotaTicket: true,
+            programType: true,
+            member: {
+              select: {
+                id: true,
+                name: true,
+                identityNumber: true,
+              },
+            },
+            cardProduct: {
+              select: {
+                totalQuota: true,
+                category: { select: { categoryName: true } },
+                type: { select: { typeName: true } },
+              },
+            },
+            purchases: {
+              orderBy: { purchaseDate: "desc" },
+              take: 1,
+              select: {
+                member: {
+                  select: {
+                    id: true,
+                    name: true,
+                    identityNumber: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        fileObject: true,
+      },
+    });
+
+    if (!redeem) {
+      throw new NotFoundError("Redeem transaction not found");
+    }
+
+    // Fallback quotaUsed: SINGLE=1, ROUNDTRIP=2 (skip usageLogs to avoid DB column mismatch)
+    const quotaUsed = redeem.redeem_type === 'SINGLE' ? 1 : 2;
+
+    const fallbackMember =
+      redeem.card.member || redeem.card.purchases?.[0]?.member || null;
+
+    return {
+      id: redeem.id,
+      transactionNumber: redeem.transactionNumber,
+      cardId: redeem.cardId,
+      operatorId: redeem.operatorId,
+      stationId: redeem.stationId,
+      shiftDate: redeem.shiftDate.toISOString(),
+      status: redeem.status,
+      redeemType: redeem.redeem_type,
+      quotaUsed,
+      notes: redeem.notes,
+      createdAt: redeem.createdAt.toISOString(),
+      updatedAt: redeem.updatedAt.toISOString(),
+      station: redeem.station,
+      operator: redeem.operator,
+      card: {
+        id: redeem.card.id,
+        serialNumber: redeem.card.serialNumber,
+        quotaTicket: redeem.card.quotaTicket,
+        member: fallbackMember,
+        cardProduct: redeem.card.cardProduct,
+      },
+      fileObject: redeem.fileObject ? {
+        id: redeem.fileObject.id,
+        path: `${process.env.BASE_URL}:${process.env.APP_PORT}/${redeem.fileObject.relativePath}`,
+        mimeType: redeem.fileObject.mimeType,
+        createdAt: redeem.fileObject.createdAt.toISOString(),
+      } : undefined,
+    };
+  }
+
+  // Update Redeem (e.g., Notes)
   static async updateRedeem(id: string, data: { notes?: string }) {
     const redeem = await db.redeem.findUnique({
       where: { id },
@@ -254,7 +359,7 @@ export class RedeemService {
             serialNumber: true,
             quotaTicket: true,
             member: { select: { id: true, name: true, identityNumber: true } },
-            cardProduct: { select: { category: { select: { categoryName: true } }, type: { select: { typeName: true } } } },
+            cardProduct: { select: { totalQuota: true, category: { select: { categoryName: true } }, type: { select: { typeName: true } } } },
             purchases: {
               orderBy: { purchaseDate: "desc" },
               take: 1,
@@ -360,27 +465,222 @@ export class RedeemService {
         nominal: Number(nominal.toFixed(2)),
       };
     });
-    // ...existing code for CSV, XLSX, PDF, JPG export...
-    // (Omitted for brevity, but should be included in the real file)
-    return { buffer: Buffer.from(''), contentType: '', filename: '' }; // Placeholder
+
+    const filenameBase = `redeem_${start.toISOString().slice(0, 10)}_${stationId}`;
+
+    const nomorReport = `REDEEM-${start.toISOString().slice(0, 10).replace(/-/g, "")}-${stationId.substring(0, 6)}`;
+    const petugasName = operator?.fullName || "-";
+    const shiftKerja = ""; // not used for now
+    const tanggalDinas = start.toISOString().slice(0, 10);
+
+    if (format === "csv") {
+      // Header dan meta sesuai role
+      let metaRows: string[][] = [];
+      if (operator?.role?.roleCode === 'petugas') {
+        metaRows = [
+          ["Laporan Transaksi Redeem Frequent Whoosher Card"],
+          ["Nama Petugas", petugasName],
+          ["Tanggal Dinas", tanggalDinas],
+          [],
+        ];
+      } else {
+        metaRows = [
+          ["Laporan Transaksi Redeem Frequent Whoosher Card"],
+          ["Tanggal Hari Ini", tanggalDinas],
+          [],
+        ];
+      }
+      const headerRow = ["Nomor Transaksi", "Seri Kartu", "Kategori", "Tipe Kartu", "Tipe Redeem", "Kuota Dipakai", "Sisa Kuota", "Stasiun", "Nominal"];
+      const dataRows = rows.map(r => [r.trxnumber, r.serialnum, r.cardcategory, r.cardtype, r.redeem_type, r.quota_used, r.remaining_quota, r.station, r.nominal]);
+      const csv = metaRows.map(r => r.join(",")).concat([headerRow.join(",")]).concat(dataRows.map(r => r.join(","))).join("\n");
+      return { buffer: new TextEncoder().encode(csv), contentType: "text/csv", filename: `${filenameBase}.csv` };
+    }
+
+    // xlsx
+    const XLSX = await import("xlsx");
+    const aoa: any[] = [
+      ["Nomor Report", nomorReport],
+      ["Nama Petugas", petugasName],
+      ["Shift Kerja", shiftKerja],
+      ["Tanggal Dinas", tanggalDinas],
+      [],
+      ["Nomor Transaksi", "Seri Kartu", "Kategori", "Tipe Kartu", "Tipe Redeem", "Kuota Dipakai", "Sisa Kuota", "Stasiun", "Nominal"],
+      ...rows.map(r => [r.trxnumber, r.serialnum, r.cardcategory, r.cardtype, r.redeem_type, r.quota_used, r.remaining_quota, r.station, r.nominal]),
+    ];
+    const worksheet = XLSX.utils.aoa_to_sheet(aoa);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Redeem");
+    const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "buffer" });
+    if (format === "xlsx") {
+      return { buffer: wbout as unknown as Buffer, contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename: `${filenameBase}.xlsx` };
+    }
+
+    // Build grouped summary for PDF/JPG layout
+    type Key = string;
+    const groups = new Map<Key, { serials: string[]; uniqueCards: Set<string>; nominal: number }>();
+    const keyOf = (cat: string, typ: string) => `${cat}|${typ}`;
+    for (const it of items) {
+      const cat = it.card.cardProduct.category.categoryName;
+      const typ = it.card.cardProduct.type.typeName;
+      const k = keyOf(cat, typ);
+      const product = it.card.cardProduct;
+      const unit = Number(product.price) / product.totalQuota;
+      const g = groups.get(k) || { serials: [], uniqueCards: new Set<string>(), nominal: 0 };
+      g.serials.push(it.card.serialNumber);
+      g.uniqueCards.add(it.card.serialNumber);
+      g.nominal += unit * (((it as any).quotaUsed) ?? 0);
+      groups.set(k, g);
+    }
+
+    const order = [
+      ["Gold", "JaBan"],
+      ["Silver", "JaBan"],
+      ["Gold", "JaKa"],
+      ["Silver", "JaKa"],
+      ["Gold", "KaBan"],
+      ["Silver", "KaBan"],
+    ];
+
+    const rowsSummary = order.map(([cat, typ]) => {
+      const k = keyOf(cat, typ);
+      const g = groups.get(k);
+      const serials = g?.serials || [];
+      const startSerial = serials.length ? serials.slice().sort()[0] : "";
+      const sorted = serials.slice().sort();
+      const endSerial = sorted.length ? sorted[sorted.length - 1] : "";
+      const count = g ? g.uniqueCards.size : 0;
+      const nominal = g ? Number(g.nominal.toFixed(2)) : 0;
+      return { label: `${cat} ${typ}`, startSerial, endSerial, count, nominal };
+    });
+
+    const totalTerjual = rowsSummary.reduce((s, r) => s + r.count, 0);
+    const totalNominal = rowsSummary.reduce((s, r) => s + r.nominal, 0);
+
+    if (format === "pdf") {
+      const PDFDocument = (await import("pdfkit")).default;
+      const doc = new PDFDocument({ size: "A4", margin: 36 });
+      const chunks: Buffer[] = [];
+      doc.on("data", (d: Buffer) => chunks.push(d));
+      const done = new Promise<Buffer>((resolve) => doc.on("end", () => resolve(Buffer.concat(chunks))));
+
+      // Header
+      doc.fontSize(14).text("Laporan", { align: "center" });
+      doc.moveDown(0.2);
+      doc.fontSize(14).text("Penjualan Frequent Whoosher Card", { align: "center" });
+      doc.moveDown();
+
+      // Meta table
+      doc.fontSize(10);
+      doc.text(`Nama Petugas: ${petugasName}`);
+      doc.text(`Shift / Waktu Dinas: `);
+      doc.text(`Tanggal Dinas: ${tanggalDinas}`);
+      doc.moveDown();
+
+      // Summary rows
+      const colX = [36, 200, 360, 460];
+      doc.text("Kategori/Tipe", colX[0], doc.y);
+      doc.text("No Seri Awal", colX[1], doc.y);
+      doc.text("No Seri Akhir", colX[2], doc.y);
+      doc.text("Jumlah Terjual / Nominal", colX[3], doc.y);
+      doc.moveDown();
+      for (const r of rowsSummary) {
+        doc.text(r.label, colX[0], doc.y);
+        doc.text(r.startSerial || "-", colX[1], doc.y);
+        doc.text(r.endSerial || "-", colX[2], doc.y);
+        doc.text(`${r.count} / Rp${r.nominal.toLocaleString("id-ID")}`, colX[3], doc.y);
+        doc.moveDown(0.3);
+      }
+      doc.moveDown();
+      doc.text(`Total Keseluruhan Terjual: ${totalTerjual}`);
+      doc.text(`Nominal Keseluruhan: Rp${totalNominal.toLocaleString("id-ID")}`);
+      doc.moveDown(2);
+      doc.text("PSAC", 200);
+      doc.text("SPV", 360);
+      doc.moveDown(4);
+      doc.text(`(${petugasName})`, 180);
+      doc.text("(Nama Jelas)", 340);
+
+      doc.end();
+      const pdfBuf = await done;
+      return { buffer: pdfBuf, contentType: "application/pdf", filename: `${filenameBase}.pdf` };
+    }
+
+    // JPG using canvas
+    const { createCanvas } = await import("canvas");
+    const width = 1024, height = 1440;
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = "#000";
+    ctx.font = "bold 24px Sans";
+    ctx.textAlign = "center";
+    ctx.fillText("Laporan", width / 2, 40);
+    ctx.fillText("Penjualan Frequent Whoosher Card", width / 2, 72);
+    ctx.textAlign = "left";
+    ctx.font = "16px Sans";
+    ctx.fillText(`Nama Petugas: ${petugasName}`, 40, 120);
+    ctx.fillText(`Shift / Waktu Dinas: `, 40, 150);
+    ctx.fillText(`Tanggal Dinas: ${tanggalDinas}`, 40, 180);
+
+    let y = 220;
+    ctx.font = "bold 14px Sans";
+    ctx.fillText("Kategori/Tipe", 40, y);
+    ctx.fillText("No Seri Awal", 300, y);
+    ctx.fillText("No Seri Akhir", 520, y);
+    ctx.fillText("Jumlah / Nominal", 760, y);
+    y += 24;
+    ctx.font = "14px Sans";
+    for (const r of rowsSummary) {
+      ctx.fillText(r.label, 40, y);
+      ctx.fillText(r.startSerial || "-", 300, y);
+      ctx.fillText(r.endSerial || "-", 520, y);
+      ctx.fillText(`${r.count} / Rp${r.nominal.toLocaleString("id-ID")}`, 760, y);
+      y += 22;
+    }
+    y += 24;
+    ctx.font = "bold 16px Sans";
+    ctx.fillText(`Total Keseluruhan Terjual: ${totalTerjual}`, 40, y); y += 24;
+    ctx.fillText(`Nominal Keseluruhan: Rp${totalNominal.toLocaleString("id-ID")}`, 40, y);
+    y += 80;
+    ctx.font = "16px Sans";
+    ctx.fillText("PSAC", 300, y);
+    ctx.fillText("SPV", 700, y);
+    y += 100;
+    ctx.fillText(`(${petugasName})`, 260, y);
+    ctx.fillText("(Nama Jelas)", 660, y);
+
+    const jpgBuf = canvas.toBuffer("image/jpeg", { quality: 0.92 });
+    return { buffer: jpgBuf, contentType: "image/jpeg", filename: `${filenameBase}.jpg` };
   }
 
   static async uploadLastRedeemDoc(id: string, imageBase64: string, mimeType: string | undefined, userId: string) {
-    const redeem = await db.redeem.findUnique({ where: { id }, include: { card: true } });
+    const redeem = await db.redeem.findUnique({ where: { id }, include: { card: { include: { member: true } } } });
     if (!redeem) throw new NotFoundError("Redeem transaction not found");
     if (redeem.card.quotaTicket !== 0) throw new ValidationError("Upload allowed only when card quota is 0 (last redeem)");
+
+    const memberId = redeem.card.member?.id || "unknown-member";
     const type = mimeType && (mimeType === "image/jpeg" || mimeType === "image/png") ? mimeType : "image/jpeg";
     const ext = type === "image/png" ? "png" : "jpg";
-    const buf = Buffer.from(imageBase64, "base64");
+
+    // Fix: Strip data URI prefix if present to avoid corrupted file
+    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+    const buf = Buffer.from(base64Data, "base64");
+
     const checksumSha256 = (await import("crypto")).createHash("sha256").update(buf).digest("hex");
-    const dir = `assets/uploads/redeem`;
+
+    // Path: storage/lastredeem/{memberId}/{redeemId}.{ext}
+    const dir = `storage/lastredeem/${memberId}`;
     const storedName = `${id}.${ext}`;
     const relativePath = `${dir}/${storedName}`;
+
     const fs = (await import("fs")).promises;
     await fs.mkdir(dir, { recursive: true });
     await fs.writeFile(relativePath, buf);
+
     const existing = await db.fileObject.findUnique({ where: { relativePath } });
     if (existing) await db.fileObject.delete({ where: { id: existing.id } });
+
     const file = await db.fileObject.create({
       data: {
         originalName: storedName,
