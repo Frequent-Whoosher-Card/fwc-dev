@@ -20,6 +20,75 @@ export class InboxService {
     const { page = 1, limit = 10, isRead } = params;
     const skip = (page - 1) * limit;
 
+    // --- SYNC MISSING PENDING TASKS ---
+    // Ensure new supervisors see pending stock distributions
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        stationId: true,
+        role: { select: { roleCode: true } },
+      },
+    });
+
+    if (user?.role?.roleCode === "supervisor" && user.stationId) {
+      const pendingMovements = await db.cardStockMovement.findMany({
+        where: {
+          movementType: "OUT",
+          status: "PENDING",
+          stationId: user.stationId,
+        },
+      });
+
+      for (const m of pendingMovements) {
+        // Check if inbox exists for this specific movement & user
+        // We use findFirst because payload is JSON, so we can't easily query distinct properties without raw
+        // But we can check type, recipient, and ensure we don't duplicate.
+        // Efficient check: Get all user's STOCK_DIST inbox items created after movement, check payload in memory?
+        // Or simplified: Just check if ANY inbox item for this movement exists for this user.
+
+        // NOTE: Prisma JSON filtering is limited. We'll fetch potential matches.
+        const candidates = await db.inbox.findMany({
+          where: {
+            sentTo: userId,
+            type: "STOCK_DISTRIBUTION",
+            // Optimization: Only check items created around or after movement
+            sentAt: { gte: m.createdAt },
+          },
+          select: { payload: true },
+        });
+
+        const exists = candidates.some(
+          (c: any) => c.payload?.movementId === m.id,
+        );
+
+        if (!exists) {
+          // Determine sender (creator)
+          const senderId = m.createdBy;
+
+          // Create missing notification
+          await db.inbox.create({
+            data: {
+              title: `Kiriman Stock (Synced)`,
+              message: `WFO mengirimkan stok ke stasiun. Mohon cek fisik & validasi.`,
+              sentTo: userId,
+              sentBy: senderId,
+              stationId: user.stationId,
+              type: "STOCK_DISTRIBUTION",
+              payload: {
+                movementId: m.id,
+                status: "PENDING",
+                isSynced: true,
+              },
+              isRead: false,
+              sentAt: new Date(), // Now
+            },
+          });
+        }
+      }
+    }
+    // ----------------------------------
+
     const where: any = {
       sentTo: userId,
       type: { not: "LOW_STOCK" }, // Filter out low stock alerts from main inbox

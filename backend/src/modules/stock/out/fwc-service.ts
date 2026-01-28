@@ -239,6 +239,7 @@ export class StockOutFwcService {
               cardProductId: cardProductId,
               quantity: sentCount,
               status: "PENDING",
+              serials: sent,
             },
             isRead: false,
             createdAt: new Date(),
@@ -640,6 +641,50 @@ export class StockOutFwcService {
                 stationId: validatorStationId,
                 lostCount: finalLost.length,
                 damagedCount: finalDamaged.length,
+                status: "PENDING_APPROVAL",
+              },
+              isRead: false,
+              createdAt: new Date(),
+            }));
+
+            await tx.inbox.createMany({ data: adminInboxData });
+          }
+        }
+
+        // 9) NOTIFIKASI KE ADMIN JIKA ADA MASALAH (LOST/DAMAGED)
+        if (finalLost.length > 0 || finalDamaged.length > 0) {
+          const admins = await tx.user.findMany({
+            where: {
+              role: { roleCode: { in: ["admin", "superadmin"] } },
+              isActive: true,
+            },
+            select: { id: true },
+          });
+
+          if (admins.length > 0) {
+            const issueDetails = [];
+            if (finalLost.length)
+              issueDetails.push(`${finalLost.length} Hilang`);
+            if (finalDamaged.length)
+              issueDetails.push(`${finalDamaged.length} Rusak`);
+
+            const message = `Laporan Isu dari Station (FWC): ${issueDetails.join(", ")}. Mohon tinjau dan setujui perubahan status.`;
+
+            const adminInboxData = admins.map((admin) => ({
+              title: "Laporan Isu Stok (FWC)",
+              message: message,
+              sentTo: admin.id,
+              sentBy: validatorUserId, // Supervisor
+              stationId: validatorStationId,
+              type: "STOCK_ISSUE_REPORT", // New Type
+              payload: {
+                movementId: movementId,
+                stationId: validatorStationId,
+                reporterName: "Supervisor (validatedBy)",
+                lostCount: finalLost.length,
+                damagedCount: finalDamaged.length,
+                lostSerialNumbers: finalLost,
+                damagedSerialNumbers: finalDamaged,
                 status: "PENDING_APPROVAL",
               },
               isRead: false,

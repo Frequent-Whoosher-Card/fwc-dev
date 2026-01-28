@@ -4,89 +4,86 @@ import { ActivityLogService } from "../../activity-log/service";
 
 export class StockIssueService {
   /**
-   * Resolve a Stock Issue (Approve/Reject changes for Lost/Damaged items)
+   * Get Detail of a Stock Issue (by Movement ID)
+   * Used when Admin clicks on the Inbox Item
+   */
+  static async getIssueDetail(movementId: string) {
+    const movement = await db.cardStockMovement.findUnique({
+      where: { id: movementId },
+      include: {
+        station: { select: { stationName: true } },
+        category: { select: { categoryName: true } },
+        type: { select: { typeName: true } },
+      },
+    });
+
+    if (!movement) throw new ValidationError("Movement not found");
+
+    // Check if there are actually issues
+    const lostCount = movement.lostSerialNumbers.length;
+    const damagedCount = movement.damagedSerialNumbers.length;
+
+    return {
+      movementId: movement.id,
+      stationName: movement.station?.stationName,
+      productName: `${movement.category.categoryName} - ${movement.type.typeName}`,
+      movementAt: movement.movementAt,
+      sentCount: movement.quantity, // approximate
+      lostCount,
+      damagedCount,
+      lostSerialNumbers: movement.lostSerialNumbers,
+      damagedSerialNumbers: movement.damagedSerialNumbers,
+      status: movement.status, // Should be APPROVED (by supervisor) but effectively "Pending Admin" for issues
+      // Logic check: ValidateStockOut sets status "APPROVED".
+      // We might need a sidebar flag or just rely on Card Status not being updated yet.
+    };
+  }
+
+  /**
+   * Resolve Issue (Approve or Reject)
    */
   static async resolveIssue(
     movementId: string,
-    action: "APPROVE" | "REJECT",
-    adminId: string,
+    adminId: string, // User ID of Admin/Superadmin
+    decision: "APPROVE" | "REJECT",
     note?: string,
   ) {
-    const result = await db.$transaction(async (tx) => {
-      // 1. Validate Movement
-      const movement = await tx.cardStockMovement.findUnique({
-        where: { id: movementId },
-      });
+    const movement = await db.cardStockMovement.findUnique({
+      where: { id: movementId },
+    });
 
-      if (!movement) throw new ValidationError("Movement not found");
-      if (movement.status !== "APPROVED") {
-        // Technically the main movement is APPROVED (Stock Out is done),
-        // but the 'Issue' part is pending if there are IN_TRANSIT cards in lost/damaged lists.
-        // Or we can check if there's an open Issue Report.
-        // Simpler check: Check if there are still cards in IN_TRANSIT that are listed in lost/damaged.
-      }
+    if (!movement) throw new ValidationError("Movement not found");
 
-      // 2. Identify Target Cards (Union of Lost & Damaged)
-      const lostSerials = (movement.lostSerialNumbers as string[]) || [];
-      const damagedSerials = (movement.damagedSerialNumbers as string[]) || [];
+    const lostSerials = movement.lostSerialNumbers;
+    const damagedSerials = movement.damagedSerialNumbers;
 
-      if (lostSerials.length === 0 && damagedSerials.length === 0) {
-        throw new ValidationError(
-          "Tidak ada barang hilang/rusak pada transaksi ini.",
-        );
-      }
+    if (lostSerials.length === 0 && damagedSerials.length === 0) {
+      throw new ValidationError("No lost or damaged cards to process.");
+    }
 
-      const allIssueSerials = [...lostSerials, ...damagedSerials];
-
-      // 3. Verify Cards status (Must be IN_TRANSIT to be actionable)
-      // If they are already LOST/DAMAGED, then it's already approved.
-      const cards = await tx.card.findMany({
-        where: {
-          serialNumber: { in: allIssueSerials },
-          status: "IN_TRANSIT", // Only act on those still pending decision
-        },
-        select: { id: true, serialNumber: true },
-      });
-
-      if (cards.length === 0) {
-        throw new ValidationError(
-          "Isu ini sudah diselesaikan sebelumnya (Status kartu bukan IN_TRANSIT lagi).",
-        );
-      }
-
-      // 4. ACTION
-      if (action === "APPROVE") {
-        // Update LOST items
+    const transaction = await db.$transaction(async (tx) => {
+      // 1. APPROVE: Confirm Lost/Damaged Status
+      if (decision === "APPROVE") {
+        // Update Lost Cards -> LOST
         if (lostSerials.length > 0) {
           await tx.card.updateMany({
-            where: {
-              serialNumber: { in: lostSerials },
-              status: "IN_TRANSIT",
-            },
+            where: { serialNumber: { in: lostSerials } },
             data: {
-              status: "LOST",
+              status: "LOST", // Global status for LOST
               updatedAt: new Date(),
               updatedBy: adminId,
-              stationId: movement.stationId, // Assign to station so it enters their 'record' as lost?
-              // Actually if it's LOST during transit, it might be debatable where it belongs.
-              // Usually existing logic: If lost in transit, it's typically a loss recorded.
-              // Let's keep existing stationId (which was set to Destination during StockOut distribution) or ensure it matches.
             },
           });
         }
 
-        // Update DAMAGED items
+        // Update Damaged Cards -> DAMAGED
         if (damagedSerials.length > 0) {
           await tx.card.updateMany({
-            where: {
-              serialNumber: { in: damagedSerials },
-              status: "IN_TRANSIT",
-            },
+            where: { serialNumber: { in: damagedSerials } },
             data: {
-              status: "DAMAGED",
+              status: "DAMAGED", // Global status for DAMAGED
               updatedAt: new Date(),
               updatedBy: adminId,
-              stationId: movement.stationId,
             },
           });
         }
@@ -95,49 +92,93 @@ export class StockIssueService {
         await ActivityLogService.createActivityLog(
           adminId,
           "APPROVE_STOCK_ISSUE",
-          `Menyetujui Laporan Isu: ${lostSerials.length} Hilang, ${damagedSerials.length} Rusak (Movement: ${movementId})`,
+          `Approved Stock Issue for Movement ${movementId}: ${lostSerials.length} Lost, ${damagedSerials.length} Damaged.`,
         );
-      } else if (action === "REJECT") {
-        // ... (comments)
+      }
+      // 2. REJECT: It means Admin says "They are not lost/damaged"
+      // Scenario: Admin calls station, finds items are there.
+      // Action: Force them to IN_STATION? Or revert to IN_TRANSIT and ask Supervisor to check again?
+      // Simplest for MVP: Force IN_STATION (Assumed Found/Okay)
+      else if (decision === "REJECT") {
+        const allIssues = [...lostSerials, ...damagedSerials];
+        if (allIssues.length > 0) {
+          await tx.card.updateMany({
+            where: { serialNumber: { in: allIssues } },
+            data: {
+              status: "IN_STATION", // Forced Received
+              stationId: movement.stationId, // Ensure station is set
+              updatedAt: new Date(),
+              updatedBy: adminId,
+            },
+          });
+        }
+
+        // Update Movement Arrays?
+        // Strictly speaking, if Rejected, we should ideally move them from lostSerialNumbers to receivedSerialNumbers in the movement record too
+        // to keep data consistent.
+        await tx.cardStockMovement.update({
+          where: { id: movementId },
+          data: {
+            receivedSerialNumbers: { push: allIssues },
+            lostSerialNumbers: [], // Clear
+            damagedSerialNumbers: [], // Clear
+            note:
+              (movement.note || "") +
+              ` | Issues Rejected/Reset by Admin ${adminId}: ${note || ""}`,
+          },
+        });
+
         await ActivityLogService.createActivityLog(
           adminId,
           "REJECT_STOCK_ISSUE",
-          `Menolak Laporan Isu (Movement: ${movementId})`,
+          `Rejected Stock Issue for Movement ${movementId}: Forced ${allIssues.length} cards to IN_STATION.`,
         );
       }
 
-      // 5. Update ADMIN Inbox Status to RESOLVED
-      // We need to find the inbox item for this admin (or all admins) related to this movement
-      // and Type = STOCK_ISSUE_REPORT
-      await tx.inbox.updateMany({
+      // 3. Mark Admin Inbox as Completed (Optional, or handled by frontend refreshing)
+      // Ideally we find the specific inbox item for this admin and mark read.
+      // But query might be generic.
+      // Let's rely on frontend calling "mark as read" or just leave it.
+      // BETTER: Find all PENDING_APPROVAL inbox items for this movement and mark them COMPLETED.
+
+      // 3. Update Admin Inbox Items
+      // Fetch all issue reports to ensure we catch them (avoiding strict JSON filter issues)
+      const inboxes = await tx.inbox.findMany({
         where: {
           type: "STOCK_ISSUE_REPORT",
-          payload: {
-            path: ["movementId"],
-            equals: movementId,
-          },
-        },
-        data: {
-          isRead: true,
-          title:
-            action === "APPROVE"
-              ? `[APPROVED] Laporan Isu`
-              : `[REJECTED] Laporan Isu`,
-          payload: {
-            // Cannot merge JSON easily in Prisma updateMany without raw query,
-            // but we can just overwrite or assumes payload structure.
-            // Safe bet: Don't destroy existing payload.
-            // Prisma JSON update support varies. safely: leave payload alone?
-            // User wants "Status changed".
-            // Let's try update status inside payload if PG supports deep merge (Prisma doesn't by default).
-            // We'll skip payload update for now, title is enough indicator.
-          },
+          isRead: false, // Only update unread ones, or all? Let's update all to be safe.
         },
       });
 
-      return { success: true, count: cards.length };
+      // Filter in JS for safety
+      const targetInboxes = inboxes.filter(
+        (i) => (i.payload as any)?.movementId === movementId,
+      );
+
+      for (const inbox of targetInboxes) {
+        const oldPayload = inbox.payload as any;
+        const newPayload = {
+          ...oldPayload,
+          status: decision, // 'APPROVE' | 'REJECT'
+          resolvedAt: new Date(),
+          resolvedBy: adminId,
+        };
+
+        await tx.inbox.update({
+          where: { id: inbox.id },
+          data: {
+            isRead: true,
+            readAt: new Date(),
+            title: `[${decision === "APPROVE" ? "DISETUJUI" : "DITOLAK"}] ${inbox.title}`,
+            message: `${inbox.message} (Status: ${decision})`,
+            payload: newPayload,
+          },
+        });
+      }
+
+      return { success: true, decision };
     });
 
-    return result;
+    return transaction;
   }
 }

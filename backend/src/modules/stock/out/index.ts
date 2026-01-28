@@ -592,6 +592,28 @@ export const stockOut = new Elysia({ prefix: "/out" })
           },
         },
       )
+      // Get Stock Issue Detail
+      .get(
+        "/issue/:movementId",
+        async (context) => {
+          const { params, set } = context;
+          try {
+            const result = await StockIssueService.getIssueDetail(
+              params.movementId,
+            );
+            return { success: true, data: result };
+          } catch (error) {
+            set.status = 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          detail: {
+            tags: ["Stock Out Unified"],
+            summary: "Get Stock Issue Detail",
+          },
+        },
+      )
       // Resolve Stock Issue (Admin Approval)
       .post(
         "/issue/:movementId/resolve",
@@ -601,10 +623,11 @@ export const stockOut = new Elysia({ prefix: "/out" })
           const { action, note } = body;
 
           try {
+            // Note: Service expects (movementId, adminId, decision, note)
             const result = await StockIssueService.resolveIssue(
               movementId,
-              action,
               user.id,
+              action,
               note,
             );
             return { success: true, data: result };

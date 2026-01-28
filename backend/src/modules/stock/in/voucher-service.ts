@@ -120,7 +120,8 @@ export class StockInVoucherService {
           categoryId: product.categoryId,
           typeId: product.typeId,
           quantity: quantity,
-          receivedSerialNumbers: serialNumbers, // Prisma supports String[]
+          receivedSerialNumbers: [],
+          sentSerialNumbers: serialNumbers, // Prisma supports String[]
           createdBy: userId,
           note: note,
           status: "APPROVED", // "APPROVED" is the correct enum for valid/completed stock-in
@@ -171,8 +172,8 @@ export class StockInVoucherService {
             id: product.id,
             name: `${product.category.categoryName} - ${product.type.typeName}`,
           },
-          sentSerialNumbers: [],
-          receivedSerialNumbers: serialNumbers,
+          sentSerialNumbers: serialNumbers,
+          receivedSerialNumbers: [],
           items: serialNumbers.map((sn) => ({
             serialNumber: sn,
             status: "IN_OFFICE",
@@ -364,10 +365,10 @@ export class StockInVoucherService {
           id: product?.id || "",
           name: productName,
         },
-        sentSerialNumbers: [], // Consistency with FWC model shape (even if empty for IN)
-        receivedSerialNumbers: movement.receivedSerialNumbers as string[],
+        sentSerialNumbers: movement.sentSerialNumbers as string[],
+        receivedSerialNumbers: [],
         items: await (async () => {
-          const serials = movement.receivedSerialNumbers as string[];
+          const serials = movement.sentSerialNumbers as string[];
           if (!serials?.length) return [];
           const cards = await db.card.findMany({
             where: { serialNumber: { in: serials } },
