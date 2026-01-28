@@ -13,6 +13,7 @@ export interface StockRow {
   totalAktif: number;
   totalNonAktif: number;
   totalBelumTerjual: number;
+  totalInTransit: number;
 }
 
 interface Filters {
@@ -58,6 +59,7 @@ export const useStockInventoryTable = (
           totalAktif: Number(item.totalAktif ?? 0),
           totalNonAktif: Number(item.totalNonAktif ?? 0),
           totalBelumTerjual: Number(item.totalBelumTerjual ?? 0),
+          totalInTransit: Number(item.totalInTransit ?? 0),
         })),
       );
     } catch (err) {
@@ -87,6 +89,7 @@ export const useStockInventoryTable = (
         acc.totalAktif += row.totalAktif;
         acc.totalNonAktif += row.totalNonAktif;
         acc.totalBelumTerjual += row.totalBelumTerjual;
+        acc.totalInTransit += row.totalInTransit;
         return acc;
       },
       {
@@ -95,6 +98,7 @@ export const useStockInventoryTable = (
         totalAktif: 0,
         totalNonAktif: 0,
         totalBelumTerjual: 0,
+        totalInTransit: 0,
       },
     );
   }, [rows]);
