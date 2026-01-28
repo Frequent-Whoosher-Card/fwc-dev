@@ -127,9 +127,14 @@ export class StockInVoucherService {
         },
         include: {
           category: {
-            select: { id: true, categoryName: true, programType: true },
+            select: {
+              id: true,
+              categoryName: true,
+              categoryCode: true,
+              programType: true,
+            },
           },
-          type: { select: { id: true, typeName: true } },
+          type: { select: { id: true, typeName: true, typeCode: true } },
         },
       });
 
@@ -141,24 +146,37 @@ export class StockInVoucherService {
       );
 
       return {
-        id: movement.id,
-        movementAt: movement.movementAt.toISOString(),
-        quantity: movement.quantity,
-        status: movement.status,
-        batchId: movement.batchId,
-        note: movement.note,
-        category: {
-          id: movement.category.id,
-          name: movement.category.categoryName,
-          programType: movement.category.programType,
-        },
-        type: {
-          id: movement.type.id,
-          name: movement.type.typeName,
-        },
-        product: {
-          id: product.id,
-          name: `${product.category.categoryName} - ${product.type.typeName}`,
+        movement: {
+          id: movement.id,
+          movementAt: movement.movementAt.toISOString(),
+          movementType: "IN",
+          quantity: movement.quantity,
+          status: movement.status,
+          batchId: movement.batchId,
+          note: movement.note,
+          createdAt: movement.createdAt.toISOString(),
+          createdByName: null, // Can fetch if needed or return ID in different field
+          cardCategory: {
+            id: movement.category.id,
+            name: movement.category.categoryName,
+            code: movement.category.categoryCode, // Need to fetch or ensure it's in include
+            programType: movement.category.programType,
+          },
+          cardType: {
+            id: movement.type.id,
+            name: movement.type.typeName,
+            code: movement.type.typeCode, // Need to fetch or ensure it's in include
+          },
+          product: {
+            id: product.id,
+            name: `${product.category.categoryName} - ${product.type.typeName}`,
+          },
+          sentSerialNumbers: [],
+          receivedSerialNumbers: serialNumbers,
+          items: serialNumbers.map((sn) => ({
+            serialNumber: sn,
+            status: "IN_OFFICE",
+          })),
         },
       };
     });
@@ -223,9 +241,14 @@ export class StockInVoucherService {
         orderBy: { movementAt: "desc" },
         include: {
           category: {
-            select: { id: true, categoryName: true, programType: true },
+            select: {
+              id: true,
+              categoryName: true,
+              categoryCode: true,
+              programType: true,
+            },
           },
-          type: { select: { id: true, typeName: true } },
+          type: { select: { id: true, typeName: true, typeCode: true } },
         },
       }),
       db.cardStockMovement.count({ where }),
@@ -260,14 +283,16 @@ export class StockInVoucherService {
           batchId: item.batchId,
           note: item.note,
           createdByName: item.createdBy ? userMap.get(item.createdBy) : null,
-          category: {
+          cardCategory: {
             id: item.category.id,
             name: item.category.categoryName,
+            code: item.category.categoryCode,
             programType: item.category.programType,
           },
-          type: {
+          cardType: {
             id: item.type.id,
             name: item.type.typeName,
+            code: item.type.typeCode,
           },
           product: {
             id: product?.id || "",
@@ -314,24 +339,48 @@ export class StockInVoucherService {
     const productName = `${movement.category.categoryName} - ${movement.type.typeName}`;
 
     return {
-      id: movement.id,
-      movementAt: movement.movementAt.toISOString(),
-      quantity: movement.quantity,
-      status: movement.status,
-      batchId: movement.batchId,
-      note: movement.note,
-      category: {
-        id: movement.category.id,
-        name: movement.category.categoryName,
-        programType: movement.category.programType,
-      },
-      type: {
-        id: movement.type.id,
-        name: movement.type.typeName,
-      },
-      product: {
-        id: product?.id || "",
-        name: productName,
+      movement: {
+        id: movement.id,
+        movementAt: movement.movementAt.toISOString(),
+        movementType: movement.movementType, // Explicitly return 'IN'
+        quantity: movement.quantity,
+        status: movement.status,
+        batchId: movement.batchId,
+        note: movement.note,
+        createdAt: movement.createdAt.toISOString(),
+        createdByName: null, // Placeholder or fetch if needed
+        cardCategory: {
+          id: movement.category.id,
+          name: movement.category.categoryName,
+          code: movement.category.categoryCode, // Added code if available in schema (it is)
+          programType: movement.category.programType,
+        },
+        cardType: {
+          id: movement.type.id,
+          name: movement.type.typeName,
+          code: movement.type.typeCode, // Added code
+        },
+        product: {
+          id: product?.id || "",
+          name: productName,
+        },
+        sentSerialNumbers: [], // Consistency with FWC model shape (even if empty for IN)
+        receivedSerialNumbers: movement.receivedSerialNumbers as string[],
+        items: await (async () => {
+          const serials = movement.receivedSerialNumbers as string[];
+          if (!serials?.length) return [];
+          const cards = await db.card.findMany({
+            where: { serialNumber: { in: serials } },
+            select: { serialNumber: true, status: true },
+          });
+          const statusMap = new Map(
+            cards.map((c) => [c.serialNumber, c.status]),
+          );
+          return serials.map((sn) => ({
+            serialNumber: sn,
+            status: statusMap.get(sn) || "UNKNOWN",
+          }));
+        })(),
       },
     };
   }
