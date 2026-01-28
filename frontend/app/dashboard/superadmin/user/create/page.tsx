@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Phone, Mail, ChevronDown, Eye, EyeOff } from "lucide-react";
 
-import SuccessModal from "../components/SuccesModal";
+import SuccessModal from "@/components/user/SuccesModal";
 // sesuaikan path aslinya
 
 import { createUser, getRoles, RoleItem } from "@/lib/services/user.service";
