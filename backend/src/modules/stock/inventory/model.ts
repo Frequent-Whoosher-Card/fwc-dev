@@ -11,6 +11,7 @@ export namespace CardInventoryModel {
     categoryName: t.Optional(t.String()),
     typeName: t.Optional(t.String()),
     stationName: t.Optional(t.String()),
+    programType: t.Optional(t.Union([t.Literal("FWC"), t.Literal("VOUCHER")])),
   });
 
   export const getOfficeStockQuery = t.Object({
@@ -21,6 +22,7 @@ export namespace CardInventoryModel {
     search: t.Optional(t.String()),
     categoryName: t.Optional(t.String()),
     typeName: t.Optional(t.String()),
+    programType: t.Optional(t.Union([t.Literal("FWC"), t.Literal("VOUCHER")])),
   });
 
   export const getCategoryTypeSummaryQuery = t.Object({
@@ -32,6 +34,7 @@ export namespace CardInventoryModel {
     categoryName: t.Optional(t.String()),
     typeName: t.Optional(t.String()),
     stationName: t.Optional(t.String()),
+    programType: t.Optional(t.Union([t.Literal("FWC"), t.Literal("VOUCHER")])),
   });
 
   export const inventoryItem = t.Object({
@@ -43,6 +46,7 @@ export namespace CardInventoryModel {
     cardAktif: t.Number(),
     cardNonAktif: t.Number(),
     cardBelumTerjual: t.Number(),
+    cardInTransit: t.Number(),
     cardOffice: t.Union([t.Number(), t.Null()]),
     updatedAt: t.Date(),
     category: t.Object({
@@ -92,7 +96,7 @@ export namespace CardInventoryModel {
             }),
             t.Null(),
           ]),
-        })
+        }),
       ),
       pagination: t.Object({
         total: t.Number(),
@@ -114,6 +118,7 @@ export namespace CardInventoryModel {
       cardAktif: t.Number(),
       cardNonAktif: t.Number(),
       cardBelumTerjual: t.Number(),
+      cardInTransit: t.Number(),
       cardOffice: t.Union([t.Number(), t.Null()]),
       updatedAt: t.Date(),
       category: t.Object({
@@ -142,7 +147,7 @@ export namespace CardInventoryModel {
         stationName: t.String(),
         stationCode: t.String(),
         totalCards: t.Number(),
-      })
+      }),
     ),
   });
 
@@ -171,7 +176,8 @@ export namespace CardInventoryModel {
         totalAktif: t.Number(),
         totalNonAktif: t.Number(),
         totalBelumTerjual: t.Number(),
-      })
+        totalInTransit: t.Number(),
+      }),
     ),
   });
 
@@ -184,6 +190,7 @@ export namespace CardInventoryModel {
     nonAktif: t.Number(),
     total: t.Number(), // aktif + nonAktif
     cardBelumTerjual: t.Number(),
+    cardInTransit: t.Number(),
   });
 
   export const getStationInventoryMonitorResponse = t.Object({
@@ -193,7 +200,10 @@ export namespace CardInventoryModel {
 
   export const errorResponse = t.Object({
     success: t.Boolean(),
-    message: t.String(),
-    error: t.Optional(t.Any()),
+    error: t.Object({
+      message: t.String(),
+      code: t.String(),
+      statusCode: t.Number(),
+    }),
   });
 }

@@ -45,7 +45,7 @@ export default function AdminRedeemPage() {
   const [stationId, setStationId] = useState('');
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 50 });
+  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 10 });
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [uploadDocModalOpen, setUploadDocModalOpen] = useState(false);
@@ -72,7 +72,7 @@ export default function AdminRedeemPage() {
     if (isProductSelected) {
       loadRedeems({
         page: currentPage,
-        limit: 50,
+        limit: 10,
         startDate: startDate ? new Date(startDate).toISOString() : undefined,
         endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
         category: category || undefined,
@@ -89,17 +89,17 @@ export default function AdminRedeemPage() {
     try {
       const response = await redeemService.listRedeems(filters);
       const items = response.data || [];
-      const paginationData = response.pagination || { page: 1, limit: 50, total: 0 };
+      const paginationData = response.pagination || { page: 1, limit: 10, total: 0 };
       setRedeems(items);
       setPagination({
         page: paginationData.page || 1,
-        limit: paginationData.limit || 50,
+        limit: paginationData.limit || 10,
         total: paginationData.total || 0,
       });
     } catch (error: any) {
       toast.error(error.message || 'Gagal mengambil data redeem');
       setRedeems([]);
-      setPagination({ page: 1, limit: 50, total: 0 });
+      setPagination({ page: 1, limit: 10, total: 0 });
     } finally {
       setIsLoadingRedeems(false);
     }
@@ -282,7 +282,7 @@ export default function AdminRedeemPage() {
                 onClose={() => setCreateModalOpen(false)}
                 onSuccess={() => loadRedeems({
                   page: 1,
-                  limit: 50,
+                  limit: 10,
                   startDate: startDate ? new Date(startDate).toISOString() : undefined,
                   endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
                   category: category || undefined,

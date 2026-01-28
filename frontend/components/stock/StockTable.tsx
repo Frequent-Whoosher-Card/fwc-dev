@@ -3,6 +3,7 @@
 import { useStockInventoryTable } from "@/hooks/useStockInventoryTable";
 
 interface StockTableProps {
+  programType?: string;
   filters: {
     station: string;
     category: string;
@@ -14,8 +15,11 @@ interface StockTableProps {
 
 const fmt = (n: number) => n.toLocaleString();
 
-export function StockTable({ filters }: StockTableProps) {
-  const { rows, loading, totals } = useStockInventoryTable(filters);
+export function StockTable({ filters, programType }: StockTableProps) {
+  const { rows, loading, totals } = useStockInventoryTable(
+    filters,
+    programType,
+  );
 
   if (loading) {
     return <div className="p-6 text-gray-500">Loading...</div>;
