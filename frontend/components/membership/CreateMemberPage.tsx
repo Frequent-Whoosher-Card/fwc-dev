@@ -1507,10 +1507,10 @@ export default function AddMemberPage() {
           "Email Address": form.email,
           Address: form.address,
 
-          // CARD
-          "Card Category": selectedCardProduct?.category.categoryName,
-          "Card Type": selectedCardProduct?.type.typeName,
-          "Serial Number": selectedCard?.serialNumber,
+          // CARD - menggunakan data dari useCardSelection hook
+          "Card Category": cardCategory || "-",
+          "Card Type": cardTypes.find(t => t.id === cardTypeId)?.typeName || "-",
+          "Serial Number": serialNumber || "-",
 
           // MEMBERSHIP
           "Membership Date": form.membershipDate,
@@ -1518,8 +1518,8 @@ export default function AddMemberPage() {
 
           // PURCHASE
           "Purchased Date": form.purchasedDate,
-          "FWC Price": form.price,
-          "Total Quota (Trips)": selectedCardProduct?.totalQuota,
+          "FWC Price": price ? `Rp ${Number(price).toLocaleString("id-ID")}` : "-",
+          "Total Quota (Trips)": cardProducts.find(p => p.typeId === cardTypeId)?.totalQuota || "-",
 
           // OPERATIONAL
           Stasiun: form.station,
