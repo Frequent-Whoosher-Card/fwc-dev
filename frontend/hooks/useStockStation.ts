@@ -12,6 +12,7 @@ export interface StationRow {
   nonAktif: number;
   total: number;
   cardBelumTerjual: number;
+  cardInTransit: number;
 }
 
 interface Filters {
@@ -57,6 +58,7 @@ export const useStockStation = (filters: Filters, programType?: string) => {
         acc.nonAktif += r.nonAktif;
         acc.total += r.total;
         acc.cardBelumTerjual += r.cardBelumTerjual;
+        acc.cardInTransit += r.cardInTransit || 0;
         return acc;
       },
       {
@@ -65,6 +67,7 @@ export const useStockStation = (filters: Filters, programType?: string) => {
         nonAktif: 0,
         total: 0,
         cardBelumTerjual: 0,
+        cardInTransit: 0,
       },
     );
   }, [rows]);

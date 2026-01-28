@@ -40,6 +40,9 @@ export function StockTable({ filters, programType }: StockTableProps) {
               Office
             </th>
             <th rowSpan={2} className="p-4 text-center">
+              Transit
+            </th>
+            <th rowSpan={2} className="p-4 text-center">
               Beredar
             </th>
             <th colSpan={3} className="p-4 text-center bg-blue-50">
@@ -67,6 +70,7 @@ export function StockTable({ filters, programType }: StockTableProps) {
                 <td className="p-4">{row.categoryName}</td>
                 <td className="p-4">{row.typeName}</td>
                 <td className="p-4">{fmt(row.totalOffice)}</td>
+                <td className="p-4">{fmt(row.totalInTransit)}</td>
                 <td className="p-4">{fmt(row.totalBeredar)}</td>
                 <td className="p-4">{fmt(row.totalAktif)}</td>
                 <td className="p-4">{fmt(row.totalNonAktif)}</td>
@@ -83,6 +87,7 @@ export function StockTable({ filters, programType }: StockTableProps) {
               TOTAL
             </td>
             <td className="p-4">{fmt(totals.totalOffice)}</td>
+            <td className="p-4">{fmt(totals.totalInTransit)}</td>
             <td className="p-4">{fmt(totals.totalBeredar)}</td>
             <td className="p-4">{fmt(totals.totalAktif)}</td>
             <td className="p-4">{fmt(totals.totalNonAktif)}</td>
