@@ -467,10 +467,9 @@ export class CardInventoryService {
         const status = item.status;
 
         if (status === "IN_OFFICE") entry.totalOffice += count;
-        else if (status === "IN_STATION" || status === "IN_TRANSIT") {
-          entry.totalBelumTerjual += count;
-          if (status === "IN_TRANSIT") entry.totalInTransit += count;
-        } else if (status === "SOLD_ACTIVE") entry.totalAktif += count;
+        else if (status === "IN_STATION") entry.totalBelumTerjual += count;
+        else if (status === "IN_TRANSIT") entry.totalInTransit += count;
+        else if (status === "SOLD_ACTIVE") entry.totalAktif += count;
         else if (status === "SOLD_INACTIVE") entry.totalNonAktif += count;
       }
     }
@@ -478,7 +477,10 @@ export class CardInventoryService {
     // 5. Transform to Final Output
     return Array.from(resultMap.values()).map((item) => {
       const totalBeredar =
-        item.totalBelumTerjual + item.totalAktif + item.totalNonAktif;
+        item.totalBelumTerjual +
+        item.totalInTransit +
+        item.totalAktif +
+        item.totalNonAktif;
       const totalStock = item.totalOffice + totalBeredar;
 
       return {
@@ -916,7 +918,8 @@ export class CardInventoryService {
         // total = aktif + nonAktif; (from previous code)
         // cardBeredar = cardBeredar (from CardInventory, which was sum of all 3)
         // cardBelumTerjual
-        const cardBeredar = inv.cardBelumTerjual + inv.aktif + inv.nonAktif;
+        const cardBeredar =
+          inv.cardBelumTerjual + inv.inTransit + inv.aktif + inv.nonAktif;
 
         return {
           stationName: stationName,

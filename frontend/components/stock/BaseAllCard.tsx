@@ -140,7 +140,8 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
               <th className="px-4 py-3">Serial</th>
               <th className="px-4 py-3">Category</th>
               <th className="px-4 py-3">Type</th>
-              <th className="px-4 py-3">Station</th>
+              <th className="px-4 py-3">Dari Stasiun</th>
+              <th className="px-4 py-3">Ke Stasiun</th>
               <th className="px-4 py-3">Status</th>
               {programType === "VOUCHER" && (
                 <th className="px-4 py-3">Diskon</th>
@@ -153,7 +154,7 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
             {loading ? (
               <tr>
                 <td
-                  colSpan={9}
+                  colSpan={11}
                   className="px-4 py-10 text-center text-gray-500"
                 >
                   Loading...
@@ -162,7 +163,7 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
             ) : data.length === 0 ? (
               <tr>
                 <td
-                  colSpan={9}
+                  colSpan={11}
                   className="px-4 py-10 text-center text-gray-500"
                 >
                   Tidak ada data
@@ -189,6 +190,9 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
                     {row.cardCategoryName}
                   </td>
                   <td className="px-4 py-3 text-center">{row.cardTypeName}</td>
+                  <td className="px-4 py-3 text-center">
+                    {row.previousStationName}
+                  </td>
                   <td className="px-4 py-3 text-center">{row.stationName}</td>
                   <td className="px-4 py-3 text-center">
                     <StatusBadge status={row.status} />
