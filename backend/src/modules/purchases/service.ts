@@ -392,10 +392,6 @@ export class PurchaseService {
       purchaseDate: item.purchaseDate.toISOString(),
       price: Number(item.price),
       notes: item.notes,
-      activationStatus: item.activationStatus,
-      activatedAt: item.activatedAt ? item.activatedAt.toISOString() : null,
-      activatedBy: item.activatedBy,
-      physicalCardSerialNumber: item.physicalCardSerialNumber,
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
       createdByName: item.createdBy
@@ -522,12 +518,6 @@ export class PurchaseService {
       purchaseDate: purchase.purchaseDate.toISOString(),
       price: Number(purchase.price),
       notes: purchase.notes,
-      activationStatus: purchase.activationStatus,
-      activatedAt: purchase.activatedAt
-        ? purchase.activatedAt.toISOString()
-        : null,
-      activatedBy: purchase.activatedBy,
-      physicalCardSerialNumber: purchase.physicalCardSerialNumber,
       createdAt: purchase.createdAt.toISOString(),
       updatedAt: purchase.updatedAt.toISOString(),
       createdByName: creator?.fullName || null,
