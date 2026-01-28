@@ -12,6 +12,10 @@ import { UserContext } from "@/app/dashboard/superadmin/dashboard/dashboard-layo
 import SuccessModal from "@/app/dashboard/superadmin/membership/components/ui/SuccessModal";
 
 import { getMemberById, updateMember } from "@/lib/services/membership.service";
+import {
+  getEmployeeTypes,
+  EmployeeType,
+} from "@/lib/services/employee-type.service";
 
 /* ======================
    BASE INPUT STYLE
@@ -62,10 +66,15 @@ export default function EditMemberPage() {
   const [loading, setLoading] = useState(true);
   const [showSuccess, setShowSuccess] = useState(false);
 
+  // Employee Types
+  const [employeeTypes, setEmployeeTypes] = useState<EmployeeType[]>([]);
+  const [loadingEmployeeTypes, setLoadingEmployeeTypes] = useState(false);
+
   const [form, setForm] = useState({
     name: "",
     nik: "",
     nippKai: "",
+    employeeTypeId: "",
     nationality: "",
     gender: "",
     phone: "",
@@ -90,6 +99,25 @@ export default function EditMemberPage() {
 
     return `+${country.phone}${local}`;
   };
+
+  /* ======================
+     LOAD EMPLOYEE TYPES
+  ====================== */
+  useEffect(() => {
+    const loadEmployeeTypes = async () => {
+      setLoadingEmployeeTypes(true);
+      try {
+        const res = await getEmployeeTypes();
+        setEmployeeTypes(res.data || []);
+      } catch (error) {
+        console.error("Failed to load employee types:", error);
+      } finally {
+        setLoadingEmployeeTypes(false);
+      }
+    };
+
+    loadEmployeeTypes();
+  }, []);
 
   /* ======================
      FETCH DETAIL
@@ -127,6 +155,7 @@ export default function EditMemberPage() {
           name: item.name ?? "",
           nik: item.identityNumber ?? "",
           nippKai: item.nippKai ?? "",
+          employeeTypeId: item.employeeTypeId ?? "",
           nationality,
           gender: item.gender ?? "",
           phone: localPhone,
@@ -226,6 +255,7 @@ export default function EditMemberPage() {
         name: form.name,
         identityNumber: form.nik,
         nippKai: form.nationality === "KAI" ? form.nippKai : undefined,
+        employeeTypeId: form.employeeTypeId || undefined,
         phone: getFullPhoneNumber(),
         email: form.email,
         address: form.address,
@@ -296,22 +326,53 @@ export default function EditMemberPage() {
               />
             </Field>
 
-            {/* NIP / NIPP KAI */}
-            <Field label="NIP / NIPP KAI">
-              <input
-                name="nippKai"
-                value={form.nippKai}
-                onChange={(e) => {
-                  const val = e.target.value.replace(/[^0-9]/g, "");
-                  if (val.length <= 20) {
-                    setForm((prev) => ({ ...prev, nippKai: val }));
-                  }
-                }}
-                inputMode="numeric"
-                maxLength={20}
-                className={base}
-              />
+            {/* EMPLOYEE TYPE */}
+            <Field label="Employee Type" required>
+              <div className="relative">
+                <select
+                  name="employeeTypeId"
+                  value={form.employeeTypeId}
+                  onChange={handleChange}
+                  className={`${base} appearance-none pr-10`}
+                  required
+                  disabled={loadingEmployeeTypes}
+                >
+                  <option value="">
+                    {loadingEmployeeTypes ? "Loading..." : "Pilih Tipe Pegawai"}
+                  </option>
+                  {employeeTypes.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={16}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                />
+              </div>
             </Field>
+
+            {/* NIP / NIPP KAI - Only show if NOT Umum */}
+            {form.employeeTypeId &&
+              employeeTypes.find((t) => t.id === form.employeeTypeId)?.code !==
+                "UMUM" && (
+                <Field label="NIP / NIPP KAI">
+                  <input
+                    name="nippKai"
+                    value={form.nippKai}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, "");
+                      if (val.length <= 20) {
+                        setForm((prev) => ({ ...prev, nippKai: val }));
+                      }
+                    }}
+                    inputMode="numeric"
+                    maxLength={20}
+                    className={base}
+                  />
+                </Field>
+              )}
 
             {/* NATIONALITY */}
             <Field label="Nationality" required>
