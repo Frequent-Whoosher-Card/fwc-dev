@@ -139,15 +139,19 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
   // card mismatch correction
   const [showCorrection, setShowCorrection] = useState(false);
   const [correctionNote, setCorrectionNote] = useState("");
-  
+
   // Input mode selection
-  const [wrongCardInputMode, setWrongCardInputMode] = useState<"" | "manual" | "recommendation">("");
-  const [correctCardInputMode, setCorrectCardInputMode] = useState<"" | "manual" | "recommendation">("");
-  
+  const [wrongCardInputMode, setWrongCardInputMode] = useState<
+    "" | "manual" | "recommendation"
+  >("");
+  const [correctCardInputMode, setCorrectCardInputMode] = useState<
+    "" | "manual" | "recommendation"
+  >("");
+
   // Station selection for card mismatch
   const [wrongCardStationId, setWrongCardStationId] = useState("");
   const [correctCardStationId, setCorrectCardStationId] = useState("");
-  
+
   // Wrong card selection states
   const [wrongCardCategory, setWrongCardCategory] = useState("");
   const [wrongCardCategoryId, setWrongCardCategoryId] = useState("");
@@ -158,9 +162,11 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
   const [wrongCardProducts, setWrongCardProducts] = useState<any[]>([]);
   const [wrongCardSerial, setWrongCardSerial] = useState("");
   const [wrongCardId, setWrongCardId] = useState("");
-  const [wrongCardSearchResults, setWrongCardSearchResults] = useState<any[]>([]);
+  const [wrongCardSearchResults, setWrongCardSearchResults] = useState<any[]>(
+    [],
+  );
   const [isSearchingWrongCard, setIsSearchingWrongCard] = useState(false);
-  
+
   // Correct card selection states
   const [correctCardCategory, setCorrectCardCategory] = useState("");
   const [correctCardCategoryId, setCorrectCardCategoryId] = useState("");
@@ -171,9 +177,11 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
   const [correctCardProducts, setCorrectCardProducts] = useState<any[]>([]);
   const [correctCardSerial, setCorrectCardSerial] = useState("");
   const [correctCardId, setCorrectCardId] = useState("");
-  const [correctCardSearchResults, setCorrectCardSearchResults] = useState<any[]>([]);
+  const [correctCardSearchResults, setCorrectCardSearchResults] = useState<
+    any[]
+  >([]);
   const [isSearchingCorrectCard, setIsSearchingCorrectCard] = useState(false);
-  
+
   // Categories for card selection
   const { categories } = useCategories();
 
@@ -364,17 +372,23 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
       const matchedProduct = wrongCardProducts.find(
         (product: any) => product.type?.id === typeId,
       );
-      
+
       console.log("======= WRONG CARD DEBUG =======");
       console.log("Selected Category:", wrongCardCategory);
       console.log("Category ID:", wrongCardCategoryId);
       console.log("Selected Type ID:", typeId);
       console.log("Cached Products Count:", wrongCardProducts.length);
-      console.log("Matched Product Category:", matchedProduct?.category?.categoryName);
+      console.log(
+        "Matched Product Category:",
+        matchedProduct?.category?.categoryName,
+      );
       console.log("Matched Product Type:", matchedProduct?.type?.typeName);
-      console.log("Serial Template from Product:", matchedProduct?.serialTemplate);
+      console.log(
+        "Serial Template from Product:",
+        matchedProduct?.serialTemplate,
+      );
       console.log("===============================");
-      
+
       // Use serialTemplate from card product (already formatted as 4 digits)
       const serialTemplate = matchedProduct?.serialTemplate || "";
       setWrongCardSerial(serialTemplate);
@@ -400,7 +414,9 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
     try {
       setIsSearchingWrongCard(true);
 
-      const categoryData = categories.find((c) => c.value === wrongCardCategory);
+      const categoryData = categories.find(
+        (c) => c.value === wrongCardCategory,
+      );
       if (!categoryData) return;
 
       const res = await axios.get("/cards", {
@@ -417,7 +433,7 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
       const results = res.data?.data?.items || [];
       // Sort results by serial number in ascending order
       const sortedResults = results.sort((a: any, b: any) =>
-        a.serialNumber.localeCompare(b.serialNumber)
+        a.serialNumber.localeCompare(b.serialNumber),
       );
       setWrongCardSearchResults(sortedResults);
     } catch (error) {
@@ -498,17 +514,23 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
       const matchedProduct = correctCardProducts.find(
         (product: any) => product.type?.id === typeId,
       );
-      
+
       console.log("======= CORRECT CARD DEBUG =======");
       console.log("Selected Category:", correctCardCategory);
       console.log("Category ID:", correctCardCategoryId);
       console.log("Selected Type ID:", typeId);
       console.log("Cached Products Count:", correctCardProducts.length);
-      console.log("Matched Product Category:", matchedProduct?.category?.categoryName);
+      console.log(
+        "Matched Product Category:",
+        matchedProduct?.category?.categoryName,
+      );
       console.log("Matched Product Type:", matchedProduct?.type?.typeName);
-      console.log("Serial Template from Product:", matchedProduct?.serialTemplate);
+      console.log(
+        "Serial Template from Product:",
+        matchedProduct?.serialTemplate,
+      );
       console.log("===================================");
-      
+
       // Use serialTemplate from card product (already formatted as 4 digits)
       const serialTemplate = matchedProduct?.serialTemplate || "";
       setCorrectCardSerial(serialTemplate);
@@ -534,7 +556,9 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
     try {
       setIsSearchingCorrectCard(true);
 
-      const categoryData = categories.find((c) => c.value === correctCardCategory);
+      const categoryData = categories.find(
+        (c) => c.value === correctCardCategory,
+      );
       if (!categoryData) return;
 
       const res = await axios.get("/cards", {
@@ -551,7 +575,7 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
       const results = res.data?.data?.items || [];
       // Sort results by serial number in ascending order
       const sortedResults = results.sort((a: any, b: any) =>
-        a.serialNumber.localeCompare(b.serialNumber)
+        a.serialNumber.localeCompare(b.serialNumber),
       );
       setCorrectCardSearchResults(sortedResults);
     } catch (error) {
@@ -895,7 +919,10 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
                     className={base}
                     value={wrongCardInputMode}
                     onChange={(e) => {
-                      const mode = e.target.value as "" | "manual" | "recommendation";
+                      const mode = e.target.value as
+                        | ""
+                        | "manual"
+                        | "recommendation";
                       setWrongCardInputMode(mode);
                       // Reset states when mode changes
                       setWrongCardSerial("");
@@ -1011,7 +1038,9 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
                                 }}
                                 className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex justify-between items-center"
                               >
-                                <span className="font-medium">{card.serialNumber}</span>
+                                <span className="font-medium">
+                                  {card.serialNumber}
+                                </span>
                                 <span className="text-xs text-gray-500">
                                   {card.station?.stationName || "-"}
                                 </span>
@@ -1036,7 +1065,10 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
                     className={base}
                     value={correctCardInputMode}
                     onChange={(e) => {
-                      const mode = e.target.value as "" | "manual" | "recommendation";
+                      const mode = e.target.value as
+                        | ""
+                        | "manual"
+                        | "recommendation";
                       setCorrectCardInputMode(mode);
                       // Reset states when mode changes
                       setCorrectCardSerial("");
@@ -1075,7 +1107,9 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
                       <select
                         className={base}
                         value={correctCardStationId}
-                        onChange={(e) => setCorrectCardStationId(e.target.value)}
+                        onChange={(e) =>
+                          setCorrectCardStationId(e.target.value)
+                        }
                       >
                         <option value="">Pilih Stasiun</option>
                         {stations.map((st) => (
@@ -1152,7 +1186,9 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
                                 }}
                                 className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex justify-between items-center"
                               >
-                                <span className="font-medium">{card.serialNumber}</span>
+                                <span className="font-medium">
+                                  {card.serialNumber}
+                                </span>
                                 <span className="text-xs text-gray-500">
                                   {card.station?.stationName || "-"}
                                 </span>

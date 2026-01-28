@@ -1,6 +1,7 @@
 import db from "../../config/db";
 import { ValidationError, NotFoundError } from "../../utils/errors";
 import { PurchaseModel } from "./model";
+import { EmailService } from "../../services/emailService";
 
 export class PurchaseService {
   /**
@@ -170,7 +171,17 @@ export class PurchaseService {
     });
 
     // Fetch complete purchase data with relations
-    return await this.getById(result.id);
+    const purchaseData = await this.getById(result.id);
+
+    // Send email notification (non-blocking)
+    try {
+      await this.sendPurchaseConfirmationEmail(purchaseData);
+    } catch (emailError) {
+      // Log error but don't fail transaction
+      console.error("⚠️ Failed to send purchase confirmation email:", emailError);
+    }
+
+    return purchaseData;
   }
 
   /**
@@ -462,6 +473,7 @@ export class PurchaseService {
             id: true,
             name: true,
             identityNumber: true,
+            email: true,
           },
         },
         operator: {
@@ -919,6 +931,49 @@ export class PurchaseService {
         message: "Transaksi berhasil dihapus",
         id: deletedPurchase.id,
       };
+    });
+  }
+
+  /**
+   * Send purchase confirmation email to member
+   */
+  private static async sendPurchaseConfirmationEmail(purchaseData: any): Promise<void> {
+    // Check if member has email
+    if (!purchaseData.member?.email) {
+      console.log("⏭️  Member has no email, skipping notification");
+      return;
+    }
+
+    // Prepare email data
+    const productType = `${purchaseData.card.cardProduct.category.categoryName} - ${purchaseData.card.cardProduct.type.typeName}`;
+    const purchaseDate = new Date(purchaseData.purchaseDate).toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+
+    const expiredDate = purchaseData.card.expiredDate
+      ? new Date(purchaseData.card.expiredDate).toLocaleDateString("id-ID", {
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+        })
+      : "N/A";
+
+    await EmailService.sendPurchaseConfirmation({
+      memberEmail: purchaseData.member.email,
+      memberName: purchaseData.member.name,
+      nik: purchaseData.member.identityNumber,
+      cardCategory: purchaseData.card.cardProduct.category.categoryName,
+      cardType: purchaseData.card.cardProduct.type.typeName,
+      serialNumber: purchaseData.card.serialNumber,
+      masaBerlaku: expiredDate,
+      kuota: purchaseData.card.quotaTicket,
+      serialEdc: purchaseData.edcReferenceNumber,
+      stasiunPembelian: purchaseData.station.stationName,
+      harga: Number(purchaseData.price),
+      purchaseDate: purchaseDate,
+      productType: productType,
     });
   }
 }
