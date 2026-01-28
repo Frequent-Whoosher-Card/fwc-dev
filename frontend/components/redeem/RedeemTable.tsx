@@ -1,7 +1,7 @@
 'use client';
 
 import { RedeemItem } from '@/lib/services/redeem/redeemService';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 interface RedeemTableProps {
   data: RedeemItem[];
@@ -20,6 +20,8 @@ export default function RedeemTable({
   isLoading,
   noDataMessage,
 }: RedeemTableProps) {
+  // Debug jumlah data diterima
+  console.log('[DEBUG FRONTEND] Jumlah data diterima di tabel:', data.length);
   const formatDate = (date: string) => {
     if (!date) return '-';
     const d = new Date(date);
@@ -33,6 +35,19 @@ export default function RedeemTable({
       currency: 'IDR',
       minimumFractionDigits: 0,
     }).format(nominal);
+  };
+
+  const [openNotesId, setOpenNotesId] = useState<string | null>(null);
+  const [notesContent, setNotesContent] = useState<string | null>(null);
+
+  const handleViewNotes = (item: RedeemItem) => {
+    setOpenNotesId(item.id);
+    setNotesContent(item.notes || '');
+  };
+
+  const handleCloseNotes = () => {
+    setOpenNotesId(null);
+    setNotesContent(null);
   };
 
   return (
@@ -52,6 +67,7 @@ export default function RedeemTable({
             <th className="px-2 md:px-4 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">Sisa Kuota</th>
             <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Operator</th>
             <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Stasiun</th>
+            <th className="px-2 md:px-4 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">Notes</th>
             <th className="px-2 md:px-4 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">Last Redeem</th>
             <th className="px-2 md:px-4 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">Aksi</th>
           </tr>
@@ -73,7 +89,7 @@ export default function RedeemTable({
             </tr>
           ) : (
             data.map((item) => {
-              const sisaKuota = item.card?.quotaTicket ?? 0;
+              const sisaKuota = item.remainingQuota ?? 0;
               const isQuotaEmpty = sisaKuota === 0;
               return (
                 <tr
@@ -130,6 +146,18 @@ export default function RedeemTable({
                 <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
                   {item.station?.stationName || '-'}
                 </td>
+                <td className="px-2 md:px-4 py-3 text-center whitespace-nowrap">
+                  {item.notes ? (
+                    <button
+                      className="px-3 py-1 rounded text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 transition"
+                      onClick={() => handleViewNotes(item)}
+                    >
+                      View Notes
+                    </button>
+                  ) : (
+                    <span className="text-gray-400">-</span>
+                  )}
+                </td>
                 <td className="px-2 md:px-4 whitespace-nowrap text-center">
                   {/* Tombol last redeem selalu terlihat, disabled jika sisa kuota > 0 */}
                   <button
@@ -165,6 +193,21 @@ export default function RedeemTable({
           )}
         </tbody>
       </table>
+      {/* Modal Notes */}
+      {openNotesId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full">
+            <h2 className="text-lg font-semibold mb-4">Notes</h2>
+            <div className="mb-6 whitespace-pre-line text-gray-800">{notesContent}</div>
+            <button
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              onClick={handleCloseNotes}
+            >
+              Tutup
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

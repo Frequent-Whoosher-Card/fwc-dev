@@ -4,8 +4,8 @@ import { useStockSummary } from "@/hooks/useStockSummary";
 
 const safeNumber = (value?: number) => (value ?? 0).toLocaleString();
 
-export function StockSummary() {
-  const { summary, loading } = useStockSummary();
+export function StockSummary({ programType }: { programType?: string }) {
+  const { summary, loading } = useStockSummary(programType);
 
   const items = [
     { label: "All Card", value: summary.totalCards },

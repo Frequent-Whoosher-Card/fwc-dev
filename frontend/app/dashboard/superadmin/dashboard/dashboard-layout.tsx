@@ -167,6 +167,7 @@ const supervisorMenuItems = [
     href: "/dashboard/supervisor/membership",
   },
   { title: "Redeem Kuota", icon: IdCard, href: "/dashboard/supervisor/redeem" },
+  { title: "Transaksi", icon: Receipt, href: "/dashboard/supervisor/transaksi" },
   { title: "Noted", icon: Inbox, href: "/dashboard/supervisor/noted" },
 ];
 

@@ -9,7 +9,7 @@ interface SummaryData {
   totalOut: number;
 }
 
-export const useStockSummary = () => {
+export const useStockSummary = (programType?: string) => {
   const [summary, setSummary] = useState<SummaryData>({
     totalCards: 0,
     totalIn: 0,
@@ -21,7 +21,9 @@ export const useStockSummary = () => {
   const fetchSummary = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await axios.get("/inventory/total-summary");
+      const res = await axios.get("/inventory/total-summary", {
+        params: { programType },
+      });
       const data = res.data?.data;
 
       if (data) {
@@ -36,7 +38,7 @@ export const useStockSummary = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [programType]);
 
   useEffect(() => {
     fetchSummary();

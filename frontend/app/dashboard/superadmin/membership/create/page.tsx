@@ -181,6 +181,10 @@ export default function AddMemberPage() {
   const [ktpImage, setKtpImage] = useState<File | null>(null);
   const [isExtractingOCR, setIsExtractingOCR] = useState(false);
   const [ktpSessionId, setKtpSessionId] = useState<string>("");
+  
+  // Input mode state
+  const [inputMode, setInputMode] = useState<"" | "manual" | "recommendation">("");
+  
   const countryOptions = useMemo(() => {
     return Object.entries(countries).map(([code, c]) => ({
       value: code,
@@ -1144,16 +1148,51 @@ export default function AddMemberPage() {
 
             {/* Card Information */}
             <SectionCard title="Card Information">
-              <Field label="Card Category" required>
+              <Field label="Mode Input Serial Number" required>
                 <select
                   className={base}
-                  value={cardCategory}
-                  onChange={(e) => handleCategoryChange(e.target.value as any)}
-                  disabled={loadingCategories}
+                  value={inputMode}
+                  onChange={(e) => {
+                    const mode = e.target.value as "" | "manual" | "recommendation";
+                    setInputMode(mode);
+                    // Reset serial number and card states
+                    setSerialNumber("");
+                  }}
                 >
-                  <option value="">
-                    {loadingCategories ? "Loading..." : "Select"}
-                  </option>
+                  <option value="">Pilih Mode Input</option>
+                  <option value="manual">Input Manual / Scan Barcode</option>
+                  <option value="recommendation">Rekomendasi</option>
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  Pilih mode input serial number terlebih dahulu
+                </p>
+              </Field>
+
+              {inputMode === "manual" && (
+                <Field label="Serial Number" required>
+                  <input
+                    type="text"
+                    className={base}
+                    value={serialNumber}
+                    onChange={(e) => setSerialNumber(e.target.value)}
+                    placeholder="Masukkan atau scan serial number lengkap..."
+                    autoComplete="off"
+                  />
+                </Field>
+              )}
+
+              {inputMode === "recommendation" && (
+                <>
+                  <Field label="Card Category" required>
+                    <select
+                      className={base}
+                      value={cardCategory}
+                      onChange={(e) => handleCategoryChange(e.target.value as any)}
+                      disabled={loadingCategories}
+                    >
+                      <option value="">
+                        {loadingCategories ? "Loading..." : "Select"}
+                      </option>
                   {categories.map((cat) => (
                     <option key={cat.id} value={cat.value}>
                       {cat.label}
@@ -1206,6 +1245,7 @@ export default function AddMemberPage() {
                     onChange={(e) => handleCardSearch(e.target.value)}
                     placeholder="Masukkan 2 digit tahun kartu dibuat + nomor (min 6 karakter)..."
                     autoComplete="off"
+                    disabled={!cardTypeId}
                   />
                   {isSearching && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -1242,6 +1282,8 @@ export default function AddMemberPage() {
                   </p>
                 )}
               </Field>
+                </>
+              )}
             </SectionCard>
 
             {/* Membership Period */}
