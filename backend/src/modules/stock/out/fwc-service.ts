@@ -184,6 +184,7 @@ export class StockOutFwcService {
             status: "IN_TRANSIT",
             updatedAt: new Date(),
             updatedBy: userId,
+            stationId: stationId,
           },
         });
 
@@ -1204,6 +1205,7 @@ export class StockOutFwcService {
           data: {
             status: "IN_OFFICE",
             updatedAt: new Date(),
+            stationId: null,
           },
         });
 
@@ -1284,6 +1286,7 @@ export class StockOutFwcService {
             data: {
               status: "IN_OFFICE",
               updatedAt: new Date(),
+              stationId: null,
             },
           });
         }
