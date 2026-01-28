@@ -1,7 +1,7 @@
 // const [redeemType, setRedeemType] = useState('');
-  // setRedeemType('');
-  // redeemType removed
-  // redeemType removed
+// setRedeemType('');
+// redeemType removed
+// redeemType removed
 'use client';
 
 import { useEffect, useState, useContext } from 'react';
@@ -39,7 +39,7 @@ export default function RedeemPage() {
   const loadStations = async () => {
     try {
       const res = await getStations();
-      const data = res?.data || [];
+      const data = res?.data?.items || [];
       // Map to { id, name, city }
       const mapped = data.map((s: any) => ({
         id: s.id,
@@ -73,6 +73,7 @@ export default function RedeemPage() {
   const [cardType, setCardType] = useState('');
   const [stationId, setStationId] = useState('');
   const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   // State for filters
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState({
@@ -198,7 +199,7 @@ export default function RedeemPage() {
     try {
       const res = await getCardTypes();
       const data = res?.data;
-      
+
       // Extract types from the response
       let types: string[] = [];
       if (Array.isArray(data)) {
@@ -217,8 +218,9 @@ export default function RedeemPage() {
   };
 
 
-  const handleToolbarSearch = (value: string) => {
-    setSearch(value);
+  const handleToolbarSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearch(searchInput);
   };
 
   const handleResetFilters = () => {
@@ -228,6 +230,7 @@ export default function RedeemPage() {
     setCardType('');
     setStationId('');
     setSearch('');
+    setSearchInput('');
     setCurrentPage(1);
   };
 
@@ -285,82 +288,86 @@ export default function RedeemPage() {
       <div className="max-w-7xl mx-auto">
         <div className="p-2 sm:p-3 lg:p-4">
           {/* Responsive Header: Title always on top, controls below, shrink buttons if needed */}
-          <div className="flex flex-col gap-2 mb-6 w-full">
-            <h1 className="text-lg sm:text-xl font-semibold flex-shrink-0 mb-1">Redeem Kuota</h1>
-            <div className="flex flex-col gap-2 w-full sm:flex-row sm:items-center sm:gap-3 sm:w-auto">
-              <span className="text-sm font-medium text-gray-700 hidden sm:inline">Pilih Jenis Produk:</span>
-              <select
-                value={product}
-                onChange={e => {
-                  const val = e.target.value as 'FWC' | 'VOUCHER' | '';
-                  setProduct(val);
-                  setStartDate('');
-                  setEndDate('');
-                  setCategory('');
-                  setCardType('');
-                  setStationId('');
-                  setSearch('');
-                  setCurrentPage(1);
-                  setRedeems([]);
-                  setPagination({ total: 0, page: 1, limit: 10 });
-                }}
-                className="h-9 w-full sm:w-44 rounded-md border px-3 text-sm font-semibold text-[#8D1231] bg-red-50 border-[#8D1231] focus:outline-none focus:ring-2 focus:ring-[#8D1231]"
-              >
-                <option value="">Pilih Produk</option>
-                <option value="FWC">FWC</option>
-                <option value="VOUCHER">VOUCHER</option>
-              </select>
-              {isProductSelected && (
-                <div className="flex flex-col gap-2 w-full sm:flex-row sm:gap-3 sm:items-center sm:w-auto">
-                  <div className="flex flex-row gap-2 w-full sm:w-auto">
-                    {canCreate && (
-                      <button
-                        onClick={() => setCreateModalOpen(true)}
-                        className="flex items-center justify-center gap-2 rounded-md bg-[#8D1231] px-2 sm:px-4 py-2 text-xs sm:text-sm text-white hover:bg-[#73122E] transition whitespace-nowrap w-full sm:w-auto min-w-0"
-                        style={{ minWidth: 0 }}
-                      >
-                        <Plus size={14} className="sm:hidden" />
-                        <span className="hidden sm:inline">Tambah Redeem</span>
-                        <span className="sm:hidden">Tambah</span>
-                      </button>
-                    )}
-                    {canExport && (
-                      <button
-                        onClick={() => setExportModalOpen(true)}
-                        className="flex items-center justify-center gap-2 rounded-md bg-blue-600 px-2 sm:px-4 py-2 text-xs sm:text-sm text-white hover:bg-blue-700 whitespace-nowrap w-full sm:w-auto min-w-0"
-                        style={{ minWidth: 0 }}
-                      >
-                        <span className="hidden sm:inline">Export Report</span>
-                        <span className="sm:hidden">Export</span>
-                      </button>
-                    )}
-                  </div>
-                  {/* Search Field */}
-                  <form
-                    onSubmit={e => {
-                      e.preventDefault();
-                      handleToolbarSearch(search);
-                    }}
-                    className="flex flex-row items-center gap-2 w-full sm:w-auto"
-                  >
+          {/* Responsive Header */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+            {/* Left Group: Title + Product Selector */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full lg:w-auto">
+              <h1 className="text-xl font-bold text-gray-900 whitespace-nowrap">Redeem Kuota</h1>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+
+                <select
+                  value={product}
+                  onChange={e => {
+                    const val = e.target.value as 'FWC' | 'VOUCHER' | '';
+                    setProduct(val);
+                    setStartDate('');
+                    setEndDate('');
+                    setCategory('');
+                    setCardType('');
+                    setStationId('');
+                    setSearch('');
+                    setSearchInput('');
+                    setCurrentPage(1);
+                    setRedeems([]);
+                    setPagination({ total: 0, page: 1, limit: 10 });
+                  }}
+                  className="h-10 flex-1 sm:w-48 rounded-md border border-[#8D1231] bg-red-50 px-3 text-sm font-semibold text-[#8D1231] focus:outline-none focus:ring-2 focus:ring-[#8D1231] transition-shadow cursor-pointer"
+                >
+                  <option value="">Pilih Produk</option>
+                  <option value="FWC">FWC</option>
+                  <option value="VOUCHER">VOUCHER</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Right Group: Actions + Search */}
+            {isProductSelected && (
+              <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+                <div className="flex gap-2 w-full sm:w-auto">
+                  {canCreate && (
+                    <button
+                      onClick={() => setCreateModalOpen(true)}
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-md bg-[#8D1231] px-4 py-2 text-sm font-medium text-white hover:bg-[#73122E] transition-colors shadow-sm whitespace-nowrap"
+                    >
+                      <Plus size={16} />
+                      <span>Tambah</span>
+                    </button>
+                  )}
+                  {canExport && (
+                    <button
+                      onClick={() => setExportModalOpen(true)}
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors shadow-sm whitespace-nowrap"
+                    >
+                      <span>Export</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Search Field */}
+                <form
+                  onSubmit={handleToolbarSearch}
+                  className="flex-1 sm:flex-none flex items-center gap-2 w-full sm:w-auto"
+                >
+                  <div className="relative w-full sm:w-64">
                     <input
                       type="text"
-                      value={search}
-                      onChange={e => setSearch(e.target.value)}
-                      placeholder="Cari serial/NIK/nama pelanggan"
-                      className="h-9 w-full sm:w-56 rounded-md border px-3 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#8D1231] border-gray-300"
+                      value={searchInput}
+                      onChange={e => setSearchInput(e.target.value)}
+                      placeholder="Cari serial/NIK/nama..."
+                      className="h-10 w-full rounded-md border border-gray-300 pl-3 pr-10 text-sm focus:border-[#8D1231] focus:outline-none focus:ring-1 focus:ring-[#8D1231] transition-colors"
                     />
                     <button
                       type="submit"
-                      className="flex items-center justify-center rounded-md bg-gray-200 hover:bg-gray-300 px-2 py-2 text-gray-700"
+                      className="absolute right-0 top-0 h-full px-3 text-gray-500 hover:text-[#8D1231] transition-colors"
                       aria-label="Cari"
                     >
-                      <Search size={16} />
+                      <Search size={18} />
                     </button>
-                  </form>
-                </div>
-              )}
-            </div>
+                  </div>
+                </form>
+              </div>
+            )}
           </div>
 
           {/* Semua komponen terkait hanya muncul jika produk dipilih */}
@@ -423,9 +430,8 @@ export default function RedeemPage() {
                     onClick={() => {
                       setCurrentPage(p);
                     }}
-                    className={`px-3 py-1 ${
-                      p === pagination.page ? 'font-semibold underline' : ''
-                    }`}
+                    className={`px-3 py-1 ${p === pagination.page ? 'font-semibold underline' : ''
+                      }`}
                   >
                     {p}
                   </button>

@@ -34,8 +34,12 @@ export async function apiFetch(
     `${API_BASE_URL}${endpoint}`,
     {
       ...rest,
+      cache: 'no-store',
       headers: {
         'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
         ...(token && !skipAuth
           ? { Authorization: `Bearer ${token}` }
           : {}),
@@ -52,40 +56,39 @@ export async function apiFetch(
     json = null;
   }
 
-// ❌ HANDLE ERROR GLOBAL
-if (!res.ok) {
-  if (res.status === 401) {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('fwc_token');
-      localStorage.removeItem('fwc_user');
-      window.location.href = '/login';
+  // ❌ HANDLE ERROR GLOBAL
+  if (!res.ok) {
+    if (res.status === 401) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('fwc_token');
+        localStorage.removeItem('fwc_user');
+        window.location.href = '/login';
+      }
+
+      // 🚨 WAJIB Error irmat: { success: false, error: { message: "...", code: "...", statusCode: 400 } }
+      const message =
+        json?.error?.message ||
+        json?.message ||
+        (typeof json?.error === 'string' ? json.error : null) ||
+        `API Error (${res.status})`;
+
+      throw new Error(message);
     }
 
-    // 🚨 WAJIB Error instance
-    // Backend error format: { success: false, error: { message: "...", code: "...", statusCode: 400 } }
-    const message =
-      json?.error?.message ||
-      json?.message ||
-      (typeof json?.error === 'string' ? json.error : null) ||
-      `API Error (${res.status})`;
+    let message = `API Error (${res.status})`;
+
+    if (typeof json?.message === 'string') {
+      message = json.message;
+    } else if (typeof json?.error === 'string') {
+      message = json.error;
+    } else if (json?.error?.message) {
+      message = json.error.message;
+    } else if (Array.isArray(json?.error)) {
+      message = json.error.join(', ');
+    }
 
     throw new Error(message);
   }
-
-  let message = `API Error (${res.status})`;
-
-  if (typeof json?.message === 'string') {
-    message = json.message;
-  } else if (typeof json?.error === 'string') {
-    message = json.error;
-  } else if (json?.error?.message) {
-    message = json.error.message;
-  } else if (Array.isArray(json?.error)) {
-    message = json.error.join(', ');
-  }
-
-  throw new Error(message);
-}
 
 
   return json;
