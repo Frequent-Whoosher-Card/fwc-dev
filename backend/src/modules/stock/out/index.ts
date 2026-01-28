@@ -1,4 +1,5 @@
 import { Elysia } from "elysia";
+import db from "../../../config/db";
 import { authMiddleware } from "../../../middleware/auth";
 import { rbacMiddleware } from "../../../middleware/rbac";
 import { ValidationError, formatErrorResponse } from "../../../utils/errors";
@@ -509,4 +510,83 @@ const stockOutVoucher = new Elysia({ prefix: "/voucher" })
 
 export const stockOut = new Elysia({ prefix: "/out" })
   .use(stockOutFwc)
-  .use(stockOutVoucher);
+  .use(stockOutVoucher)
+  .group("", (app) =>
+    app.use(rbacMiddleware(["supervisor", "admin", "superadmin"])).post(
+      "/validate/:movementId",
+      async (context) => {
+        const { params, body, set, user } = context as typeof context &
+          AuthContextUser;
+        if (!user.stationId) {
+          set.status = 400;
+          return formatErrorResponse(
+            new ValidationError("Petugas tidak memiliki ID stasiun"),
+          );
+        }
+
+        try {
+          // 1. Get Movement to determine Type
+          const movement = await db.cardStockMovement.findUnique({
+            where: { id: params.movementId },
+            include: { category: true },
+          });
+
+          if (!movement) {
+            throw new ValidationError("Data movement tidak ditemukan");
+          }
+
+          const programType = movement.category.programType;
+          let result;
+
+          // 2. Delegate based on Program Type
+          if (programType === "FWC") {
+            result = await StockOutFwcService.validateStockOutReceipe(
+              params.movementId,
+              body.receivedSerialNumbers || [],
+              body.lostSerialNumbers,
+              body.damagedSerialNumbers,
+              user.id,
+              user.stationId,
+              body.note,
+            );
+          } else if (programType === "VOUCHER") {
+            result = await StockOutVoucherService.validateStockOutReceipe(
+              params.movementId,
+              body.receivedSerialNumbers || [],
+              body.lostSerialNumbers,
+              body.damagedSerialNumbers,
+              user.id,
+              user.stationId,
+              body.note,
+            );
+          } else {
+            throw new ValidationError("Tipe program tidak dikenali");
+          }
+
+          return {
+            success: true,
+            message: `Validasi stok ${programType} berhasil`,
+            data: result,
+          };
+        } catch (error) {
+          set.status =
+            error instanceof Error && "statusCode" in error
+              ? (error as any).statusCode
+              : 500;
+          return formatErrorResponse(error);
+        }
+      },
+      {
+        body: StockOutFwcModel.stockOutValidateRequest, // Reuse same schema
+        response: {
+          200: StockOutFwcModel.stockOutValidateResponse, // Reuse same schema structure
+          400: StockOutFwcModel.errorResponse,
+          500: StockOutFwcModel.errorResponse,
+        },
+        detail: {
+          tags: ["Stock Out Unified"],
+          summary: "Validate Stock Out (Unified)",
+        },
+      },
+    ),
+  );

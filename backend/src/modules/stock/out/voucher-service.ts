@@ -157,6 +157,7 @@ export class StockOutVoucherService {
             status: "IN_TRANSIT",
             updatedAt: new Date(),
             updatedBy: userId,
+            stationId: stationId,
           },
         });
 
@@ -399,13 +400,35 @@ export class StockOutVoucherService {
           createdAt: { gte: new Date(movement.createdAt.getTime() - 60000) },
         },
       });
-      // Skip inbox update if not found/implemented logic simpler here.
-      // But FWC does it.
+
+      if (spvInbox) {
+        const oldPayload = (spvInbox.payload as any) || {};
+        await tx.inbox.update({
+          where: { id: spvInbox.id },
+          data: {
+            isRead: true,
+            readAt: new Date(),
+            title: `[SELESAI] ${spvInbox.title.replace("[SELESAI] ", "")}`,
+            payload: {
+              ...oldPayload,
+              status: "COMPLETED",
+              validationResult: {
+                received: finalReceived.length,
+                lost: finalLost.length,
+                damaged: finalDamaged.length,
+                validatedAt: new Date(),
+              },
+            },
+          },
+        });
+      }
 
       return {
         movementId,
         status: "APPROVED",
         receivedCount: finalReceived.length,
+        lostCount: finalLost.length,
+        damagedCount: finalDamaged.length,
       };
     });
 

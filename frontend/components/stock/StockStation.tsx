@@ -35,6 +35,9 @@ export function StockStation({ filters, programType }: StockStationProps) {
               Type
             </th>
             <th rowSpan={2} className="p-4 text-center">
+              Transit
+            </th>
+            <th rowSpan={2} className="p-4 text-center">
               Beredar
             </th>
             <th colSpan={3} className="p-4 text-center bg-blue-50">
@@ -59,6 +62,7 @@ export function StockStation({ filters, programType }: StockStationProps) {
                 <td className="p-4">{row.stationName}</td>
                 <td className="p-4">{row.cardCategory}</td>
                 <td className="p-4">{row.cardType}</td>
+                <td className="p-4">{fmt(row.cardInTransit)}</td>
                 <td className="p-4">{fmt(row.cardBeredar)}</td>
                 <td className="p-4">{fmt(row.aktif)}</td>
                 <td className="p-4">{fmt(row.nonAktif)}</td>
@@ -74,6 +78,7 @@ export function StockStation({ filters, programType }: StockStationProps) {
             <td colSpan={3} className="p-4">
               TOTAL
             </td>
+            <td className="p-4">{fmt(totals.cardInTransit)}</td>
             <td className="p-4">{fmt(totals.cardBeredar)}</td>
             <td className="p-4">{fmt(totals.aktif)}</td>
             <td className="p-4">{fmt(totals.nonAktif)}</td>

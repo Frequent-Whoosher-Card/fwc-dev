@@ -23,6 +23,7 @@ export interface AllCardItem {
   cardCategoryName: string;
   cardTypeName: string;
   stationName: string;
+  previousStationName: string;
   note: string;
   isDiscount?: boolean;
 }
@@ -91,6 +92,7 @@ export const useAllCards = ({ programType }: UseAllCardsProps) => {
         cardCategoryName: item.cardProduct?.category?.categoryName ?? "-",
         cardTypeName: item.cardProduct?.type?.typeName ?? "-",
         stationName: item.station?.stationName ?? "-",
+        previousStationName: item.previousStation?.stationName ?? "-",
         note: item.notes ?? "-",
         isDiscount:
           programType === "VOUCHER"

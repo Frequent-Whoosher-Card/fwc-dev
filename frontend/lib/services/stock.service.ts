@@ -59,13 +59,16 @@ export interface StockOutDetail {
   movementAt: string;
   status: string;
   quantity: number;
+  stationId?: string;
   stationName: string;
   note: string;
   createdByName: string;
   cardCategory: {
+    id?: string;
     name: string;
   };
   cardType: {
+    id?: string;
     name: string;
   };
   sentSerialNumbers: string[];
@@ -154,19 +157,68 @@ const stockService = {
     startDate?: string;
     endDate?: string;
     programType?: string;
+    categoryName?: string;
+    typeName?: string;
   }): Promise<StockInListResponse> => {
-    const { programType = "fwc", ...rest } = params;
+    const { programType = "fwc", page = 1, limit = 10, ...rest } = params;
     const isVoucher = programType.toLowerCase() === "voucher";
     const endpoint = isVoucher
       ? "/stock/in/voucher/history"
-      : `/stock/in/${programType.toLowerCase()}`;
+      : `/stock/in/${programType.toLowerCase()}/`;
 
-    const res = await axios.get(endpoint, {
-      params: rest,
+    if (isVoucher) {
+      const res = await axios.get(endpoint, {
+        params: { ...rest, page, limit },
+      });
+      const { items, pagination } = res.data.data;
+      return {
+        items: items.map((item: any) => ({
+          id: item.id,
+          tanggal: item.movementAt,
+          category: item.category?.name || item.cardCategory?.name || "-",
+          categoryId: item.category?.id || item.cardCategory?.id || "",
+          type: item.type?.name || item.cardType?.name || "-",
+          stock: item.quantity,
+          sentSerialNumbers: item.sentSerialNumbers ?? [],
+        })),
+        pagination: {
+          total: pagination.totalItems ?? pagination.total ?? 0,
+          page: pagination.currentPage ?? pagination.page ?? 1,
+          limit: limit,
+          totalPages: pagination.totalPages ?? 0,
+        },
+      };
+    }
+
+    // FWC Logic: fetch a larger set to allow full pages after filtering mixed backend result
+    const backendParams = {
+      ...rest,
+      page: 1,
+      limit: 1000,
+    };
+
+    const [res, catsRes] = await Promise.all([
+      axios.get(endpoint, { params: backendParams }),
+      axios.get("/card/category", { params: { programType: "FWC" } }),
+    ]);
+
+    const { items } = res.data.data;
+    const categories = catsRes.data?.data || [];
+    const validCategoryIds = categories.map((c: any) => c.id);
+
+    const filteredItems = items.filter((item: any) => {
+      const cid = item.cardCategory?.id || item.category?.id;
+      return !cid || validCategoryIds.includes(cid);
     });
-    const { items, pagination } = res.data.data;
+
+    const totalFiltered = filteredItems.length;
+    const totalPages = Math.ceil(totalFiltered / limit);
+
+    const startIdx = (page - 1) * limit;
+    const paginatedItems = filteredItems.slice(startIdx, startIdx + limit);
+
     return {
-      items: items.map((item: any) => ({
+      items: paginatedItems.map((item: any) => ({
         id: item.id,
         tanggal: item.movementAt,
         category:
@@ -180,10 +232,10 @@ const stockService = {
         sentSerialNumbers: item.sentSerialNumbers ?? [],
       })),
       pagination: {
-        total: pagination.total ?? pagination.totalItems ?? 0,
-        page: pagination.page ?? pagination.currentPage ?? 1,
-        limit: pagination.limit ?? pagination.limitNum ?? 10,
-        totalPages: pagination.totalPages ?? 0,
+        total: totalFiltered,
+        page: page,
+        limit: limit,
+        totalPages: totalPages,
       },
     };
   },
@@ -255,6 +307,10 @@ const stockService = {
     startDate?: string;
     endDate?: string;
     programType?: string;
+    categoryName?: string;
+    typeName?: string;
+    stationName?: string;
+    stationId?: string;
   }): Promise<StockOutListResponse> => {
     const { programType = "fwc", ...rest } = params;
     const res = await axios.get(`/stock/out/${programType.toLowerCase()}`, {
@@ -300,18 +356,24 @@ const stockService = {
       movementAt: item.movementAt ?? "",
       status: item.status ?? "-",
       quantity: item.quantity ?? 0,
+      stationId: item.stationId ?? item.station?.id ?? "",
       stationName: item.stationName ?? item.station?.name ?? "-",
       note: item.note || "-",
       createdByName: item.createdByName ?? "-",
       cardCategory: {
+        id: item.cardCategory?.id ?? "",
         name: item.cardCategory?.name ?? "-",
       },
       cardType: {
+        id: item.cardType?.id ?? "",
         name: item.cardType?.name ?? "-",
       },
       sentSerialNumbers: Array.isArray(item.sentSerialNumbers)
         ? item.sentSerialNumbers
         : [],
+      batchId: item.batchId,
+      notaDinas: item.notaDinas,
+      bast: item.bast,
     };
   },
 

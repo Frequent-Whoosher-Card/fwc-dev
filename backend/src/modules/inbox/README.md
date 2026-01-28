@@ -111,7 +111,21 @@ if (inbox.type === "STOCK_DISTRIBUTION") {
     - `GET /inbox/:id`
     - Mendapatkan detail pesan beserta payload lengkapnya.
 
-3.  **Validate Stock Out (Action)**
-    - `POST /out/:movementId/validate`
-    - Body: `{ receivedSerialNumbers: [...], ... }`
-    - _Catatan: API ini otomatis mengupdate status Inbox terkait menjadi COMPLETED._
+3.  **Validate Stock Out (Action - Unified)**
+    - **Endpoint**: `POST /out/validate/:movementId`
+    - **Support**: Mendukung validasi untuk **FWC** dan **VOUCHER**.
+    - **Body**:
+      ```json
+      {
+        "receivedSerialNumbers": ["123", "124"],
+        "lostSerialNumbers": [],
+        "damagedSerialNumbers": [],
+        "note": "Semua aman"
+      }
+      ```
+    - _Catatan: API ini otomatis mendeteksi tipe program (FWC/Voucher) dan mengupdate status Inbox terkait menjadi COMPLETED._
+
+### Tips untuk Developer Frontend
+
+- **Satu Tombol untuk Semua**: Anda tidak perlu membuat logic if-else untuk membedakan URL validasi FWC atau Voucher. Cukup gunakan endpoint `/out/validate/:movementId` untuk semua jenis notifikasi "STOCK_DISTRIBUTION".
+- **Response Konsisten**: Struktur response sukses akan selalu sama untuk kedua tipe, memudahkan parsing data.
