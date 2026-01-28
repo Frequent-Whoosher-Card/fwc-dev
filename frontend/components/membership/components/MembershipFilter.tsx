@@ -29,88 +29,101 @@ export default function MembershipFilter({
   onReset,
 }: MembershipFilterProps) {
   return (
-    <div className="space-y-4">
-      {/* Card Category Filter */}
-      <div className="flex items-center gap-2 rounded-lg border bg-white px-4 py-3">
-        <button
-          onClick={() => onCardCategoryChange("all")}
-          aria-pressed={cardCategory === "all"}
-          className={`h-9 rounded-md border px-4 text-sm transition ${
-            cardCategory === "all"
-              ? "cursor-default border-[#8D1231] bg-[#8D1231] text-white"
-              : "border-gray-300 bg-white text-gray-600 hover:bg-red-50 hover:text-[#8D1231]"
-          }`}
-        >
-          All
-        </button>
+    <div className="flex items-center gap-2 rounded-lg border bg-white px-4 py-3">
+      {/* All Button */}
+      <button
+        onClick={() => onCardCategoryChange("all")}
+        aria-pressed={cardCategory === "all"}
+        className={`h-9 rounded-md border px-4 text-sm transition ${
+          cardCategory === "all"
+            ? "cursor-default border-[#8D1231] bg-[#8D1231] text-white"
+            : "border-gray-300 bg-white text-gray-600 hover:bg-red-50 hover:text-[#8D1231]"
+        }`}
+      >
+        All
+      </button>
 
-        <button
-          onClick={() => onCardCategoryChange("NIPKAI")}
-          aria-pressed={cardCategory === "NIPKAI"}
-          className={`h-9 rounded-md border px-4 text-sm transition ${
-            cardCategory === "NIPKAI"
-              ? "cursor-default border-[#8D1231] bg-[#8D1231] text-white"
-              : "border-gray-300 bg-white text-gray-600 hover:bg-red-50 hover:text-[#8D1231]"
-          }`}
-        >
-          NIPKAI
-        </button>
-      </div>
+      {/* NIPKAI Button */}
+      <button
+        onClick={() => onCardCategoryChange("NIPKAI")}
+        aria-pressed={cardCategory === "NIPKAI"}
+        className={`h-9 rounded-md border px-4 text-sm transition ${
+          cardCategory === "NIPKAI"
+            ? "cursor-default border-[#8D1231] bg-[#8D1231] text-white"
+            : "border-gray-300 bg-white text-gray-600 hover:bg-red-50 hover:text-[#8D1231]"
+        }`}
+      >
+        NIPKAI
+      </button>
 
-      {/* Advanced Filters */}
-      <div className="flex items-center gap-3 rounded-lg border bg-white px-4 py-3">
-        <div className="text-sm font-medium text-gray-600">Filter by:</div>
+      {/* Gender Dropdown */}
+      <select
+        value={gender}
+        onChange={(e) => onGenderChange(e.target.value as "all" | "L" | "P")}
+        className="h-9 rounded-md border px-3 text-sm border-[#8D1231] bg-[#8D1231] text-white focus:outline-none"
+      >
+        <option value="all">Gender</option>
+        <option value="L">Laki - Laki</option>
+        <option value="P">Perempuan</option>
+      </select>
 
-        {/* Gender */}
-        <select
-          value={gender}
-          onChange={(e) => onGenderChange(e.target.value as "all" | "L" | "P")}
-          className="h-9 rounded-md border border-gray-300 px-3 text-sm focus:border-gray-400 focus:outline-none"
-        >
-          <option value="all">All Gender</option>
-          <option value="L">Laki - Laki</option>
-          <option value="P">Perempuan</option>
-        </select>
-
-        {/* Start Date */}
+      {/* Start Date */}
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-gray-500">Start</span>
         <div className="relative">
           <input
             ref={startDateRef}
             type="date"
+            value={startDate}
             onChange={(e) => onStartDateChange(e.target.value)}
-            className="h-9 rounded-md border border-gray-300 pl-10 pr-3 text-sm focus:border-gray-400 focus:outline-none"
-            placeholder="Start Date"
+            className={`h-9 w-[160px] rounded-md border px-3 pr-9 text-sm appearance-none [&::-webkit-calendar-picker-indicator]:hidden ${
+              startDate
+                ? "border-[#8D1231] bg-red-50 text-[#8D1231]"
+                : "border-gray-300"
+            }`}
           />
           <Calendar
             size={16}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-[#8D1231]"
+            onClick={() => startDateRef.current?.showPicker()}
           />
         </div>
+      </div>
 
-        {/* End Date */}
+      {/* End Date */}
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-gray-500">End</span>
         <div className="relative">
           <input
             ref={endDateRef}
             type="date"
+            value={endDate}
             onChange={(e) => onEndDateChange(e.target.value)}
-            className="h-9 rounded-md border border-gray-300 pl-10 pr-3 text-sm focus:border-gray-400 focus:outline-none"
-            placeholder="End Date"
+            className={`h-9 w-[160px] rounded-md border px-3 pr-9 text-sm appearance-none [&::-webkit-calendar-picker-indicator]:hidden ${
+              endDate
+                ? "border-[#8D1231] bg-red-50 text-[#8D1231]"
+                : "border-gray-300"
+            }`}
           />
           <Calendar
             size={16}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-[#8D1231]"
+            onClick={() => endDateRef.current?.showPicker()}
           />
         </div>
-
-        {/* Reset Button */}
-        <button
-          onClick={onReset}
-          className="ml-auto flex h-9 items-center gap-2 rounded-md border border-gray-300 bg-white px-4 text-sm text-gray-600 hover:bg-gray-50"
-        >
-          <RotateCcw size={14} />
-          Reset
-        </button>
       </div>
+
+      {/* Reset Button */}
+      <button
+        onClick={onReset}
+        className={`flex h-9 w-9 items-center justify-center rounded-md border transition ${
+          gender !== "all" || cardCategory !== "all" || startDate || endDate
+            ? "border-[#8D1231] bg-[#8D1231] text-white hover:bg-[#73122E]"
+            : "border-gray-300 text-gray-500"
+        }`}
+      >
+        <RotateCcw size={16} />
+      </button>
     </div>
   );
 }

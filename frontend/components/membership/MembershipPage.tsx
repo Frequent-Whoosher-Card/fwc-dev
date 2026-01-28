@@ -179,10 +179,6 @@ export default function MembershipPage({ role }: MembershipPageProps) {
   /* =====================
      HANDLERS
   ===================== */
-  const handleAddMember = () => {
-    router.push(`${basePath}/membership/create`);
-  };
-
   const handleView = (id: string) => {
     router.push(`${basePath}/membership/view/${id}`);
   };
@@ -216,7 +212,6 @@ export default function MembershipPage({ role }: MembershipPageProps) {
           setSearch(v);
           setPagination((p) => ({ ...p, page: 1 }));
         }}
-        onAdd={handleAddMember}
       />
 
       <MembershipFilter

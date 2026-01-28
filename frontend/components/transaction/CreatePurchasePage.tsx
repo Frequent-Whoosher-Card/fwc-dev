@@ -35,7 +35,9 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
   const { categories, loading: loadingCategories } = useCategories();
 
   // Input mode state
-  const [inputMode, setInputMode] = useState<"" | "manual" | "recommendation">("");
+  const [inputMode, setInputMode] = useState<"" | "manual" | "recommendation">(
+    "",
+  );
 
   const {
     form,
@@ -183,7 +185,10 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
                   className={baseInputClass}
                   value={inputMode}
                   onChange={(e) => {
-                    const mode = e.target.value as "" | "manual" | "recommendation";
+                    const mode = e.target.value as
+                      | ""
+                      | "manual"
+                      | "recommendation";
                     setInputMode(mode);
                     // Reset serial number and card states
                     setSerialNumber("");
@@ -232,7 +237,9 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
                     <select
                       className={baseInputClass}
                       value={cardCategory}
-                      onChange={(e) => handleCategoryChange(e.target.value as any)}
+                      onChange={(e) =>
+                        handleCategoryChange(e.target.value as any)
+                      }
                       disabled={loadingCategories}
                     >
                       <option value="">
@@ -291,7 +298,9 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
                       )
                     )}
                     <FieldError
-                      errors={errors.cardTypeId ? [errors.cardTypeId] : undefined}
+                      errors={
+                        errors.cardTypeId ? [errors.cardTypeId] : undefined
+                      }
                     />
                   </FieldContent>
                 </Field>
@@ -343,7 +352,8 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
                       )}
                     {serialNumber.length > 0 && serialNumber.length < 6 && (
                       <p className="mt-1 text-xs text-gray-500">
-                        Masukkan 2 digit tahun kartu dibuat + nomor (minimal 6 karakter total)
+                        Masukkan 2 digit tahun kartu dibuat + nomor (minimal 6
+                        karakter total)
                       </p>
                     )}
                     <FieldError

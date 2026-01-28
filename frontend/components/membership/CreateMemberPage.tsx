@@ -181,10 +181,12 @@ export default function AddMemberPage() {
   const [ktpImage, setKtpImage] = useState<File | null>(null);
   const [isExtractingOCR, setIsExtractingOCR] = useState(false);
   const [ktpSessionId, setKtpSessionId] = useState<string>("");
-  
+
   // Input mode state
-  const [inputMode, setInputMode] = useState<"" | "manual" | "recommendation">("");
-  
+  const [inputMode, setInputMode] = useState<"" | "manual" | "recommendation">(
+    "",
+  );
+
   const countryOptions = useMemo(() => {
     return Object.entries(countries).map(([code, c]) => ({
       value: code,
@@ -295,38 +297,47 @@ export default function AddMemberPage() {
     const loadInitialData = async () => {
       try {
         const token = localStorage.getItem("fwc_token");
-        
+
         // Get operator name from localStorage
         const userStr = localStorage.getItem("fwc_user");
         if (userStr) {
           const user = JSON.parse(userStr);
           console.log("[DEBUG] User data:", user);
           setOperatorName(user.fullName || user.username || "");
-          
+
           // Auto-fetch and set station name from user's stationId
           if (user.stationId) {
             console.log("[DEBUG] Fetching station ID:", user.stationId);
             try {
-              const stationRes = await fetch(`${API_BASE_URL}/station/${user.stationId}`, {
-                headers: {
-                  Authorization: `Bearer ${token}`,
+              const stationRes = await fetch(
+                `${API_BASE_URL}/station/${user.stationId}`,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
                 },
-              });
-              
-              console.log("[DEBUG] Station response status:", stationRes.status);
-              
+              );
+
+              console.log(
+                "[DEBUG] Station response status:",
+                stationRes.status,
+              );
+
               if (stationRes.ok) {
                 const stationData = await stationRes.json();
                 console.log("[DEBUG] Station data:", stationData);
                 const stationName = stationData.data?.stationName || "";
                 console.log("[DEBUG] Setting station name:", stationName);
-                
+
                 setForm((prev) => ({
                   ...prev,
                   station: stationName,
                 }));
               } else {
-                console.error("[DEBUG] Station fetch failed:", await stationRes.text());
+                console.error(
+                  "[DEBUG] Station fetch failed:",
+                  await stationRes.text(),
+                );
               }
             } catch (error) {
               console.error("Failed to load station data:", error);
@@ -1153,7 +1164,10 @@ export default function AddMemberPage() {
                   className={base}
                   value={inputMode}
                   onChange={(e) => {
-                    const mode = e.target.value as "" | "manual" | "recommendation";
+                    const mode = e.target.value as
+                      | ""
+                      | "manual"
+                      | "recommendation";
                     setInputMode(mode);
                     // Reset serial number and card states
                     setSerialNumber("");
@@ -1187,101 +1201,104 @@ export default function AddMemberPage() {
                     <select
                       className={base}
                       value={cardCategory}
-                      onChange={(e) => handleCategoryChange(e.target.value as any)}
+                      onChange={(e) =>
+                        handleCategoryChange(e.target.value as any)
+                      }
                       disabled={loadingCategories}
                     >
                       <option value="">
                         {loadingCategories ? "Loading..." : "Select"}
                       </option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.value}>
-                      {cat.label}
-                    </option>
-                  ))}
-                </select>
-                {!cardCategory && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    Pilih kategori kartu terlebih dahulu
-                  </p>
-                )}
-              </Field>
-
-              <Field label="Card Type" required>
-                <select
-                  className={base}
-                  value={cardTypeId}
-                  onChange={(e) => handleTypeChange(e.target.value)}
-                  disabled={!cardCategory || loadingTypes}
-                >
-                  <option value="">
-                    {loadingTypes ? "Loading..." : "Select"}
-                  </option>
-                  {cardTypes.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.typeName}
-                    </option>
-                  ))}
-                </select>
-                {!cardCategory ? (
-                  <p className="mt-1 text-xs text-amber-600">
-                    ⚠ Pilih Card Category terlebih dahulu
-                  </p>
-                ) : (
-                  cardCategory &&
-                  !cardTypeId && (
-                    <p className="mt-1 text-xs text-gray-500">
-                      Pilih tipe kartu
-                    </p>
-                  )
-                )}
-              </Field>
-
-              <Field label="Serial Number" required>
-                <div className="relative">
-                  <input
-                    type="text"
-                    className={base}
-                    value={serialNumber}
-                    onChange={(e) => handleCardSearch(e.target.value)}
-                    placeholder="Masukkan 2 digit tahun kartu dibuat + nomor (min 6 karakter)..."
-                    autoComplete="off"
-                    disabled={!cardTypeId}
-                  />
-                  {isSearching && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
-                    </div>
-                  )}
-                  {searchResults.length > 0 && (
-                    <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
-                      {searchResults.map((card) => (
-                        <button
-                          key={card.id}
-                          type="button"
-                          onClick={() => handleCardSelect(card)}
-                          className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
-                        >
-                          {card.serialNumber}
-                        </button>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.value}>
+                          {cat.label}
+                        </option>
                       ))}
+                    </select>
+                    {!cardCategory && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        Pilih kategori kartu terlebih dahulu
+                      </p>
+                    )}
+                  </Field>
+
+                  <Field label="Card Type" required>
+                    <select
+                      className={base}
+                      value={cardTypeId}
+                      onChange={(e) => handleTypeChange(e.target.value)}
+                      disabled={!cardCategory || loadingTypes}
+                    >
+                      <option value="">
+                        {loadingTypes ? "Loading..." : "Select"}
+                      </option>
+                      {cardTypes.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.typeName}
+                        </option>
+                      ))}
+                    </select>
+                    {!cardCategory ? (
+                      <p className="mt-1 text-xs text-amber-600">
+                        ⚠ Pilih Card Category terlebih dahulu
+                      </p>
+                    ) : (
+                      cardCategory &&
+                      !cardTypeId && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          Pilih tipe kartu
+                        </p>
+                      )
+                    )}
+                  </Field>
+
+                  <Field label="Serial Number" required>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        className={base}
+                        value={serialNumber}
+                        onChange={(e) => handleCardSearch(e.target.value)}
+                        placeholder="Masukkan 2 digit tahun kartu dibuat + nomor (min 6 karakter)..."
+                        autoComplete="off"
+                        disabled={!cardTypeId}
+                      />
+                      {isSearching && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+                        </div>
+                      )}
+                      {searchResults.length > 0 && (
+                        <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
+                          {searchResults.map((card) => (
+                            <button
+                              key={card.id}
+                              type="button"
+                              onClick={() => handleCardSelect(card)}
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                            >
+                              {card.serialNumber}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                {serialNumber &&
-                  searchResults.length === 0 &&
-                  !isSearching &&
-                  serialNumber.length >= 6 &&
-                  !cardId && (
-                    <p className="mt-1 text-xs text-red-600">
-                      Tidak ada kartu ditemukan dengan serial number ini
-                    </p>
-                  )}
-                {serialNumber.length > 0 && serialNumber.length < 6 && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    Masukkan 2 digit tahun kartu dibuat + nomor (minimal 6 karakter total)
-                  </p>
-                )}
-              </Field>
+                    {serialNumber &&
+                      searchResults.length === 0 &&
+                      !isSearching &&
+                      serialNumber.length >= 6 &&
+                      !cardId && (
+                        <p className="mt-1 text-xs text-red-600">
+                          Tidak ada kartu ditemukan dengan serial number ini
+                        </p>
+                      )}
+                    {serialNumber.length > 0 && serialNumber.length < 6 && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        Masukkan 2 digit tahun kartu dibuat + nomor (minimal 6
+                        karakter total)
+                      </p>
+                    )}
+                  </Field>
                 </>
               )}
             </SectionCard>

@@ -114,7 +114,7 @@ export default function EditMemberPage() {
 
         if (item.phone?.startsWith("+")) {
           const matched = countryOptions.find((c) =>
-            item.phone.startsWith(`+${c.phone}`)
+            item.phone.startsWith(`+${c.phone}`),
           );
 
           if (matched) {
@@ -157,7 +157,7 @@ export default function EditMemberPage() {
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
+    >,
   ) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));

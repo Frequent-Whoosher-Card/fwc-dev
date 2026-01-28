@@ -29,7 +29,11 @@ interface MembershipTableProps {
   onPageChange: (page: number) => void;
   onView: (id: string) => void;
   onEdit: (id: string) => void;
-  onDelete: (member: { id: string; name?: string | null; nik?: string | null }) => void;
+  onDelete: (member: {
+    id: string;
+    name?: string | null;
+    nik?: string | null;
+  }) => void;
 }
 
 const formatNik = (nik?: string | null) => {
@@ -108,15 +112,11 @@ export default function MembershipTable({
                 </td>
                 <td className="px-4 py-2 text-left">{item.name || "-"}</td>
                 <td className="px-4 py-2 text-left">{item.nip || "-"}</td>
-                <td className="px-4 py-2 text-left">
-                  {formatNik(item.nik)}
-                </td>
+                <td className="px-4 py-2 text-left">{formatNik(item.nik)}</td>
                 <td className="px-4 py-2 text-left">
                   {item.nationality || "-"}
                 </td>
-                <td className="px-4 py-2 text-center">
-                  {item.gender || "-"}
-                </td>
+                <td className="px-4 py-2 text-center">{item.gender || "-"}</td>
                 <td className="px-4 py-2 text-left">{item.email || "-"}</td>
                 <td className="px-4 py-2 text-center">{item.phone || "-"}</td>
                 <td className="px-4 py-2 text-left">{item.address || "-"}</td>
