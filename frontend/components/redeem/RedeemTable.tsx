@@ -21,7 +21,7 @@ export default function RedeemTable({
   noDataMessage,
 }: RedeemTableProps) {
   // Debug jumlah data diterima
-  console.log('[DEBUG FRONTEND] Jumlah data diterima di tabel:', data.length);
+
   const formatDate = (date: string) => {
     if (!date) return '-';
     const d = new Date(date);
@@ -105,90 +105,88 @@ export default function RedeemTable({
                   <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap font-mono">
                     {item.card?.member?.identityNumber || '-'}
                   </td>
-                <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap font-mono">
-                  {item.transactionNumber || '-'}
-                </td>
-                <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap font-mono">
-                  {item.card?.serialNumber || '-'}
-                </td>
-                <td className="px-2 md:px-4 whitespace-nowrap">
-                  <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
-                    {item.card?.cardProduct?.category?.categoryName || '-'}
-                  </span>
-                </td>
-                <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                  {item.card?.cardProduct?.type?.typeName || '-'}
-                </td>
-                <td className="px-2 md:px-4 whitespace-nowrap">
-                  <span
-                    className={`px-2 py-1 rounded text-xs font-medium ${
-                      item.redeemType === 'SINGLE'
-                        ? 'bg-orange-100 text-orange-800'
-                        : 'bg-purple-100 text-purple-800'
-                    }`}
-                  >
-                    {item.redeemType === 'SINGLE'
-                      ? 'Single Journey'
-                      : 'Roundtrip'}
-                  </span>
-                </td>
-                <td className="px-2 md:px-4 py-3 text-sm text-gray-900 text-center whitespace-nowrap">
-                  {item.quotaUsed || (item.redeemType === 'SINGLE' ? 1 : 2)}
-                </td>
-                <td className="px-2 md:px-4 py-3 text-sm text-center whitespace-nowrap">
-                  <span className={`${isQuotaEmpty ? 'text-red-600' : 'text-green-600'}`}>
-                    {sisaKuota}
-                  </span>
-                </td>
-                <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                  {item.operator?.fullName || '-'}
-                </td>
-                <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                  {item.station?.stationName || '-'}
-                </td>
-                <td className="px-2 md:px-4 py-3 text-center whitespace-nowrap">
-                  {item.notes ? (
-                    <button
-                      className="px-3 py-1 rounded text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 transition"
-                      onClick={() => handleViewNotes(item)}
+                  <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap font-mono">
+                    {item.transactionNumber || '-'}
+                  </td>
+                  <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap font-mono">
+                    {item.card?.serialNumber || '-'}
+                  </td>
+                  <td className="px-2 md:px-4 whitespace-nowrap">
+                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                      {item.card?.cardProduct?.category?.categoryName || '-'}
+                    </span>
+                  </td>
+                  <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                    {item.card?.cardProduct?.type?.typeName || '-'}
+                  </td>
+                  <td className="px-2 md:px-4 whitespace-nowrap">
+                    <span
+                      className={`px-2 py-1 rounded text-xs font-medium ${item.redeemType === 'SINGLE'
+                          ? 'bg-orange-100 text-orange-800'
+                          : 'bg-purple-100 text-purple-800'
+                        }`}
                     >
-                      View Notes
-                    </button>
-                  ) : (
-                    <span className="text-gray-400">-</span>
-                  )}
-                </td>
-                <td className="px-2 md:px-4 whitespace-nowrap text-center">
-                  {/* Tombol last redeem selalu terlihat, disabled jika sisa kuota > 0 */}
-                  <button
-                    onClick={() => isQuotaEmpty && onUploadLastDoc(item)}
-                    className={`px-3 py-1 rounded text-xs font-medium transition ${
-                      isQuotaEmpty
-                        ? 'bg-green-600 text-white hover:bg-green-700 cursor-pointer'
-                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    }`}
-                    title={
-                      isQuotaEmpty
-                        ? 'Upload Foto Last Redeem'
-                        : 'Tombol akan aktif jika kuota telah habis'
-                    }
-                    disabled={!isQuotaEmpty}
-                  >
-                    Last Redeem
-                  </button>
-                </td>
-                <td className="px-2 md:px-4 whitespace-nowrap text-center">
-                  {canDelete && (
+                      {item.redeemType === 'SINGLE'
+                        ? 'Single Journey'
+                        : 'Roundtrip'}
+                    </span>
+                  </td>
+                  <td className="px-2 md:px-4 py-3 text-sm text-gray-900 text-center whitespace-nowrap">
+                    {item.quotaUsed || (item.redeemType === 'SINGLE' ? 1 : 2)}
+                  </td>
+                  <td className="px-2 md:px-4 py-3 text-sm text-center whitespace-nowrap">
+                    <span className={`${isQuotaEmpty ? 'text-red-600' : 'text-green-600'}`}>
+                      {sisaKuota}
+                    </span>
+                  </td>
+                  <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                    {item.operator?.fullName || '-'}
+                  </td>
+                  <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                    {item.station?.stationName || '-'}
+                  </td>
+                  <td className="px-2 md:px-4 py-3 text-center whitespace-nowrap">
+                    {item.notes ? (
+                      <button
+                        className="px-3 py-1 rounded text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 transition"
+                        onClick={() => handleViewNotes(item)}
+                      >
+                        View Notes
+                      </button>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </td>
+                  <td className="px-2 md:px-4 whitespace-nowrap text-center">
+                    {/* Tombol last redeem selalu terlihat, disabled jika sisa kuota > 0 */}
                     <button
-                      onClick={() => onDelete(item)}
-                      className="px-3 py-1 bg-red-600 text-white rounded text-xs font-medium hover:bg-red-700 transition"
+                      onClick={() => isQuotaEmpty && onUploadLastDoc(item)}
+                      className={`px-3 py-1 rounded text-xs font-medium transition ${isQuotaEmpty
+                          ? 'bg-green-600 text-white hover:bg-green-700 cursor-pointer'
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        }`}
+                      title={
+                        isQuotaEmpty
+                          ? 'Upload Foto Last Redeem'
+                          : 'Tombol akan aktif jika kuota telah habis'
+                      }
+                      disabled={!isQuotaEmpty}
                     >
-                      Hapus
+                      Last Redeem
                     </button>
-                  )}
-                </td>
-              </tr>
-            );
+                  </td>
+                  <td className="px-2 md:px-4 whitespace-nowrap text-center">
+                    {canDelete && (
+                      <button
+                        onClick={() => onDelete(item)}
+                        className="px-3 py-1 bg-red-600 text-white rounded text-xs font-medium hover:bg-red-700 transition"
+                      >
+                        Hapus
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
             })
           )}
         </tbody>
