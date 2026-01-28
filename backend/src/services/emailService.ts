@@ -17,7 +17,9 @@ interface PurchaseEmailData {
 }
 
 export class EmailService {
-  static async sendPurchaseConfirmation(data: PurchaseEmailData): Promise<void> {
+  static async sendPurchaseConfirmation(
+    data: PurchaseEmailData,
+  ): Promise<void> {
     const subject = `[INVOICE] ${data.productType} Purchase – ${data.purchaseDate}`;
 
     // Format harga dengan separator ribuan

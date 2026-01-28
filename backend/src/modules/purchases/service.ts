@@ -178,7 +178,10 @@ export class PurchaseService {
       await this.sendPurchaseConfirmationEmail(purchaseData);
     } catch (emailError) {
       // Log error but don't fail transaction
-      console.error("⚠️ Failed to send purchase confirmation email:", emailError);
+      console.error(
+        "⚠️ Failed to send purchase confirmation email:",
+        emailError,
+      );
     }
 
     return purchaseData;
@@ -937,7 +940,9 @@ export class PurchaseService {
   /**
    * Send purchase confirmation email to member
    */
-  private static async sendPurchaseConfirmationEmail(purchaseData: any): Promise<void> {
+  private static async sendPurchaseConfirmationEmail(
+    purchaseData: any,
+  ): Promise<void> {
     // Check if member has email
     if (!purchaseData.member?.email) {
       console.log("⏭️  Member has no email, skipping notification");
@@ -946,11 +951,14 @@ export class PurchaseService {
 
     // Prepare email data
     const productType = `${purchaseData.card.cardProduct.category.categoryName} - ${purchaseData.card.cardProduct.type.typeName}`;
-    const purchaseDate = new Date(purchaseData.purchaseDate).toLocaleDateString("id-ID", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    });
+    const purchaseDate = new Date(purchaseData.purchaseDate).toLocaleDateString(
+      "id-ID",
+      {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      },
+    );
 
     const expiredDate = purchaseData.card.expiredDate
       ? new Date(purchaseData.card.expiredDate).toLocaleDateString("id-ID", {
@@ -977,4 +985,3 @@ export class PurchaseService {
     });
   }
 }
-
