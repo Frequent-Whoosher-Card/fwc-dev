@@ -204,6 +204,9 @@ export class StockInFwcService {
 
     const where: any = {
       movementType: "IN",
+      category: {
+        programType: "FWC",
+      },
     };
 
     if (startDate && endDate) {
@@ -231,6 +234,7 @@ export class StockInFwcService {
 
     if (params.categoryName) {
       where.category = {
+        ...where.category,
         categoryName: {
           contains: params.categoryName,
           mode: "insensitive",

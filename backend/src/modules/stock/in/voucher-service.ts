@@ -193,6 +193,8 @@ export class StockInVoucherService {
     endDate?: Date;
     categoryId?: string;
     typeId?: string;
+    categoryName?: string;
+    typeName?: string;
     search?: string;
   }) {
     const page = Number(params.page) || 1;
@@ -202,7 +204,7 @@ export class StockInVoucherService {
     const where: any = {
       movementType: "IN",
       category: {
-        programType: "VOUCHER", // Filter ONLY Vouchers
+        programType: "VOUCHER",
       },
     };
 
@@ -225,12 +227,23 @@ export class StockInVoucherService {
       where.typeId = params.typeId;
     }
 
+    if (params.categoryName) {
+      where.category = {
+        ...where.category,
+        categoryName: { contains: params.categoryName, mode: "insensitive" },
+      };
+    }
+
+    if (params.typeName) {
+      where.type = {
+        typeName: { contains: params.typeName, mode: "insensitive" },
+      };
+    }
+
     if (params.search) {
       where.OR = [
         { batchId: { contains: params.search, mode: "insensitive" } },
         { note: { contains: params.search, mode: "insensitive" } },
-        // Optional: search by card product name if joined?
-        // Basic search: BatchID or Note
       ];
     }
 
@@ -255,7 +268,6 @@ export class StockInVoucherService {
       db.cardStockMovement.count({ where }),
     ]);
 
-    // Format Response
     const userIds = [
       ...(new Set(
         items.map((i) => i.createdBy).filter(Boolean),
@@ -269,7 +281,6 @@ export class StockInVoucherService {
 
     const formattedItems = await Promise.all(
       items.map(async (item) => {
-        // Try to find product for this cat/type
         const product = await db.cardProduct.findFirst({
           where: { categoryId: item.categoryId, typeId: item.typeId },
         });
@@ -299,6 +310,7 @@ export class StockInVoucherService {
             id: product?.id || "",
             name: productName,
           },
+          sentSerialNumbers: item.sentSerialNumbers as string[],
         };
       }),
     );
@@ -306,9 +318,10 @@ export class StockInVoucherService {
     return {
       items: formattedItems,
       pagination: {
-        currentPage: page,
+        total,
+        page,
+        limit: limitNum,
         totalPages: Math.ceil(total / limitNum),
-        totalItems: total,
       },
     };
   }
