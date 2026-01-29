@@ -112,6 +112,7 @@ const listRedeemRoutes = new Elysia()
           cardType: query.cardType,
           redeemType: query.redeemType,
           product: query.product as any,
+          isDeleted: query.isDeleted === 'true',
         });
 
         return {
@@ -208,9 +209,10 @@ const deleteRedeemRoutes = new Elysia()
   .use(rbacMiddleware(["superadmin", "admin", "supervisor"]))
   .delete(
     "/:id",
-    async ({ params: { id }, user, set }) => {
+    async ({ params: { id }, body, user, set }) => {
       try {
-        const result = await RedeemService.deleteRedeem(id, user?.id);
+        const { notes } = body as { notes?: string };
+        const result = await RedeemService.deleteRedeem(id, user?.id, notes);
         return {
           success: true,
           message: "Redeem transaction deleted and quota restored",

@@ -291,7 +291,6 @@ export default function TransactionFilter({
           <span className="text-sm">Shift</span>
         </button>
       </div>
-
     </div>
   );
 }

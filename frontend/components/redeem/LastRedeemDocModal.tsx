@@ -47,6 +47,17 @@ export default function LastRedeemDocModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Reset state when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setShowReupload(false);
+      setImageData(null);
+      setUseCamera(false);
+      setUploadProgress(0);
+      setMimeType('image/jpeg');
+    }
+  }, [isOpen]);
+
   const handleFileSelect = async (file: File) => {
     if (!file.type.startsWith('image/')) {
       toast.error('Silakan pilih file gambar');
@@ -68,18 +79,37 @@ export default function LastRedeemDocModal({
     reader.readAsDataURL(file);
   };
 
-  // Camera logic
+  const streamRef = useRef<MediaStream | null>(null);
+
+  // Stop camera tracks
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setUseCamera(false);
+  };
+
+  // Check permissions and start camera
   const handleCameraCapture = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        setUseCamera(true);
-      }
+      streamRef.current = stream;
+      setUseCamera(true);
+      // We don't attach url here because video element is not yet mounted.
+      // We'll do it in a useEffect or ref callback
     } catch (error) {
-      toast.error('Tidak dapat mengakses kamera');
+      console.error(error);
+      toast.error('Tidak dapat mengakses kamera. Pastikan izin diberikan.');
     }
   };
+
+  // Attach stream to video when useCamera becomes true and videoRef is available
+  useEffect(() => {
+    if (useCamera && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [useCamera]);
 
   const capturePhoto = () => {
     if (canvasRef.current && videoRef.current) {
@@ -91,20 +121,13 @@ export default function LastRedeemDocModal({
         const imageData = canvasRef.current.toDataURL('image/jpeg');
         setImageData(imageData);
         setMimeType('image/jpeg');
-        // Stop camera
-        const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-        tracks.forEach((track) => track.stop());
-        setUseCamera(false);
+        stopCamera();
       }
     }
   };
 
   const cancelCamera = () => {
-    if (videoRef.current?.srcObject) {
-      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-      tracks.forEach((track) => track.stop());
-    }
-    setUseCamera(false);
+    stopCamera();
   };
 
   // Drag and drop handlers
@@ -121,7 +144,6 @@ export default function LastRedeemDocModal({
     e.stopPropagation();
   };
 
-  // Camera logic removed (not used in UI)
 
   const handleUpload = async () => {
     if (!imageData) {
@@ -140,6 +162,7 @@ export default function LastRedeemDocModal({
       setImageData(null);
       onSuccess();
       onClose();
+      stopCamera(); // Ensure camera stopped
     } catch (error: any) {
       toast.error(error.message || 'Gagal mengupload foto');
     } finally {
@@ -148,8 +171,11 @@ export default function LastRedeemDocModal({
   };
 
   const handleClose = () => {
+    stopCamera(); // Stop camera first
     setImageData(null);
-    setUseCamera(false);
+    setShowReupload(false);
+    setUploadProgress(0);
+    if (fileInputRef.current) fileInputRef.current.value = '';
     onClose();
   };
 
@@ -233,14 +259,13 @@ export default function LastRedeemDocModal({
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 className="border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center py-10 mb-6 bg-gray-50 cursor-pointer transition hover:border-[#8D1231]"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => !imageData && fileInputRef.current?.click()}
               >
                 {!imageData ? (
                   <>
-                    {/* Cloud upload icon SVG (mirip gambar user) */}
                     <svg width="56" height="40" viewBox="0 0 56 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="mb-2">
-                      <path d="M41.5 34H14.5C8.70101 34 4 29.299 4 23.5C4 18.264 7.995 13.995 13.09 13.09C14.97 8.13 19.62 4.5 25 4.5C30.38 4.5 35.03 8.13 36.91 13.09C42.005 13.995 46 18.264 46 23.5C46 29.299 41.299 34 35.5 34H41.5Z" fill="#1DA1F2"/>
-                      <path d="M28 24V14M28 14L24 18M28 14L32 18" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M41.5 34H14.5C8.70101 34 4 29.299 4 23.5C4 18.264 7.995 13.995 13.09 13.09C14.97 8.13 19.62 4.5 25 4.5C30.38 4.5 35.03 8.13 36.91 13.09C42.005 13.995 46 18.264 46 23.5C46 29.299 41.299 34 35.5 34H41.5Z" fill="#1DA1F2" />
+                      <path d="M28 24V14M28 14L24 18M28 14L32 18" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                     <span className="text-gray-500 font-medium text-center">Drop Your Image Here, or Browse</span>
                     <input
@@ -252,24 +277,41 @@ export default function LastRedeemDocModal({
                     />
                   </>
                 ) : (
-                  <div className="w-full">
-                    <div className="flex items-center gap-2 border rounded bg-white px-3 py-2 mb-2">
-                      <img src={imageData} alt="Preview" className="w-8 h-8 object-cover rounded mr-2" />
-                      <span className="text-sm font-medium text-gray-700 flex-1 truncate">{fileInputRef.current?.files?.[0]?.name || 'Image'}</span>
-                      <span className="text-xs text-gray-400">{fileInputRef.current?.files?.[0]?.size ? `${(fileInputRef.current.files[0].size/1024).toFixed(0)} KB` : ''}</span>
-                      <svg className="w-5 h-5 text-green-600 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                  <div className="flex flex-col items-center w-full px-4" onClick={(e) => e.stopPropagation()}>
+                    <div className="relative w-full max-w-sm rounded-lg overflow-hidden border border-gray-200 bg-white shadow-sm mb-3">
+                      <img src={imageData} alt="Preview" className="w-full h-48 sm:h-64 object-contain bg-gray-100" />
                     </div>
-                    {/* Progress Bar */}
-                    <div className="w-full h-3 bg-gray-200 rounded mb-2">
-                      <div className="h-3 bg-[#22336c] rounded" style={{ width: `${uploadProgress}%` }} />
+
+                    <div className="flex items-center justify-between w-full max-w-sm px-1">
+                      <span className="text-sm text-gray-600 truncate max-w-[60%]">
+                        {fileInputRef.current?.files?.[0] ? fileInputRef.current.files[0].name : 'Hasil Kamera'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImageData(null);
+                          if (fileInputRef.current) fileInputRef.current.value = '';
+                          setUploadProgress(0);
+                        }}
+                        className="text-red-600 text-sm font-semibold hover:text-red-700 hover:underline flex items-center gap-1"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
+                        Hapus / Ulang
+                      </button>
                     </div>
+
+                    {uploadProgress > 0 && uploadProgress < 100 && (
+                      <div className="w-full max-w-sm mt-3 h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-600 transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             </>
           ) : (
             <div className="mb-6 flex flex-col items-center">
-              <video ref={videoRef} autoPlay playsInline className="w-full max-w-xs h-64 rounded bg-black mb-4" style={{display:'block'}} />
+              <video ref={videoRef} autoPlay playsInline className="w-full max-w-xs h-64 rounded bg-black mb-4" style={{ display: 'block' }} />
               <div className="flex gap-2 w-full">
                 <button
                   type="button"

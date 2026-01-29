@@ -258,6 +258,24 @@ model CardProduct {
   @@map("card_products")
 }
 
+model EmployeeType {
+  id          String    @id @default(uuid()) @map("employee_type_id") @db.Uuid
+  code        String    @unique @map("code")
+  name        String    @map("name")
+  description String?   @map("description")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  createdBy   String?   @map("created_by") @db.Uuid
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  updatedBy   String?   @map("updated_by") @db.Uuid
+  deletedAt   DateTime? @map("deleted_at")
+  deletedBy   String?   @map("deleted_by") @db.Uuid
+
+  // Relations
+  members Member[]
+
+  @@map("employee_types")
+}
+
 model Member {
   id             String         @id @default(uuid()) @map("member_id") @db.Uuid
   name           String         @map("member_name")
@@ -276,6 +294,10 @@ model Member {
   alamat         String?
   notes          String?
   companyName    String?        @map("company_name")
+  employeeTypeId String?        @map("employee_type_id") @db.Uuid
+  
+  // Relations
+  employeeType   EmployeeType?  @relation(fields: [employeeTypeId], references: [id])
   purchases      CardPurchase[]
   cards          Card[]
 

@@ -1,38 +1,21 @@
 "use client";
 
-import ConfirmDeleteModal from "./components/ConfirmDeleteModal";
-
-import { getStations, StationItem } from "@/lib/services/station.service";
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
 import toast from "react-hot-toast";
+
+import { getStations, StationItem } from "@/lib/services/station.service";
 import { getRoles, RoleItem } from "@/lib/services/user.service";
+import { getUsers, deleteUser } from "@/lib/services/user.service";
 
-import { getUsers, deleteUser } from "../../../../lib/services/user.service";
+import { getAuthMe } from "@/lib/services/auth.service";
 
-/* ======================
-   TYPES
-====================== */
-interface User {
-  id: string;
-  fullname: string;
-  nip: string;
-  username: string;
-  email: string;
-  phone: string;
-  role: string;
-  roleLabel: string;
-  station: string;
-}
-
-interface Pagination {
-  page: number;
-  limit: number;
-  totalPages: number;
-  total: number;
-}
+import UserHeader from "@/components/user/UserHeader";
+import UserFilter from "@/components/user/UserFilter";
+import UserTable from "@/components/user/UserTable";
+import UserPagination from "@/components/user/UserPagination";
+import ConfirmDeleteModal from "@/components/user/ConfirmDeleteModal";
+import { User, Pagination } from "@/components/user/types";
 
 /* ======================
    PAGE
@@ -66,6 +49,24 @@ export default function UserManagementPage() {
 
   const [roles, setRoles] = useState<RoleItem[]>([]);
   const [loadingRole, setLoadingRole] = useState(false);
+  
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  /* ======================
+     FETCH AUTH
+  ====================== */
+  useEffect(() => {
+    getAuthMe()
+      .then((res) => {
+        if (res?.data?.id) {
+            setCurrentUserId(res.data.id);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed get current user id", err);
+      });
+  }, []);
+
 
   /* ======================
      FETCH USERS
@@ -123,10 +124,12 @@ export default function UserManagementPage() {
   useEffect(() => {
     setPagination((p) => ({ ...p, page: 1 }));
     fetchUsers(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch, role, station]);
 
   useEffect(() => {
     fetchUsers(pagination.page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.page]);
 
   useEffect(() => {
@@ -145,30 +148,30 @@ export default function UserManagementPage() {
   }, []);
 
   useEffect(() => {
-  setLoadingRole(true);
+    setLoadingRole(true);
 
-  getRoles()
-    .then((res) => {
-      // AMAN: fallback ke array kosong
-      const roleItems = Array.isArray(res.data)
-        ? res.data
-        : res.data?.items ?? [];
+    getRoles()
+      .then((res) => {
+        // AMAN: fallback ke array kosong
+        const roleItems = Array.isArray(res.data)
+          ? res.data
+          : res.data?.items ?? [];
 
-      setRoles(roleItems);
-    })
-    .catch(() => {
-      toast.error("Failed load roles");
-      setRoles([]); // ⬅️ jaga-jaga
-    })
-    .finally(() => {
-      setLoadingRole(false);
-    });
-}, []);
-
+        setRoles(roleItems);
+      })
+      .catch(() => {
+        toast.error("Failed load roles");
+        setRoles([]); // ⬅️ jaga-jaga
+      })
+      .finally(() => {
+        setLoadingRole(false);
+      });
+  }, []);
 
   /* ======================
      DELETE
   ====================== */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const confirmDelete = async () => {
     if (!selectedUser) return;
 
@@ -184,240 +187,51 @@ export default function UserManagementPage() {
   };
 
   /* ======================
-     PAGINATION
-  ====================== */
-  const pageNumbers = Array.from(
-    { length: pagination.totalPages },
-    (_, i) => i + 1
-  ).slice(Math.max(0, pagination.page - 3), pagination.page + 2);
-
-  /* ======================
      RENDER
   ====================== */
   return (
     <div className="space-y-8">
       {/* HEADER */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">User Management</h1>
-
-        <div className="flex items-center gap-3">
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="search operator"
-            className="
-    h-10 w-full md:w-96
-    rounded-lg border border-gray-300 px-4 text-sm
-    focus:border-[#8D1231] focus:ring-1 focus:ring-[#8D1231]
-  "
-          />
-
-          <button
-            onClick={() => router.push("/dashboard/superadmin/user/create")}
-            className="
-    flex w-full items-center justify-center gap-2
-    rounded-lg bg-[#8D1231] px-5 py-2 text-sm text-white
-    hover:bg-[#73122E]
-    md:w-auto
-  "
-          >
-            <Plus size={16} />
-            add new User
-          </button>
-        </div>
-      </div>
+      <UserHeader
+        search={search}
+        setSearch={setSearch}
+        onAdd={() => router.push("/dashboard/superadmin/user/create")}
+      />
 
       {/* FILTER */}
-      <div
-        className="
-  flex flex-col gap-3
-  md:flex-row md:items-center
-  rounded-xl border bg-white px-6 py-4 shadow-sm
-"
-      >
-        <span className="text-sm font-semibold text-[#8D1231]">Filters:</span>
-
-        {/* STATION (UUID) */}
-        <select
-          value={station}
-          onChange={(e) => setStation(e.target.value)}
-          disabled={loadingStation}
-          className={`h-10 min-w-[160px] cursor-pointer rounded-lg border px-4 text-sm outline-none transition-colors ${
-            station !== "all"
-              ? "border-[#8D1231] bg-[#8D1231] text-white"
-              : "border-gray-300 bg-white text-gray-700 hover:border-[#8D1231] focus:bg-[#8D1231] focus:text-white"
-          }`}
-        >
-          <option value="all" disabled={loadingStation} className="bg-[#8D1231] text-white">
-            {loadingStation ? "Loading stasiun..." : "Stasiun"}
-          </option>
-
-          {stations.map((s) => (
-            <option key={s.id} value={s.id} className="bg-[#8D1231] text-white">
-              {s.stationName}
-            </option>
-          ))}
-        </select>
-
-        {/* ROLE (UUID) */}
-        <select
-          value={role}
-          onChange={(e) => setRole(e.target.value)}
-          disabled={loadingRole}
-          className={`h-10 min-w-[160px] cursor-pointer rounded-lg border px-4 text-sm outline-none transition-colors ${
-            role !== "all"
-              ? "border-[#8D1231] bg-[#8D1231] text-white"
-              : "border-gray-300 bg-white text-gray-700 hover:border-[#8D1231] focus:bg-[#8D1231] focus:text-white"
-          }`}
-        >
-          <option value="all" disabled={loadingRole} className="bg-[#8D1231] text-white">
-            {loadingRole ? "Loading role..." : "Role"}
-          </option>
-
-          {roles.map((r) => (
-            <option key={r.id} value={r.id} className="bg-[#8D1231] text-white">
-              {r.roleName}
-            </option>
-          ))}
-        </select>
-
-        <button
-          onClick={() => {
-            setSearch("");
-            setRole("all");
-            setStation("all");
-          }}
-          className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
-            search || role !== "all" || station !== "all"
-              ? "border-[#8D1231] bg-[#8D1231] text-white hover:bg-[#73122E]"
-              : "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
-          }`}
-        >
-          <RotateCcw size={16} />
-        </button>
-      </div>
+      <UserFilter
+        station={station}
+        setStation={setStation}
+        role={role}
+        setRole={setRole}
+        stations={stations}
+        roles={roles}
+        loadingStation={loadingStation}
+        loadingRole={loadingRole}
+        onReset={() => {
+          setSearch("");
+          setRole("all");
+          setStation("all");
+        }}
+        search={search}
+      />
 
       {/* TABLE */}
-      <div className="overflow-x-auto rounded-xl border bg-white shadow-sm">
-        <table className="w-full table-fixed text-sm">
-          <thead className="border-b bg-gray-50 text-[11px] font-semibold uppercase text-gray-600">
-            <tr>
-              <th className="w-[200px] px-4 py-3 text-left">Name</th>
-              <th className="w-[120px] px-4 py-3 text-left">NIP</th>
-              <th className="w-[140px] px-4 py-3 text-left">Username</th>
-              <th className="w-[200px] px-4 py-3 text-left">Email</th>
-              <th className="w-[140px] px-4 py-3 text-left">Phone</th>
-              <th className="w-[120px] px-4 py-3 text-left">Role</th>
-              <th className="w-[120px] px-4 py-3 text-left">Stasiun</th>
-              <th className="w-[100px] px-4 py-3 text-center">Aksi</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {data.map((u) => (
-              <tr key={u.id} className="border-t transition hover:bg-gray-50">
-                {/* NAME */}
-                <td className="px-4 py-2">
-                  <div className="truncate text-gray-900">{u.fullname}</div>
-                </td>
-
-                {/* NIP */}
-                <td className="px-4 py-2 whitespace-nowrap text-gray-700">
-                  {u.nip}
-                </td>
-
-                {/* USERNAME */}
-                <td className="px-4 py-2 truncate text-gray-700">
-                  {u.username}
-                </td>
-
-                {/* EMAIL */}
-                <td className="px-4 py-2 truncate text-gray-700">{u.email}</td>
-
-                {/* PHONE */}
-                <td className="px-4 py-2 whitespace-nowrap text-gray-700">
-                  {u.phone}
-                </td>
-
-                {/* ROLE */}
-                <td className="px-4 py-2 text-gray-800">{u.roleLabel}</td>
-
-                {/* STATION */}
-                <td className="px-4 py-2 text-gray-700">{u.station}</td>
-                {/* ACTION */}
-                <td className="px-4 py-2">
-                  <div className="flex flex-col items-center gap-1 md:flex-row md:justify-center">
-                    {/* EDIT */}
-                    <button
-                      onClick={() =>
-                        router.push(
-                          `/dashboard/superadmin/user/edit?id=${u.id}`
-                        )
-                      }
-                      className="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-700
-      hover:bg-gray-200"
-                    >
-                      Edit
-                    </button>
-
-                    {/* DELETE */}
-                    <button
-                      onClick={() => {
-                        setSelectedUser(u);
-                        setShowDelete(true);
-                      }}
-                      className="rounded-md bg-[#8D1231] px-2 py-1 text-xs text-white
-      hover:bg-[#73122E]"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {loading && (
-          <div className="p-4 text-center text-sm text-gray-400">
-            Loading data...
-          </div>
-        )}
-      </div>
+      <UserTable
+        data={data}
+        loading={loading}
+        currentUserId={currentUserId}
+        onEdit={(id) => router.push(`/dashboard/superadmin/user/edit?id=${id}`)}
+        onDelete={(user) => {
+          setSelectedUser(user);
+          setShowDelete(true);
+        }}
+      />
 
       {/* PAGINATION */}
-      <div
-        className="
-  flex flex-wrap items-center justify-center gap-3
-  px-4 text-sm
-"
-      >
-        <button
-          disabled={pagination.page === 1}
-          onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))}
-        >
-          <ChevronLeft size={18} />
-        </button>
+      <UserPagination pagination={pagination} setPagination={setPagination} />
 
-        {pageNumbers.map((p) => (
-          <button
-            key={p}
-            onClick={() => setPagination((pg) => ({ ...pg, page: p }))}
-            className={p === pagination.page ? "font-semibold underline" : ""}
-          >
-            {p}
-          </button>
-        ))}
-
-        <button
-          disabled={pagination.page === pagination.totalPages}
-          onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}
-        >
-          <ChevronRight size={18} />
-        </button>
-      </div>
-
-    {/* DELETE CONFIRM MODAL */}
+      {/* DELETE CONFIRM MODAL */}
       <ConfirmDeleteModal
         open={showDelete}
         name={selectedUser?.fullname || "-"}
@@ -437,9 +251,7 @@ export default function UserManagementPage() {
             setSelectedUser(null);
             fetchUsers(pagination.page);
           } catch (err: any) {
-            toast.error(
-              err?.response?.data?.message || "Failed delete user"
-            );
+            toast.error(err?.response?.data?.message || "Failed delete user");
           }
         }}
       />
