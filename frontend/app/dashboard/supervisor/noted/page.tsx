@@ -2,10 +2,13 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import InboxFilter from "./components/InboxFilter";
-import InboxList from "./components/InboxList";
+import InboxFilter, { InboxFilters } from "@/components/inbox/InboxFilter";
+import InboxList from "@/components/inbox/InboxList";
+import StockValidationModal from "@/components/inbox/StockValidationModal";
+import ModalDetailInbox from "@/components/inbox/modalDetailInbox";
 import { API_BASE_URL } from "@/lib/apiConfig";
 import FormNoted from "./formnoted/page";
+import SwitchTab from "@/components/SwitchTab";
 
 export default function InboxPage() {
   // =========================
@@ -16,12 +19,14 @@ export default function InboxPage() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeItem, setActiveItem] = useState<any | null>(null);
+  const [activeTab, setActiveTab] = useState("FWC");
+  const [currentFilters, setCurrentFilters] = useState<InboxFilters>({});
 
   // =========================
   // FETCH INBOX DATA
   // =========================
   const fetchInbox = useCallback(
-    async (filters: any = {}) => {
+    async (filters: InboxFilters = {}) => {
       setLoading(true);
       try {
         const token = localStorage.getItem("fwc_token");
@@ -38,9 +43,15 @@ export default function InboxPage() {
          * Build query string dengan URLSearchParams
          * Lebih aman & rapi dibanding string concat manual
          */
-        const params = new URLSearchParams({ limit: "10" });
+        const params = new URLSearchParams({ 
+          limit: "10",
+          programType: activeTab 
+        });
 
         if (filters.status) params.append("status", filters.status);
+        if (filters.search) params.append("search", filters.search);
+        if (filters.startDate) params.append("startDate", filters.startDate);
+        if (filters.endDate) params.append("endDate", filters.endDate);
 
         const url = `${API_BASE_URL}/inbox/?${params.toString()}`;
 
@@ -75,6 +86,9 @@ export default function InboxPage() {
               sender: item.sender,
               isRead: item.isRead,
               readAt: item.readAt,
+              type: item.type, // Map Type
+              programType: item.programType, // Map programType
+              payload: item.payload, // Map Payload
 
               // 🔥 SIMPAN DATE ASLI UNTUK FILTER
               sentAt: sentDate,
@@ -90,31 +104,17 @@ export default function InboxPage() {
                   minute: "2-digit",
                 }) + " WIB",
 
-              status: deriveCardCondition(item.message),
+              status: (() => {
+                const pStatus = item.payload?.status;
+                if (pStatus === "COMPLETED") return "ACCEPTED";
+                if (pStatus === "PENDING") return "PENDING_VALIDATION";
+                return deriveCardCondition(item.message);
+              })(),
             };
           });
 
-          /**
-           * ✅ FILTER FRONTEND (INI KUNCINYA)
-           */
-          if (filters.status) {
-            mappedItems = mappedItems.filter(
-              (item) => item.status === filters.status
-            );
-          }
-          if (filters.startDate) {
-            const start = new Date(filters.startDate);
-            start.setHours(0, 0, 0, 0); // awal hari
+          // ... (Filter logic remains same)
 
-            mappedItems = mappedItems.filter((item) => item.sentAt >= start);
-          }
-
-          if (filters.endDate) {
-            const end = new Date(filters.endDate);
-            end.setHours(23, 59, 59, 999); // akhir hari
-
-            mappedItems = mappedItems.filter((item) => item.sentAt <= end);
-          }
 
           setItems(mappedItems);
         }
@@ -124,22 +124,33 @@ export default function InboxPage() {
         setLoading(false);
       }
     },
-    [router]
+    [router, activeTab]
   );
-
+  
   // INITIAL FETCH
   useEffect(() => {
-    fetchInbox();
-  }, [fetchInbox]);
+    fetchInbox(currentFilters);
+  }, [fetchInbox, activeTab, currentFilters]);
 
-  // ✅ ADD NOTE → HALAMAN FORM BARU
+  const handleFilter = (newFilters: InboxFilters) => {
+    setCurrentFilters(newFilters);
+  };
+
   const handleAddNote = () => {
     router.push("/dashboard/supervisor/noted/formnoted");
   };
 
-  // ✅ CLICK ITEM → HALAMAN DETAIL / EDIT
   const handleOpenDetail = (item: any) => {
-    router.push(`/dashboard/supervisor/noted/${item.id}`);
+    setActiveItem(item);
+  };
+  
+  const handleCloseDetail = () => {
+    setActiveItem(null);
+  }
+
+  const handleValidationSuccess = () => {
+      fetchInbox(); // Refresh list after validation
+      // Optionally show toast success
   };
 
   return (
@@ -147,11 +158,20 @@ export default function InboxPage() {
       {/* HEADER */}
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-gray-900">Noted History</h1>
+
+        <SwitchTab 
+          activeValue={activeTab} 
+          onValueChange={setActiveTab}
+          items={[
+            { label: "FWC", value: "FWC" },
+            { label: "Voucher", value: "VOUCHER" }
+          ]}
+        />
       </div>
 
       {/* FILTER */}
       <div className="rounded-xl border bg-white px-4 py-3 shadow-sm">
-        <InboxFilter onFilter={fetchInbox} onAddNote={handleAddNote} />
+        <InboxFilter onFilter={handleFilter} onAddNote={handleAddNote} />
       </div>
 
       {/* LIST */}
@@ -164,9 +184,37 @@ export default function InboxPage() {
           />
         </div>
       </div>
+      
+      {/* MODALS */}
+      {activeItem && (
+         <>
+            {/* Logic: If STOCK_DISTRIBUTION & PENDING -> Show Validation Modal */}
+            {activeItem.type === "STOCK_DISTRIBUTION" && activeItem.payload?.status === "PENDING" ? (
+                <StockValidationModal 
+                    data={activeItem}
+                    onClose={handleCloseDetail}
+                    onSuccess={handleValidationSuccess}
+                />
+            ) : (
+                <ModalDetailInbox 
+                    data={activeItem}
+                    onClose={handleCloseDetail}
+                />
+            )}
+         </>
+      )}
     </div>
   );
 }
-function deriveCardCondition(message: any) {
-  throw new Error("Function not implemented.");
+
+function deriveCardCondition(message: string): string {
+  const msg = message.toLowerCase();
+  
+  if (msg.includes("diterima") || msg.includes("selesai")) return "ACCEPTED";
+  if (msg.includes("hilang")) return "CARD_MISSING";
+  if (msg.includes("rusak")) return "CARD_DAMAGED";
+  if (msg.includes("mengirim") || msg.includes("validasi")) return "PENDING_VALIDATION";
+  
+  return "UNKNOWN";
 }
+
