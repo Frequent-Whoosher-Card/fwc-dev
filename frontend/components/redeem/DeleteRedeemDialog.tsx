@@ -17,14 +17,25 @@ export default function DeleteRedeemDialog({
   data,
   onSuccess,
 }: DeleteRedeemDialogProps) {
+  /* Reason for deletion */
+  const [reason, setReason] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Validation: Minimum 15 characters
+  const charCount = reason.trim().length;
+  const isReasonValid = charCount >= 15;
 
   if (!isOpen || !data) return null;
 
   const handleDelete = async () => {
+    if (!isReasonValid) {
+      toast.error('Mohon isi alasan penghapusan minimal 15 karakter');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const result = await redeemService.deleteRedeem(data.id);
+      const result = await redeemService.deleteRedeem(data.id, reason);
 
       toast.custom(
         (t) => (
@@ -41,6 +52,7 @@ export default function DeleteRedeemDialog({
         { duration: 5000 }
       );
 
+      setReason(''); // Reset reason
       onSuccess();
       onClose();
     } catch (error: any) {
@@ -84,17 +96,11 @@ export default function DeleteRedeemDialog({
         </div>
 
         {/* Transaction Details */}
-        <div className="bg-gray-50 rounded-lg p-4 mb-6 space-y-2">
+        <div className="bg-gray-50 rounded-lg p-4 mb-4 space-y-2">
           <div>
             <p className="text-sm text-gray-600">Nomor Transaksi</p>
             <p className="font-mono font-semibold text-gray-900">
               {data.transactionNumber}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">Nomor Seri Kartu</p>
-            <p className="font-mono text-gray-900">
-              {data.card.serialNumber}
             </p>
           </div>
           <div>
@@ -111,10 +117,31 @@ export default function DeleteRedeemDialog({
           </div>
         </div>
 
+        {/* Reason Input */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Alasan Penghapusan <span className="text-red-500">*</span>
+          </label>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Contoh: Salah input serial number / Pelanggan membatalkan"
+            className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500 resize-none h-24"
+          />
+          <div className="mt-1 flex justify-between items-center text-xs">
+            <span className={`${isReasonValid ? 'text-green-600' : 'text-red-500'}`}>
+              {charCount} / 15 karakter minimal
+            </span>
+            {!isReasonValid && reason.length > 0 && (
+              <span className="text-red-500">Belum cukup</span>
+            )}
+          </div>
+        </div>
+
         {/* Action Buttons */}
         <div className="flex gap-3">
           <button
-            onClick={onClose}
+            onClick={() => { setReason(''); onClose(); }} // Clear reason on cancel
             disabled={isLoading}
             className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 disabled:opacity-50"
           >
@@ -122,8 +149,8 @@ export default function DeleteRedeemDialog({
           </button>
           <button
             onClick={handleDelete}
-            disabled={isLoading}
-            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50"
+            disabled={isLoading || !isReasonValid}
+            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? 'Processing...' : 'Hapus'}
           </button>
