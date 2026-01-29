@@ -151,8 +151,8 @@ export class StockInFwcService {
           typeId,
           stationId: null,
           quantity,
-          sentSerialNumbers: [], // Consistency: IN should have received
-          receivedSerialNumbers: serialNumbers,
+          sentSerialNumbers: serialNumbers, // Consistency: IN uses sent (per user request)
+          receivedSerialNumbers: [],
           lostSerialNumbers: [],
           note:
             note ??
@@ -252,7 +252,7 @@ export class StockInFwcService {
         where,
         skip,
         take: limit,
-        orderBy: { movementAt: "desc" },
+        orderBy: { createdAt: "desc" },
         include: {
           category: true,
           type: true,
@@ -358,10 +358,15 @@ export class StockInFwcService {
           name: movement.type.typeName,
           code: movement.type.typeCode,
         },
-        sentSerialNumbers: movement.sentSerialNumbers as string[], // Keep original array for reference
+        sentSerialNumbers: movement.sentSerialNumbers as string[],
+        receivedSerialNumbers: (movement as any)
+          .receivedSerialNumbers as string[],
         items: await (async () => {
-          const serials = (movement as any).sentSerialNumbers as string[];
-          if (!serials?.length) return [];
+          const serials = [
+            ...((movement.sentSerialNumbers as string[]) || []),
+            ...((movement.receivedSerialNumbers as string[]) || []),
+          ];
+          if (!serials.length) return [];
           const cards = await db.card.findMany({
             where: { serialNumber: { in: serials } },
             select: { serialNumber: true, status: true },

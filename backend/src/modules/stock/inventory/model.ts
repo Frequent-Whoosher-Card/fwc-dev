@@ -198,6 +198,14 @@ export namespace CardInventoryModel {
     data: t.Array(stationInventoryMonitorItem),
   });
 
+  export const stockConfigResponse = t.Object({
+    success: t.Boolean(),
+    data: t.Object({
+      minStockThreshold: t.Number(),
+      lowStockWarning: t.Number(),
+    }),
+  });
+
   export const errorResponse = t.Object({
     success: t.Boolean(),
     error: t.Object({
