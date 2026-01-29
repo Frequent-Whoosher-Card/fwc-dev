@@ -105,7 +105,7 @@ export default function BaseViewGenerateNumber() {
             </button>
           )}
           <button
-            onClick={() => handleExportZip(batch)}
+            onClick={() => handleExportZip(batch.id)}
             className="rounded-lg bg-[#8D1231] px-6 py-2 text-white"
           >
             Export ZIP
