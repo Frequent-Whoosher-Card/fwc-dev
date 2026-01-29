@@ -180,7 +180,8 @@ export default function TransactionPage({ role }: TransactionPageProps) {
   };
 
   const handleAddMember = () => {
-    router.push(`${basePath}/membership/create`);
+    const programType = activeTab === "voucher" ? "voucher" : "fwc";
+    router.push(`${basePath}/membership/create?programType=${programType}`);
   };
 
   const handleExportPDF = async () => {
