@@ -37,6 +37,17 @@ export const useStockInView = (
     fetchDetail();
   }, [fetchDetail]);
 
+  useEffect(() => {
+    const onFocus = () => {
+      fetchDetail();
+    };
+
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [fetchDetail]);
+
   const updateStatusBatch = async (serials: string[], status: string) => {
     if (serials.length === 0) {
       toast.error("Pilih minimal satu serial number");

@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Eye } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, Download } from "lucide-react";
 import { useGenerateNumber } from "@/hooks/useGenerateNumber";
 import SwitchTab, { SwitchTabItem } from "@/components/SwitchTab";
 
@@ -33,6 +33,7 @@ export default function BaseGenerateNumber({
     handleGenerate,
     fetchHistory,
     handleDelete,
+    handleExportZip,
   } = useGenerateNumber({ programType });
 
   const tabs: SwitchTabItem[] = [
@@ -225,6 +226,13 @@ export default function BaseGenerateNumber({
                       </td>
                       <td className="px-4 py-3 text-center">
                         <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => handleExportZip(item.id)}
+                            className="rounded border border-green-600 p-1 text-green-600 hover:bg-green-50"
+                            title="Download ZIP"
+                          >
+                            <Download size={18} />
+                          </button>
                           <button
                             onClick={() =>
                               router.push(
