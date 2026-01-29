@@ -211,7 +211,8 @@ export function useGenerateNumber({
     if (p) {
       fetchNextSerial(p.id);
       if (programType === "VOUCHER" && p.maxQuantity) {
-        setQuantity(String(p.maxQuantity));
+        const remaining = p.maxQuantity - (p.generatedCount || 0);
+        setQuantity(String(remaining > 0 ? remaining : 0));
       } else {
         setQuantity("");
       }
@@ -234,6 +235,17 @@ export function useGenerateNumber({
       return;
     }
 
+    if (programType === "VOUCHER" && selectedProduct.maxQuantity) {
+      const remaining =
+        selectedProduct.maxQuantity - (selectedProduct.generatedCount || 0);
+      if (qtyNumber > remaining) {
+        toast.error(
+          `Gagal generate! Sisa kuota hanya: ${remaining} (Max: ${selectedProduct.maxQuantity})`,
+        );
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       await CardGenerateService.generate({
@@ -247,6 +259,7 @@ export function useGenerateNumber({
       toast.success("Generate serial berhasil");
       fetchHistory(1);
       fetchNextSerial(selectedProduct.id);
+      fetchProducts(); // Refresh products to get updated generatedCount
     } catch (err: any) {
       toast.error(
         err?.response?.data?.error?.message ||
@@ -255,6 +268,26 @@ export function useGenerateNumber({
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      if (!confirm("Yakin ingin menghapus history ini?")) return;
+
+      setLoadingHistory(true);
+      const res = await CardGenerateService.delete(id);
+      toast.success(res.message || "Berhasil menghapus history");
+      fetchHistory(page); // Refresh current page
+    } catch (err: any) {
+      console.error("Delete error:", err);
+      toast.error(
+        err?.response?.data?.error?.message ||
+          err?.response?.data?.message ||
+          "Gagal menghapus history",
+      );
+    } finally {
+      setLoadingHistory(false);
     }
   };
 
@@ -296,5 +329,6 @@ export function useGenerateNumber({
     handleUploadDocument,
     handleViewDocument,
     loadingUpload,
+    handleDelete,
   };
 }

@@ -108,23 +108,58 @@ export default function BaseStockOutView() {
               <thead className="bg-gray-100 border-b sticky top-0 z-10">
                 <tr>
                   <th className="px-4 py-2 text-center w-16">No</th>
-                  <th className="px-4 py-2 text-left">Serial</th>
+                  <th className="px-4 py-2 text-left w-1/2 whitespace-nowrap">
+                    Serial
+                  </th>
+                  <th className="px-4 py-2 text-center w-32">Status</th>
+                  <th className="px-4 py-2 w-auto"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {data.sentSerialNumbers.length > 0 ? (
-                  data.sentSerialNumbers.map((serial, index) => (
-                    <tr key={serial} className="hover:bg-gray-50">
-                      <td className="px-4 py-2 text-center text-gray-400">
-                        {index + 1}
-                      </td>
-                      <td className="px-4 py-2 font-mono">{serial}</td>
-                    </tr>
-                  ))
+                  data.sentSerialNumbers.map((serial, index) => {
+                    let statusLabel = "IN_TRANSIT";
+                    let statusColor = "bg-yellow-100 text-yellow-700";
+
+                    if (data.status === "PENDING") {
+                      statusLabel = "IN_TRANSIT";
+                      statusColor = "bg-blue-100 text-blue-700";
+                    } else if (data.status === "APPROVED") {
+                      if (data.receivedSerialNumbers?.includes(serial)) {
+                        statusLabel = "IN_STATION";
+                        statusColor = "bg-green-100 text-green-700";
+                      } else if (data.lostSerialNumbers?.includes(serial)) {
+                        statusLabel = "LOST";
+                        statusColor = "bg-red-100 text-red-700";
+                      } else if (data.damagedSerialNumbers?.includes(serial)) {
+                        statusLabel = "DAMAGED";
+                        statusColor = "bg-red-100 text-red-700";
+                      }
+                    }
+
+                    return (
+                      <tr key={serial} className="hover:bg-gray-50">
+                        <td className="px-4 py-2 text-center text-gray-400">
+                          {index + 1}
+                        </td>
+                        <td className="px-4 py-2 font-mono whitespace-nowrap">
+                          {serial}
+                        </td>
+                        <td className="px-4 py-2 text-center">
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] uppercase font-bold ${statusColor}`}
+                          >
+                            {statusLabel.replace("_", " ")}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2"></td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
                     <td
-                      colSpan={2}
+                      colSpan={4}
                       className="px-4 py-6 text-center text-gray-500"
                     >
                       Tidak ada serial number

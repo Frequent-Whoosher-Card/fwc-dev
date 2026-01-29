@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye } from "lucide-react";
 import { useGenerateNumber } from "@/hooks/useGenerateNumber";
 import SwitchTab, { SwitchTabItem } from "@/components/SwitchTab";
 
@@ -32,6 +32,7 @@ export default function BaseGenerateNumber({
     handleSelectProduct,
     handleGenerate,
     fetchHistory,
+    handleDelete,
   } = useGenerateNumber({ programType });
 
   const tabs: SwitchTabItem[] = [
@@ -89,17 +90,36 @@ export default function BaseGenerateNumber({
               programType === "VOUCHER" ? "Jumlah generate" : "Jumlah kartu"
             }
             value={quantity}
-            disabled={
-              loading ||
-              (programType === "VOUCHER" && !!selectedProduct?.maxQuantity)
-            }
+            disabled={loading}
             onChange={(e) => setQuantity(e.target.value.replace(/\D/g, ""))}
           />
           {programType === "VOUCHER" && selectedProduct && (
             <div className="text-xs text-gray-500 px-1">
-              {selectedProduct.maxQuantity
-                ? `Max generate: ${selectedProduct.maxQuantity.toLocaleString()}`
-                : "No limit: diisi manual"}
+              {selectedProduct.maxQuantity ? (
+                <div className="flex flex-col gap-1">
+                  <span>
+                    Max Limit:{" "}
+                    <b>{selectedProduct.maxQuantity.toLocaleString()}</b>
+                  </span>
+                  <span>
+                    Terpakai:{" "}
+                    <b>
+                      {(selectedProduct.generatedCount || 0).toLocaleString()}
+                    </b>
+                  </span>
+                  <span>
+                    Sisa Quota:{" "}
+                    <b className="text-[#8D1231]">
+                      {(
+                        selectedProduct.maxQuantity -
+                        (selectedProduct.generatedCount || 0)
+                      ).toLocaleString()}
+                    </b>
+                  </span>
+                </div>
+              ) : (
+                "No limit: diisi manual"
+              )}
             </div>
           )}
         </div>
@@ -128,10 +148,18 @@ export default function BaseGenerateNumber({
 
       {/* TABLE */}
       <div className="rounded-xl border bg-white overflow-hidden">
+        {pagination && (
+          <div className="flex items-center justify-end px-4 py-3 border-b bg-gray-50">
+            <span className="inline-flex items-center gap-2 rounded-lg border border-[#8D1231]/20 bg-[#8D1231]/5 px-3 py-1 text-sm font-medium text-[#8D1231]">
+              Total Data: <b>{pagination.total || 0}</b>
+            </span>
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50 border-b">
               <tr className="text-left text-gray-600 uppercase text-xs tracking-wide">
+                <th className="px-4 py-3">No</th>
                 <th className="px-4 py-3">Tanggal</th>
                 <th className="px-4 py-3">Product</th>
                 <th className="px-4 py-3">Serial</th>
@@ -156,7 +184,7 @@ export default function BaseGenerateNumber({
                   </td>
                 </tr>
               ) : (
-                history.map((item) => {
+                history.map((item, index) => {
                   const isDiscount =
                     programType === "VOUCHER"
                       ? products.find(
@@ -168,6 +196,9 @@ export default function BaseGenerateNumber({
 
                   return (
                     <tr key={item.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        {(pagination.page - 1) * pagination.limit + index + 1}
+                      </td>
                       <td className="px-4 py-3">
                         {formatDateDMY(item.movementAt)}
                       </td>
@@ -193,16 +224,25 @@ export default function BaseGenerateNumber({
                           : "-"}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <button
-                          onClick={() =>
-                            router.push(
-                              `/dashboard/superadmin/generatenumber/${(programType || "fwc").toLowerCase()}/${item.id}/view`,
-                            )
-                          }
-                          className="text-[#8D1231] hover:underline"
-                        >
-                          View
-                        </button>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() =>
+                              router.push(
+                                `/dashboard/superadmin/generatenumber/${(programType || "fwc").toLowerCase()}/${item.id}/view`,
+                              )
+                            }
+                            className="rounded border border-[#8D1231] p-1 text-[#8D1231] hover:bg-red-50"
+                            title="View Detail"
+                          >
+                            <Eye size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(item.id)}
+                            className="rounded border border-red-600 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                          >
+                            Hapus
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -214,11 +254,11 @@ export default function BaseGenerateNumber({
 
         {/* PAGINATION */}
         {pagination && pagination.totalPages > 1 && (
-          <div className="my-4 flex justify-center gap-2 text-sm">
+          <div className="flex justify-center gap-2 text-sm py-4 border-t">
             <button
               disabled={page === 1}
               onClick={() => fetchHistory(page - 1)}
-              className="p-1 disabled:opacity-40"
+              className="p-1 disabled:opacity-40 hover:bg-gray-100 rounded transition-colors"
             >
               <ChevronLeft size={18} />
             </button>
@@ -227,7 +267,11 @@ export default function BaseGenerateNumber({
               <button
                 key={p}
                 onClick={() => fetchHistory(p)}
-                className={`px-2 py-1 ${p === page ? "font-semibold underline" : "text-gray-600"}`}
+                className={`px-3 py-1 rounded transition-colors ${
+                  p === page
+                    ? "bg-[#8D1231] text-white font-semibold"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
               >
                 {p}
               </button>
@@ -236,7 +280,7 @@ export default function BaseGenerateNumber({
             <button
               disabled={page === pagination.totalPages}
               onClick={() => fetchHistory(page + 1)}
-              className="p-1 disabled:opacity-40"
+              className="p-1 disabled:opacity-40 hover:bg-gray-100 rounded transition-colors"
             >
               <ChevronRight size={18} />
             </button>

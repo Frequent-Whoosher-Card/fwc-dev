@@ -74,7 +74,7 @@ const superadminMenuItems = [
   },
   { title: "Redeem Kuota", icon: IdCard, href: "/dashboard/superadmin/redeem" },
   {
-    title: "Stock Kartu",
+    title: "Stock",
     icon: CreditCard,
     href: "/dashboard/superadmin/stock/fwc",
     children: [
@@ -89,7 +89,7 @@ const superadminMenuItems = [
         icon: ArrowUpNarrowWide,
       },
       {
-        title: "Card All",
+        title: "Stock All",
         href: "/dashboard/superadmin/stock/fwc/all",
         icon: UserCircle,
       },

@@ -35,11 +35,52 @@ export namespace StockInVoucherModel {
   export const getHistoryQuery = t.Object({
     page: t.Optional(t.String()),
     limit: t.Optional(t.String()),
-    startDate: t.Optional(t.String()),
-    endDate: t.Optional(t.String()),
-    categoryId: t.Optional(t.String()),
-    typeId: t.Optional(t.String()),
+    startDate: t.Optional(t.String({ format: "date" })),
+    endDate: t.Optional(t.String({ format: "date" })),
+    categoryId: t.Optional(t.String({ format: "uuid" })),
+    typeId: t.Optional(t.String({ format: "uuid" })),
+    categoryName: t.Optional(t.String()),
+    typeName: t.Optional(t.String()),
     search: t.Optional(t.String()),
+  });
+
+  export const getHistoryResponse = t.Object({
+    success: t.Boolean(),
+    data: t.Object({
+      items: t.Array(
+        t.Object({
+          id: t.String(),
+          movementAt: t.String(),
+          quantity: t.Number(),
+          status: t.String(),
+          batchId: t.Union([t.String(), t.Null()]),
+          note: t.Union([t.String(), t.Null()]),
+          createdByName: t.Union([t.String(), t.Null()]),
+          cardCategory: t.Object({
+            id: t.String(),
+            name: t.String(),
+            code: t.String(),
+            programType: t.Union([t.String(), t.Null()]),
+          }),
+          cardType: t.Object({
+            id: t.String(),
+            name: t.String(),
+            code: t.String(),
+          }),
+          product: t.Object({
+            id: t.String(),
+            name: t.String(),
+          }),
+          sentSerialNumbers: t.Array(t.String()),
+        }),
+      ),
+      pagination: t.Object({
+        total: t.Number(),
+        page: t.Number(),
+        limit: t.Number(),
+        totalPages: t.Number(),
+      }),
+    }),
   });
 
   export const stockInVoucherResponse = t.Object({

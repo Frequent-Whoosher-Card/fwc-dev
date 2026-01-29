@@ -5,13 +5,22 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useStockInView } from "@/hooks/useStockInView";
 
-export default function BaseStockInView() {
+interface BaseStockInViewProps {
+  programType?: "FWC" | "VOUCHER";
+}
+
+export default function BaseStockInView({
+  programType = "FWC",
+}: BaseStockInViewProps) {
   const params = useParams();
   const id =
     typeof params === "object" && params !== null ? (params as any).id : "";
   const router = useRouter();
 
-  const { data, loading, updating, updateStatusBatch } = useStockInView(id);
+  const { data, loading, updating, updateStatusBatch } = useStockInView(
+    id,
+    programType,
+  );
 
   const [selectMode, setSelectMode] = useState(false);
   const [selectedSerials, setSelectedSerials] = useState<string[]>([]);
@@ -76,6 +85,21 @@ export default function BaseStockInView() {
                 : "-"}
             </p>
           </div>
+
+          <div>
+            <p className="text-sm text-gray-500">Status</p>
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                data.status === "APPROVED"
+                  ? "bg-green-100 text-green-700"
+                  : data.status === "PENDING"
+                    ? "bg-yellow-100 text-yellow-700"
+                    : "bg-gray-100 text-gray-600"
+              }`}
+            >
+              {data.status || "-"}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -116,14 +140,32 @@ export default function BaseStockInView() {
               {data.serialItems.length > 0 ? (
                 data.serialItems.slice(0, 100).map((item, index) => {
                   const isDamaged = item.status === "DAMAGED";
+                  const isLost = item.status === "LOST";
+
+                  let badgeColor = "bg-gray-100 text-gray-600";
+                  const normalizedStatus = item.status.replace("_", " ");
+
+                  if (item.status === "IN_OFFICE")
+                    badgeColor = "bg-green-100 text-green-700";
+                  else if (
+                    item.status === "IN_STATION" ||
+                    item.status === "DISTRIBUTED"
+                  )
+                    badgeColor = "bg-blue-100 text-blue-700";
+                  else if (item.status === "DAMAGED")
+                    badgeColor = "bg-red-100 text-red-700";
+                  else if (item.status === "LOST")
+                    badgeColor = "bg-orange-100 text-orange-700";
+                  else if (item.status === "ON_REQUEST")
+                    badgeColor = "bg-yellow-100 text-yellow-700";
 
                   return (
                     <tr
                       key={item.serialNumber}
-                      className={`border-b ${isDamaged ? "bg-gray-50 text-gray-400" : ""}`}
+                      className={`border-b ${isDamaged || isLost ? "bg-gray-50 text-gray-500" : ""}`}
                     >
                       <td className="px-4 py-2 text-center">
-                        {selectMode && !isDamaged ? (
+                        {selectMode && !isDamaged && !isLost ? (
                           <input
                             type="checkbox"
                             checked={selectedSerials.includes(
@@ -137,16 +179,16 @@ export default function BaseStockInView() {
                       </td>
 
                       <td
-                        className={`px-4 py-2 font-mono ${isDamaged ? "line-through opacity-60" : ""}`}
+                        className={`px-4 py-2 ${isDamaged || isLost ? "line-through opacity-60" : ""}`}
                       >
                         {item.serialNumber}
                       </td>
 
                       <td className="px-4 py-2">
                         <span
-                          className={`rounded px-2 py-0.5 text-xs font-medium ${isDamaged ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"}`}
+                          className={`rounded px-2 py-0.5 text-xs font-medium ${badgeColor}`}
                         >
-                          {item.status}
+                          {item.status.replace("_", " ")}
                         </span>
                       </td>
                     </tr>

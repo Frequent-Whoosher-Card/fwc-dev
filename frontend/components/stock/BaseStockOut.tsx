@@ -58,6 +58,7 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
         </div>
 
         <StockFilterReusable
+          programType={programType}
           values={{
             category,
             type,
@@ -102,6 +103,11 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
       </div>
 
       <div className="rounded-lg border bg-white overflow-hidden">
+        <div className="flex items-center justify-end px-4 py-3 border-b bg-gray-50">
+          <span className="inline-flex items-center gap-2 rounded-lg border border-[#8D1231]/20 bg-[#8D1231]/5 px-3 py-1 text-sm font-medium text-[#8D1231]">
+            Total Data: <b>{pagination.total || 0}</b>
+          </span>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1200px] border-collapse text-sm">
             <thead className="bg-gray-100 border-b">
@@ -168,7 +174,13 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
                     </td>
                     <td className="px-3 py-2 text-center">{row.bast || "-"}</td>
                     <td className="px-3 py-2 text-center">
-                      {row.stationName || "-"}
+                      {row.stationName ? (
+                        <span className="rounded px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700">
+                          {row.stationName}
+                        </span>
+                      ) : (
+                        "-"
+                      )}
                     </td>
                     <td className="px-3 py-2 text-center font-medium whitespace-nowrap">
                       {row.sentSerialNumbers?.length > 0
