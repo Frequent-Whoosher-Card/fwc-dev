@@ -268,7 +268,23 @@ const stockService = {
       ? `/stock/in/voucher/${id}`
       : `/stock/in/${programType.toLowerCase()}/${id}`;
 
-    const res = await axios.get(endpoint);
+    let res;
+    try {
+      res = await axios.get(endpoint);
+    } catch (error: any) {
+      // 🟢 HANDLE VALIDATION ERROR BACKEND (Elysia TypeBox)
+      // Jika error karena validasi output (property missing) tapi data ada di "found"
+      if (
+        error.response?.data?.type === "validation" &&
+        error.response?.data?.found?.data
+      ) {
+        // Construct a response-like object using the found data
+        res = { data: error.response.data.found };
+      } else {
+        throw error;
+      }
+    }
+
     const movement = res.data?.data?.movement || res.data?.data;
     if (!movement) throw new Error("Data tidak ditemukan");
 

@@ -20,6 +20,7 @@ export interface AllCardItem {
   serialNumber: string;
   status: CardStatus;
   date: string;
+  expiredDate: string | null;
   cardCategoryName: string;
   cardTypeName: string;
   stationName: string;
@@ -89,6 +90,7 @@ export const useAllCards = ({ programType }: UseAllCardsProps) => {
         serialNumber: item.serialNumber,
         status: item.status,
         date: item.purchaseDate || item.createdAt,
+        expiredDate: item.expiredDate || null,
         cardCategoryName: item.cardProduct?.category?.categoryName ?? "-",
         cardTypeName: item.cardProduct?.type?.typeName ?? "-",
         stationName: item.station?.stationName ?? "-",
