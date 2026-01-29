@@ -310,7 +310,9 @@ export class StockInVoucherService {
             id: product?.id || "",
             name: productName,
           },
-          sentSerialNumbers: item.sentSerialNumbers as string[],
+          sentSerialNumbers: (item.sentSerialNumbers?.length
+            ? item.sentSerialNumbers
+            : item.receivedSerialNumbers) as string[],
         };
       }),
     );
@@ -513,13 +515,14 @@ export class StockInVoucherService {
       if (movement.movementType !== "IN")
         throw new ValidationError("Not a Stock In record");
 
-      const receivedSerials = new Set(
-        (movement as any).receivedSerialNumbers as string[],
-      );
+      const batchSerials = new Set([
+        ...((movement as any).sentSerialNumbers || []),
+        ...((movement as any).receivedSerialNumbers || []),
+      ]);
 
       // 2. Validate Serials belong to this batch
       const invalidSerials = updates.filter(
-        (u) => !receivedSerials.has(u.serialNumber),
+        (u) => !batchSerials.has(u.serialNumber),
       );
       if (invalidSerials.length > 0) {
         throw new ValidationError(
