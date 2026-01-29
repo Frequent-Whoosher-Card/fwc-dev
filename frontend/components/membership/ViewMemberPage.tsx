@@ -7,6 +7,7 @@ import { ArrowLeft } from "lucide-react";
 import { getMemberById } from "@/lib/services/membership.service";
 import { getPurchases } from "@/lib/services/purchase.service";
 import { UserContext } from "@/app/dashboard/superadmin/dashboard/dashboard-layout";
+import { getEmployeeTypes } from "@/lib/services/employee-type.service";
 
 /* ======================
    TYPES
@@ -16,6 +17,7 @@ interface Membership {
   name: string;
   identityNumber: string;
   nippKai?: string | null;
+  employeeTypeId?: string | null;
   nationality: string;
   email: string | null;
   phone: string | null;
@@ -56,6 +58,7 @@ export default function MembershipDetailPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [employeeTypeName, setEmployeeTypeName] = useState<string>("-");
 
   /* ======================
      FETCH DATA
@@ -71,6 +74,19 @@ export default function MembershipDetailPage() {
         const memberRes = await getMemberById(id);
         const memberData: Membership = memberRes.data;
         setMember(memberData);
+
+        // Resolve employee type name if exists
+        if (memberData.employeeTypeId) {
+          try {
+            const employeeTypesRes = await getEmployeeTypes();
+            const employeeType = employeeTypesRes.data?.find(
+              (type) => type.id === memberData.employeeTypeId,
+            );
+            setEmployeeTypeName(employeeType?.name || "-");
+          } catch (err) {
+            console.error("Failed to load employee type:", err);
+          }
+        }
 
         // 2️⃣ GET PURCHASES BY NIK
         const purchaseRes = await getPurchases({
@@ -89,7 +105,7 @@ export default function MembershipDetailPage() {
             purchaseDate && masaBerlaku
               ? new Date(
                   new Date(purchaseDate).getTime() +
-                    masaBerlaku * 24 * 60 * 60 * 1000
+                    masaBerlaku * 24 * 60 * 60 * 1000,
                 ).toISOString()
               : "";
 
@@ -109,8 +125,8 @@ export default function MembershipDetailPage() {
               p.card?.status === "SOLD_ACTIVE"
                 ? "Active"
                 : p.card?.status === "SOLD_EXPIRED"
-                ? "Expired"
-                : "-",
+                  ? "Expired"
+                  : "-",
 
             cardCategory: p.card?.cardProduct?.category?.categoryName ?? "-",
 
@@ -159,7 +175,7 @@ export default function MembershipDetailPage() {
 
   const redeemed = transactions.reduce(
     (sum, t) => sum + (t.quota - t.remaining),
-    0
+    0,
   );
 
   const formatDate = (d?: string) => {
@@ -182,8 +198,8 @@ export default function MembershipDetailPage() {
     member.gender === "L"
       ? "Laki - Laki"
       : member.gender === "P"
-      ? "Perempuan"
-      : "-";
+        ? "Perempuan"
+        : "-";
 
   const activeTransaction =
     transactions.find((t) => t.status === "Active") ?? transactions[0];
@@ -251,6 +267,9 @@ export default function MembershipDetailPage() {
                 </>
               )}
 
+              <span className="text-gray-500">Employee Type</span>
+              <span>: {employeeTypeName}</span>
+
               <span className="text-gray-500">Gender</span>
               <span>: {genderLabel}</span>
 
@@ -287,7 +306,7 @@ export default function MembershipDetailPage() {
         </div>
 
         <div className="overflow-x-auto">
-<table className="min-w-[2400px] w-full table-fixed text-sm leading-relaxed">
+          <table className="min-w-[2400px] w-full table-fixed text-sm leading-relaxed">
             <thead className="bg-gray-50 text-xs text-gray-600">
               <tr>
                 <th className="px-4 py-3 text-left w-[140px]">Purchase Date</th>
@@ -328,8 +347,8 @@ export default function MembershipDetailPage() {
               trx.status === "Active"
                 ? "bg-green-100 text-green-700"
                 : trx.status === "Expired"
-                ? "bg-red-100 text-red-700"
-                : "bg-gray-100 text-gray-600"
+                  ? "bg-red-100 text-red-700"
+                  : "bg-gray-100 text-gray-600"
             }`}
                     >
                       {trx.status}

@@ -74,6 +74,7 @@ export namespace RedeemModel {
     cardType: t.Optional(t.String()),
     redeemType: t.Optional(t.String()),
     product: t.Optional(t.String()),
+    isDeleted: t.Optional(t.String()),
   });
 
   const redeemData = t.Object({

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import axios from '@/lib/axios';
 import toast from 'react-hot-toast';
 import { redeemService, RedeemCheckResponse } from '@/lib/services/redeem/redeemService';
 
@@ -17,10 +18,74 @@ export default function CreateRedeemModal({
   onSuccess,
   product = 'FWC',
 }: CreateRedeemModalProps) {
+  // Card Product Dropdown
+  const [products, setProducts] = useState<any[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState('');
+  const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
+  // Only 5 digit input
+  const [serialLast5, setSerialLast5] = useState('');
   const [serialNumber, setSerialNumber] = useState('');
+  // Fetch card products on open
+  useEffect(() => {
+    if (!isOpen) return;
+    axios.get('/card/product')
+      .then(res => {
+        const allProducts = res.data?.data || [];
+        // Filter sesuai dengan prop 'product' yang sedang aktif (FWC / VOUCHER)
+        const filtered = allProducts.filter((p: any) => p.programType === product);
+        setProducts(filtered);
+      })
+      .catch((err) => {
+        // Jika error 422 tapi ada data produk, tetap tampilkan & filter
+        if (err?.response?.data?.found?.data) {
+          const allProducts = err.response.data.found.data;
+          const filtered = allProducts.filter((p: any) => p.programType === product);
+          setProducts(filtered);
+          toast.error('Gagal mengambil card product, tapi data tetap ditampilkan.');
+        } else {
+          toast.error('Gagal mengambil card product');
+        }
+        // Log error detail ke console
+        if (err?.response) {
+          console.error('Card product error:', err.response.status, err.response.data);
+        } else {
+          console.error('Card product error:', err);
+        }
+      });
+  }, [isOpen, product]);
+
+  // Update selected product
+  useEffect(() => {
+    const p = products.find((x) => x.id === selectedProductId) || null;
+    setSelectedProduct(p);
+    setSerialLast5('');
+    setSerialNumber('');
+  }, [selectedProductId, products]);
+
+  // Gabungkan serial number: serialTemplate + yearSuffix + 5 digit input
+  useEffect(() => {
+    if (
+      selectedProduct &&
+      typeof selectedProduct.serialTemplate === 'string' &&
+      selectedProduct.serialTemplate.length >= 4 &&
+      serialLast5.length === 5
+    ) {
+      const yearSuffix = new Date().getFullYear().toString().slice(-2);
+      const prefix = `${selectedProduct.serialTemplate}${yearSuffix}`;
+      const serial = `${prefix}${serialLast5}`;
+      // Only set if result is all digits and length >= 11
+      if (/^\d+$/.test(serial) && serial.length >= 11) {
+        setSerialNumber(serial);
+      } else {
+        setSerialNumber("");
+      }
+    } else {
+      setSerialNumber("");
+    }
+  }, [selectedProduct, serialLast5]);
   const [cardData, setCardData] = useState<RedeemCheckResponse | null>(null);
   const [redeemType, setRedeemType] = useState<'SINGLE' | 'ROUNDTRIP'>('SINGLE');
-  const [notes, setNotes] = useState('');
+  // notes state removed
   const [isLoading, setIsLoading] = useState(false);
   const [userInfo, setUserInfo] = useState<any>(null);
 
@@ -31,6 +96,7 @@ export default function CreateRedeemModal({
         const user = await import('@/lib/services/auth.service').then(m => m.getAuthMe());
         setUserInfo(user);
       } catch (err) {
+        console.error('Failed to fetch user info', err);
         setUserInfo(null);
       }
     }
@@ -38,14 +104,23 @@ export default function CreateRedeemModal({
   }, []);
 
   const handleCheckSerial = async () => {
-    if (!serialNumber.trim()) {
-      toast.error('Serial number tidak boleh kosong');
+
+    if (!selectedProduct) {
+      toast.error('Pilih produk kartu terlebih dahulu');
+      return;
+    }
+    if (!serialLast5.match(/^\d{5}$/)) {
+      toast.error('Masukkan 5 digit terakhir serial');
+      return;
+    }
+    if (!serialNumber) {
+      toast.error('Serial number tidak valid');
       return;
     }
 
     setIsLoading(true);
     try {
-      const data = await redeemService.checkSerial(serialNumber, product);
+      const data = await redeemService.checkSerial(serialNumber, selectedProduct?.programType || product);
       // Validasi status kartu - HARUS dicek SEBELUM set cardData
       if (data.statusActive !== 'ACTIVE') {
         toast.error('Kartu tidak aktif. Silakan gunakan kartu yang aktif.');
@@ -99,8 +174,7 @@ export default function CreateRedeemModal({
         redeemType,
         operatorId: userInfo.id || userInfo.operatorId || userInfo.userId,
         stationId: userInfo.stationId || userInfo.station?.id,
-        product,
-        notes: notes.trim() || undefined,
+        product: selectedProduct?.programType || product, // use selected card's programType for backend
       };
       const result = await redeemService.createRedeem(payload);
       // Show result summary
@@ -122,12 +196,11 @@ export default function CreateRedeemModal({
       setSerialNumber('');
       setCardData(null);
       setRedeemType('SINGLE');
-      setNotes('');
       onSuccess();
       onClose();
     } catch (error: any) {
       let errorMessage = 'Terjadi kesalahan saat melakukan redeem';
-      // Handle specific error messages
+      // Handle specifi errors (omitted)
       if (error.message.includes('not found') || error.message.includes('Not found')) {
         errorMessage = 'Data kartu tidak ditemukan. Silakan periksa kembali.';
       } else if (error.message.includes('Not enough quota') || error.message.includes('quota') || error.message.includes('kuota')) {
@@ -149,7 +222,6 @@ export default function CreateRedeemModal({
     setSerialNumber('');
     setCardData(null);
     setRedeemType('SINGLE');
-    setNotes('');
     onClose();
   };
 
@@ -159,36 +231,71 @@ export default function CreateRedeemModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-semibold mb-4">Tambah Redeem Kuota</h2>
-        <div className="mb-2">
-          <span className="text-xs text-gray-500 mr-2">Produk:</span>
-          <span className="px-2 py-1 rounded bg-red-50 text-[#8D1231] font-semibold border border-[#8D1231] text-xs">{product}</span>
+
+        {/* Card Product Dropdown */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium mb-1">Pilih Produk Kartu</label>
+          <select
+            className="w-full rounded-lg border px-4 py-2 disabled:bg-gray-100"
+            value={selectedProductId}
+            disabled={isLoading}
+            onChange={e => setSelectedProductId(e.target.value)}
+          >
+            <option value="">-- Pilih Card Product --</option>
+            {products.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.category.categoryName} - {p.type.typeName}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Serial Input (5 digit) */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium mb-1">5 Digit Terakhir Serial Kartu</label>
+          <div className="flex gap-2 items-center">
+
+            {/* Prefix (Left) - Show only when product selected and serial has 5 chars (optional condition) */}
+            {selectedProduct && serialLast5.length === 5 && (
+              <span
+                className="bg-gray-100 border rounded-md px-3 py-2 text-sm font-mono text-gray-600 flex items-center h-[38px]"
+                title="Prefix Serial Number"
+              >
+                {selectedProduct.serialTemplate}{new Date().getFullYear().toString().slice(-2)}
+              </span>
+            )}
+
+            <input
+              type="text"
+              value={serialLast5}
+              onChange={e => setSerialLast5(e.target.value.replace(/\D/g, '').slice(0, 5))}
+              placeholder={selectedProduct ? "Misal: 12345" : "Pilih Produk Kartu terlebih dulu"}
+              className={`flex-1 px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono tracking-wide ${serialLast5.length === 5 ? 'bg-blue-50 border-blue-200' : ''}`}
+              disabled={isLoading || !selectedProduct}
+              maxLength={5}
+              style={{ minWidth: 100 }}
+            />
+          </div>
+          {/* Helper text explaining the full serial */}
+          {serialNumber && (
+            <p className="text-xs text-gray-500 mt-1">
+              Full Serial: <span className="font-mono font-medium">{serialNumber}</span>
+            </p>
+          )}
         </div>
 
         {/* Step 1: Check Serial */}
         {!cardData ? (
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Nomor Seri Kartu
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={serialNumber}
-                  onChange={(e) => setSerialNumber(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleCheckSerial()}
-                  placeholder="Masukkan nomor seri..."
-                  className="flex-1 px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={isLoading}
-                />
-                <button
-                  onClick={handleCheckSerial}
-                  disabled={isLoading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {isLoading ? 'Checking...' : 'Check'}
-                </button>
-              </div>
+            {/* Card Product Dropdown & Serial Input sudah di atas */}
+            <div className="flex gap-2">
+              <button
+                onClick={handleCheckSerial}
+                disabled={isLoading || serialLast5.length !== 5 || !serialNumber}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+              >
+                {isLoading ? 'Checking...' : 'Check'}
+              </button>
             </div>
           </div>
         ) : (
@@ -244,11 +351,10 @@ export default function CreateRedeemModal({
               <div>
                 <p className="text-gray-600 text-sm">Status</p>
                 <span
-                  className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                    cardData.statusActive === 'ACTIVE'
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-red-100 text-red-800'
-                  }`}
+                  className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${cardData.statusActive === 'ACTIVE'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                    }`}
                 >
                   {cardData.statusActive}
                 </span>
@@ -297,25 +403,11 @@ export default function CreateRedeemModal({
               </div>
             </div>
 
-            {/* Notes */}
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Catatan (Opsional)
-              </label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Masukkan catatan..."
-                className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none h-20"
-              />
-            </div>
-
             {/* Action Buttons */}
             <div className="flex gap-3">
               <button
                 onClick={() => {
                   setCardData(null);
-                  setSerialNumber('');
                 }}
                 className="flex-1 px-4 py-2 border rounded-md text-sm font-medium hover:bg-gray-50"
               >

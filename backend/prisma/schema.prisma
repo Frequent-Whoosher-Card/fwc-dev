@@ -258,26 +258,48 @@ model CardProduct {
   @@map("card_products")
 }
 
+model EmployeeType {
+  id          String    @id @default(uuid()) @map("employee_type_id") @db.Uuid
+  code        String    @unique @map("code")
+  name        String    @map("name")
+  description String?   @map("description")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  createdBy   String?   @map("created_by") @db.Uuid
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  updatedBy   String?   @map("updated_by") @db.Uuid
+  deletedAt   DateTime? @map("deleted_at")
+  deletedBy   String?   @map("deleted_by") @db.Uuid
+
+  // Relations
+  members Member[]
+
+  @@map("employee_types")
+}
+
 model Member {
-  id             String         @id @default(uuid()) @map("member_id") @db.Uuid
-  name           String         @map("member_name")
-  identityNumber String         @unique @map("identity_number")
+  id             String    @id @default(uuid()) @map("member_id") @db.Uuid
+  name           String    @map("member_name")
+  identityNumber String    @unique @map("identity_number")
   nationality    String?
   email          String?
   phone          String?
-  nippKai        String?        @map("nipp_kai")
-  createdAt      DateTime       @default(now()) @map("created_at")
-  createdBy      String?        @map("created_by") @db.Uuid
-  updatedAt      DateTime       @default(now()) @map("updated_at")
-  updatedBy      String?        @map("updated_by") @db.Uuid
-  deletedAt      DateTime?      @map("deleted_at")
-  deletedBy      String?        @map("deleted_by") @db.Uuid
+  nippKai        String?   @map("nipp_kai")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  createdBy      String?   @map("created_by") @db.Uuid
+  updatedAt      DateTime  @default(now()) @map("updated_at")
+  updatedBy      String?   @map("updated_by") @db.Uuid
+  deletedAt      DateTime? @map("deleted_at")
+  deletedBy      String?   @map("deleted_by") @db.Uuid
   gender         Gender?
   alamat         String?
   notes          String?
-  companyName    String?        @map("company_name")
-  purchases      CardPurchase[]
-  cards          Card[]
+  companyName    String?   @map("company_name")
+  employeeTypeId String?   @map("employee_type_id") @db.Uuid
+
+  // Relations
+  employeeType EmployeeType?  @relation(fields: [employeeTypeId], references: [id])
+  purchases    CardPurchase[]
+  cards        Card[]
 
   @@map("members")
 }
@@ -407,26 +429,29 @@ model CardStockMovement {
 }
 
 model Inbox {
-  id        String    @id @default(uuid()) @map("inbox_id") @db.Uuid
-  title     String    @map("title")
-  message   String    @map("message")
-  isRead    Boolean   @default(false) @map("is_read")
-  readAt    DateTime? @map("read_at")
-  sentAt    DateTime  @default(now()) @map("sent_at")
-  sentTo    String?   @map("sent_to") @db.Uuid
-  sentBy    String?   @map("sent_by") @db.Uuid
-  stationId String?   @map("station_id") @db.Uuid
-  type      String?   @map("type")
-  payload   Json?     @map("payload")
-  createdAt DateTime  @default(now()) @map("created_at")
-  createdBy String?   @map("created_by") @db.Uuid
-  updatedAt DateTime  @default(now()) @map("updated_at")
-  updatedBy String?   @map("updated_by") @db.Uuid
-  deletedAt DateTime? @map("deleted_at")
-  deletedBy String?   @map("deleted_by") @db.Uuid
-  sender    User?     @relation("SentInboxes", fields: [sentBy], references: [id])
-  recipient User?     @relation("ReceivedInboxes", fields: [sentTo], references: [id])
-  station   Station?  @relation(fields: [stationId], references: [id])
+  id            String       @id @default(uuid()) @map("inbox_id") @db.Uuid
+  title         String       @map("title")
+  message       String       @map("message")
+  isRead        Boolean      @default(false) @map("is_read")
+  readAt        DateTime?    @map("read_at")
+  sentAt        DateTime     @default(now()) @map("sent_at")
+  sentTo        String?      @map("sent_to") @db.Uuid
+  sentBy        String?      @map("sent_by") @db.Uuid
+  stationId     String?      @map("station_id") @db.Uuid
+  type          String?      @map("type")
+  payload       Json?        @map("payload")
+  programType   ProgramType? @map("program_type")
+  readByUserIds String[]     @default([]) @map("read_by_user_ids")
+  targetRoles   String[]     @default([]) @map("target_roles")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  createdBy     String?      @map("created_by") @db.Uuid
+  updatedAt     DateTime     @default(now()) @map("updated_at")
+  updatedBy     String?      @map("updated_by") @db.Uuid
+  deletedAt     DateTime?    @map("deleted_at")
+  deletedBy     String?      @map("deleted_by") @db.Uuid
+  sender        User?        @relation("SentInboxes", fields: [sentBy], references: [id])
+  recipient     User?        @relation("ReceivedInboxes", fields: [sentTo], references: [id])
+  station       Station?     @relation(fields: [stationId], references: [id])
 
   @@index([sentTo, isRead, createdAt], map: "idx_inbox_sent_to_read_created")
   @@index([sentTo, type, createdAt], map: "idx_inbox_sent_to_type_created")
