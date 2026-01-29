@@ -168,6 +168,11 @@ const CardGenerateService = {
     }
     return { blob: res.data, filename };
   },
+
+  delete: async (id: string) => {
+    const res = await axios.delete(`/cards/generate/history/${id}`);
+    return res.data;
+  },
 };
 
 export default CardGenerateService;

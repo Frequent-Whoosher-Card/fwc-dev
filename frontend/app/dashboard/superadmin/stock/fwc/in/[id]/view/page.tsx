@@ -3,5 +3,5 @@
 import BaseStockInView from "@/components/stock/BaseStockInView";
 
 export default function FWCStockInDetailPage() {
-  return <BaseStockInView />;
+  return <BaseStockInView programType="FWC" />;
 }

@@ -193,6 +193,8 @@ export class StockInVoucherService {
     endDate?: Date;
     categoryId?: string;
     typeId?: string;
+    categoryName?: string;
+    typeName?: string;
     search?: string;
   }) {
     const page = Number(params.page) || 1;
@@ -202,7 +204,7 @@ export class StockInVoucherService {
     const where: any = {
       movementType: "IN",
       category: {
-        programType: "VOUCHER", // Filter ONLY Vouchers
+        programType: "VOUCHER",
       },
     };
 
@@ -225,12 +227,23 @@ export class StockInVoucherService {
       where.typeId = params.typeId;
     }
 
+    if (params.categoryName) {
+      where.category = {
+        ...where.category,
+        categoryName: { contains: params.categoryName, mode: "insensitive" },
+      };
+    }
+
+    if (params.typeName) {
+      where.type = {
+        typeName: { contains: params.typeName, mode: "insensitive" },
+      };
+    }
+
     if (params.search) {
       where.OR = [
         { batchId: { contains: params.search, mode: "insensitive" } },
         { note: { contains: params.search, mode: "insensitive" } },
-        // Optional: search by card product name if joined?
-        // Basic search: BatchID or Note
       ];
     }
 
@@ -255,7 +268,6 @@ export class StockInVoucherService {
       db.cardStockMovement.count({ where }),
     ]);
 
-    // Format Response
     const userIds = [
       ...(new Set(
         items.map((i) => i.createdBy).filter(Boolean),
@@ -269,7 +281,6 @@ export class StockInVoucherService {
 
     const formattedItems = await Promise.all(
       items.map(async (item) => {
-        // Try to find product for this cat/type
         const product = await db.cardProduct.findFirst({
           where: { categoryId: item.categoryId, typeId: item.typeId },
         });
@@ -299,6 +310,9 @@ export class StockInVoucherService {
             id: product?.id || "",
             name: productName,
           },
+          sentSerialNumbers: (item.sentSerialNumbers?.length
+            ? item.sentSerialNumbers
+            : item.receivedSerialNumbers) as string[],
         };
       }),
     );
@@ -306,9 +320,10 @@ export class StockInVoucherService {
     return {
       items: formattedItems,
       pagination: {
-        currentPage: page,
+        total,
+        page,
+        limit: limitNum,
         totalPages: Math.ceil(total / limitNum),
-        totalItems: total,
       },
     };
   }
@@ -500,13 +515,14 @@ export class StockInVoucherService {
       if (movement.movementType !== "IN")
         throw new ValidationError("Not a Stock In record");
 
-      const receivedSerials = new Set(
-        (movement as any).receivedSerialNumbers as string[],
-      );
+      const batchSerials = new Set([
+        ...((movement as any).sentSerialNumbers || []),
+        ...((movement as any).receivedSerialNumbers || []),
+      ]);
 
       // 2. Validate Serials belong to this batch
       const invalidSerials = updates.filter(
-        (u) => !receivedSerials.has(u.serialNumber),
+        (u) => !batchSerials.has(u.serialNumber),
       );
       if (invalidSerials.length > 0) {
         throw new ValidationError(

@@ -17,7 +17,7 @@ const STATUS_OPTIONS = [
   "SOLD_INACTIVE",
 ];
 
-export default function EditCardPage() {
+export default function EditVoucherCardPage() {
   const router = useRouter();
   const params = useParams(); // expects { id: string }
   const id =
@@ -53,8 +53,8 @@ export default function EditCardPage() {
     try {
       await axiosInstance.patch(`/cards/${id}`, { status, notes: note });
       toast.success("Card updated successfully");
-      // Return to the list view (FWC)
-      router.push("/dashboard/superadmin/stock/fwc/all");
+      // Return to the list view (VOUCHER)
+      router.push("/dashboard/superadmin/stock/voucher/all");
     } catch (err) {
       toast.error("Failed to update card");
       console.error(err);
@@ -80,7 +80,7 @@ export default function EditCardPage() {
         >
           ←
         </button>
-        <h2 className="text-2xl font-semibold">Edit FWC Card</h2>
+        <h2 className="text-2xl font-semibold">Edit Voucher Card</h2>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -101,7 +101,7 @@ export default function EditCardPage() {
                 Program Type
               </label>
               <div className="font-medium">
-                {card.cardProduct?.programType || "FWC"}
+                {card.cardProduct?.programType || "VOUCHER"}
               </div>
             </div>
             <div>
