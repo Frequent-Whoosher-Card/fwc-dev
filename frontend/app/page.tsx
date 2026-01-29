@@ -204,7 +204,22 @@ export default function LoginPage() {
       }
     } catch (err) {
       console.error(err);
-      setAuthErrorMessage('Terjadi kesalahan sistem');
+      const rawMsg = err instanceof Error ? err.message : 'Terjadi kesalahan sistem';
+      const isDev = process.env.NODE_ENV === 'development';
+
+      if (rawMsg === 'Turnstile failed') {
+        setAuthErrorMessage(
+          isDev 
+            ? 'Turnstile failed (Client-side execution)' 
+            : 'Verifikasi keamanan gagal. Silakan coba lagi.'
+        );
+      } else {
+        setAuthErrorMessage(
+          isDev 
+            ? rawMsg 
+            : 'Terjadi kesalahan sistem'
+        );
+      }
       setShowAuthError(true);
       if (isTurnstileEnabled()) resetTurnstile(); // Reset on caught error
     } finally {
