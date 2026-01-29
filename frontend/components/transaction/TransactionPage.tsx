@@ -133,12 +133,14 @@ export default function TransactionPage({ role }: TransactionPageProps) {
       }
 
       if (activeTab === "voucher") {
-        setVoucherData([]);
-        setPagination((p) => ({
-          ...p,
-          totalPages: 1,
-          total: 0,
-        }));
+        const res = await getPurchases({
+          ...params,
+          transactionType: "voucher",
+        });
+        if (res.success && res.data) {
+          setVoucherData(res.data.items);
+          setPagination(res.data.pagination);
+        }
       }
     } finally {
       setLoading(false);
