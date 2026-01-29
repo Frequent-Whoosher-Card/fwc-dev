@@ -166,7 +166,7 @@ const stockService = {
     const { programType = "fwc", page = 1, limit = 10, ...rest } = params;
     const isVoucher = programType.toLowerCase() === "voucher";
     const endpoint = isVoucher
-      ? "/stock/in/voucher/history"
+      ? "/stock/in/voucher/"
       : `/stock/in/${programType.toLowerCase()}/`;
 
     if (isVoucher) {
@@ -265,7 +265,7 @@ const stockService = {
   ): Promise<StockInDetail> => {
     const isVoucher = programType.toLowerCase() === "voucher";
     const endpoint = isVoucher
-      ? `/stock/in/voucher/history/${id}`
+      ? `/stock/in/voucher/${id}`
       : `/stock/in/${programType.toLowerCase()}/${id}`;
 
     const res = await axios.get(endpoint);
