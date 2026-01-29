@@ -46,24 +46,39 @@ export namespace StockInVoucherModel {
     success: t.Boolean(),
     message: t.String(),
     data: t.Object({
-      id: t.String(),
-      movementAt: t.String(),
-      quantity: t.Number(),
-      status: t.String(),
-      batchId: t.Union([t.String(), t.Null()]),
-      note: t.Union([t.String(), t.Null()]),
-      category: t.Object({
+      movement: t.Object({
         id: t.String(),
-        name: t.String(),
-        programType: t.Union([t.String(), t.Null()]),
-      }),
-      type: t.Object({
-        id: t.String(),
-        name: t.String(),
-      }),
-      product: t.Object({
-        id: t.String(),
-        name: t.String(),
+        movementAt: t.String(),
+        movementType: t.String(),
+        quantity: t.Number(),
+        status: t.String(),
+        batchId: t.Union([t.String(), t.Null()]),
+        note: t.Union([t.String(), t.Null()]),
+        createdAt: t.String(),
+        createdByName: t.Union([t.String(), t.Null()]),
+        cardCategory: t.Object({
+          id: t.String(),
+          name: t.String(),
+          code: t.String(),
+          programType: t.Union([t.String(), t.Null()]),
+        }),
+        cardType: t.Object({
+          id: t.String(),
+          name: t.String(),
+          code: t.String(),
+        }),
+        product: t.Object({
+          id: t.String(),
+          name: t.String(),
+        }),
+        sentSerialNumbers: t.Array(t.String()),
+        receivedSerialNumbers: t.Array(t.String()),
+        items: t.Array(
+          t.Object({
+            serialNumber: t.String(),
+            status: t.String(),
+          }),
+        ),
       }),
     }),
   });

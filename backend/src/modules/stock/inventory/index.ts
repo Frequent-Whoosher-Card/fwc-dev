@@ -54,6 +54,31 @@ const createInventoryRoutes = (app: Elysia) =>
         },
       },
     )
+    // Get Stock Configuration (Thresholds)
+    .get(
+      "/config",
+      () => {
+        return {
+          success: true,
+          data: {
+            minStockThreshold: 50, // Default Hardlimit
+            lowStockWarning: 100, // Default Warning
+          },
+        };
+      },
+      {
+        response: {
+          200: CardInventoryModel.stockConfigResponse,
+          500: CardInventoryModel.errorResponse,
+        },
+        detail: {
+          tags: ["Stock All & Inventory"],
+          summary: "Get Stock Configuration",
+          description:
+            "Mendapatkan konfigurasi batas aman stok (Threshold) untuk keperluan UI/Warning.",
+        },
+      },
+    )
     // Get Low Stock Alerts (Global)
     .get(
       "/alerts",

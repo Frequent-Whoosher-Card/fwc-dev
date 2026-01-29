@@ -27,14 +27,14 @@ export class LowStockService {
     typeId: string,
     stationId: string,
     currentStock: number,
-    tx: any = db
+    tx: any = db,
   ) {
     if (!stationId) return; // Enforce stationId
 
     // 1. Get Details
     const category = await tx.cardCategory.findUnique({
       where: { id: categoryId },
-      select: { categoryName: true },
+      select: { categoryName: true, programType: true },
     });
     const type = await tx.cardType.findUnique({
       where: { id: typeId },
@@ -71,31 +71,30 @@ export class LowStockService {
 
       if (!hasActiveAlert) {
         // Create Alert for Admins
-        const roles = await tx.role.findMany({
-          where: { roleCode: { in: ["admin", "superadmin"] } },
-          select: { id: true },
-        });
-        const roleIds = roles.map((r: any) => r.id);
-        const admins = await tx.user.findMany({
-          where: { roleId: { in: roleIds }, isActive: true },
-          select: { id: true },
-        });
-
-        if (admins.length > 0) {
-          const inboxData = admins.map((admin: any) => ({
+        // Broadcast Alert
+        await tx.inbox.create({
+          data: {
             title: `Low Stock Alert: ${stationName}`,
             message: `Stok ${productName} di ${stationName} menipis (Sisa: ${currentStock}). Batas Minimum: ${threshold}.`,
-            sentTo: admin.id,
+            targetRoles: ["admin", "superadmin"],
+            sentTo: null,
             sentBy: null, // System
             stationId: stationId,
             type: "LOW_STOCK_ALERT",
-            payload: { categoryId, typeId, stationId, currentStock, threshold },
+            programType: category.programType,
+            payload: {
+              categoryId,
+              typeId,
+              stationId,
+              currentStock,
+              threshold,
+              status: "ALERT",
+            },
             isRead: false,
+            readByUserIds: [],
             createdAt: new Date(),
-          }));
-
-          await tx.inbox.createMany({ data: inboxData });
-        }
+          },
+        });
       }
     } else {
       // --- SUFFICIENT STOCK CONDITION ---

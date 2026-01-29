@@ -6,48 +6,206 @@ export class InboxService {
   /**
    * Get User Inbox
    */
-  static async getUserInbox(
-    userId: string,
-    params: {
-      page?: number;
-      limit?: number;
-      isRead?: boolean;
-      startDate?: string;
-      endDate?: string;
-      type?: string;
-    },
-  ) {
-    const { page = 1, limit = 10, isRead } = params;
+  static async getUserInbox(userId: string, params: any) {
+    const page = Number(params.page) || 1;
+    const limit = Number(params.limit) || 10;
     const skip = (page - 1) * limit;
+    const { status, search, programType } = params;
+
+    // --- 1. SYNC LOGIC (Backfill) ---
+    // Check if there are any PENDING stock distributions for this user (Supervisor)
+    // that are NOT in the inbox yet.
+    // This handles legacy data or missed events.
+
+    // Only run this check for page 1 to save perf
+    if (page === 1) {
+      const user = await db.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          role: { select: { roleCode: true } },
+          stationId: true,
+        },
+      });
+
+      if (user?.role?.roleCode === "supervisor" && user.stationId) {
+        // Find PENDING MOVEMENT OUT to this station
+        const pendingMovements = await db.cardStockMovement.findMany({
+          where: {
+            movementType: "OUT",
+            status: "PENDING",
+            stationId: user.stationId,
+          },
+          include: {
+            category: true,
+            type: true,
+          },
+        });
+
+        for (const m of pendingMovements) {
+          // Check if inbox exists
+          const exists = await db.inbox.findFirst({
+            where: {
+              sentTo: userId,
+              type: "STOCK_DISTRIBUTION",
+              payload: {
+                path: ["movementId"],
+                equals: m.id,
+              },
+            },
+          });
+
+          if (!exists) {
+            // Create Inbox Item
+            const productName = `${m.category.categoryName} - ${m.type.typeName}`;
+            const senderId = m.createdBy;
+
+            // Format dynamic message based on program type
+            const title =
+              m.category.programType === "VOUCHER"
+                ? `Kiriman Voucher: ${productName}`
+                : `Kiriman Stock: ${productName}`;
+
+            const message =
+              m.category.programType === "VOUCHER"
+                ? `Office mengirim ${m.quantity} voucher ${productName} ke stasiun (Synced).`
+                : `Office mengirimkan ${m.quantity} kartu ${productName} ke stasiun (Synced). Mohon cek fisik & validasi penerimaan.`;
+
+            await db.inbox.create({
+              data: {
+                title: title,
+                message: message,
+                sentTo: userId,
+                sentBy: senderId,
+                stationId: user.stationId,
+                type: "STOCK_DISTRIBUTION",
+                programType: m.category.programType,
+                payload: {
+                  movementId: m.id,
+                  status: "PENDING",
+                  isSynced: true,
+                  cardProductId: "",
+                  quantity: m.quantity,
+                  serials: m.sentSerialNumbers,
+                },
+                isRead: false,
+                createdAt: m.createdAt,
+              },
+            });
+          }
+        }
+      }
+    }
+    // --------------------------------
+
+    // --------------------------------
+    // REFACTOR: Use Array Logic for fetching
+    // --------------------------------
+
+    // 1. Get User Role & Station
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: {
+        role: { select: { roleCode: true } },
+        stationId: true,
+      },
+    });
+    const roleCode = user?.role?.roleCode || "";
+    const userStationId = user?.stationId || null;
+
+    // 2. Build Where Clause
+    // 2. Build Where Clause
+    const isAdmin = ["admin", "superadmin"].includes(roleCode);
+
+    const broadcastFilter: any = { targetRoles: { has: roleCode } };
+
+    // Only apply station scope if user is NOT admin/superadmin
+    // Admins should see broadcasts from ALL stations
+    if (!isAdmin) {
+      broadcastFilter.AND = [
+        {
+          OR: [
+            { stationId: null }, // Global Broadcast
+            { stationId: userStationId }, // Scoped Broadcast
+          ],
+        },
+      ];
+    }
 
     const where: any = {
-      sentTo: userId,
-      type: { not: "LOW_STOCK" }, // Filter out low stock alerts from main inbox
+      OR: [
+        { sentTo: userId }, // Legacy or Direct Message
+        broadcastFilter, // Broadcast Message
+      ],
     };
 
-    if (isRead !== undefined) {
-      where.isRead = isRead;
+    if (status) {
+      // Define station scope filter based on role
+      const stationScope = isAdmin
+        ? {} // Admin sees all stations
+        : { OR: [{ stationId: null }, { stationId: userStationId }] }; // Supervisor sees global + own station
+
+      if (status === "UNREAD") {
+        where.AND = [
+          {
+            OR: [
+              { sentTo: userId, isRead: false },
+              {
+                AND: [
+                  { targetRoles: { has: roleCode } },
+                  stationScope,
+                  { NOT: { readByUserIds: { has: userId } } },
+                ],
+              },
+            ],
+          },
+        ];
+      }
+      if (status === "READ") {
+        where.AND = [
+          {
+            OR: [
+              { sentTo: userId, isRead: true },
+              {
+                AND: [
+                  { targetRoles: { has: roleCode } },
+                  stationScope,
+                  { readByUserIds: { has: userId } },
+                ],
+              },
+            ],
+          },
+        ];
+      }
     }
 
-    if (params.startDate && params.endDate) {
-      where.sentAt = {
-        gte: new Date(params.startDate),
-        lte: new Date(params.endDate),
+    if (programType) {
+      where.programType = programType;
+    }
+
+    if (search) {
+      const searchFilter = {
+        OR: [
+          { title: { contains: search, mode: "insensitive" } },
+          { message: { contains: search, mode: "insensitive" } },
+        ],
       };
-    } else if (params.startDate) {
-      where.sentAt = { gte: new Date(params.startDate) };
+
+      // Merge with existing AND if present
+      if (where.AND) {
+        where.AND.push(searchFilter);
+      } else {
+        where.AND = [searchFilter];
+      }
     }
 
-    if (params.type && params.type !== "all") {
-      where.type = params.type;
-    }
-
-    const [items, total, unreadCount] = await Promise.all([
+    // 3. Execute Query
+    const [items, total] = await Promise.all([
       db.inbox.findMany({
         where,
         skip,
         take: limit,
-        orderBy: { sentAt: "desc" },
+        orderBy: { createdAt: "desc" },
         include: {
           sender: {
             select: {
@@ -56,41 +214,83 @@ export class InboxService {
               role: { select: { roleName: true } },
             },
           },
-          recipient: { select: { id: true, fullName: true } },
+          recipient: {
+            select: { id: true, fullName: true },
+          },
           station: { select: { id: true, stationName: true } },
         },
       }),
       db.inbox.count({ where }),
-      db.inbox.count({
-        where: { sentTo: userId, isRead: false, type: { not: "LOW_STOCK" } },
-      }),
     ]);
 
-    const mapped = items.map((i) => ({
-      id: i.id,
-      title: i.title,
-      message: i.message,
-      isRead: i.isRead,
-      readAt: i.readAt ? i.readAt.toISOString() : null,
-      sentAt: i.sentAt.toISOString(),
-      sender: {
-        id: i.sender?.id || "Unknown",
-        fullName: i.sender?.fullName || "Unknown Sender",
-        role: i.sender?.role?.roleName || "Unknown Role",
-      },
-      recipient: {
-        id: i.recipient?.id || "Unknown",
-        fullName: i.recipient?.fullName || "Unknown Recipient",
-      },
-      station: i.station
-        ? { id: i.station.id, stationName: i.station.stationName }
-        : null,
-      type: i.type,
-      payload: i.payload,
-    }));
+    // 4. Calculate Unread Count (Separate Query for accuracy)
+    // 4. Calculate Unread Count (Separate Query for accuracy)
+    const unreadScope = isAdmin
+      ? {}
+      : { OR: [{ stationId: null }, { stationId: userStationId }] };
+
+    const unreadWhere = {
+      OR: [
+        { sentTo: userId, isRead: false },
+        {
+          AND: [
+            { targetRoles: { has: roleCode } },
+            unreadScope,
+            {
+              NOT: { readByUserIds: { has: userId } },
+            },
+          ],
+        },
+      ],
+    };
+    const unreadCount = await db.inbox.count({ where: unreadWhere });
+
+    // 5. Map Items (Computed isRead)
+    const mappedItems = items.map((item) => {
+      // Determine if read by THIS user
+      let isRead = false;
+      let readAt = null;
+
+      if (item.sentTo === userId) {
+        isRead = item.isRead;
+        readAt = item.readAt ? item.readAt.toISOString() : null;
+      } else if (item.targetRoles && item.targetRoles.includes(roleCode)) {
+        isRead = item.readByUserIds.includes(userId);
+        // We don't track individual readAt for broadcasts easily without another map,
+        // so we can default to null or last updatedAt if needed.
+        // For now null is safe.
+        readAt = null;
+      }
+
+      return {
+        id: item.id,
+        title: item.title,
+        message: item.message,
+        isRead: isRead,
+        readAt: readAt,
+        sentAt: item.sentAt.toISOString(),
+        sender: {
+          id: item.sender?.id || "System",
+          fullName: item.sender?.fullName || "System",
+          role: item.sender?.role?.roleName || "System",
+        },
+        recipient: {
+          id:
+            item.recipient?.id || (item.targetRoles?.length ? "Broadcast" : ""),
+          fullName:
+            item.recipient?.fullName || item.targetRoles?.join(", ") || "",
+        },
+        station: item.station
+          ? { id: item.station.id, stationName: item.station.stationName }
+          : null,
+        type: item.type,
+        programType: item.programType,
+        payload: item.payload,
+      };
+    });
 
     return {
-      items: mapped,
+      items: mappedItems,
       pagination: {
         total,
         page,
@@ -102,104 +302,169 @@ export class InboxService {
   }
 
   /**
-   * Mark as Read
+   * Mark as Read (Refactored for Array)
    */
   static async markAsRead(inboxId: string, userId: string) {
-    const inbox = await db.inbox.findFirst({
-      where: { id: inboxId, sentTo: userId },
+    const inbox = await db.inbox.findUnique({
+      where: { id: inboxId },
     });
 
     if (!inbox) throw new ValidationError("Pesan tidak ditemukan");
 
+    // Check if Legacy/Direct
+    if (inbox.sentTo === userId) {
+      await db.inbox.update({
+        where: { id: inboxId },
+        data: { isRead: true, readAt: new Date(), updatedAt: new Date() },
+      });
+      return true;
+    }
+
+    // Check if Broadcast
+    // We need to know user's role to be theoretically safe,
+    // but simplified: if user calls this, we assume they are valid target.
+    // We just push their ID to readByUserIds if not already there.
+
+    // Check if already read to avoid DB write
+    if (inbox.readByUserIds.includes(userId)) return true;
+
     await db.inbox.update({
       where: { id: inboxId },
-      data: { isRead: true, readAt: new Date(), updatedAt: new Date() },
+      data: {
+        readByUserIds: {
+          push: userId,
+        },
+      },
     });
 
     return true;
   }
 
   /**
-   * Check Low Stock & Alert
-   * Logic: Iterate all stations, check inventory. If < threshold, alert admins.
-   * Threshold hardcoded to 10 for now, or could be product specific.
+   * Check Low Stock for a Specific Item (Transactional)
    */
-  static async checkLowStockAndAlert(systemUserId: string) {
-    const LOW_STOCK_THRESHOLD = 50; // Example threshold
-
-    // 1. Scan Inventories
-    const inventories = await db.cardInventory.findMany({
+  static async checkItemLowStock(
+    categoryId: string,
+    typeId: string,
+    stationId: string,
+    currentStock: number,
+    tx: any,
+  ) {
+    // 1. Get Threshold & Product Info
+    // Also fetch programType from category
+    const product = await tx.cardProduct.findFirst({
       where: {
-        stationId: { not: null }, // Only stations
-        cardBeredar: { lte: LOW_STOCK_THRESHOLD },
+        categoryId,
+        typeId,
       },
       include: {
-        station: true,
-        category: true,
-        type: true,
+        category: { select: { categoryName: true, programType: true } },
+        type: { select: { typeName: true, minStockThreshold: true } },
       },
     });
 
-    let alertsSent = 0;
+    if (!product) return; // Should not happen
 
-    // 2. Group by Station to avoid spamming? Or just 1 alert per low item?
-    // Let's do 1 alert per low item for now to be specific.
-    for (const inv of inventories) {
-      if (!inv.station) continue;
+    const threshold = product.type.minStockThreshold || 0;
+    const productName = `${product.category.categoryName} - ${product.type.typeName}`;
+    const programType = product.category.programType; // "FWC" or "VOUCHER"
 
-      const title = `Low Stock Alert: ${inv.station.stationName}`;
-      const message = `Stok untuk ${inv.category.categoryName} - ${inv.type.typeName} di stasiun ${inv.station.stationName} menipis (${inv.cardBeredar} tersisa).`;
-
-      // Check if we recently sent this alert to avoid duplication?
-      // For simplicity, we just send. Implementation could be refined to check "last alert" time.
-      // To prevent spam, we could check if there is an UNREAD inbox with same title/content today.
-
-      // Simple spam check:
-      const existing = await db.inbox.findFirst({
+    if (currentStock <= threshold) {
+      // 2. Check if we already alerted effectively "recently" or if alert is still active
+      // Logic: find latest unread LOW_STOCK alert for this product & station
+      const admins = await tx.user.findMany({
         where: {
-          title,
+          role: { roleCode: { in: ["admin", "superadmin"] } },
+          isActive: true,
+        },
+        select: { id: true },
+      });
+
+      if (admins.length === 0) return;
+
+      // Check existing alerts to avoid spam
+      // Simple debounce: Don't alert if there's an UNREAD alert for same item
+      const existingAlert = await tx.inbox.findFirst({
+        where: {
+          type: "LOW_STOCK_ALERT",
           isRead: false,
-          sentAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }, // last 24h
-          type: "LOW_STOCK",
+          stationId,
+          payload: {
+            path: ["cardProductId"],
+            equals: product.id,
+          },
         },
       });
 
-      if (!existing) {
-        // 3. Find Admins
-        const roles = await db.role.findMany({
-          where: { roleCode: { in: ["admin", "superadmin"] } },
-          select: { id: true },
+      if (!existingAlert) {
+        // Create Alert (BROADCAST)
+        const station = await tx.station.findUnique({
+          where: { id: stationId },
+          select: { stationName: true },
         });
-        const roleIds = roles.map((r) => r.id);
-        const admins = await db.user.findMany({
-          where: { roleId: { in: roleIds }, isActive: true },
-          select: { id: true },
-        });
+        const stationName = station?.stationName || "Unknown Station";
 
-        // 4. Create Inbox Entries
-        if (admins.length > 0) {
-          const inboxData = admins.map((admin) => ({
-            title,
-            message,
-            sentTo: admin.id,
-            sentBy: systemUserId,
-            stationId: inv.stationId || null,
-            type: "LOW_STOCK",
+        // Create ONE record for all admins
+        await tx.inbox.create({
+          data: {
+            title: `Low Stock Alert: ${productName}`,
+            message: `Stok ${productName} di ${stationName} menipis (${currentStock} tersisa). Threshold: ${threshold}.`,
+            targetRoles: ["admin", "superadmin"], // Broadcast Target
+            sentTo: null,
+            sentBy: "SYSTEM", // Or find system user
+            stationId,
+            type: "LOW_STOCK_ALERT",
+            programType: programType,
             payload: {
-              inventoryId: inv.id,
-              currentStock: inv.cardBeredar,
+              stationId,
+              cardProductId: product.id,
+              currentStock,
+              threshold,
+              status: "ALERT",
             },
             isRead: false,
+            readByUserIds: [], // Init empty
             createdAt: new Date(),
-          }));
-          await db.inbox.createMany({ data: inboxData });
-        }
-
-        alertsSent++;
+          },
+        });
       }
     }
+  }
 
-    return { alertsSent, stationsChecked: inventories.length };
+  /**
+   * Check All Low Stock (Global Scan)
+   * Triggered by Cron or Manual Button
+   */
+  static async checkLowStockAndAlert(systemUserId: string) {
+    // 1. Scan All Inventories
+    const inventories = await db.cardInventory.findMany({
+      where: {
+        stationId: { not: null }, // Only stations
+      },
+      select: {
+        id: true,
+        categoryId: true,
+        typeId: true,
+        stationId: true,
+        cardBeredar: true,
+      },
+    });
+
+    await db.$transaction(async (tx) => {
+      for (const inv of inventories) {
+        if (inv.stationId) {
+          await InboxService.checkItemLowStock(
+            inv.categoryId,
+            inv.typeId,
+            inv.stationId,
+            inv.cardBeredar,
+            tx,
+          );
+        }
+      }
+    });
+
+    return { stationsChecked: inventories.length };
   }
 
   /**
@@ -211,6 +476,7 @@ export class InboxService {
     startDate?: string;
     endDate?: string;
     status?: string;
+    programType?: string;
   }) {
     const { page = 1, limit = 10 } = params;
     const skip = (page - 1) * limit;
@@ -233,12 +499,11 @@ export class InboxService {
     }
 
     if (params.status && params.status !== "all") {
-      // Assuming 'status' maps to 'title' or 'type' based on design (e.g. 'Accepted' might be the title or type)
-      // Since the design shows statuses like "Accepted", "Card Missing", "Card Damaged" which look like Titles or Types.
-      // Let's filter by type if it matches, or title.
-      // For flexibility let's match type for now as it's cleaner, or assume frontend sends specific type codes.
-      // If status acts as "Type" filter:
       where.type = params.status;
+    }
+
+    if (params.programType) {
+      where.programType = params.programType;
     }
 
     const [items, total] = await Promise.all([
@@ -278,12 +543,18 @@ export class InboxService {
         role: i.sender?.role?.roleName || "Supervisor",
       },
       recipient: {
-        id: i.recipient?.id || "Unknown",
-        fullName: i.recipient?.fullName || "Unknown Recipient",
+        id: i.recipient?.id || (i.targetRoles.length ? "Broadcast" : "Unknown"),
+        fullName:
+          i.recipient?.fullName ||
+          (i.targetRoles.length
+            ? `Broadcast (${i.targetRoles.join(", ")})`
+            : "Unknown Recipient"),
       },
       station: i.station
         ? { id: i.station.id, stationName: i.station.stationName }
         : null,
+      programType: (i as any).programType, // Return programType
+      payload: i.payload,
     }));
 
     return {
@@ -388,7 +659,7 @@ export class InboxService {
    * Get Inbox Detail by ID
    */
   static async getInboxDetail(inboxId: string, userId: string) {
-    const inbox = await db.inbox.findFirst({
+    const inbox = await db.inbox.findUnique({
       where: {
         id: inboxId,
         // Optional: Ensure user can only see their own inbox?
@@ -447,8 +718,14 @@ export class InboxService {
         },
       },
       recipient: {
-        id: inbox.recipient?.id || "Unknown",
-        fullName: inbox.recipient?.fullName || "Unknown Recipient",
+        id:
+          inbox.recipient?.id ||
+          (inbox.targetRoles.length ? "Broadcast" : "Unknown"),
+        fullName:
+          inbox.recipient?.fullName ||
+          (inbox.targetRoles.length
+            ? `Broadcast (${inbox.targetRoles.join(", ")})`
+            : "Unknown Recipient"),
       },
       station: inbox.station
         ? {

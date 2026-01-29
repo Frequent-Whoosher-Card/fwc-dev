@@ -1,4 +1,5 @@
 import db from "../../../config/db";
+import { ProgramType } from "@prisma/client";
 import { ValidationError } from "../../../utils/errors";
 import { parseSmartSerial } from "../../../utils/serialHelper";
 import { InboxService } from "../../inbox/service";
@@ -156,15 +157,6 @@ export class StockOutFwcService {
     });
     const stationName = stationObj?.stationName || "Station";
 
-    const supervisors = await db.user.findMany({
-      where: {
-        role: { roleCode: "supervisor" },
-        stationId: stationId,
-        isActive: true,
-      },
-      select: { id: true },
-    });
-
     // --- TRANSACTION (WRITES ONLY) ---
     // Increase timeout slightly for bulk updates
     const transaction = await db.$transaction(
@@ -225,27 +217,32 @@ export class StockOutFwcService {
         });
 
         // --- NOTIFICATION TO SUPERVISOR ---
-        if (supervisors.length > 0) {
-          const productName = `${cardProduct.category.categoryName} - ${cardProduct.type.typeName}`;
-          const inboxData = supervisors.map((spv) => ({
+        // --- NOTIFICATION TO SUPERVISOR (Scoped Broadcast) ---
+        const productName = `${cardProduct.category.categoryName} - ${cardProduct.type.typeName}`;
+
+        await tx.inbox.create({
+          data: {
             title: `Kiriman Stock: ${productName}`,
             message: `Office mengirimkan ${sentCount} kartu ${productName} ke stasiun ${stationName}. Mohon cek fisik & validasi penerimaan.`,
-            sentTo: spv.id,
+            targetRoles: ["supervisor"],
+            sentTo: null,
             sentBy: userId,
-            stationId: stationId,
+            stationId: stationId, // Scoped to this station
             type: "STOCK_DISTRIBUTION",
+            programType: ProgramType.FWC,
             payload: {
               movementId: movement.id,
               cardProductId: cardProductId,
               quantity: sentCount,
               status: "PENDING",
+              serials: sent,
             },
             isRead: false,
+            readByUserIds: [],
             createdAt: new Date(),
-          }));
-
-          await tx.inbox.createMany({ data: inboxData });
-        }
+          },
+        });
+        // ----------------------------------
         // ----------------------------------
 
         return {
@@ -609,20 +606,52 @@ export class StockOutFwcService {
           });
         }
 
-        // 8) SEND NOTIFICATION (INBOX)
-        if (admins.length > 0) {
-          const inboxData = admins.map((admin) => ({
-            title,
-            message,
-            sentTo: admin.id,
-            sentBy: validatorUserId,
-            stationId: movement.stationId ?? null,
-            type,
-            payload,
-            isRead: false,
-            createdAt: new Date(),
-          }));
-          await tx.inbox.createMany({ data: inboxData });
+        // 9) NOTIFIKASI KE ADMIN JIKA ADA MASALAH (LOST/DAMAGED)
+        if (finalLost.length > 0 || finalDamaged.length > 0) {
+          const admins = await tx.user.findMany({
+            where: {
+              role: { roleCode: { in: ["admin", "superadmin"] } },
+              isActive: true,
+            },
+            select: { id: true },
+          });
+
+          if (admins.length > 0) {
+            const issueDetails = [];
+            if (finalLost.length)
+              issueDetails.push(`${finalLost.length} Hilang`);
+            if (finalDamaged.length)
+              issueDetails.push(`${finalDamaged.length} Rusak`);
+
+            const message = `Laporan Isu dari Station (FWC): ${issueDetails.join(", ")}. Mohon tinjau dan setujui perubahan status.`;
+
+            // Refactored to use Broadcast (Array Pattern)
+            await tx.inbox.create({
+              data: {
+                title: "Laporan Isu Stok (FWC)",
+                message: message,
+                targetRoles: ["admin", "superadmin"], // Broadcast
+                sentTo: null,
+                sentBy: validatorUserId,
+                stationId: validatorStationId,
+                type: "STOCK_ISSUE_REPORT",
+                programType: ProgramType.FWC,
+                payload: {
+                  movementId: movementId,
+                  stationId: validatorStationId,
+                  reporterName: "Supervisor (validatedBy)",
+                  lostCount: finalLost.length,
+                  damagedCount: finalDamaged.length,
+                  lostSerialNumbers: finalLost,
+                  damagedSerialNumbers: finalDamaged,
+                  status: "PENDING_APPROVAL",
+                },
+                isRead: false,
+                readByUserIds: [],
+                createdAt: new Date(),
+              },
+            });
+          }
         }
 
         return {
@@ -642,7 +671,7 @@ export class StockOutFwcService {
     await ActivityLogService.createActivityLog(
       validatorUserId,
       "VALIDATE_STOCK_OUT_FWC",
-      `Validated Stock Out ${movementId}: Received=${finalReceived.length}, Lost=${finalLost.length}, Damaged=${finalDamaged.length}`,
+      `Validated Stock Out ${movementId}: Received=${transaction.receivedCount}, Lost=${transaction.lostCount}, Damaged=${transaction.damagedCount}`,
     );
 
     return transaction;
@@ -1333,11 +1362,22 @@ export class StockOutFwcService {
    * Returns start/end serials with status IN_OFFICE for a given Product
    */
   static async getAvailableSerials(cardProductId: string) {
-    // 1. Get Count
+    // 1. Define Today's Range
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // 2. Get Count
     const count = await db.card.count({
       where: {
         cardProductId: cardProductId,
         status: "IN_OFFICE",
+        createdAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
       },
     });
 
@@ -1349,21 +1389,29 @@ export class StockOutFwcService {
       };
     }
 
-    // 2. Get Min (Start)
+    // 3. Get Min (Start)
     const firstCard = await db.card.findFirst({
       where: {
         cardProductId: cardProductId,
         status: "IN_OFFICE",
+        createdAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
       },
       orderBy: { serialNumber: "asc" },
       select: { serialNumber: true },
     });
 
-    // 3. Get Max (End)
+    // 4. Get Max (End)
     const lastCard = await db.card.findFirst({
       where: {
         cardProductId: cardProductId,
         status: "IN_OFFICE",
+        createdAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
       },
       orderBy: { serialNumber: "desc" },
       select: { serialNumber: true },

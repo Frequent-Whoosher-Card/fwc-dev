@@ -1,4 +1,5 @@
 import db from "../../../config/db";
+import { ProgramType } from "@prisma/client";
 import { ValidationError } from "../../../utils/errors";
 import { BatchService } from "src/services/batchService";
 import { LowStockService } from "src/services/lowStockService";
@@ -135,15 +136,6 @@ export class StockOutVoucherService {
     });
     const stationName = station?.stationName || "Station";
 
-    const supervisors = await db.user.findMany({
-      where: {
-        role: { roleCode: "supervisor" },
-        stationId,
-        isActive: true,
-      },
-      select: { id: true },
-    });
-
     // --- TRANSACTION ---
     const transaction = await db.$transaction(
       async (tx) => {
@@ -194,27 +186,32 @@ export class StockOutVoucherService {
         });
 
         // Inbox Notification
-        if (supervisors.length > 0) {
-          const productName = `${cardProduct.category.categoryName} - ${cardProduct.type.typeName}`;
-          const inboxData = supervisors.map((spv) => ({
+        // Inbox Notification (Scoped Broadcast)
+        const productName = `${cardProduct.category.categoryName} - ${cardProduct.type.typeName}`;
+
+        await tx.inbox.create({
+          data: {
             title: `Kiriman Voucher: ${productName}`,
             message: `Office mengirim ${sentCount} voucher ${productName} (Prod: ${d.toISOString().split("T")[0]}) ke stasiun ${stationName}.`,
-            sentTo: spv.id,
+            targetRoles: ["supervisor"],
+            sentTo: null,
             sentBy: userId,
-            stationId,
+            stationId: stationId, // Scoped to this station
             type: "STOCK_DISTRIBUTION",
+            programType: ProgramType.VOUCHER,
             payload: {
               movementId: movement.id,
               cardProductId,
               quantity: sentCount,
               status: "PENDING",
               serialDate: d.toISOString(),
+              serials: sent,
             },
             isRead: false,
+            readByUserIds: [],
             createdAt: new Date(),
-          }));
-          await tx.inbox.createMany({ data: inboxData });
-        }
+          },
+        });
 
         return {
           movementId: movement.id,
@@ -423,6 +420,55 @@ export class StockOutVoucherService {
         });
       }
 
+      // 9) NOTIFIKASI KE ADMIN JIKA ADA MASALAH (LOST/DAMAGED)
+
+      // 9) NOTIFIKASI KE ADMIN JIKA ADA MASALAH (LOST/DAMAGED)
+      if (finalLost.length > 0 || finalDamaged.length > 0) {
+        const admins = await tx.user.findMany({
+          where: {
+            role: { roleCode: { in: ["admin", "superadmin"] } },
+            isActive: true,
+          },
+          select: { id: true },
+        });
+
+        if (admins.length > 0) {
+          const issueDetails = [];
+          if (finalLost.length) issueDetails.push(`${finalLost.length} Hilang`);
+          if (finalDamaged.length)
+            issueDetails.push(`${finalDamaged.length} Rusak`);
+
+          const message = `Laporan Isu dari Station (VOUCHER): ${issueDetails.join(", ")}. Mohon tinjau dan setujui perubahan status.`;
+
+          // Refactored to use Broadcast (Array Pattern)
+          await tx.inbox.create({
+            data: {
+              title: "Laporan Isu Stok (Voucher)",
+              message: message,
+              targetRoles: ["admin", "superadmin"], // Broadcast
+              sentTo: null,
+              sentBy: validatorUserId,
+              stationId: validatorStationId,
+              type: "STOCK_ISSUE_REPORT",
+              programType: ProgramType.VOUCHER,
+              payload: {
+                movementId: movementId,
+                stationId: validatorStationId,
+                reporterName: "Supervisor (validatedBy)",
+                lostCount: finalLost.length,
+                damagedCount: finalDamaged.length,
+                lostSerialNumbers: finalLost,
+                damagedSerialNumbers: finalDamaged,
+                status: "PENDING_APPROVAL",
+              },
+              isRead: false,
+              readByUserIds: [],
+              createdAt: new Date(),
+            },
+          });
+        }
+      }
+
       return {
         movementId,
         status: "APPROVED",
@@ -436,7 +482,7 @@ export class StockOutVoucherService {
     await ActivityLogService.createActivityLog(
       validatorUserId,
       "VALIDATE_STOCK_OUT_VOUCHER",
-      `Validated Stock Out Voucher ${movementId}: Received=${finalReceived.length}, Lost=${finalLost.length}, Damaged=${finalDamaged.length}`,
+      `Validated Stock Out Voucher ${movementId}: Received=${transaction.receivedCount}, Lost=${transaction.lostCount}, Damaged=${transaction.damagedCount}`,
     );
 
     return transaction;
@@ -687,10 +733,21 @@ export class StockOutVoucherService {
    * Get Available Serials for Stock Out Voucher
    */
   static async getAvailableSerials(cardProductId: string) {
+    // 1. Define Today's Range
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
     const count = await db.card.count({
       where: {
         cardProductId: cardProductId,
         status: "IN_OFFICE",
+        createdAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
       },
     });
 
@@ -706,6 +763,10 @@ export class StockOutVoucherService {
       where: {
         cardProductId: cardProductId,
         status: "IN_OFFICE",
+        createdAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
       },
       orderBy: { serialNumber: "asc" },
       select: { serialNumber: true },
@@ -715,6 +776,10 @@ export class StockOutVoucherService {
       where: {
         cardProductId: cardProductId,
         status: "IN_OFFICE",
+        createdAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
       },
       orderBy: { serialNumber: "desc" },
       select: { serialNumber: true },
