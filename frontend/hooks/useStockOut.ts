@@ -9,6 +9,7 @@ import toast from "react-hot-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useAuthClient } from "./useAuthClient";
+import { initPDFReport } from "@/lib/utils/pdf-export";
 
 export type StockOutStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
 
@@ -105,18 +106,6 @@ export const useStockOut = ({ programType }: UseStockOutProps) => {
 
   const handleExportPDF = async () => {
     try {
-      const doc = new jsPDF("p", "mm", "a4");
-      const title = `Laporan Stock Out ${programType} (Admin ke Stasiun)`;
-      const pageWidth = doc.internal.pageSize.getWidth();
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
-      doc.text(title, pageWidth / 2, 15, { align: "center" });
-
-      // Filter Info
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      let filterY = 22;
       const filtersArr = [];
       if (fromDate || toDate) {
         const start = fromDate
@@ -129,27 +118,12 @@ export const useStockOut = ({ programType }: UseStockOutProps) => {
       if (type !== "all") filtersArr.push(`Tipe: ${type}`);
       if (station !== "all") filtersArr.push(`Stasiun: ${station}`);
 
-      if (filtersArr.length > 0) {
-        doc.text(`Filter: ${filtersArr.join(" | ")}`, 14, filterY);
-        filterY += 6;
-      }
-
-      // User & Time Info
-      doc.setFontSize(9);
-      doc.setTextColor(100);
-      const exportTime = new Date().toLocaleString("id-ID", {
-        dateStyle: "medium",
-        timeStyle: "short",
+      const { doc, startY } = await initPDFReport({
+        title: `Laporan Stock Out ${programType} (Admin ke Stasiun)`,
+        filters: filtersArr,
+        userName: auth?.name || auth?.username || "Admin",
+        programType,
       });
-      doc.text(
-        `Export oleh: ${auth?.name || auth?.username || "Admin"} | Waktu: ${exportTime}`,
-        14,
-        filterY,
-      );
-      filterY += 4;
-      doc.setTextColor(0);
-
-      doc.line(14, filterY, pageWidth - 14, filterY);
 
       const { items: allData } = await stockService.getStockOutList({
         page: 1,
@@ -166,13 +140,13 @@ export const useStockOut = ({ programType }: UseStockOutProps) => {
         stationName: station !== "all" ? station : undefined,
       });
 
-      if (allData.length === 0) {
+      if (!allData || !Array.isArray(allData) || allData.length === 0) {
         toast.error("Tidak ada data untuk diexport");
         return;
       }
 
       autoTable(doc, {
-        startY: filterY + 4,
+        startY: startY,
         head: [
           [
             "No",
@@ -222,6 +196,7 @@ export const useStockOut = ({ programType }: UseStockOutProps) => {
 
       doc.save(`laporan-stock-out-${programType.toLowerCase()}.pdf`);
     } catch (err) {
+      console.error("PDF Export Error (Stock Out):", err);
       toast.error("Gagal export PDF");
     }
   };

@@ -73,7 +73,7 @@ const superadminMenuItems = [
   },
   { title: "Redeem Kuota", icon: IdCard, href: "/dashboard/superadmin/redeem" },
   {
-    title: "Stock Kartu",
+    title: "Stock",
     icon: CreditCard,
     href: "/dashboard/superadmin/stock/fwc",
     children: [
@@ -88,7 +88,7 @@ const superadminMenuItems = [
         icon: ArrowUpNarrowWide,
       },
       {
-        title: "Card All",
+        title: "Stock All",
         href: "/dashboard/superadmin/stock/fwc/all",
         icon: UserCircle,
       },
@@ -167,7 +167,11 @@ const supervisorMenuItems = [
     href: "/dashboard/supervisor/membership",
   },
   { title: "Redeem Kuota", icon: IdCard, href: "/dashboard/supervisor/redeem" },
-  { title: "Transaksi", icon: Receipt, href: "/dashboard/supervisor/transaksi" },
+  {
+    title: "Transaksi",
+    icon: Receipt,
+    href: "/dashboard/supervisor/transaksi",
+  },
   { title: "Noted", icon: Inbox, href: "/dashboard/supervisor/noted" },
 ];
 

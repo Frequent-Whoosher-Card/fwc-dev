@@ -9,6 +9,7 @@ import toast from "react-hot-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useAuthClient } from "./useAuthClient";
+import { initPDFReport } from "@/lib/utils/pdf-export";
 
 interface UseStockInProps {
   programType: "FWC" | "VOUCHER";
@@ -102,18 +103,6 @@ export const useStockIn = ({ programType }: UseStockInProps) => {
 
   const handleExportPDF = async () => {
     try {
-      const doc = new jsPDF("p", "mm", "a4");
-      const title = `Laporan Stock In ${programType} (Vendor ke Office)`;
-      const pageWidth = doc.internal.pageSize.getWidth();
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
-      doc.text(title, pageWidth / 2, 15, { align: "center" });
-
-      // Filter Info
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      let filterY = 22;
       const filtersArr = [];
       if (fromDate || toDate) {
         const start = fromDate
@@ -125,27 +114,12 @@ export const useStockIn = ({ programType }: UseStockInProps) => {
       if (category !== "all") filtersArr.push(`Kategori: ${category}`);
       if (type !== "all") filtersArr.push(`Tipe: ${type}`);
 
-      if (filtersArr.length > 0) {
-        doc.text(`Filter: ${filtersArr.join(" | ")}`, 14, filterY);
-        filterY += 6;
-      }
-
-      // User & Time Info
-      doc.setFontSize(9);
-      doc.setTextColor(100);
-      const exportTime = new Date().toLocaleString("id-ID", {
-        dateStyle: "medium",
-        timeStyle: "short",
+      const { doc, startY } = await initPDFReport({
+        title: `Laporan Stock In ${programType} (Vendor ke Office)`,
+        filters: filtersArr,
+        userName: auth?.name || auth?.username || "Admin",
+        programType,
       });
-      doc.text(
-        `Export oleh: ${auth?.name || auth?.username || "Admin"} | Waktu: ${exportTime}`,
-        14,
-        filterY,
-      );
-      filterY += 4;
-      doc.setTextColor(0);
-
-      doc.line(14, filterY, pageWidth - 14, filterY);
 
       const { items: allData } = await stockService.getStockInList({
         page: 1,
@@ -161,23 +135,40 @@ export const useStockIn = ({ programType }: UseStockInProps) => {
         typeName: type !== "all" ? type : undefined,
       });
 
-      if (allData.length === 0) {
+      if (!allData || !Array.isArray(allData) || allData.length === 0) {
         toast.error("Tidak ada data untuk diexport");
         return;
       }
 
       autoTable(doc, {
-        startY: filterY + 4,
-        head: [["No", "Tanggal", "Category", "Type", "Stock Masuk"]],
-        body: allData.map((item: any, index: number) => [
-          index + 1,
-          new Date(item.tanggal)
-            .toLocaleDateString("id-ID")
-            .replace(/\//g, "-"),
-          item.category ?? "-",
-          item.type ?? "-",
-          item.stock.toLocaleString(),
-        ]),
+        startY: startY,
+        head: [
+          ["No", "Tanggal", "Category", "Type", "Stock Masuk", "Serial Number"],
+        ],
+        body: allData.map((item: any, index: number) => {
+          let serialDisplay = "-";
+          if (
+            item.sentSerialNumbers &&
+            Array.isArray(item.sentSerialNumbers) &&
+            item.sentSerialNumbers.length > 0
+          ) {
+            const first = item.sentSerialNumbers[0];
+            const last =
+              item.sentSerialNumbers[item.sentSerialNumbers.length - 1];
+            serialDisplay = first === last ? first : `${first} - ${last}`;
+          }
+
+          return [
+            index + 1,
+            new Date(item.tanggal)
+              .toLocaleDateString("id-ID")
+              .replace(/\//g, "-"),
+            item.category ?? "-",
+            item.type ?? "-",
+            item.stock?.toLocaleString() ?? "0",
+            serialDisplay,
+          ];
+        }),
         styles: {
           font: "helvetica",
           fontSize: 10,
@@ -197,8 +188,8 @@ export const useStockIn = ({ programType }: UseStockInProps) => {
 
       doc.save(`laporan-stock-in-${programType.toLowerCase()}.pdf`);
     } catch (err) {
+      console.error("PDF Export Error (Stock In):", err);
       toast.error("Gagal export PDF");
-      console.error(err);
     }
   };
 

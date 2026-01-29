@@ -72,6 +72,9 @@ export interface StockOutDetail {
     name: string;
   };
   sentSerialNumbers: string[];
+  receivedSerialNumbers: string[];
+  lostSerialNumbers: string[];
+  damagedSerialNumbers: string[];
   batchId?: string | null;
   notaDinas?: string | null;
   bast?: string | null;
@@ -179,7 +182,10 @@ const stockService = {
           categoryId: item.category?.id || item.cardCategory?.id || "",
           type: item.type?.name || item.cardType?.name || "-",
           stock: item.quantity,
-          sentSerialNumbers: item.sentSerialNumbers ?? [],
+          sentSerialNumbers:
+            item.sentSerialNumbers && item.sentSerialNumbers.length > 0
+              ? item.sentSerialNumbers
+              : (item.receivedSerialNumbers ?? []),
         })),
         pagination: {
           total: pagination.totalItems ?? pagination.total ?? 0,
@@ -257,7 +263,12 @@ const stockService = {
     id: string,
     programType: string = "fwc",
   ): Promise<StockInDetail> => {
-    const res = await axios.get(`/stock/in/${programType.toLowerCase()}/${id}`);
+    const isVoucher = programType.toLowerCase() === "voucher";
+    const endpoint = isVoucher
+      ? `/stock/in/voucher/history/${id}`
+      : `/stock/in/${programType.toLowerCase()}/${id}`;
+
+    const res = await axios.get(endpoint);
     const movement = res.data?.data?.movement || res.data?.data;
     if (!movement) throw new Error("Data tidak ditemukan");
 
@@ -291,6 +302,7 @@ const stockService = {
     id: string,
     updates: { serialNumber: string; status: string }[],
     programType: string = "fwc",
+    status?: string, // Add status field
   ) => {
     return axios.put(
       `/stock/in/${programType.toLowerCase()}/${id}/status-batch`,
@@ -370,6 +382,15 @@ const stockService = {
       },
       sentSerialNumbers: Array.isArray(item.sentSerialNumbers)
         ? item.sentSerialNumbers
+        : [],
+      receivedSerialNumbers: Array.isArray(item.receivedSerialNumbers)
+        ? item.receivedSerialNumbers
+        : [],
+      lostSerialNumbers: Array.isArray(item.lostSerialNumbers)
+        ? item.lostSerialNumbers
+        : [],
+      damagedSerialNumbers: Array.isArray(item.damagedSerialNumbers)
+        ? item.damagedSerialNumbers
         : [],
       batchId: item.batchId,
       notaDinas: item.notaDinas,

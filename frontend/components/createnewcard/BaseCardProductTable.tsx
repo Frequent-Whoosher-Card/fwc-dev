@@ -10,6 +10,7 @@ interface Props {
   page?: number;
   totalPages?: number;
   onPageChange?: (page: number) => void;
+  totalData?: number;
 }
 
 export default function BaseCardProductTable({
@@ -19,6 +20,7 @@ export default function BaseCardProductTable({
   page = 1,
   totalPages = 1,
   onPageChange,
+  totalData = 0,
 }: Props) {
   const router = useRouter();
 
@@ -41,10 +43,16 @@ export default function BaseCardProductTable({
   return (
     <div className="space-y-4">
       <div className="rounded-xl border bg-white overflow-hidden">
+        <div className="flex items-center justify-end px-6 py-4 border-b bg-gray-50">
+          <span className="inline-flex items-center gap-2 rounded-lg border border-[#8D1231]/20 bg-[#8D1231]/5 px-3 py-1 text-sm font-medium text-[#8D1231]">
+            Total Data: <b>{totalData}</b>
+          </span>
+        </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50 border-b">
               <tr className="text-left text-gray-600 uppercase text-xs tracking-wide">
+                <th className="px-6 py-3">No</th>
                 <th className="px-6 py-3">Category</th>
                 <th className="px-6 py-3 text-center">Type</th>
                 <th className="px-6 py-3 text-center">Serial</th>
@@ -71,11 +79,14 @@ export default function BaseCardProductTable({
                   </td>
                 </tr>
               ) : (
-                data.map((item) => (
+                data.map((item, index) => (
                   <tr
                     key={item.id}
                     className="hover:bg-gray-50 transition-colors"
                   >
+                    <td className="px-6 py-4 font-medium">
+                      {(page - 1) * 10 + index + 1}
+                    </td>
                     <td className="px-6 py-4 font-medium">
                       {item.category?.categoryName || "-"}
                     </td>
