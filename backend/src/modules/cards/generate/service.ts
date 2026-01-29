@@ -696,6 +696,7 @@ export class CardGenerateService {
             cardProductId: product.id,
             quotaTicket: product.totalQuota,
             status: "ON_REQUEST",
+            programType: program as "FWC" | "VOUCHER",
             fileObjectId: fileMap.get(sn) || null,
             createdBy: userId,
           })),

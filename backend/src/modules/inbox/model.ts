@@ -25,6 +25,7 @@ export namespace InboxModel {
       t.Null(),
     ]),
     type: t.Union([t.String(), t.Null()]),
+    programType: t.Union([t.String(), t.Null()]), // Fix: Allow null
     payload: t.Any(),
   });
 
@@ -35,6 +36,7 @@ export namespace InboxModel {
     startDate: t.Optional(t.String()),
     endDate: t.Optional(t.String()),
     type: t.Optional(t.String()),
+    programType: t.Optional(t.String()), // Added programType FILTER
   });
 
   export const getSupervisorInboxQuery = t.Object({
@@ -43,6 +45,7 @@ export namespace InboxModel {
     startDate: t.Optional(t.String()),
     endDate: t.Optional(t.String()),
     status: t.Optional(t.String()),
+    programType: t.Optional(t.String()), // Added programType FILTER
   });
 
   export const getInboxResponse = t.Object({
@@ -108,7 +111,8 @@ export namespace InboxModel {
             }),
             t.Null(),
           ]),
-        })
+          programType: t.Optional(t.String()), // Added programType
+        }),
       ),
       pagination: t.Object({
         total: t.Number(),
