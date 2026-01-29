@@ -449,7 +449,7 @@ const stockInVoucher = new Elysia({ prefix: "/voucher" })
     },
   )
   .get(
-    "/history",
+    "/",
     async (context) => {
       const { query, set } = context as typeof context;
       try {
@@ -460,10 +460,11 @@ const stockInVoucher = new Elysia({ prefix: "/voucher" })
           endDate: query.endDate ? new Date(query.endDate) : undefined,
           categoryId: query.categoryId,
           typeId: query.typeId,
+          categoryName: query.categoryName,
+          typeName: query.typeName,
           search: query.search,
         });
 
-        // FIX: Return standardized JSON structure
         return {
           success: true,
           data: result,
@@ -476,17 +477,7 @@ const stockInVoucher = new Elysia({ prefix: "/voucher" })
     {
       query: StockInVoucherModel.getHistoryQuery,
       response: {
-        200: t.Object({
-          success: t.Boolean(),
-          data: t.Object({
-            items: t.Array(t.Any()), // Using Any to avoid strict schema mismatch for now
-            pagination: t.Object({
-              currentPage: t.Number(),
-              totalPages: t.Number(),
-              totalItems: t.Number(),
-            }),
-          }),
-        }),
+        200: StockInVoucherModel.getHistoryResponse,
         500: StockInVoucherModel.errorResponse,
       },
       detail: {
@@ -496,12 +487,12 @@ const stockInVoucher = new Elysia({ prefix: "/voucher" })
     },
   )
   .get(
-    "/history/:id",
+    "/:id",
     async (context) => {
       const { params, set } = context as typeof context;
       try {
         const result = await StockInVoucherService.getDetail(params.id);
-        return { success: true, message: "Detail retrieved", data: result };
+        return { success: true, data: result };
       } catch (error) {
         set.status = 500;
         return formatErrorResponse(error);

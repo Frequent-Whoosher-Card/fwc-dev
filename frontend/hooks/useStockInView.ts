@@ -4,7 +4,10 @@ import { useState, useEffect, useCallback } from "react";
 import stockService, { StockInDetail } from "@/lib/services/stock.service";
 import toast from "react-hot-toast";
 
-export const useStockInView = (id: string) => {
+export const useStockInView = (
+  id: string,
+  programType: "FWC" | "VOUCHER" = "FWC",
+) => {
   const [data, setData] = useState<StockInDetail>({
     id: "",
     movementAt: "",
@@ -21,14 +24,14 @@ export const useStockInView = (id: string) => {
     if (!id) return;
     try {
       setLoading(true);
-      const movement = await stockService.getStockInById(id);
+      const movement = await stockService.getStockInById(id, programType);
       setData(movement);
     } catch (err) {
       toast.error("Gagal mengambil detail stock");
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, programType]);
 
   useEffect(() => {
     fetchDetail();
@@ -47,7 +50,7 @@ export const useStockInView = (id: string) => {
         status,
       }));
 
-      await stockService.updateStockInStatusBatch(id, updates);
+      await stockService.updateStockInStatusBatch(id, updates, programType);
 
       toast.success(`Serial number berhasil di-${status.toLowerCase()}`);
 

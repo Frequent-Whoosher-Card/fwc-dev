@@ -61,6 +61,7 @@ export default function BaseStockIn({ programType }: BaseStockInProps) {
         </div>
 
         <StockFilterReusable
+          programType={programType}
           values={{
             category,
             type,
@@ -100,90 +101,109 @@ export default function BaseStockIn({ programType }: BaseStockInProps) {
         />
       </div>
 
-      <div className="rounded-lg border bg-white overflow-x-auto">
-        <table className="w-full min-w-200 text-sm">
-          <thead className="border-b bg-gray-50">
-            <tr>
-              <th className="p-3">No</th>
-              <th className="p-3">Tanggal</th>
-              <th className="p-3">Category</th>
-              <th className="p-3">Type</th>
-              <th className="p-3">Stock</th>
-              <th className="p-3">View</th>
-              <th className="p-3">Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
+      <div className="rounded-lg border bg-white overflow-hidden">
+        <div className="flex items-center justify-end px-4 py-3 border-b bg-gray-50">
+          <span className="inline-flex items-center gap-2 rounded-lg border border-[#8D1231]/20 bg-[#8D1231]/5 px-3 py-1 text-sm font-medium text-[#8D1231]">
+            Total Data: <b>{pagination.total || 0}</b>
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-200 text-sm">
+            <thead className="border-b bg-gray-50">
               <tr>
-                <td colSpan={7} className="p-6 text-center">
-                  Loading...
-                </td>
+                <th className="p-3">No</th>
+                <th className="p-3">Tanggal</th>
+                <th className="p-3">Category</th>
+                <th className="p-3">Type</th>
+                <th className="p-3">Stock</th>
+                <th className="p-3">Serial Number</th>
+                <th className="p-3">View</th>
+                <th className="p-3">Aksi</th>
               </tr>
-            ) : data.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="p-6 text-center">
-                  Tidak ada data
-                </td>
-              </tr>
-            ) : (
-              data.map((row, index) => (
-                <tr key={row.id} className="border-b-2 hover:bg-gray-50">
-                  <td className="px-3 py-2 text-center">
-                    {(pagination.page - 1) * pagination.limit + index + 1}
-                  </td>
-                  <td className="px-3 py-2 text-center whitespace-nowrap">
-                    {new Date(row.tanggal)
-                      .toLocaleDateString("id-ID")
-                      .replace(/\//g, "-")}
-                  </td>
-                  <td className="px-3 py-2 text-center">{row.category}</td>
-                  <td className="px-3 py-2 text-center">{row.type}</td>
-                  <td className="px-3 py-2 text-center font-medium">
-                    {row.stock.toLocaleString()}
-                  </td>
-                  <td className="px-3 py-2 text-center">
-                    <button
-                      onClick={() =>
-                        router.push(
-                          `/dashboard/superadmin/stock/${programType.toLowerCase()}/in/${row.id}/view`,
-                        )
-                      }
-                      className="mx-auto flex items-center justify-center w-8 h-8 border border-gray-300 rounded-md text-gray-500 hover:bg-[#8D1231] hover:text-white transition-colors duration-200"
-                    >
-                      <Eye size={16} />
-                    </button>
-                  </td>
-                  <td className="px-3 py-2 text-center space-x-2">
-                    <button
-                      onClick={() => {
-                        setSelectedId(row.id);
-                        let serialRange = "-";
-                        if (
-                          Array.isArray(row.sentSerialNumbers) &&
-                          row.sentSerialNumbers.length > 0
-                        ) {
-                          const first = row.sentSerialNumbers[0];
-                          const last =
-                            row.sentSerialNumbers[
-                              row.sentSerialNumbers.length - 1
-                            ];
-                          serialRange =
-                            first === last ? first : `${first} - ${last}`;
-                        }
-                        setSelectedSerial(serialRange);
-                        setOpenDelete(true);
-                      }}
-                      className="rounded-md border border-[#8D1231] px-3 py-1 text-xs font-medium text-[#8D1231] hover:bg-[#8D1231] hover:text-white transition-colors"
-                    >
-                      Hapus
-                    </button>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="p-6 text-center">
+                    Loading...
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : data.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="p-6 text-center">
+                    Tidak ada data
+                  </td>
+                </tr>
+              ) : (
+                data.map((row, index) => (
+                  <tr key={row.id} className="border-b-2 hover:bg-gray-50">
+                    <td className="px-3 py-2 text-center">
+                      {(pagination.page - 1) * pagination.limit + index + 1}
+                    </td>
+                    <td className="px-3 py-2 text-center whitespace-nowrap">
+                      {new Date(row.tanggal)
+                        .toLocaleDateString("id-ID")
+                        .replace(/\//g, "-")}
+                    </td>
+                    <td className="px-3 py-2 text-center">{row.category}</td>
+                    <td className="px-3 py-2 text-center">{row.type}</td>
+                    <td className="px-3 py-2 text-center font-medium">
+                      {row.stock.toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2 text-center whitespace-nowrap">
+                      {row.sentSerialNumbers && row.sentSerialNumbers.length > 0
+                        ? row.sentSerialNumbers.length === 1
+                          ? row.sentSerialNumbers[0]
+                          : `${row.sentSerialNumbers[0]} - ${
+                              row.sentSerialNumbers[
+                                row.sentSerialNumbers.length - 1
+                              ]
+                            }`
+                        : "-"}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <button
+                        onClick={() =>
+                          router.push(
+                            `/dashboard/superadmin/stock/${programType.toLowerCase()}/in/${row.id}/view`,
+                          )
+                        }
+                        className="mx-auto flex items-center justify-center w-8 h-8 border border-gray-300 rounded-md text-gray-500 hover:bg-[#8D1231] hover:text-white transition-colors duration-200"
+                      >
+                        <Eye size={16} />
+                      </button>
+                    </td>
+                    <td className="px-3 py-2 text-center space-x-2">
+                      <button
+                        onClick={() => {
+                          setSelectedId(row.id);
+                          let serialRange = "-";
+                          if (
+                            Array.isArray(row.sentSerialNumbers) &&
+                            row.sentSerialNumbers.length > 0
+                          ) {
+                            const first = row.sentSerialNumbers[0];
+                            const last =
+                              row.sentSerialNumbers[
+                                row.sentSerialNumbers.length - 1
+                              ];
+                            serialRange =
+                              first === last ? first : `${first} - ${last}`;
+                          }
+                          setSelectedSerial(serialRange);
+                          setOpenDelete(true);
+                        }}
+                        className="rounded-md border border-[#8D1231] px-3 py-1 text-xs font-medium text-[#8D1231] hover:bg-[#8D1231] hover:text-white transition-colors"
+                      >
+                        Hapus
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <StockPagination

@@ -16,6 +16,9 @@ export const useStockOutView = (id: string) => {
     cardCategory: { name: "-" },
     cardType: { name: "-" },
     sentSerialNumbers: [],
+    receivedSerialNumbers: [],
+    lostSerialNumbers: [],
+    damagedSerialNumbers: [],
   });
 
   const [loading, setLoading] = useState(true);

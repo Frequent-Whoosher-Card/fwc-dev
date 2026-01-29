@@ -13,6 +13,7 @@ import { useCardBase } from "@/hooks/useCardBase";
 export default function VoucherPage() {
   const {
     products,
+    allProducts, // Destructure allProducts to get total count
     categories,
     types,
     fetchProducts,
@@ -54,6 +55,7 @@ export default function VoucherPage() {
         page={page}
         totalPages={totalPages}
         onPageChange={setPage}
+        totalData={allProducts.length}
       />
 
       <BaseCategoryModal
