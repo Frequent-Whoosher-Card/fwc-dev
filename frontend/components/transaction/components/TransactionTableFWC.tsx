@@ -22,7 +22,7 @@ interface Purchase {
       category: { categoryName: string };
       type: { typeName: string };
     };
-  };
+  } | null;
   member: {
     name: string;
     identityNumber: string;
@@ -207,13 +207,13 @@ export default function TransactionTable({
                     {formatNIK(item.member?.identityNumber)}
                   </td>
                   <td className="px-4 py-3">
-                    {item.card.cardProduct.category.categoryName}
+                    {item.card?.cardProduct?.category?.categoryName ?? "-"}
                   </td>
                   <td className="px-4 py-3">
-                    {item.card.cardProduct.type.typeName}
+                    {item.card?.cardProduct?.type?.typeName ?? "-"}
                   </td>
                   <td className="px-4 py-3 font-mono truncate">
-                    {item.card.serialNumber}
+                    {item.card?.serialNumber ?? "-"}
                   </td>
                   <td className="px-4 py-3 font-mono truncate">
                     {formatEDC(item.edcReferenceNumber)}
@@ -326,7 +326,7 @@ export default function TransactionTable({
               <div className="mt-1 flex justify-between gap-3">
                 <span className="text-gray-500">Serial Number</span>
                 <span className="max-w-[240px] truncate font-mono text-gray-800">
-                  {selectedTransaction?.card.serialNumber || "-"}
+                  {selectedTransaction?.card?.serialNumber || "-"}
                 </span>
               </div>
 

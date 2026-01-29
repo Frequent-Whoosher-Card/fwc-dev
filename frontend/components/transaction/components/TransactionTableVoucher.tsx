@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from "lucide-react";
 
 /* ======================
@@ -154,9 +154,8 @@ export default function TransactionTableVoucher({
                   : 1;
 
                 return (
-                  <>
+                  <Fragment key={item.id}>
                     <tr
-                      key={item.id}
                       className="border-t hover:bg-gray-50 transition"
                     >
                       <td className="px-2 py-3 text-center">
@@ -273,7 +272,7 @@ export default function TransactionTableVoucher({
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })
             )}

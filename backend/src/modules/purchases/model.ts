@@ -290,6 +290,13 @@ export namespace PurchaseModel {
         examples: ["EDC123", "CARD001", "John Doe", "1234567890"],
       }),
     ),
+    transactionType: t.Optional(
+      t.Union([t.Literal("fwc"), t.Literal("voucher")], {
+        description:
+          "Filter by transaction type: 'fwc' for FWC purchases (single card), 'voucher' for VOUCHER bulk purchases",
+        examples: ["fwc", "voucher"],
+      }),
+    ),
   });
 
   // --- Responses ---

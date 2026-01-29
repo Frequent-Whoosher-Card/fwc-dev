@@ -58,6 +58,7 @@ const baseRoutes = new Elysia()
           typeId: cleanParam(query.typeId),
           operatorId: cleanParam(query.operatorId),
           search: cleanParam(query.search),
+          transactionType: cleanParam(query.transactionType) as "fwc" | "voucher" | undefined,
           // Pass user context for role-based filtering
           userRole: user.role.roleCode,
           userId: user.id,

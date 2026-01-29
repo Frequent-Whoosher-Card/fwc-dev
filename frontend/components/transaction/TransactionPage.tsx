@@ -125,7 +125,10 @@ export default function TransactionPage({ role }: TransactionPageProps) {
 
     try {
       if (activeTab === "fwc") {
-        const res = await getPurchases(params);
+        const res = await getPurchases({
+          ...params,
+          transactionType: "fwc",
+        });
         if (res.success && res.data) {
           setFWCData(res.data.items);
           setPagination(res.data.pagination);

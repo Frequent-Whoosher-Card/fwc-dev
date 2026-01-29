@@ -405,6 +405,7 @@ export class PurchaseService {
     typeId?: string;
     operatorId?: string;
     search?: string;
+    transactionType?: "fwc" | "voucher";
     userRole?: string;
     userId?: string;
     userStationId?: string | null;
@@ -419,6 +420,7 @@ export class PurchaseService {
       typeId,
       operatorId,
       search,
+      transactionType,
       userRole,
       userId,
       userStationId,
@@ -487,9 +489,23 @@ export class PurchaseService {
       where.operatorId = operatorId;
     }
 
+    // Transaction type filter (programType) - must be set before search to avoid conflicts
+    if (transactionType) {
+      if (transactionType === "fwc") {
+        // FWC: include both "FWC" and null (for backward compatibility with old data)
+        // FWC purchases always have cardId (single card purchase), VOUCHER has cardId = null
+        where.OR = [
+          { programType: "FWC" },
+          { AND: [{ programType: null }, { cardId: { not: null } }] },
+        ];
+      } else if (transactionType === "voucher") {
+        where.programType = "VOUCHER";
+      }
+    }
+
     // Search filter
     if (search) {
-      where.OR = [
+      const searchConditions = [
         { edcReferenceNumber: { contains: search, mode: "insensitive" } },
         {
           card: {
@@ -512,6 +528,18 @@ export class PurchaseService {
           },
         },
       ];
+      
+      // If transactionType filter exists, combine with AND
+      if (transactionType && where.OR) {
+        where.AND = [
+          ...(where.AND || []),
+          where.OR,
+          { OR: searchConditions },
+        ];
+        delete where.OR;
+      } else {
+        where.OR = searchConditions;
+      }
     }
 
     const [items, total] = await Promise.all([
