@@ -107,6 +107,7 @@ model Role {
   deletedAt   DateTime? @map("deleted_at")
   deletedBy   String?   @map("deleted_by") @db.Uuid
   users       User[]
+  permissions RolePermission[]
 
   @@map("roles")
 }
@@ -673,22 +674,43 @@ model temp_fwc_reconciliation {
 
 model MenuAccess {
   id          String       @id @default(uuid()) @map("menu_access_id") @db.Uuid
-  codeSubmenu String       @map("code_submenu")
-  codeMenu    String       @map("code_menu")
-  description String
-  href        String
-  icon        String
+  label       String       @map("label") // e.g. "Stock Kartu"
+  route       String?      @map("route") // e.g. "/dashboard/stock" (nullable for parent menus)
+  icon        String?      @map("icon")
+  ordering    Int          @default(0)
+  parentId    String?      @map("parent_id") @db.Uuid
+  description String?      @map("description")
+  
+  // Relations
+  parent      MenuAccess?  @relation("MenuHierarchy", fields: [parentId], references: [id])
+  children    MenuAccess[] @relation("MenuHierarchy")
   permissions Permission[]
 
   @@map("menu_access")
 }
 
 model Permission {
-  id           String     @id @default(uuid()) @map("permission_id") @db.Uuid
-  menuAccessId String     @map("menu_access_id") @db.Uuid
-  codeModule   String     @map("code_module")
-  role         String[]
-  menuAccess   MenuAccess @relation(fields: [menuAccessId], references: [id])
+  id           String           @id @default(uuid()) @map("permission_id") @db.Uuid
+  menuAccessId String?          @map("menu_access_id") @db.Uuid // Nullable for global permissions
+  actionCode   String           @unique @map("action_code") // e.g. "stock.view"
+  actionName   String           @map("action_name") // e.g. "View Stock Data"
+  
+  // Relations
+  menuAccess   MenuAccess?      @relation(fields: [menuAccessId], references: [id])
+  roles        RolePermission[]
 
-  @@map("permission")
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String     @id @default(uuid()) @map("role_permission_id") @db.Uuid
+  roleId       String     @map("role_id") @db.Uuid
+  permissionId String     @map("permission_id") @db.Uuid
+  
+  // Relations
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
 }
