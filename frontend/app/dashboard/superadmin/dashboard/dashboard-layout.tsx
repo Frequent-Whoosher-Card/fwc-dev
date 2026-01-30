@@ -11,27 +11,31 @@ import toast from "react-hot-toast";
 import ClientOnly from "@/components/ui/client-only";
 
 import {
-  LayoutDashboard,
-  CreditCard,
-  UserPlus,
-  Receipt,
-  Users,
   Menu,
   X,
   User,
   LogOut,
-  IdCard,
-  ArrowDownToLine,
-  ArrowUpNarrowWide,
   ChevronDown,
+  LayoutDashboard,
+  CreditCard,
+  FilePlus,
+  Receipt,
+  ShoppingCart,
+  Users,
+  Gift,
+  UserCog,
+  Inbox,
+  ClipboardList,
+  Shield,
   FolderKanban,
   UserCircle,
-  UserPlus2,
-  UserRoundPlus,
-  FilePlus,
-  Inbox,
   PercentCircle,
   Briefcase,
+  ArrowDownToLine,
+  ArrowUpNarrowWide,
+  IdCard,
+  type LucideIcon,
+  Circle
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -47,6 +51,48 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { API_BASE_URL } from "@/lib/apiConfig";
+import { MenuService, MenuItem } from "@/lib/services/menuService";
+
+/* =========================
+   ICON MAPPING HELPER
+========================= */
+const resolveIcon = (iconName: string | null): LucideIcon => {
+  if (!iconName) return Circle;
+
+  const map: Record<string, LucideIcon> = {
+    // Standard Layout & UI
+    LayoutDashboard,
+    Menu,
+    X,
+    User,
+    LogOut,
+    ChevronDown,
+    Circle,
+    Shield,
+
+    // Feature Icons
+    CreditCard,
+    FilePlus,
+    Receipt,
+    ShoppingCart,
+    Users,
+    Gift,
+    UserCog,
+    Inbox,
+    ClipboardList,
+
+    // RBAC / New Icons
+    FolderKanban,      // Stok
+    UserCircle,        // User Management
+    PercentCircle,     // Redeem
+    Briefcase,         // Stok Station
+    ArrowDownToLine,   // Stok Masuk
+    ArrowUpNarrowWide, // Stok Keluar
+    IdCard,            // New Product Card / Stok All
+  };
+
+  return map[iconName] || Circle;
+};
 
 /* =========================
    ROLE TYPE
@@ -60,133 +106,6 @@ export const UserContext = createContext<{
   userName: string;
   role: Role;
 } | null>(null);
-
-/* =========================
-   MENU CONFIG
-========================= */
-
-/* SUPERADMIN */
-const superadminMenuItems = [
-  {
-    title: "Dashboard",
-    icon: LayoutDashboard,
-    href: "/dashboard/superadmin/dashboard",
-  },
-  { title: "Redeem Kuota", icon: IdCard, href: "/dashboard/superadmin/redeem" },
-  {
-    title: "Stock",
-    icon: CreditCard,
-    href: "/dashboard/superadmin/stock/fwc",
-    children: [
-      {
-        title: "Stock In",
-        href: "/dashboard/superadmin/stock/fwc/in",
-        icon: ArrowDownToLine,
-      },
-      {
-        title: "Stock Out",
-        href: "/dashboard/superadmin/stock/fwc/out",
-        icon: ArrowUpNarrowWide,
-      },
-      {
-        title: "Stock All",
-        href: "/dashboard/superadmin/stock/fwc/all",
-        icon: UserCircle,
-      },
-    ],
-  },
-  {
-    title: "Generate Number",
-    icon: FilePlus,
-    href: "/dashboard/superadmin/generatenumber",
-  },
-  {
-    title: "Create New Card",
-    icon: FolderKanban,
-    href: "/dashboard/superadmin/createnewcard/fwc",
-  },
-  { title: "Inbox", icon: Inbox, href: "/dashboard/superadmin/inbox" },
-  {
-    title: "Membership",
-    icon: UserPlus,
-    href: "/dashboard/superadmin/membership",
-  },
-  {
-    title: "Manage Diskon",
-    icon: PercentCircle,
-    href: "/dashboard/superadmin/managediskon",
-  },
-  {
-    title: "Transaksi",
-    icon: Receipt,
-    href: "/dashboard/superadmin/transaksi",
-  },
-  { title: "User", icon: Users, href: "/dashboard/superadmin/user" },
-  {
-    title: "Employee Type",
-    icon: Briefcase,
-    href: "/dashboard/superadmin/employee-types",
-  },
-];
-
-/* ADMIN */
-const adminMenuItems = [
-  { title: "Dashboard", icon: LayoutDashboard, href: "/dashboard/admin" },
-  {
-    title: "Stock Kartu",
-    icon: CreditCard,
-    href: "/dashboard/admin/stock",
-    children: [
-      {
-        title: "Stock In",
-        href: "/dashboard/admin/stock/in",
-        icon: ArrowDownToLine,
-      },
-      {
-        title: "Stock Out",
-        href: "/dashboard/admin/stock/out",
-        icon: ArrowUpNarrowWide,
-      },
-    ],
-  },
-  { title: "Membership", icon: UserPlus, href: "/dashboard/admin/membership" },
-  { title: "Transaksi", icon: Receipt, href: "/dashboard/admin/transaksi" },
-];
-
-/* PETUGAS */
-const petugasMenuItems = [
-  {
-    title: "Membership",
-    icon: UserPlus,
-    href: "/dashboard/petugas/membership",
-  },
-  { title: "Stock", icon: CreditCard, href: "/dashboard/petugas/stock" },
-  { title: "Redeem Kuota", icon: IdCard, href: "/dashboard/petugas/redeem" },
-  { title: "Transaksi", icon: Receipt, href: "/dashboard/petugas/transaksi" },
-];
-
-/* SUPERVISOR */
-const supervisorMenuItems = [
-  {
-    title: "Membership",
-    icon: UserPlus,
-    href: "/dashboard/supervisor/membership",
-  },
-  { title: "Redeem Kuota", icon: IdCard, href: "/dashboard/supervisor/redeem" },
-  {
-    title: "Transaksi",
-    icon: Receipt,
-    href: "/dashboard/supervisor/transaksi",
-  },
-  { title: "Noted", icon: Inbox, href: "/dashboard/supervisor/noted" },
-];
-
-const menuByRole: Record<Role, any[]> = {
-  superadmin: superadminMenuItems,
-  admin: adminMenuItems,
-  petugas: petugasMenuItems,
-  supervisor: supervisorMenuItems,
-};
 
 /* =========================
    DASHBOARD LAYOUT
@@ -204,11 +123,16 @@ export default function DashboardLayout({
 
   const [role, setRole] = useState<Role | null>(null);
   const [userName, setUserName] = useState("User");
+
+  // Auth & Menu Loading State
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
 
+  // Dynamic Menu State
+  const [menuItems, setMenuItems] = useState<any[]>([]);
+
   /* =========================
-     AUTH VIA TOKEN + /auth/me
+     AUTH VIA TOKEN + /auth/me + FETCH MENU
   ========================= */
   useEffect(() => {
     const token = localStorage.getItem("fwc_token");
@@ -218,8 +142,9 @@ export default function DashboardLayout({
       return;
     }
 
-    const loadMe = async () => {
+    const loadData = async () => {
       try {
+        // 1. Fetch User Data
         const res = await fetch(`${API_BASE_URL}/auth/me`, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -233,8 +158,8 @@ export default function DashboardLayout({
         const json = await res.json();
         const user = json.data;
 
+        // 2. Map Role
         const rawRole = (user.role.roleCode || "").toUpperCase();
-
         const roleMap: Record<string, Role> = {
           SUPERADMIN: "superadmin",
           ADMIN: "admin",
@@ -253,10 +178,48 @@ export default function DashboardLayout({
         setUserName(user.fullName || user.username);
         setRole(mappedRole);
 
+        // 3. Redirect if not in correct dashboard
         const basePath = `/dashboard/${mappedRole}`;
         if (!pathname.startsWith(basePath)) {
+          console.warn(`[DashboardLayout] Redirecting from ${pathname} to ${basePath}`);
           router.replace(basePath);
         }
+
+        // 4. Fetch Dynamic Menu
+        try {
+          const menuData = await MenuService.getUserMenu();
+          console.log("[DashboardLayout] Raw Menu Data:", menuData);
+
+          // Transform API menu to UI menu structure
+          const transformMenu = (items: MenuItem[]): any[] => {
+            return items.map(item => {
+              let href = item.route || "#";
+              // Replace dynamic :role placeholder
+              if (href.includes(":role")) {
+                href = href.replace(":role", mappedRole);
+              }
+
+              console.log(`[DashboardLayout] Transforming: ${item.label} -> ${href} (Role: ${mappedRole})`);
+
+              return {
+                title: item.label,
+                href: href,
+                icon: resolveIcon(item.icon),
+                children: item.children ? transformMenu(item.children) : undefined
+              };
+            });
+          };
+
+          const transformed = transformMenu(menuData);
+          console.log("[DashboardLayout] Final Menu Items:", transformed);
+          setMenuItems(transformed);
+        } catch (menuErr) {
+          console.error("Failed to load menu", menuErr);
+          // Fallback or empty menu?
+          setMenuItems([]);
+          toast.error("Gagal memuat menu");
+        }
+
       } catch (err: any) {
         console.error("auth/me error:", err);
         setAuthError(err?.message || "Gagal autentikasi");
@@ -267,7 +230,7 @@ export default function DashboardLayout({
       }
     };
 
-    loadMe();
+    loadData();
   }, [router, pathname]);
 
   if (loading) {
@@ -275,7 +238,7 @@ export default function DashboardLayout({
       <div
         style={{ padding: 32, color: "#b91c1c", fontWeight: 600, fontSize: 18 }}
       >
-        Loading auth...
+        Loading application...
       </div>
     );
   }
@@ -287,8 +250,9 @@ export default function DashboardLayout({
         AUTH ERROR: {authError}
         <br />
         <span style={{ fontWeight: 400, fontSize: 14 }}>
-          Cek token, response /auth/me, dan mapping role di backend.
+          Silakan login kembali.
         </span>
+        <Button onClick={() => router.replace("/")} className="ml-4">Login</Button>
       </div>
     );
   }
@@ -298,13 +262,9 @@ export default function DashboardLayout({
         style={{ padding: 32, color: "#b91c1c", fontWeight: 600, fontSize: 18 }}
       >
         Tidak ada role terdeteksi.
-        <br />
-        Cek response /auth/me dan mapping role.
       </div>
     );
   }
-
-  const menuItems = menuByRole[role] ?? [];
 
   /* =========================
      LOGOUT
@@ -348,15 +308,17 @@ export default function DashboardLayout({
             </Button>
           </div>
 
-          <nav className="flex-1 space-y-1 p-4">
+          <nav className="flex-1 space-y-1 p-4 overflow-y-auto">
             {menuItems.map((item) => {
-              const hasChildren = !!item.children;
+              const hasChildren = !!item.children && item.children.length > 0;
               const isParentActive =
                 pathname === item.href ||
                 item.children?.some((child: any) =>
                   pathname.startsWith(child.href),
                 );
 
+              // Auto-open if active
+              // Note: We might want initial state to respect this
               const isOpen =
                 openMenu === item.title ||
                 item.children?.some((child: any) =>
@@ -367,15 +329,22 @@ export default function DashboardLayout({
                 <div key={item.title}>
                   <div
                     className={cn(
-                      "flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium",
+                      "flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                       isParentActive
                         ? "bg-white/20 text-white"
                         : "text-white hover:bg-white/10",
                     )}
                   >
                     <Link
-                      href={item.href}
-                      onClick={() => setSidebarOpen(false)}
+                      href={hasChildren ? "#" : item.href}
+                      onClick={(e) => {
+                        if (hasChildren) {
+                          e.preventDefault();
+                          setOpenMenu(isOpen ? null : item.title);
+                        } else {
+                          setSidebarOpen(false);
+                        }
+                      }}
                       className="flex items-center gap-3 flex-1"
                     >
                       <item.icon className="h-5 w-5" />
@@ -412,7 +381,7 @@ export default function DashboardLayout({
                             href={child.href}
                             onClick={() => setSidebarOpen(false)}
                             className={cn(
-                              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm",
+                              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
                               isActive
                                 ? "bg-white/20 text-white"
                                 : "text-white/80 hover:bg-white/10",
@@ -460,6 +429,13 @@ export default function DashboardLayout({
               <DropdownMenuContent align="end" className="w-40">
                 <DropdownMenuLabel>Akun</DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => router.push('/dashboard/superadmin/change-password')}
+                  className="cursor-pointer"
+                >
+                  <User className="mr-2 h-4 w-4" />
+                  Ubah Password
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={handleLogout}
                   className="text-red-600 cursor-pointer"

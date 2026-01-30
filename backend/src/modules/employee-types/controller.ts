@@ -2,12 +2,13 @@ import { Elysia } from "elysia";
 import { EmployeeTypeService } from "./service";
 import { EmployeeTypeModel } from "./model";
 import { authMiddleware } from "../../middleware/auth";
+import { permissionMiddleware } from "../../middleware/permission";
 
-export const employeeTypeController = new Elysia({ prefix: "/employee-types" })
-  .use(authMiddleware)
-  /**
-   * GET /employee-types - Get all employee types
-   */
+/**
+ * View Routes (Read-Only)
+ */
+const viewRoutes = new Elysia()
+  .use(permissionMiddleware("employee_type.view"))
   .get("/", async () => {
     const employeeTypes = await EmployeeTypeService.getAll();
     return {
@@ -15,10 +16,6 @@ export const employeeTypeController = new Elysia({ prefix: "/employee-types" })
       data: employeeTypes,
     };
   })
-
-  /**
-   * GET /employee-types/:id - Get employee type by ID
-   */
   .get(
     "/:id",
     async ({ params }) => {
@@ -30,12 +27,14 @@ export const employeeTypeController = new Elysia({ prefix: "/employee-types" })
     },
     {
       params: EmployeeTypeModel.idParam,
-    },
-  )
+    }
+  );
 
-  /**
-   * POST /employee-types - Create new employee type
-   */
+/**
+ * Manage Routes (Create, Update, Delete)
+ */
+const manageRoutes = new Elysia()
+  .use(permissionMiddleware("employee_type.manage"))
   .post(
     "/",
     async ({ body, user }) => {
@@ -48,12 +47,8 @@ export const employeeTypeController = new Elysia({ prefix: "/employee-types" })
     },
     {
       body: EmployeeTypeModel.createBody,
-    },
+    }
   )
-
-  /**
-   * PUT /employee-types/:id - Update employee type
-   */
   .put(
     "/:id",
     async ({ params, body, user }) => {
@@ -71,12 +66,8 @@ export const employeeTypeController = new Elysia({ prefix: "/employee-types" })
     {
       params: EmployeeTypeModel.idParam,
       body: EmployeeTypeModel.updateBody,
-    },
+    }
   )
-
-  /**
-   * DELETE /employee-types/:id - Delete employee type
-   */
   .delete(
     "/:id",
     async ({ params, user }) => {
@@ -88,5 +79,13 @@ export const employeeTypeController = new Elysia({ prefix: "/employee-types" })
     },
     {
       params: EmployeeTypeModel.idParam,
-    },
+    }
   );
+
+/**
+ * Main Controller
+ */
+export const employeeTypeController = new Elysia({ prefix: "/employee-types" })
+  .use(authMiddleware)
+  .use(viewRoutes)
+  .use(manageRoutes);

@@ -74,11 +74,10 @@ function YesNoRadio({
           key={v}
           type="button"
           onClick={() => onChange(v as "yes" | "no")}
-          className={`rounded-md border px-4 py-2 text-sm ${
-            value === v
+          className={`rounded-md border px-4 py-2 text-sm ${value === v
               ? "border-[#8B1538] bg-[#8B1538]/10 text-[#8B1538]"
               : "border-gray-300 text-gray-500"
-          }`}
+            }`}
         >
           {v.toUpperCase()}
         </button>
@@ -135,10 +134,12 @@ export default function FormNoted() {
     };
 
     try {
-      const res = await fetch("/api/noted", {
+      const token = localStorage.getItem("fwc_token");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001"}/notes`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });

@@ -89,7 +89,9 @@ export namespace CardGenerateModel {
           status: t.String(),
           note: t.Union([t.String(), t.Null()]),
           createdByName: t.Union([t.String(), t.Null()]),
-          programType: t.Union([t.String(), t.Null()]),
+          programType: t.Nullable(
+            t.Union([t.Literal("FWC"), t.Literal("VOUCHER")]),
+          ),
           category: t.Object({
             id: t.String(),
             name: t.String(),
@@ -139,7 +141,9 @@ export namespace CardGenerateModel {
         status: t.String(),
         note: t.Union([t.String(), t.Null()]),
         createdByName: t.Union([t.String(), t.Null()]),
-        programType: t.Union([t.String(), t.Null()]),
+        programType: t.Nullable(
+          t.Union([t.Literal("FWC"), t.Literal("VOUCHER")]),
+        ),
         category: t.Object({
           id: t.String(),
           name: t.String(),

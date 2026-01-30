@@ -1,6 +1,6 @@
 import { Elysia, t } from "elysia";
 import { authMiddleware } from "../../../middleware/auth";
-import { rbacMiddleware } from "../../../middleware/rbac";
+import { permissionMiddleware } from "../../../middleware/permission";
 import { formatErrorResponse } from "../../../utils/errors";
 import { StockInFwcService } from "./fwc-service";
 import { StockInFwcModel } from "./fwc-model";
@@ -24,7 +24,7 @@ type AuthContextUser = {
 const stockInFwc = new Elysia({ prefix: "/fwc" })
   .group("", (app) =>
     app
-      .use(rbacMiddleware(["admin", "superadmin"]))
+      .use(permissionMiddleware("stock.in.create"))
       .post(
         "/",
         async (context) => {
@@ -32,7 +32,7 @@ const stockInFwc = new Elysia({ prefix: "/fwc" })
             AuthContextUser;
           try {
             const stockIn = await StockInFwcService.createStockIn(
-              body.movementAt,
+              new Date(body.movementAt),
               body.cardProductId,
               body.startSerial,
               body.endSerial,
@@ -73,6 +73,59 @@ const stockInFwc = new Elysia({ prefix: "/fwc" })
           },
         },
       )
+      .post(
+        "/damaged",
+        async (context) => {
+          const { body, set, user } = context as typeof context &
+            AuthContextUser;
+          try {
+            const result = await StockInFwcService.reportDamaged(
+              body.serialNumbers,
+              user.id,
+              body.note,
+            );
+
+            return {
+              success: true,
+              message: result.message,
+              data: result.movements,
+            };
+          } catch (error) {
+            set.status =
+              error instanceof Error && "statusCode" in error
+                ? (error as any).statusCode
+                : 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          body: StockInFwcModel.reportDamagedBody,
+          response: {
+            200: t.Object({
+              success: t.Boolean(),
+              message: t.String(),
+              data: t.Array(t.Any()), // Dynamic array of movements
+            }),
+            400: StockInFwcModel.errorResponse,
+            401: StockInFwcModel.errorResponse,
+            403: StockInFwcModel.errorResponse,
+            404: StockInFwcModel.errorResponse,
+            422: StockInFwcModel.errorResponse,
+            500: StockInFwcModel.errorResponse,
+          },
+          detail: {
+            tags: ["Stock In FWC"],
+            summary: "Report Damaged Cards (QC)",
+            description:
+              "Melaporkan kartu IN_OFFICE sebagai DAMAGED. Mencatat movement OUT (Adjustment) dan mengurangi stok office.",
+            deprecated: true,
+          },
+        },
+      )
+  )
+  .group("", (app) =>
+    app
+      .use(permissionMiddleware("stock.in.view"))
       .get(
         "/available-serials",
         async (context) => {
@@ -190,59 +243,10 @@ const stockInFwc = new Elysia({ prefix: "/fwc" })
           },
         },
       )
-      .post(
-        "/damaged",
-        async (context) => {
-          const { body, set, user } = context as typeof context &
-            AuthContextUser;
-          try {
-            const result = await StockInFwcService.reportDamaged(
-              body.serialNumbers,
-              user.id,
-              body.note,
-            );
-
-            return {
-              success: true,
-              message: result.message,
-              data: result.movements,
-            };
-          } catch (error) {
-            set.status =
-              error instanceof Error && "statusCode" in error
-                ? (error as any).statusCode
-                : 500;
-            return formatErrorResponse(error);
-          }
-        },
-        {
-          body: StockInFwcModel.reportDamagedBody,
-          response: {
-            200: t.Object({
-              success: t.Boolean(),
-              message: t.String(),
-              data: t.Array(t.Any()), // Dynamic array of movements
-            }),
-            400: StockInFwcModel.errorResponse,
-            401: StockInFwcModel.errorResponse,
-            403: StockInFwcModel.errorResponse,
-            404: StockInFwcModel.errorResponse,
-            422: StockInFwcModel.errorResponse,
-            500: StockInFwcModel.errorResponse,
-          },
-          detail: {
-            tags: ["Stock In FWC"],
-            summary: "Report Damaged Cards (QC)",
-            description:
-              "Melaporkan kartu IN_OFFICE sebagai DAMAGED. Mencatat movement OUT (Adjustment) dan mengurangi stok office.",
-            deprecated: true,
-          },
-        },
-      ),
   )
   .group("", (app) =>
     app
-      .use(rbacMiddleware(["superadmin", "admin"]))
+      .use(permissionMiddleware("stock.in.update"))
       .patch(
         "/:id",
         async (context) => {
@@ -326,6 +330,10 @@ const stockInFwc = new Elysia({ prefix: "/fwc" })
           },
         },
       )
+  )
+  .group("", (app) =>
+    app
+      .use(permissionMiddleware("stock.in.delete"))
       .delete(
         "/:id",
         async (context) => {
@@ -368,243 +376,258 @@ const stockInFwc = new Elysia({ prefix: "/fwc" })
 
 const stockInVoucher = new Elysia({ prefix: "/voucher" })
   .use(authMiddleware)
-  .use(rbacMiddleware(["superadmin", "admin"]))
-  .post(
-    "/",
-    async (context) => {
-      const { body, user, set } = context as typeof context & AuthContextUser;
-      try {
-        const result = await StockInVoucherService.createStockInVoucher(
-          new Date(body.movementAt),
-          body.cardProductId,
-          body.startSerial,
-          body.endSerial,
-          user.id,
-          body.serialDate,
-          body.note,
-        );
-        return {
-          success: true,
-          message: "Stock In Voucher berhasil",
-          data: result,
-        };
-      } catch (error) {
-        set.status = 400; // Or dynamic
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      body: StockInVoucherModel.createStockInVoucherBody,
-      response: {
-        200: StockInVoucherModel.stockInVoucherResponse,
-        400: StockInVoucherModel.errorResponse,
-        422: StockInVoucherModel.errorResponse,
-        500: StockInVoucherModel.errorResponse,
-      },
-      detail: {
-        tags: ["Stock In Voucher"],
-        summary: "Create Stock In Voucher",
-      },
-    },
+  .group("", (app) =>
+    app
+      .use(permissionMiddleware("stock.in.create"))
+      .post(
+        "/",
+        async (context) => {
+          const { body, user, set } = context as typeof context & AuthContextUser;
+          try {
+            const result = await StockInVoucherService.createStockInVoucher(
+              new Date(body.movementAt),
+              body.cardProductId,
+              body.startSerial,
+              body.endSerial,
+              user.id,
+              body.serialDate,
+              body.note,
+            );
+            return {
+              success: true,
+              message: "Stock In Voucher berhasil",
+              data: result,
+            };
+          } catch (error) {
+            set.status = 400; // Or dynamic
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          body: StockInVoucherModel.createStockInVoucherBody,
+          response: {
+            200: StockInVoucherModel.stockInVoucherResponse,
+            400: StockInVoucherModel.errorResponse,
+            422: StockInVoucherModel.errorResponse,
+            500: StockInVoucherModel.errorResponse,
+          },
+          detail: {
+            tags: ["Stock In Voucher"],
+            summary: "Create Stock In Voucher",
+          },
+        },
+      )
   )
-  .get(
-    "/available-serials",
-    async (context) => {
-      const { query, set } = context;
-      try {
-        const result = await StockInVoucherService.getAvailableSerials(
-          query.cardProductId,
-        );
-        return {
-          success: true,
-          data: result,
-        };
-      } catch (error) {
-        set.status =
-          error instanceof Error && "statusCode" in error
-            ? (error as any).statusCode
-            : 500;
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      query: StockInVoucherModel.getAvailableSerialsQuery,
-      response: {
-        200: t.Object({
-          success: t.Boolean(),
-          data: t.Object({
-            startSerial: t.Union([t.String(), t.Null()]),
-            endSerial: t.Union([t.String(), t.Null()]),
-            count: t.Number(),
-          }),
-        }),
-        400: StockInVoucherModel.errorResponse,
-        500: StockInVoucherModel.errorResponse,
-      },
-      detail: {
-        tags: ["Stock In Voucher"],
-        summary: "Get Available Serials (Voucher)",
-        description: "Mendapatkan serial ON_REQUEST untuk voucher.",
-      },
-    },
-  )
-  .get(
-    "/",
-    async (context) => {
-      const { query, set } = context as typeof context;
-      try {
-        const result = await StockInVoucherService.getHistory({
-          page: query.page ? parseInt(query.page) : undefined,
-          limit: query.limit ? parseInt(query.limit) : undefined,
-          startDate: query.startDate ? new Date(query.startDate) : undefined,
-          endDate: query.endDate ? new Date(query.endDate) : undefined,
-          categoryId: query.categoryId,
-          typeId: query.typeId,
-          categoryName: query.categoryName,
-          typeName: query.typeName,
-          search: query.search,
-        });
+  .group("", (app) =>
+    app
+      .use(permissionMiddleware("stock.in.view"))
+      .get(
+        "/available-serials",
+        async (context) => {
+          const { query, set } = context;
+          try {
+            const result = await StockInVoucherService.getAvailableSerials(
+              query.cardProductId,
+            );
+            return {
+              success: true,
+              data: result,
+            };
+          } catch (error) {
+            set.status =
+              error instanceof Error && "statusCode" in error
+                ? (error as any).statusCode
+                : 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          query: StockInVoucherModel.getAvailableSerialsQuery,
+          response: {
+            200: t.Object({
+              success: t.Boolean(),
+              data: t.Object({
+                startSerial: t.Union([t.String(), t.Null()]),
+                endSerial: t.Union([t.String(), t.Null()]),
+                count: t.Number(),
+              }),
+            }),
+            400: StockInVoucherModel.errorResponse,
+            500: StockInVoucherModel.errorResponse,
+          },
+          detail: {
+            tags: ["Stock In Voucher"],
+            summary: "Get Available Serials (Voucher)",
+            description: "Mendapatkan serial ON_REQUEST untuk voucher.",
+          },
+        },
+      )
+      .get(
+        "/",
+        async (context) => {
+          const { query, set } = context as typeof context;
+          try {
+            const result = await StockInVoucherService.getHistory({
+              page: query.page ? parseInt(query.page) : undefined,
+              limit: query.limit ? parseInt(query.limit) : undefined,
+              startDate: query.startDate ? new Date(query.startDate) : undefined,
+              endDate: query.endDate ? new Date(query.endDate) : undefined,
+              categoryId: query.categoryId,
+              typeId: query.typeId,
+              categoryName: query.categoryName,
+              typeName: query.typeName,
+              search: query.search,
+            });
 
-        return {
-          success: true,
-          data: result,
-        };
-      } catch (error) {
-        set.status = 500;
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      query: StockInVoucherModel.getHistoryQuery,
-      response: {
-        200: StockInVoucherModel.getHistoryResponse,
-        500: StockInVoucherModel.errorResponse,
-      },
-      detail: {
-        tags: ["Stock In Voucher"],
-        summary: "Get Voucher History",
-      },
-    },
+            return {
+              success: true,
+              data: result,
+            };
+          } catch (error) {
+            set.status = 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          query: StockInVoucherModel.getHistoryQuery,
+          response: {
+            200: StockInVoucherModel.getHistoryResponse,
+            500: StockInVoucherModel.errorResponse,
+          },
+          detail: {
+            tags: ["Stock In Voucher"],
+            summary: "Get Voucher History",
+          },
+        },
+      )
+      .get(
+        "/:id",
+        async (context) => {
+          const { params, set } = context as typeof context;
+          try {
+            const result = await StockInVoucherService.getDetail(params.id);
+            return { success: true, data: result };
+          } catch (error) {
+            set.status = 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          response: {
+            200: StockInVoucherModel.stockInVoucherResponse,
+            500: StockInVoucherModel.errorResponse,
+          },
+          detail: { tags: ["Stock In Voucher"], summary: "Get Voucher Detail" },
+        },
+      )
   )
-  .get(
-    "/:id",
-    async (context) => {
-      const { params, set } = context as typeof context;
-      try {
-        const result = await StockInVoucherService.getDetail(params.id);
-        return { success: true, data: result };
-      } catch (error) {
-        set.status = 500;
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      response: {
-        200: StockInVoucherModel.stockInVoucherResponse,
-        500: StockInVoucherModel.errorResponse,
-      },
-      detail: { tags: ["Stock In Voucher"], summary: "Get Voucher Detail" },
-    },
+  .group("", (app) =>
+    app
+      .use(permissionMiddleware("stock.in.update"))
+      .patch(
+        "/:id",
+        async (context) => {
+          const { params, body, set, user } = context as typeof context &
+            AuthContextUser;
+          try {
+            const result = await StockInVoucherService.update(
+              params.id,
+              body,
+              user.id,
+            );
+            return {
+              success: true,
+              message: "Stock In Voucher berhasil diupdate.",
+              data: result,
+            };
+          } catch (error) {
+            set.status =
+              error instanceof Error && "statusCode" in error
+                ? (error as any).statusCode
+                : 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          body: StockInVoucherModel.updateStockInBody,
+          response: {
+            200: t.Object({
+              success: t.Boolean(),
+              message: t.String(),
+              data: t.Any(),
+            }),
+            400: StockInVoucherModel.errorResponse,
+            500: StockInVoucherModel.errorResponse,
+          },
+          detail: {
+            tags: ["Stock In Voucher"],
+            summary: "Update Stock In Voucher (Metadata)",
+          },
+        },
+      )
+      .put(
+        "/:id/status-batch",
+        async (context) => {
+          const { params, body, set, user } = context as typeof context &
+            AuthContextUser;
+          try {
+            const result = await StockInVoucherService.updateBatchCardStatus(
+              params.id,
+              body.updates,
+              user.id,
+            );
+            return result;
+          } catch (error) {
+            set.status =
+              error instanceof Error && "statusCode" in error
+                ? (error as any).statusCode
+                : 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          body: StockInVoucherModel.updateBatchStatusBody,
+          response: {
+            200: t.Object({
+              success: t.Boolean(),
+              message: t.String(),
+            }),
+            400: StockInVoucherModel.errorResponse,
+            500: StockInVoucherModel.errorResponse,
+          },
+          detail: {
+            tags: ["Stock In Voucher"],
+            summary: "Update Voucher Batch Cards Status (QC)",
+          },
+        },
+      )
   )
-  .patch(
-    "/:id",
-    async (context) => {
-      const { params, body, set, user } = context as typeof context &
-        AuthContextUser;
-      try {
-        const result = await StockInVoucherService.update(
-          params.id,
-          body,
-          user.id,
-        );
-        return {
-          success: true,
-          message: "Stock In Voucher berhasil diupdate.",
-          data: result,
-        };
-      } catch (error) {
-        set.status =
-          error instanceof Error && "statusCode" in error
-            ? (error as any).statusCode
-            : 500;
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      body: StockInVoucherModel.updateStockInBody,
-      response: {
-        200: t.Object({
-          success: t.Boolean(),
-          message: t.String(),
-          data: t.Any(),
-        }),
-        400: StockInVoucherModel.errorResponse,
-        500: StockInVoucherModel.errorResponse,
-      },
-      detail: {
-        tags: ["Stock In Voucher"],
-        summary: "Update Stock In Voucher (Metadata)",
-      },
-    },
-  )
-  .put(
-    "/:id/status-batch",
-    async (context) => {
-      const { params, body, set, user } = context as typeof context &
-        AuthContextUser;
-      try {
-        const result = await StockInVoucherService.updateBatchCardStatus(
-          params.id,
-          body.updates,
-          user.id,
-        );
-        return result;
-      } catch (error) {
-        set.status =
-          error instanceof Error && "statusCode" in error
-            ? (error as any).statusCode
-            : 500;
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      body: StockInVoucherModel.updateBatchStatusBody,
-      response: {
-        200: t.Object({
-          success: t.Boolean(),
-          message: t.String(),
-        }),
-        400: StockInVoucherModel.errorResponse,
-        500: StockInVoucherModel.errorResponse,
-      },
-      detail: {
-        tags: ["Stock In Voucher"],
-        summary: "Update Voucher Batch Cards Status (QC)",
-      },
-    },
-  )
-  .delete(
-    "/:id",
-    async (context) => {
-      const { params, user, set } = context as typeof context & AuthContextUser;
-      try {
-        const result = await StockInVoucherService.delete(params.id, user.id);
-        return result;
-      } catch (error) {
-        set.status = 500;
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      response: {
-        400: StockInVoucherModel.errorResponse,
-        500: StockInVoucherModel.errorResponse,
-      },
-      detail: {
-        tags: ["Stock In Voucher"],
-        summary: "Delete (Revert) Stock In Voucher",
-      },
-    },
+  .group("", (app) =>
+    app
+      .use(permissionMiddleware("stock.in.delete"))
+      .delete(
+        "/:id",
+        async (context) => {
+          const { params, user, set } = context as typeof context & AuthContextUser;
+          try {
+            const result = await StockInVoucherService.delete(params.id, user.id);
+            return result;
+          } catch (error) {
+            set.status = 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          response: {
+            400: StockInVoucherModel.errorResponse,
+            500: StockInVoucherModel.errorResponse,
+          },
+          detail: {
+            tags: ["Stock In Voucher"],
+            summary: "Delete (Revert) Stock In Voucher",
+          },
+        },
+      )
   );
 
 export const stockIn = new Elysia({ prefix: "/in" })

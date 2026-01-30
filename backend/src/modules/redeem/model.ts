@@ -51,9 +51,11 @@ export namespace RedeemModel {
     ], {
       description: "Type of redemption: SINGLE (1 quota) or ROUNDTRIP (2 quota)",
     }),
-    product: t.String({
+    product: t.Union([
+      t.Literal("FWC"),
+      t.Literal("VOUCHER"),
+    ], {
       description: "Product type for redeem (FWC or VOUCHER)",
-      examples: ["FWC", "VOUCHER"],
     }),
     notes: t.Optional(
       t.String({
@@ -102,6 +104,9 @@ export namespace RedeemModel {
       id: t.String({ format: "uuid" }),
       serialNumber: t.String(),
       quotaTicket: t.Number(),
+      programType: t.Nullable(
+        t.Union([t.Literal("FWC"), t.Literal("VOUCHER")]),
+      ),
       member: t.Union([
         t.Object({
           id: t.String({ format: "uuid" }),

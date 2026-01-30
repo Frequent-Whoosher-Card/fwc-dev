@@ -178,8 +178,15 @@ export class TransferService {
       db.cardStockMovement.count({ where }),
     ]);
 
+    const formattedItems = items.map((item) => ({
+      ...item,
+      type: item.movementType, // Map movementType -> type (string)
+      cardType: item.type, // Map type relation -> cardType (object)
+      movementAt: item.movementAt.toISOString(),
+    }));
+
     return {
-      items,
+      items: formattedItems,
       pagination: {
         total,
         page,
@@ -190,7 +197,7 @@ export class TransferService {
   }
 
   static async getTransferById(id: string) {
-    return await db.cardStockMovement.findUnique({
+    const result = await db.cardStockMovement.findUnique({
       where: { id },
       include: {
         category: true,
@@ -199,6 +206,15 @@ export class TransferService {
         toStation: true,
       },
     });
+
+    if (!result) return null;
+
+    return {
+      ...result,
+      type: result.movementType,
+      cardType: result.type,
+      movementAt: result.movementAt.toISOString(),
+    };
   }
 
   // 3. Receive Transfer (Generic Accept)

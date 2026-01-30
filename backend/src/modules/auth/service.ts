@@ -20,22 +20,32 @@ export class AuthService {
     turnstileToken: string
   ) {
     // Verify Firebase App Check token (required)
+    console.log(`[AuthService] Login attempt for: ${usernameOrEmail}`);
+    console.log(`[AuthService] Tokens - AppCheck: ${appCheckToken}, Turnstile: ${turnstileToken}`);
+
     if (!appCheckToken || typeof appCheckToken !== 'string' || appCheckToken.trim().length === 0) {
+      console.log('[AuthService] Missing App Check token');
       throw new AuthenticationError('App Check token is required');
     }
-    
+
     // Skip verification if token is "disabled" (fallback when App Check is not configured)
     if (appCheckToken !== 'disabled') {
+      console.log('[AuthService] Verifying App Check token...');
       await verifyAppCheckToken(appCheckToken);
+    } else {
+      console.log('[AuthService] App Check disabled/bypassed');
     }
 
     // Verify Cloudflare Turnstile token (required)
     if (!turnstileToken || typeof turnstileToken !== 'string' || turnstileToken.trim().length === 0) {
+      console.log('[AuthService] Missing Turnstile token');
       throw new AuthenticationError('Turnstile token is required');
     }
+    console.log('[AuthService] Verifying Turnstile token...');
     await verifyTurnstileToken(turnstileToken);
 
     // Find user by username or email
+    console.log('[AuthService] Finding user in DB...');
     const user = await db.user.findFirst({
       where: {
         OR: [
@@ -51,19 +61,24 @@ export class AuthService {
     });
 
     if (!user) {
+      console.log('[AuthService] User not found');
       throw new AuthenticationError("Invalid username/email or password");
     }
 
     // Check if user is active
     if (!user.isActive) {
+      console.log('[AuthService] User inactive');
       throw new AuthenticationError("Account is inactive. Please contact administrator");
     }
 
     // Verify password
+    console.log('[AuthService] Verifying password...');
     const isValidPassword = await verifyPassword(password, user.passwordHash);
     if (!isValidPassword) {
+      console.log('[AuthService] Password mismatch');
       throw new AuthenticationError("Invalid username/email or password");
     }
+    console.log('[AuthService] Login success');
 
     // Update last login
     await db.user.update({
