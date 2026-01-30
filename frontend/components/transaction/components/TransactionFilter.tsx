@@ -3,6 +3,7 @@
 import { RotateCcw, Calendar, Download, ChevronDown } from "lucide-react";
 import { useMemo, useRef, useState, useEffect } from "react";
 import axios from "@/lib/axios";
+import { getEmployeeTypes } from "@/lib/services/employee-type.service";
 
 /* ======================
    TYPES
@@ -22,6 +23,12 @@ interface TypeItem {
   typeName: string;
 }
 
+interface EmployeeTypeItem {
+  id: string;
+  code: string;
+  name: string;
+}
+
 type TabType = "fwc" | "voucher";
 
 interface Props {
@@ -38,12 +45,14 @@ interface Props {
   shiftDate?: string;
   cardCategoryId?: string;
   cardTypeId?: string;
+  employeeTypeId?: string;
 
   onStationChange: (v?: string) => void;
   onPurchasedDateChange: (v?: string) => void;
   onShiftDateChange: (v?: string) => void;
   onCardCategoryChange: (v?: string) => void;
   onCardTypeChange: (v?: string) => void;
+  onEmployeeTypeChange: (v?: string) => void;
 
   onReset: () => void;
   onExportPDF: () => void;
@@ -64,12 +73,14 @@ export default function TransactionFilter({
   shiftDate,
   cardCategoryId,
   cardTypeId,
+  employeeTypeId,
 
   onStationChange,
   onPurchasedDateChange,
   onShiftDateChange,
   onCardCategoryChange,
   onCardTypeChange,
+  onEmployeeTypeChange,
 
   onReset,
   onExportPDF,
@@ -83,6 +94,7 @@ export default function TransactionFilter({
   const [stations, setStations] = useState<StationItem[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [types, setTypes] = useState<TypeItem[]>([]);
+  const [employeeTypes, setEmployeeTypes] = useState<EmployeeTypeItem[]>([]);
 
   /* ======================
      FETCH FILTER DATA
@@ -90,15 +102,17 @@ export default function TransactionFilter({
   useEffect(() => {
     const fetchFilters = async () => {
       try {
-        const [typeRes, categoryRes, stationRes] = await Promise.all([
+        const [typeRes, categoryRes, stationRes, employeeTypesRes] = await Promise.all([
           axios.get("/card/types/"),
           axios.get("/card/category/"),
           axios.get("/station/?page=&limit=&search="),
+          getEmployeeTypes({ limit: 200 }),
         ]);
 
         setTypes(typeRes.data?.data ?? []);
         setCategories(categoryRes.data?.data ?? []);
         setStations(stationRes.data?.data?.items ?? []);
+        setEmployeeTypes(employeeTypesRes.data ?? []);
       } catch (err) {
         console.error("Failed load filter data:", err);
       }
@@ -135,7 +149,8 @@ export default function TransactionFilter({
     !!purchasedDate ||
     !!shiftDate ||
     !!cardCategoryId ||
-    !!cardTypeId;
+    !!cardTypeId ||
+    !!employeeTypeId;
 
   const safeTypes = useMemo(
     () =>
@@ -180,6 +195,21 @@ export default function TransactionFilter({
         {safeTypes.map((t) => (
           <option key={t.id} value={t.id}>
             {t.typeName}
+          </option>
+        ))}
+      </select>
+
+      {/* EMPLOYEE TYPE */}
+      <select
+        value={employeeTypeId ?? ""}
+        onChange={(e) => onEmployeeTypeChange(e.target.value || undefined)}
+        className="h-9 w-full sm:w-auto sm:min-w-[160px] rounded-md border px-3 text-sm bg-white text-gray-700 border-gray-300
+        focus:bg-[#8D1231] focus:text-white focus:border-[#8D1231]"
+      >
+        <option value="">All Tipe Karyawan</option>
+        {employeeTypes.map((et) => (
+          <option key={et.id} value={et.id}>
+            {et.name}
           </option>
         ))}
       </select>

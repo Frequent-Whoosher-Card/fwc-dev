@@ -63,6 +63,17 @@ const formatDate = (iso?: string | null) =>
       })
     : "-";
 
+const formatDateTime = (iso?: string | null) =>
+  iso
+    ? new Date(iso).toLocaleString("id-ID", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "-";
+
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -225,7 +236,7 @@ export default function TransactionTable({
                     {formatCurrency(item.price)}
                   </td>
                   <td className="px-3 py-2 text-center whitespace-nowrap">
-                    {formatDate(item.purchaseDate)}
+                    {formatDateTime(item.purchaseDate)}
                   </td>
                   <td className="px-3 py-2 text-center text-gray-500 text-[11px] whitespace-nowrap">
                     {formatDate(item.shiftDate ?? item.purchaseDate)}
