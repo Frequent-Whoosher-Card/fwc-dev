@@ -33,9 +33,15 @@ import {
   Briefcase,
   ArrowDownToLine,
   ArrowUpNarrowWide,
+
   IdCard,
   type LucideIcon,
-  Circle
+  Circle,
+  BarChart3,
+  ArrowLeftRight,
+  BadgePercent,
+  Notebook,
+  Layers
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -89,6 +95,11 @@ const resolveIcon = (iconName: string | null): LucideIcon => {
     ArrowDownToLine,   // Stok Masuk
     ArrowUpNarrowWide, // Stok Keluar
     IdCard,            // New Product Card / Stok All
+    BarChart3,         // Sales
+    ArrowLeftRight,    // Swaps
+    BadgePercent,      // Discounts
+    Notebook,          // Notes
+    Layers,            // Layers/Stock
   };
 
   return map[iconName] || Circle;

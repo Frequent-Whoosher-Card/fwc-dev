@@ -89,7 +89,7 @@ export default function PermissionMatrixPage() {
             // Save all roles (skip superadmin to protect structural permissions)
             await Promise.all(
                 roles.map(async (role) => {
-                    if (role.roleCode === 'superadmin') return;
+                    // if (role.roleCode === 'superadmin') return; // Allow superadmin editing now
 
                     const permissionIds = Array.from(matrix[role.id] || []);
                     await RoleService.updatePermissions(role.id, permissionIds);
@@ -184,9 +184,9 @@ export default function PermissionMatrixPage() {
                                         return (
                                             <TableCell key={`select-all-${role.id}`} className="text-center">
                                                 <Checkbox
-                                                    checked={isSuperadmin || allChecked ? true : (someChecked ? "indeterminate" : false)}
-                                                    onCheckedChange={(checked) => !isSuperadmin && handleToggleRole(checked as boolean)}
-                                                    disabled={isSuperadmin}
+                                                    checked={allChecked ? true : (someChecked ? "indeterminate" : false)}
+                                                    onCheckedChange={(checked) => handleToggleRole(checked as boolean)}
+                                                    disabled={false}
                                                     aria-label={`Select all permissions for ${role.roleName}`}
                                                     className="border-gray-500 data-[state=checked]:bg-gray-700 data-[state=checked]:border-gray-700"
                                                 />
@@ -212,9 +212,12 @@ export default function PermissionMatrixPage() {
                                                 return (
                                                     <TableCell key={`${role.id}-${group.module}`} className="text-center">
                                                         <Checkbox
-                                                            checked={isSuperadmin || allChecked ? true : (someChecked ? "indeterminate" : false)}
-                                                            onCheckedChange={(checked) => !isSuperadmin && handleToggleModule(role.id, groupIds, checked as boolean)}
-                                                            disabled={isSuperadmin}
+                                                            checked={isSuperadmin && group.module === 'permission' ? true : (allChecked ? true : (someChecked ? "indeterminate" : false))}
+                                                            onCheckedChange={(checked) => {
+                                                                if (isSuperadmin && group.module === 'permission') return;
+                                                                handleToggleModule(role.id, groupIds, checked as boolean)
+                                                            }}
+                                                            disabled={isSuperadmin && group.module === 'permission' ? true : false}
                                                             aria-label={`Toggle all ${group.module} for ${role.roleName}`}
                                                             className="border-gray-400"
                                                         />
@@ -236,9 +239,12 @@ export default function PermissionMatrixPage() {
                                                     return (
                                                         <TableCell key={`${role.id}-${perm.id}`} className="text-center">
                                                             <Checkbox
-                                                                checked={isSuperadmin || matrix[role.id]?.has(perm.id)}
-                                                                onCheckedChange={(checked) => !isSuperadmin && handleToggle(role.id, perm.id, checked as boolean)}
-                                                                disabled={isSuperadmin}
+                                                                checked={isSuperadmin && perm.actionCode === 'permission.manage' ? true : matrix[role.id]?.has(perm.id)}
+                                                                onCheckedChange={(checked) => {
+                                                                    if (isSuperadmin && perm.actionCode === 'permission.manage') return;
+                                                                    handleToggle(role.id, perm.id, checked as boolean)
+                                                                }}
+                                                                disabled={isSuperadmin && perm.actionCode === 'permission.manage'}
                                                                 className="border-gray-400"
                                                             />
                                                         </TableCell>
