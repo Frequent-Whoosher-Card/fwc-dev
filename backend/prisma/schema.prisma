@@ -352,6 +352,7 @@ model Card {
   assignedSerialNumber String?
   programType          ProgramType?      @map("program_type")
   purchases            CardPurchase[]
+  bulkPurchaseItems    BulkPurchaseItem[]
   redeems              Redeem[]
   cardSwapRequests     CardSwapRequest[]
   originalSwaps        CardSwapRequest[] @relation("OriginalCard")
@@ -459,9 +460,27 @@ model Inbox {
   @@map("inbox")
 }
 
+model BulkPurchaseItem {
+  id              String       @id @default(uuid()) @map("item_id") @db.Uuid
+  purchaseId      String       @map("purchase_id") @db.Uuid
+  cardId          String       @map("card_id") @db.Uuid
+  price           Decimal      @map("price")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @default(now()) @map("updated_at")
+
+  // Relations
+  purchase        CardPurchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  card            Card         @relation(fields: [cardId], references: [id])
+
+  @@unique([purchaseId, cardId], name: "unique_purchase_card")
+  @@index([purchaseId])
+  @@index([cardId])
+  @@map("bulk_purchase_items")
+}
+
 model CardPurchase {
   id                 String       @id @default(uuid()) @map("purchase_id") @db.Uuid
-  cardId             String       @map("card_id") @db.Uuid
+  cardId             String?      @map("card_id") @db.Uuid
   memberId           String?      @map("member_id") @db.Uuid
   operatorId         String       @map("operator_id") @db.Uuid
   stationId          String       @map("station_id") @db.Uuid
@@ -479,12 +498,13 @@ model CardPurchase {
   deletedBy          String?      @map("deleted_by")
 
   // Relation
-  card             Card              @relation(fields: [cardId], references: [id])
-  member           Member?           @relation(fields: [memberId], references: [id], onDelete: Restrict)
-  operator         User              @relation("PurchaseOperator", fields: [operatorId], references: [id])
-  station          Station           @relation(fields: [stationId], references: [id])
-  bulkDiscount     BulkDiscount?     @relation(fields: [bulkDiscountId], references: [id])
-  cardSwapRequests CardSwapRequest[]
+  card                Card?              @relation(fields: [cardId], references: [id])
+  member              Member?            @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  operator            User               @relation("PurchaseOperator", fields: [operatorId], references: [id])
+  station             Station            @relation(fields: [stationId], references: [id])
+  bulkDiscount        BulkDiscount?      @relation(fields: [bulkDiscountId], references: [id])
+  bulkPurchaseItems   BulkPurchaseItem[]
+  cardSwapRequests    CardSwapRequest[]
 
   @@index([purchaseDate])
   @@index([stationId, purchaseDate])

@@ -1,0 +1,1270 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Plus, X } from "lucide-react";
+
+import SuccessModal from "../../app/dashboard/superadmin/membership/components/ui/SuccessModal";
+import { SectionCard } from "@/components/ui/section-card";
+import {
+  Field,
+  FieldLabel,
+  FieldContent,
+  FieldError,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { MemberAutocomplete } from "@/components/ui/member-autocomplete";
+
+import { useVoucherBulkPurchaseForm } from "@/hooks/useVoucherBulkPurchaseForm";
+import { useCardSelection } from "@/hooks/useCardSelection";
+import { useCategoriesVoucher } from "@/hooks/useCategoriesVoucher";
+import { useTypesVoucher } from "@/hooks/useTypesVoucher";
+import { useMemberSearch } from "@/hooks/useMemberSearch";
+import { cardVoucherService } from "@/lib/services/card.voucher.service";
+import axios from "@/lib/axios";
+import { toast } from "sonner";
+
+const baseInputClass =
+  "h-10 w-full rounded-md border border-gray-300 px-3 text-sm text-gray-700 focus:border-gray-400 focus:outline-none";
+
+type Role = "superadmin" | "admin" | "supervisor" | "petugas";
+
+interface CreateVoucherBulkPurchasePageProps {
+  role: Role;
+}
+
+export default function CreateVoucherBulkPurchasePage({
+  role,
+}: CreateVoucherBulkPurchasePageProps) {
+  const router = useRouter();
+  const { data: categories, loading: loadingCategories } = useCategoriesVoucher();
+  const { data: types, loading: loadingTypes } = useTypesVoucher();
+
+  // Input mode state
+  const [inputMode, setInputMode] = useState<"" | "manual" | "recommendation" | "range">(
+    ""
+  );
+
+  // Voucher-specific state
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
+  const [selectedTypeId, setSelectedTypeId] = useState<string>("");
+  const [voucherProducts, setVoucherProducts] = useState<any[]>([]);
+  const [voucherCards, setVoucherCards] = useState<any[]>([]);
+  const [selectedCardId, setSelectedCardId] = useState<string>("");
+  const [cardPrice, setCardPrice] = useState<number>(0);
+  const [cardSerialNumber, setCardSerialNumber] = useState<string>("");
+  const [cardSearchResults, setCardSearchResults] = useState<any[]>([]);
+  const [isSearchingCards, setIsSearchingCards] = useState(false);
+  const [loadingVoucherCards, setLoadingVoucherCards] = useState(false);
+  
+  // Range input state
+  const [rangeStartSerial, setRangeStartSerial] = useState<string>("");
+  const [rangeQuantity, setRangeQuantity] = useState<string>("");
+  const [isAddingRange, setIsAddingRange] = useState(false);
+  const [rangeSearchResults, setRangeSearchResults] = useState<any[]>([]);
+  const [isSearchingRange, setIsSearchingRange] = useState(false);
+  const [selectedRangeCardId, setSelectedRangeCardId] = useState<string>("");
+
+  const {
+    form,
+    isSubmitting,
+    showConfirm,
+    setShowConfirm,
+    openConfirmDialog,
+    handleConfirm,
+    selectedCards,
+    addCard,
+    addCards,
+    removeCard,
+    bulkDiscounts,
+    selectedBulkDiscountId,
+    handleBulkDiscountChange,
+    totalPrice,
+    discountAmount,
+  } = useVoucherBulkPurchaseForm();
+
+  const {
+    query: memberQuery,
+    setQuery: setMemberQuery,
+    members,
+    loading: loadingMembers,
+    selectedMember,
+    setSelectedMember,
+    reset: resetMemberSearch,
+  } = useMemberSearch();
+
+  // Set memberId when member is selected
+  useEffect(() => {
+    if (selectedMember) {
+      form.setValue("memberId", selectedMember.id);
+      form.setValue("identityNumber", selectedMember.identityNumber);
+    } else {
+      form.setValue("memberId", "");
+      form.setValue("identityNumber", "");
+    }
+  }, [selectedMember, form]);
+
+  // Auto-fill range start serial when switching to range mode and type is already selected
+  useEffect(() => {
+    if (inputMode === "range" && selectedTypeId && selectedCategoryId && voucherProducts.length > 0) {
+      const matchedProduct = voucherProducts.find(
+        (p: any) => p.type?.id === selectedTypeId
+      );
+      if (matchedProduct && matchedProduct.serialTemplate) {
+        const serialTemplate = matchedProduct.serialTemplate;
+        setRangeStartSerial(serialTemplate);
+        // Trigger search to show dropdown if serial template is long enough
+        if (serialTemplate.length >= 6) {
+          // Use setTimeout to avoid dependency issues
+          setTimeout(() => {
+            handleRangeSerialSearch(serialTemplate);
+          }, 100);
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inputMode, selectedTypeId, selectedCategoryId, voucherProducts]);
+
+  // Voucher-specific handlers
+  const handleVoucherCategoryChange = async (categoryId: string) => {
+    try {
+      setSelectedCategoryId(categoryId);
+      setSelectedTypeId("");
+      setSelectedCardId("");
+      setVoucherCards([]);
+      setCardPrice(0);
+      setCardSerialNumber("");
+      setCardSearchResults([]);
+      setRangeStartSerial("");
+
+      if (!categoryId) {
+        setVoucherProducts([]);
+        return;
+      }
+
+      // Load voucher products for this category
+      const products = await cardVoucherService.getProducts();
+      const filteredProducts = products.filter(
+        (p: any) => p.categoryId === categoryId
+      );
+      setVoucherProducts(filteredProducts);
+
+      if (filteredProducts.length === 0) {
+        toast.warning("Tidak ada produk voucher tersedia untuk kategori ini");
+      }
+    } catch (error) {
+      toast.error("Gagal memuat produk voucher");
+      console.error(error);
+    }
+  };
+
+  const handleVoucherTypeChange = async (typeId: string) => {
+    try {
+      setSelectedTypeId(typeId);
+      setSelectedCardId("");
+      setCardSearchResults([]);
+
+      if (!typeId || !selectedCategoryId) {
+        setVoucherCards([]);
+        setCardPrice(0);
+        setCardSerialNumber("");
+        setRangeStartSerial("");
+        return;
+      }
+
+      // Set price from product
+      const matchedProduct = voucherProducts.find(
+        (p: any) => p.type?.id === typeId
+      );
+      if (matchedProduct) {
+        setCardPrice(Number(matchedProduct.price) || 0);
+        
+        // Auto-fill serial number from serialTemplate
+        const serialTemplate = matchedProduct?.serialTemplate || "";
+        setCardSerialNumber(serialTemplate);
+        
+        // Also auto-fill range start serial if in range mode
+        if (inputMode === "range") {
+          setRangeStartSerial(serialTemplate);
+          // Trigger search to show dropdown after a short delay
+          if (serialTemplate.length >= 6) {
+            setTimeout(() => {
+              handleRangeSerialSearch(serialTemplate);
+            }, 200);
+          }
+        }
+      } else {
+        setCardSerialNumber("");
+        if (inputMode === "range") {
+          setRangeStartSerial("");
+        }
+      }
+
+      // Load available cards
+      setLoadingVoucherCards(true);
+      const userStr = localStorage.getItem("fwc_user");
+      let userStationId: string | null = null;
+      
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          userStationId = user.stationId || null;
+        } catch (err) {
+          console.error("Failed to parse user data:", err);
+        }
+      }
+
+      const params: any = {
+        categoryId: selectedCategoryId,
+        typeId: typeId,
+        status: "IN_STATION",
+        limit: 100,
+        programType: "VOUCHER",
+      };
+
+      if (userStationId) {
+        params.stationId = userStationId;
+      }
+
+      const response = await axios.get("/cards", { params });
+      const availableCards = response.data?.data?.items || [];
+      setVoucherCards(availableCards);
+
+      if (availableCards.length === 0) {
+        toast.warning("Tidak ada voucher tersedia untuk tipe ini");
+      }
+    } catch (error) {
+      toast.error("Gagal memuat voucher");
+      console.error(error);
+    } finally {
+      setLoadingVoucherCards(false);
+    }
+  };
+
+  const handleVoucherCardSearch = async (query: string) => {
+    setCardSerialNumber(query);
+
+    if (!query || query.length < 6) {
+      setCardSearchResults([]);
+      return;
+    }
+
+    try {
+      setIsSearchingCards(true);
+
+      const userStr = localStorage.getItem("fwc_user");
+      let userStationId: string | null = null;
+      
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          userStationId = user.stationId || null;
+        } catch (err) {
+          console.error("Failed to parse user data:", err);
+        }
+      }
+
+      const params: any = {
+        search: query,
+        status: "IN_STATION",
+        limit: 10,
+        programType: "VOUCHER",
+        sortBy: "serialNumber",
+        sortOrder: "asc",
+      };
+
+      if (selectedCategoryId) params.categoryId = selectedCategoryId;
+      if (selectedTypeId) params.typeId = selectedTypeId;
+      if (userStationId) params.stationId = userStationId;
+
+      const response = await axios.get("/cards", { params });
+      const results = response.data?.data?.items || [];
+      const sortedResults = results.sort((a: any, b: any) =>
+        a.serialNumber.localeCompare(b.serialNumber)
+      );
+      setCardSearchResults(sortedResults);
+    } catch (error) {
+      console.error("Error searching voucher cards:", error);
+      setCardSearchResults([]);
+    } finally {
+      setIsSearchingCards(false);
+    }
+  };
+
+  const handleVoucherCardSelect = (card: any) => {
+    setSelectedCardId(card.id);
+    setCardSerialNumber(card.serialNumber);
+    setCardSearchResults([]);
+  };
+
+  // Handle range serial number search (same as recommendation mode)
+  const handleRangeSerialSearch = async (query: string) => {
+    setRangeStartSerial(query);
+
+    if (!query || query.length < 6) {
+      setRangeSearchResults([]);
+      return;
+    }
+
+    if (!selectedCategoryId || !selectedTypeId) {
+      setRangeSearchResults([]);
+      return;
+    }
+
+    try {
+      setIsSearchingRange(true);
+
+      const userStr = localStorage.getItem("fwc_user");
+      let userStationId: string | null = null;
+      
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          userStationId = user.stationId || null;
+        } catch (err) {
+          console.error("Failed to parse user data:", err);
+        }
+      }
+
+      const params: any = {
+        search: query,
+        status: "IN_STATION",
+        limit: 1000, // Show all available vouchers, not limited to 10
+        programType: "VOUCHER",
+        categoryId: selectedCategoryId,
+        typeId: selectedTypeId,
+        sortBy: "serialNumber",
+        sortOrder: "asc",
+      };
+
+      if (userStationId) {
+        params.stationId = userStationId;
+      }
+
+      const response = await axios.get("/cards", { params });
+      const results = response.data?.data?.items || [];
+      const sortedResults = results.sort((a: any, b: any) =>
+        a.serialNumber.localeCompare(b.serialNumber)
+      );
+      setRangeSearchResults(sortedResults);
+    } catch (error) {
+      console.error("Error searching range voucher cards:", error);
+      setRangeSearchResults([]);
+    } finally {
+      setIsSearchingRange(false);
+    }
+  };
+
+  const handleRangeCardSelect = (card: any) => {
+    setSelectedRangeCardId(card.id);
+    setRangeStartSerial(card.serialNumber);
+    setRangeSearchResults([]);
+  };
+
+  // Handle card selection for bulk purchase
+  const handleAddSelectedCard = () => {
+    const cardToAdd = selectedCardId 
+      ? (cardSearchResults.find((c) => c.id === selectedCardId) ||
+         voucherCards.find((c) => c.id === selectedCardId))
+      : null;
+
+    if (!cardToAdd || !cardSerialNumber) {
+      return;
+    }
+
+    addCard({
+      cardId: cardToAdd.id,
+      serialNumber: cardToAdd.serialNumber,
+      price: cardPrice || 0,
+    });
+    
+    // Reset selection
+    setCardSerialNumber("");
+    setSelectedCardId("");
+  };
+
+  // Generate serial numbers from range
+  const generateSerialNumbers = (startSerial: string, quantity: number): string[] => {
+    const serials: string[] = [];
+    const match = startSerial.match(/^(.+?)(\d+)$/);
+    
+    if (!match) {
+      return [startSerial]; // If no number suffix, return as is
+    }
+    
+    const prefix = match[1];
+    const startNumber = parseInt(match[2], 10);
+    const padding = match[2].length; // Preserve padding length
+    
+    for (let i = 0; i < quantity; i++) {
+      const number = startNumber + i;
+      const paddedNumber = number.toString().padStart(padding, '0');
+      serials.push(`${prefix}${paddedNumber}`);
+    }
+    
+    return serials;
+  };
+
+  // Handle range input and add multiple cards
+  const handleAddRange = async () => {
+    if (!rangeStartSerial || !rangeQuantity) {
+      toast.error("Serial number awal dan quantity wajib diisi");
+      return;
+    }
+
+    const quantity = parseInt(rangeQuantity, 10);
+    if (isNaN(quantity) || quantity < 1 || quantity > 100) {
+      toast.error("Quantity harus antara 1-100");
+      return;
+    }
+
+    if (!selectedCategoryId || !selectedTypeId) {
+      toast.error("Pilih Category dan Type terlebih dahulu");
+      return;
+    }
+
+    setIsAddingRange(true);
+    try {
+      const serialNumbers = generateSerialNumbers(rangeStartSerial, quantity);
+      
+      console.log("=== RANGE ADD DEBUG ===");
+      console.log("Start Serial:", rangeStartSerial);
+      console.log("Quantity:", quantity);
+      console.log("Generated Serial Numbers:", serialNumbers);
+      
+      // Get price from product
+      const product = voucherProducts.find(
+        (p: any) => p.categoryId === selectedCategoryId && p.type?.id === selectedTypeId
+      );
+      const pricePerCard = product ? Number(product.price) || 0 : 0;
+
+      // Validate and fetch all cards
+      const userStr = localStorage.getItem("fwc_user");
+      let userStationId: string | null = null;
+      
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          userStationId = user.stationId || null;
+        } catch (err) {
+          console.error("Failed to parse user data:", err);
+        }
+      }
+
+      const params: any = {
+        status: "IN_STATION",
+        programType: "VOUCHER",
+        categoryId: selectedCategoryId,
+        typeId: selectedTypeId,
+        limit: 1000, // Increase limit to ensure we get all cards
+      };
+
+      // Only filter by stationId for non-superadmin roles
+      // Superadmin can purchase vouchers from any station
+      if (userStationId && role !== "superadmin") {
+        params.stationId = userStationId;
+      }
+
+      // Search for all serial numbers - use exact match search
+      const searchPromises = serialNumbers.map(async (serial) => {
+        try {
+          // First, search with filters (status IN_STATION, category, type, station)
+          const response = await axios.get("/cards", {
+            params: { ...params, search: serial },
+          });
+          const results = response.data?.data?.items || [];
+          // Find exact match by serial number
+          let exactMatch = results.find((card: any) => card && card.serialNumber === serial);
+          
+          // If not found with filters, check if card exists at all (without status filter)
+          if (!exactMatch) {
+            try {
+              const searchWithoutStatus = await axios.get("/cards", {
+                params: {
+                  search: serial,
+                  programType: "VOUCHER",
+                  categoryId: selectedCategoryId,
+                  typeId: selectedTypeId,
+                  limit: 100,
+                },
+              });
+              const allResults = searchWithoutStatus.data?.data?.items || [];
+              const cardExists = allResults.find((card: any) => card && card.serialNumber === serial);
+              
+              if (cardExists) {
+                console.log(`Searching ${serial}: Card exists but doesn't meet filters. Status: ${cardExists.status}, Station: ${cardExists.stationId || 'N/A'}`);
+              } else {
+                console.log(`Searching ${serial}: Card not found in database`);
+              }
+            } catch (err) {
+              // Ignore error for secondary search
+            }
+          } else {
+            console.log(`Searching ${serial}: Found exact match with status ${exactMatch.status}`);
+          }
+          
+          return exactMatch || null;
+        } catch (error) {
+          console.error(`Error searching card ${serial}:`, error);
+          return null;
+        }
+      });
+
+      const foundCards = await Promise.all(searchPromises);
+      const validCards = foundCards.filter((card) => card !== null);
+
+      console.log("Found Cards:", validCards.map((c: any) => c?.serialNumber || "N/A"));
+      console.log("Expected Serial Numbers:", serialNumbers);
+      console.log("Found Count:", validCards.length, "Expected Count:", serialNumbers.length);
+
+      if (validCards.length === 0) {
+        toast.error("Tidak ada voucher ditemukan untuk serial numbers tersebut");
+        return;
+      }
+
+      if (validCards.length < serialNumbers.length) {
+        const missing = serialNumbers.filter(
+          (serial) => !validCards.some((c: any) => c.serialNumber === serial)
+        );
+        console.log("Missing serials:", missing);
+        toast.warning(
+          `Hanya ${validCards.length} dari ${serialNumbers.length} voucher yang ditemukan. Missing: ${missing.join(", ")}`
+        );
+      }
+
+      // Add all valid cards at once to avoid state update issues
+      // Filter out cards that already exist
+      const existingCardIds = new Set(selectedCards.map((c) => c.cardId));
+      const newCardsToAdd = validCards.filter(
+        (card) => !existingCardIds.has(card.id)
+      );
+      
+      const skippedCount = validCards.length - newCardsToAdd.length;
+      
+      console.log(`Cards to add: ${newCardsToAdd.length}, Skipped (duplicates): ${skippedCount}`);
+      console.log("New cards serial numbers:", newCardsToAdd.map((c: any) => c.serialNumber));
+
+      // Add all new cards at once using batch add
+      if (newCardsToAdd.length > 0) {
+        const cardsToAdd = newCardsToAdd.map((card) => ({
+          cardId: card.id,
+          serialNumber: card.serialNumber,
+          price: pricePerCard,
+        }));
+        addCards(cardsToAdd);
+      }
+
+      console.log(`Added: ${newCardsToAdd.length}, Skipped: ${skippedCount}`);
+      console.log("===========================");
+
+      if (skippedCount > 0) {
+        toast.warning(`${newCardsToAdd.length} voucher berhasil ditambahkan, ${skippedCount} sudah ada sebelumnya`);
+      } else {
+        toast.success(`${newCardsToAdd.length} voucher berhasil ditambahkan`);
+      }
+      
+      // Reset range inputs
+      setRangeStartSerial("");
+      setRangeQuantity("");
+    } catch (error) {
+      toast.error("Gagal menambahkan voucher range");
+      console.error("Error adding range:", error);
+    } finally {
+      setIsAddingRange(false);
+    }
+  };
+
+  const {
+    register,
+    formState: { errors },
+  } = form;
+
+  const subtotal = selectedCards.reduce((sum, card) => sum + (card.price || 0), 0);
+
+  return (
+    <>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <button
+            className="rounded p-1 hover:bg-gray-100"
+            type="button"
+            onClick={() => router.back()}
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <h1 className="text-xl font-semibold">Add Voucher Bulk Purchase</h1>
+        </div>
+
+        {/* Form */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            openConfirmDialog();
+          }}
+          className="space-y-4 rounded-lg border bg-white p-6"
+        >
+          {/* Customer Section */}
+          <SectionCard title="Customer">
+            <Field>
+              <FieldLabel>
+                Identity Number (NIK/NIPP)
+                <span className="ml-1 text-red-500">*</span>
+              </FieldLabel>
+              <FieldContent>
+                <MemberAutocomplete
+                  value={memberQuery}
+                  onChange={setMemberQuery}
+                  onSelectMember={setSelectedMember}
+                  members={members}
+                  loading={loadingMembers}
+                  selectedMember={selectedMember}
+                  onClear={resetMemberSearch}
+                  placeholder="Cari NIK Customer (min 3 karakter)..."
+                />
+                <FieldError
+                  errors={
+                    errors.identityNumber
+                      ? [errors.identityNumber]
+                      : undefined
+                  }
+                />
+              </FieldContent>
+            </Field>
+          </SectionCard>
+
+          {/* Card Selection Section */}
+          <SectionCard title="Select Vouchers (Bulk)">
+            <Field>
+              <FieldLabel>
+                Mode Input Serial Number
+                <span className="ml-1 text-red-500">*</span>
+              </FieldLabel>
+              <FieldContent>
+                <select
+                  className={baseInputClass}
+                  value={inputMode}
+                  onChange={(e) => {
+                    const mode = e.target.value as
+                      | ""
+                      | "manual"
+                      | "recommendation"
+                      | "range";
+                    setInputMode(mode);
+                    setCardSerialNumber("");
+                    setRangeStartSerial("");
+                    setRangeQuantity("");
+                  }}
+                >
+                  <option value="">Pilih Mode Input</option>
+                  <option value="manual">Input Manual / Scan Barcode (Satu per Satu)</option>
+                  <option value="recommendation">Rekomendasi (Satu per Satu)</option>
+                  <option value="range">Range (Bulk - Serial Number Awal + Quantity)</option>
+                </select>
+              </FieldContent>
+            </Field>
+
+            {inputMode === "manual" && (
+              <Field>
+                <FieldLabel>
+                  Serial Number (Bisa Multiple)
+                  <span className="ml-1 text-red-500">*</span>
+                </FieldLabel>
+                <FieldContent>
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          className={baseInputClass}
+                          value={cardSerialNumber}
+                          onChange={(e) => handleVoucherCardSearch(e.target.value)}
+                          onKeyDown={(e) => {
+                            // Auto-add when Enter is pressed and card is selected
+                            if (e.key === "Enter" && selectedCardId && cardSerialNumber) {
+                              e.preventDefault();
+                              handleAddSelectedCard();
+                            }
+                          }}
+                          placeholder="Masukkan atau scan serial number (tekan Enter untuk tambah)..."
+                          autoComplete="off"
+                        />
+                        {isSearchingCards && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+                          </div>
+                        )}
+                        {cardSearchResults.length > 0 && (
+                          <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
+                            {cardSearchResults.map((card) => (
+                              <button
+                                key={card.id}
+                                type="button"
+                                onClick={() => {
+                                  handleVoucherCardSelect(card);
+                                  setTimeout(() => {
+                                    handleAddSelectedCard();
+                                  }, 100);
+                                }}
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                              >
+                                {card.serialNumber}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={handleAddSelectedCard}
+                        disabled={!selectedCardId || !cardSerialNumber}
+                        className="whitespace-nowrap"
+                      >
+                        <Plus size={16} className="mr-1" />
+                        Add
+                      </Button>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      💡 Tips: Scan/input serial number lalu tekan <kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Enter</kbd> untuk langsung menambah ke list. 
+                      Atau input serial number lalu klik hasil dropdown untuk auto-add.
+                    </p>
+                  </div>
+                </FieldContent>
+              </Field>
+            )}
+
+            {inputMode === "range" && (
+              <>
+                <Field>
+                  <FieldLabel>
+                    Voucher Category
+                    <span className="ml-1 text-red-500">*</span>
+                  </FieldLabel>
+                  <FieldContent>
+                    <select
+                      className={baseInputClass}
+                      value={selectedCategoryId}
+                      onChange={(e) => handleVoucherCategoryChange(e.target.value)}
+                      disabled={loadingCategories}
+                    >
+                      <option value="">
+                        {loadingCategories ? "Loading..." : "Select"}
+                      </option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.categoryName}
+                        </option>
+                      ))}
+                    </select>
+                  </FieldContent>
+                </Field>
+
+                <Field>
+                  <FieldLabel>
+                    Voucher Type
+                    <span className="ml-1 text-red-500">*</span>
+                  </FieldLabel>
+                  <FieldContent>
+                    <select
+                      className={baseInputClass}
+                      value={selectedTypeId}
+                      onChange={(e) => handleVoucherTypeChange(e.target.value)}
+                      disabled={!selectedCategoryId || loadingTypes}
+                    >
+                      <option value="">
+                        {loadingTypes ? "Loading..." : "Select"}
+                      </option>
+                      {voucherProducts.length > 0
+                        ? voucherProducts
+                            .reduce((acc: any[], product: any) => {
+                              if (
+                                product.type &&
+                                !acc.find((t) => t.id === product.type.id)
+                              ) {
+                                acc.push(product.type);
+                              }
+                              return acc;
+                            }, [])
+                            .map((t: any) => (
+                              <option key={t.id} value={t.id}>
+                                {t.typeName}
+                              </option>
+                            ))
+                        : types
+                            .filter((t) => {
+                              if (!selectedCategoryId) return false;
+                              return voucherProducts.some(
+                                (p: any) => p.type?.id === t.id
+                              );
+                            })
+                            .map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.typeName}
+                              </option>
+                            ))}
+                    </select>
+                  </FieldContent>
+                </Field>
+
+                <Field>
+                  <FieldLabel>
+                    Serial Number Awal
+                    <span className="ml-1 text-red-500">*</span>
+                  </FieldLabel>
+                  <FieldContent>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        className={baseInputClass}
+                        value={rangeStartSerial}
+                        onChange={(e) => handleRangeSerialSearch(e.target.value)}
+                        placeholder="Masukkan 2 digit tahun kartu dibuat + nomor..."
+                        autoComplete="off"
+                        disabled={!selectedTypeId}
+                      />
+                      {isSearchingRange && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+                        </div>
+                      )}
+                      {rangeSearchResults.length > 0 && (
+                        <div className="absolute z-10 mt-1 max-h-96 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
+                          <div className="sticky top-0 bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-600 border-b">
+                            {rangeSearchResults.length} voucher ditemukan
+                          </div>
+                          {rangeSearchResults.map((card) => (
+                            <button
+                              key={card.id}
+                              type="button"
+                              onClick={() => handleRangeCardSelect(card)}
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none font-mono"
+                            >
+                              {card.serialNumber}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {rangeStartSerial &&
+                        rangeSearchResults.length === 0 &&
+                        !isSearchingRange &&
+                        rangeStartSerial.length >= 6 &&
+                        !selectedRangeCardId && (
+                          <p className="mt-1 text-xs text-red-600">
+                            Tidak ada voucher ditemukan dengan serial number ini
+                          </p>
+                        )}
+                      {rangeStartSerial.length > 0 && rangeStartSerial.length < 6 && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          Masukkan 2 digit tahun kartu dibuat + nomor (minimal 6
+                          karakter total)
+                        </p>
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Masukkan serial number pertama dari range yang ingin dibeli
+                    </p>
+                  </FieldContent>
+                </Field>
+
+                <Field>
+                  <FieldLabel>
+                    Quantity (Jumlah Voucher)
+                    <span className="ml-1 text-red-500">*</span>
+                  </FieldLabel>
+                  <FieldContent>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        className={baseInputClass}
+                        value={rangeQuantity}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, "");
+                          if (val === "" || (parseInt(val, 10) >= 1 && parseInt(val, 10) <= 100)) {
+                            setRangeQuantity(val);
+                          }
+                        }}
+                        placeholder="Contoh: 10"
+                        min="1"
+                        max="100"
+                        disabled={!selectedTypeId || !rangeStartSerial}
+                      />
+                      <Button
+                        type="button"
+                        onClick={handleAddRange}
+                        disabled={
+                          !selectedTypeId ||
+                          !rangeStartSerial ||
+                          !rangeQuantity ||
+                          isAddingRange
+                        }
+                        className="whitespace-nowrap"
+                      >
+                        {isAddingRange ? (
+                          <>
+                            <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                            Adding...
+                          </>
+                        ) : (
+                          <>
+                            <Plus size={16} className="mr-1" />
+                            Add Range
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    {rangeStartSerial && rangeQuantity && (
+                      <div className="mt-2 space-y-1">
+                        <p className="text-xs text-blue-600">
+                          📋 Range yang akan ditambahkan:{" "}
+                          <span className="font-mono font-semibold">{rangeStartSerial}</span> -{" "}
+                          <span className="font-mono font-semibold">
+                            {(() => {
+                              const serials = generateSerialNumbers(
+                                rangeStartSerial,
+                                parseInt(rangeQuantity, 10)
+                              );
+                              return serials[serials.length - 1] || rangeStartSerial;
+                            })()}
+                          </span>{" "}
+                          ({rangeQuantity} vouchers)
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Maksimal 100 voucher per range. Sistem akan mencari dan menambahkan semua voucher yang tersedia dalam range tersebut.
+                        </p>
+                      </div>
+                    )}
+                  </FieldContent>
+                </Field>
+              </>
+            )}
+
+            {inputMode === "recommendation" && (
+              <>
+                <Field>
+                  <FieldLabel>
+                    Voucher Category
+                    <span className="ml-1 text-red-500">*</span>
+                  </FieldLabel>
+                  <FieldContent>
+                    <select
+                      className={baseInputClass}
+                      value={selectedCategoryId}
+                      onChange={(e) => handleVoucherCategoryChange(e.target.value)}
+                      disabled={loadingCategories}
+                    >
+                      <option value="">
+                        {loadingCategories ? "Loading..." : "Select"}
+                      </option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.categoryName}
+                        </option>
+                      ))}
+                    </select>
+                  </FieldContent>
+                </Field>
+
+                <Field>
+                  <FieldLabel>
+                    Voucher Type
+                    <span className="ml-1 text-red-500">*</span>
+                  </FieldLabel>
+                  <FieldContent>
+                    <select
+                      className={baseInputClass}
+                      value={selectedTypeId}
+                      onChange={(e) => handleVoucherTypeChange(e.target.value)}
+                      disabled={!selectedCategoryId || loadingTypes}
+                    >
+                      <option value="">
+                        {loadingTypes ? "Loading..." : "Select"}
+                      </option>
+                      {voucherProducts.length > 0
+                        ? voucherProducts
+                            .reduce((acc: any[], product: any) => {
+                              if (
+                                product.type &&
+                                !acc.find((t) => t.id === product.type.id)
+                              ) {
+                                acc.push(product.type);
+                              }
+                              return acc;
+                            }, [])
+                            .map((t: any) => (
+                              <option key={t.id} value={t.id}>
+                                {t.typeName}
+                              </option>
+                            ))
+                        : types
+                            .filter((t) => {
+                              // Fallback: filter types based on selected category products
+                              if (!selectedCategoryId) return false;
+                              return voucherProducts.some(
+                                (p: any) => p.type?.id === t.id
+                              );
+                            })
+                            .map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.typeName}
+                              </option>
+                            ))}
+                    </select>
+                    {!selectedCategoryId && (
+                      <p className="mt-1 text-xs text-amber-600">
+                        ⚠ Pilih Voucher Category terlebih dahulu
+                      </p>
+                    )}
+                  </FieldContent>
+                </Field>
+
+                <Field>
+                  <FieldLabel>
+                    Serial Number (Bisa Multiple)
+                    <span className="ml-1 text-red-500">*</span>
+                  </FieldLabel>
+                  <FieldContent>
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <input
+                          type="text"
+                          className={baseInputClass}
+                          value={cardSerialNumber}
+                          onChange={(e) => handleVoucherCardSearch(e.target.value)}
+                          onKeyDown={(e) => {
+                            // Auto-add when Enter is pressed and card is selected
+                            if (e.key === "Enter" && selectedCardId && cardSerialNumber) {
+                              e.preventDefault();
+                              handleAddSelectedCard();
+                            }
+                          }}
+                          placeholder="Masukkan 2 digit tahun kartu dibuat + nomor (tekan Enter untuk tambah)..."
+                          autoComplete="off"
+                          disabled={!selectedTypeId}
+                        />
+                        {isSearchingCards && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+                          </div>
+                        )}
+                        {cardSearchResults.length > 0 && (
+                          <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
+                            {cardSearchResults.map((card) => (
+                              <button
+                                key={card.id}
+                                type="button"
+                                onClick={() => {
+                                  handleVoucherCardSelect(card);
+                                  setTimeout(() => {
+                                    handleAddSelectedCard();
+                                  }, 100);
+                                }}
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                              >
+                                {card.serialNumber}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {cardSerialNumber &&
+                          cardSearchResults.length === 0 &&
+                          !isSearchingCards &&
+                          cardSerialNumber.length >= 6 &&
+                          !selectedCardId && (
+                            <p className="mt-1 text-xs text-red-600">
+                              Tidak ada voucher ditemukan dengan serial number ini
+                            </p>
+                          )}
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        💡 Tips: Scan/input serial number lalu tekan <kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Enter</kbd> untuk langsung menambah ke list. 
+                        Atau input serial number lalu klik hasil dropdown untuk auto-add.
+                      </p>
+                    </div>
+                  </FieldContent>
+                </Field>
+              </>
+            )}
+
+            {/* Selected Cards List */}
+            {selectedCards.length > 0 && (
+              <Field>
+                <FieldLabel>Selected Vouchers ({selectedCards.length})</FieldLabel>
+                <FieldContent>
+                  <div className="space-y-2 max-h-60 overflow-y-auto border rounded-md p-2">
+                    {selectedCards.map((card) => (
+                      <div
+                        key={card.cardId}
+                        className="flex items-center justify-between p-2 bg-gray-50 rounded"
+                      >
+                        <span className="text-sm">{card.serialNumber}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-600">
+                            Rp {card.price.toLocaleString("id-ID")}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removeCard(card.cardId)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </FieldContent>
+              </Field>
+            )}
+
+            <FieldError
+              errors={errors.cards ? [errors.cards] : undefined}
+            />
+          </SectionCard>
+
+          {/* Bulk Discount Section */}
+          {selectedCards.length > 0 && (
+            <SectionCard title="Bulk Discount">
+              <Field>
+                <FieldLabel>Bulk Discount</FieldLabel>
+                <FieldContent>
+                  <select
+                    className={baseInputClass}
+                    value={selectedBulkDiscountId || ""}
+                    onChange={(e) =>
+                      handleBulkDiscountChange(
+                        e.target.value ? Number(e.target.value) : undefined
+                      )
+                    }
+                  >
+                    <option value="">No Discount</option>
+                    {bulkDiscounts
+                      .filter((discount) => {
+                        const quantity = selectedCards.length;
+                        return (
+                          quantity >= discount.minQuantity &&
+                          (discount.maxQuantity === null ||
+                            quantity <= discount.maxQuantity)
+                        );
+                      })
+                      .map((discount) => (
+                        <option key={discount.id} value={discount.id}>
+                          {discount.minQuantity}
+                          {discount.maxQuantity
+                            ? `-${discount.maxQuantity}`
+                            : "+"}{" "}
+                          items: {Number(discount.discount)}%
+                        </option>
+                      ))}
+                  </select>
+                  {selectedCards.length > 0 &&
+                    bulkDiscounts.filter((discount) => {
+                      const quantity = selectedCards.length;
+                      return (
+                        quantity >= discount.minQuantity &&
+                        (discount.maxQuantity === null ||
+                          quantity <= discount.maxQuantity)
+                      );
+                    }).length === 0 && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        Tidak ada bulk discount tersedia untuk {selectedCards.length}{" "}
+                        item
+                      </p>
+                    )}
+                </FieldContent>
+              </Field>
+            </SectionCard>
+          )}
+
+          {/* Price Summary */}
+          {selectedCards.length > 0 && (
+            <SectionCard title="Price Summary">
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Subtotal ({selectedCards.length} items):</span>
+                  <span>Rp {subtotal.toLocaleString("id-ID")}</span>
+                </div>
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Discount:</span>
+                    <span>- Rp {discountAmount.toLocaleString("id-ID")}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-semibold border-t pt-2">
+                  <span>Total:</span>
+                  <span>Rp {totalPrice.toLocaleString("id-ID")}</span>
+                </div>
+              </div>
+            </SectionCard>
+          )}
+
+          <Field>
+            <FieldLabel>
+              No. Reference EDC
+              <span className="ml-1 text-red-500">*</span>
+            </FieldLabel>
+            <FieldContent>
+              <Input
+                {...register("edcReferenceNumber")}
+                className={baseInputClass}
+                maxLength={20}
+                onInput={(e) => {
+                  e.currentTarget.value = e.currentTarget.value
+                    .replace(/\D/g, "")
+                    .slice(0, 20);
+                }}
+              />
+              <FieldError
+                errors={
+                  errors.edcReferenceNumber
+                    ? [errors.edcReferenceNumber]
+                    : undefined
+                }
+              />
+            </FieldContent>
+          </Field>
+
+          <Field>
+            <FieldLabel>Notes (Optional)</FieldLabel>
+            <FieldContent>
+              <textarea
+                {...register("notes")}
+                className={`${baseInputClass} min-h-[80px]`}
+                maxLength={500}
+                placeholder="Tambahkan catatan jika perlu..."
+              />
+            </FieldContent>
+          </Field>
+
+          <div className="flex justify-end">
+            <Button
+              type="submit"
+              className="rounded-md bg-[#8B1538] px-8 py-2 text-sm font-medium text-white hover:bg-[#6B0F2B]"
+              disabled={isSubmitting || selectedCards.length === 0}
+            >
+              {isSubmitting ? "Saving..." : "Save"}
+            </Button>
+          </div>
+        </form>
+      </div>
+
+      <SuccessModal
+        open={showConfirm}
+        title="Voucher Bulk Purchase Data"
+        message="Please review the transaction data before continuing"
+        data={{
+          "Member Name": selectedMember?.name || "-",
+          "Identity Number": selectedMember?.identityNumber || "-",
+          "Number of Vouchers": selectedCards.length.toString(),
+          "Subtotal": `Rp ${subtotal.toLocaleString("id-ID")}`,
+          "Discount": discountAmount > 0 ? `Rp ${discountAmount.toLocaleString("id-ID")}` : "None",
+          "Total Price": `Rp ${totalPrice.toLocaleString("id-ID")}`,
+          "No. Reference EDC": form.getValues("edcReferenceNumber") || "-",
+          "Notes": form.getValues("notes") || "-",
+        }}
+        onClose={() => setShowConfirm(false)}
+        onConfirm={handleConfirm}
+      />
+    </>
+  );
+}
