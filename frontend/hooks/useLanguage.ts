@@ -29,6 +29,7 @@ const translations: TranslationDict = {
   employee_type: { id: "Tipe Karyawan", en: "Employee Type" },
   logout: { id: "Keluar", en: "Logout" },
   account: { id: "Akun", en: "Account" },
+  change_password: { id: "Ubah Password", en: "Change Password" },
 
   // Header
   app_title: { id: "Whoosher Pass", en: "Whoosher Pass" },
