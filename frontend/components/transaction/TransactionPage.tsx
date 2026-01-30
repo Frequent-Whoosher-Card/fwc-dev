@@ -1346,6 +1346,8 @@ export default function TransactionPage({ role }: TransactionPageProps) {
               loading={loading}
               pagination={pagination}
               onPageChange={(page) => setPagination((p) => ({ ...p, page }))}
+              onDelete={() => fetchData()}
+              canDelete={true}
             />
           )}
         </>

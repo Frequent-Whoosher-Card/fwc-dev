@@ -38,6 +38,7 @@ export namespace PurchaseModel {
     id: t.String({ format: "uuid" }),
     cardId: t.Union([t.String({ format: "uuid" }), t.Null()]),
     memberId: t.Union([t.String({ format: "uuid" }), t.Null()]),
+    employeeTypeId: t.Union([t.String({ format: "uuid" }), t.Null()]),
     operatorId: t.String({ format: "uuid" }),
     stationId: t.String({ format: "uuid" }),
     edcReferenceNumber: t.String(),
@@ -94,6 +95,14 @@ export namespace PurchaseModel {
       stationCode: t.String(),
       stationName: t.String(),
     }),
+    employeeType: t.Union([
+      t.Object({
+        id: t.String({ format: "uuid" }),
+        code: t.String(),
+        name: t.String(),
+      }),
+      t.Null(),
+    ]),
   });
 
   // --- Requests ---
@@ -174,6 +183,14 @@ export namespace PurchaseModel {
         examples: ["Customer requested discount", "Promo special", "Bulk purchase 5 vouchers"],
       }),
     ),
+    employeeTypeId: t.Optional(
+      t.String({
+        format: "uuid",
+        description:
+          "Employee type ID (optional). If not provided, will be taken from the member's employeeTypeId.",
+        examples: ["123e4567-e89b-12d3-a456-426614174000"],
+      }),
+    ),
   });
 
   export const updatePurchaseBody = t.Object({
@@ -227,6 +244,14 @@ export namespace PurchaseModel {
         examples: ["2026-01-21T00:00:00.000Z"],
       }),
     ),
+    employeeTypeId: t.Optional(
+      t.Union([
+        t.String({ format: "uuid", description: "Update employee type ID" }),
+        t.Null(),
+      ], {
+        description: "Update employee type ID (pass null to clear)",
+      }),
+    ),
   });
 
   export const getPurchasesQuery = t.Object({
@@ -260,7 +285,7 @@ export namespace PurchaseModel {
     stationId: t.Optional(
       t.String({
         description:
-          "Filter by station ID. Note: Ignored for supervisor role (always uses supervisor's station). Only applies to admin/superadmin roles.",
+          "Filter by station ID. Supervisor can use this to filter by station or omit to see all stations. Only applies to admin/superadmin when not restricted by role.",
         examples: ["123e4567-e89b-12d3-a456-426614174000"],
       }),
     ),
