@@ -2,11 +2,13 @@ import { Elysia } from "elysia";
 import { formatErrorResponse } from "../../../utils/errors";
 import { CardInventoryModel } from "./model";
 import { CardInventoryService } from "./service";
-import { authMiddleware } from "src/middleware/auth";
+import { authMiddleware } from "../../../middleware/auth";
+import { permissionMiddleware } from "../../../middleware/permission";
 
 const createInventoryRoutes = (app: Elysia) =>
   app
     .use(authMiddleware)
+    .use(permissionMiddleware("inventory.view"))
     // Get Station Inventory Monitor
     .get(
       "/station-monitor",

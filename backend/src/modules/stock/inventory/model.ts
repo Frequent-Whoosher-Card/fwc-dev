@@ -70,33 +70,35 @@ export namespace CardInventoryModel {
     success: t.Boolean(),
     data: t.Object({
       stocks: t.Array(
-        t.Object({
-          id: t.String(),
-          categoryId: t.String(),
-          typeId: t.String(),
-          stationId: t.Union([t.String(), t.Null()]),
-          cardBeredar: t.Number(),
-          cardAktif: t.Number(),
-          cardNonAktif: t.Number(),
-          cardBelumTerjual: t.Number(),
-          cardOffice: t.Union([t.Number(), t.Null()]),
-          updatedAt: t.Date(),
-          category: t.Object({
-            categoryName: t.String(),
-            categoryCode: t.String(),
-          }),
-          type: t.Object({
-            typeName: t.String(),
-            typeCode: t.String(),
-          }),
-          station: t.Union([
-            t.Object({
-              stationName: t.String(),
-              stationCode: t.String(),
+        t.Nullable(
+          t.Object({
+            id: t.String(),
+            categoryId: t.String(),
+            typeId: t.String(),
+            stationId: t.Union([t.String(), t.Null()]),
+            cardBeredar: t.Number(),
+            cardAktif: t.Number(),
+            cardNonAktif: t.Number(),
+            cardBelumTerjual: t.Number(),
+            cardOffice: t.Union([t.Number(), t.Null()]),
+            updatedAt: t.Date(),
+            category: t.Object({
+              categoryName: t.String(),
+              categoryCode: t.String(),
             }),
-            t.Null(),
-          ]),
-        }),
+            type: t.Object({
+              typeName: t.String(),
+              typeCode: t.String(),
+            }),
+            station: t.Union([
+              t.Object({
+                stationName: t.String(),
+                stationCode: t.String(),
+              }),
+              t.Null(),
+            ]),
+          }),
+        ),
       ),
       pagination: t.Object({
         total: t.Number(),
@@ -195,7 +197,7 @@ export namespace CardInventoryModel {
 
   export const getStationInventoryMonitorResponse = t.Object({
     success: t.Boolean(),
-    data: t.Array(stationInventoryMonitorItem),
+    data: t.Array(t.Nullable(stationInventoryMonitorItem)),
   });
 
   export const stockConfigResponse = t.Object({

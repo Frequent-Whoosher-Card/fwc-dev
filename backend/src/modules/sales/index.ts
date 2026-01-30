@@ -1,12 +1,12 @@
 import { Elysia, t } from "elysia";
-import { rbacMiddleware } from "../../middleware/rbac";
+import { permissionMiddleware } from "../../middleware/permission";
 import { formatErrorResponse } from "../../utils/errors";
 import { SalesService } from "./service";
 import { SalesModel } from "./model";
 
 // Sales routes - admin and superadmin only (analytics data)
 const baseRoutes = new Elysia()
-  .use(rbacMiddleware(["admin", "superadmin"]))
+  .use(permissionMiddleware("sales.view"))
   // Get Daily Sales Grouped (for dashboard table)
   .get(
     "/daily-grouped",

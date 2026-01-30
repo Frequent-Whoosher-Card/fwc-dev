@@ -35,8 +35,17 @@ export namespace BulkDiscountModel {
     data: bulkDiscountResponse,
   });
 
-  export const errorResponse = t.Object({
+  export const deleteBulkDiscountResponse = t.Object({
     success: t.Boolean(),
     message: t.String(),
+  });
+
+  export const errorResponse = t.Object({
+    success: t.Boolean(),
+    error: t.Object({
+      message: t.String(),
+      code: t.String(),
+      statusCode: t.Number(),
+    }),
   });
 }

@@ -2,7 +2,7 @@ import { Elysia } from "elysia";
 import { StationModel } from "./model";
 import { StationService } from "./service";
 import { authMiddleware } from "../../middleware/auth";
-import { rbacMiddleware } from "../../middleware/rbac";
+import { permissionMiddleware } from "../../middleware/permission";
 import { formatErrorResponse } from "../../utils/errors";
 
 type AuthContextUser = {
@@ -92,7 +92,7 @@ export const station = new Elysia({ prefix: "/station" })
   // Restricted Writes
   .group("", (app) =>
     app
-      .use(rbacMiddleware(["superadmin", "admin"]))
+      .use(permissionMiddleware("station.manage"))
       .post(
         "/",
         async (context) => {

@@ -96,11 +96,14 @@ export namespace StockOutVoucherModel {
           note: t.Union([t.String(), t.Null()]),
           notaDinas: t.Union([t.String(), t.Null()]),
           bast: t.Union([t.String(), t.Null()]),
-          createdByName: t.Union([t.String(), t.Null()]),
+          createdByName: t.Union([t.String(), t.Null(), t.Undefined()]),
           cardCategory: t.Object({
             id: t.String(),
             name: t.String(),
             code: t.String(),
+            programType: t.Nullable(
+              t.Union([t.Literal("FWC"), t.Literal("VOUCHER")]),
+            ),
           }),
           cardType: t.Object({
             id: t.String(),
@@ -136,9 +139,9 @@ export namespace StockOutVoucherModel {
         notaDinas: t.Union([t.String(), t.Null()]),
         bast: t.Union([t.String(), t.Null()]),
         createdAt: t.String(),
-        createdByName: t.Union([t.String(), t.Null()]),
+        createdByName: t.Union([t.String(), t.Null(), t.Undefined()]),
         validatedAt: t.Union([t.String(), t.Null()]),
-        validatedByName: t.Union([t.String(), t.Null()]),
+        validatedByName: t.Union([t.String(), t.Null(), t.Undefined()]),
         station: t.Union([
           t.Object({
             id: t.String(),
@@ -151,6 +154,9 @@ export namespace StockOutVoucherModel {
           id: t.String(),
           name: t.String(),
           code: t.String(),
+          programType: t.Nullable(
+            t.Union([t.Literal("FWC"), t.Literal("VOUCHER")]),
+          ),
         }),
         cardType: t.Object({
           id: t.String(),

@@ -1,7 +1,7 @@
 import { Elysia, t } from "elysia";
 import { MemberModel } from "./model";
 import { MemberService } from "./service";
-import { rbacMiddleware } from "../../middleware/rbac";
+import { permissionMiddleware } from "../../middleware/permission";
 import { formatErrorResponse } from "../../utils/errors";
 
 type AuthContextUser = {
@@ -21,14 +21,13 @@ type AuthContextUser = {
 // Base routes (Read) - All authenticated users
 // Note: rbacMiddleware automatically includes authMiddleware
 const baseRoutes = new Elysia()
-  .use(rbacMiddleware(["petugas", "supervisor", "admin", "superadmin"]))
+  .use(permissionMiddleware("member.view"))
   .get(
     "/",
     async (context) => {
       const { query, set } = context;
       try {
         const { page, limit, search, startDate, endDate, gender, hasNippKai, employeeTypeId } = query;
-        
         // Validate dates if provided
         if (startDate && isNaN(new Date(startDate).getTime())) {
           set.status = 400;
@@ -124,7 +123,7 @@ const baseRoutes = new Elysia()
 
 // Write routes (Create) - petugas, supervisor, admin, superadmin
 const writeRoutes = new Elysia()
-  .use(rbacMiddleware(["petugas", "supervisor", "admin", "superadmin"]))
+  .use(permissionMiddleware("member.view"))
   .post(
     "/",
     async (context) => {
@@ -164,7 +163,7 @@ const writeRoutes = new Elysia()
 
 // Update routes - petugas, supervisor, superadmin only
 const updateRoutes = new Elysia()
-  .use(rbacMiddleware(["petugas", "supervisor", "superadmin"]))
+  .use(permissionMiddleware("member.update"))
   .put(
     "/:id",
     async (context) => {
@@ -209,7 +208,7 @@ const updateRoutes = new Elysia()
 
 // Delete routes - admin and superadmin only
 const deleteRoutes = new Elysia()
-  .use(rbacMiddleware(["admin", "superadmin"]))
+  .use(permissionMiddleware("member.delete"))
   .delete(
     "/:id",
     async (context) => {
@@ -247,7 +246,7 @@ const deleteRoutes = new Elysia()
 
 // KTP Detection routes - petugas, supervisor, admin, superadmin
 const detectionRoutes = new Elysia()
-  .use(rbacMiddleware(["petugas", "supervisor", "admin", "superadmin"]))
+  .use(permissionMiddleware("member.ktp_detect"))
   .post(
     "/ktp-detect",
     async (context) => {
@@ -259,8 +258,8 @@ const detectionRoutes = new Elysia()
 
         // Get query parameters for detection options
         const returnMultiple = query?.return_multiple === "true";
-        const minConfidence = query?.min_confidence 
-          ? parseFloat(query.min_confidence as string) 
+        const minConfidence = query?.min_confidence
+          ? parseFloat(query.min_confidence as string)
           : 0.5;
 
         if (!file) {
@@ -339,10 +338,10 @@ const detectionRoutes = new Elysia()
         403: MemberModel.errorResponse,
         500: MemberModel.errorResponse,
       },
-        detail: {
-          tags: ["Members"],
-          summary: "Detect and crop KTP from image",
-          description: `Detect KTP in uploaded image and return cropped KTP image(s) using YOLO machine learning model.
+      detail: {
+        tags: ["Members"],
+        summary: "Detect and crop KTP from image",
+        description: `Detect KTP in uploaded image and return cropped KTP image(s) using YOLO machine learning model.
 
 **File Requirements:**
 - **Format**: JPEG, JPG, PNG, or WebP
@@ -402,7 +401,7 @@ POST /members/ktp-detect?return_multiple=true&min_confidence=0.6
 
 // OCR Extract routes - petugas, supervisor, admin, superadmin
 const ocrRoutes = new Elysia()
-  .use(rbacMiddleware(["petugas", "supervisor", "admin", "superadmin"]))
+  .use(permissionMiddleware("member.ktp_detect"))
   .post(
     "/ocr-extract",
     async (context) => {
@@ -532,7 +531,7 @@ const ocrRoutes = new Elysia()
       detail: {
         tags: ["Members"],
         summary: "Extract KTP fields using OCR",
-          description: `Extract KTP fields (NIK, name, gender, address) from uploaded KTP image, cropped image, or session ID using OCR.
+        description: `Extract KTP fields (NIK, name, gender, address) from uploaded KTP image, cropped image, or session ID using OCR.
 
 **Input Options (Priority Order):**
 1. **Use session ID** (Recommended): Use \`session_id\` field (session ID from /members/ktp-detect)

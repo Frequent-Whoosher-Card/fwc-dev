@@ -269,6 +269,33 @@ export namespace UserModel {
     message: t.String(),
   });
 
+  // User Menu Response
+  export const userMenuResponse = t.Object({
+    success: t.Boolean(),
+    message: t.String(),
+    data: t.Array(t.Any()), // Array of menu items
+  });
+
+  // ========== ROLE PERMISSION SCHEMAS ==========
+
+  // Role Permissions Response
+  export const rolePermissionsResponse = t.Object({
+    success: t.Boolean(),
+    message: t.String(),
+    data: t.Object({
+      roleId: t.String(),
+      roleName: t.String(),
+      permissions: t.Array(t.String()),
+    }),
+  });
+
+  // Update Role Permissions Body
+  export const updateRolePermissionsBody = t.Object({
+    permissionIds: t.Array(t.String(), {
+      description: "Array of permission IDs to assign to the role",
+    }),
+  });
+
   // Error Response
   export const errorResponse = t.Object({
     success: t.Boolean(),

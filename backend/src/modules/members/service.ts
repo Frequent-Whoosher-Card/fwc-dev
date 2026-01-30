@@ -146,7 +146,7 @@ export class MemberService {
           // Try different date formats
           let searchDate: Date | null = null;
           const dateStr = dateMatch[0];
-          
+
           if (dateStr.includes('-')) {
             // YYYY-MM-DD or DD-MM-YYYY
             const parts = dateStr.split('-');
@@ -256,12 +256,14 @@ export class MemberService {
     };
   }
 
-  /**
-   * Get Detail Member
-   */
   static async getById(id: string) {
     const member = await db.member.findUnique({
       where: { id },
+      include: {
+        employeeType: {
+          select: { id: true, code: true, name: true },
+        },
+      },
     });
 
     if (!member || member.deletedAt) {
@@ -271,15 +273,15 @@ export class MemberService {
     const [creator, updater] = await Promise.all([
       member.createdBy
         ? db.user.findUnique({
-            where: { id: member.createdBy },
-            select: { fullName: true },
-          })
+          where: { id: member.createdBy },
+          select: { fullName: true },
+        })
         : null,
       member.updatedBy
         ? db.user.findUnique({
-            where: { id: member.updatedBy },
-            select: { fullName: true },
-          })
+          where: { id: member.updatedBy },
+          select: { fullName: true },
+        })
         : null,
     ]);
 
@@ -295,6 +297,13 @@ export class MemberService {
       alamat: member.alamat,
       notes: member.notes,
       employeeTypeId: member.employeeTypeId ?? null,
+      employeeType: member.employeeType
+        ? {
+          id: member.employeeType.id,
+          code: member.employeeType.code,
+          name: member.employeeType.name,
+        }
+        : null,
       createdAt: member.createdAt.toISOString(),
       updatedAt: member.updatedAt.toISOString(),
       createdByName: creator?.fullName || null,
@@ -406,7 +415,7 @@ export class MemberService {
   ): Promise<typeof MemberModel.ktpDetectionResponse.static> {
     const startTime = performance.now();
     console.log('🔍 [KTP Detection] Memulai deteksi KTP...');
-    
+
     // Import services (lazy import to avoid circular dependencies)
     const { ktpDetectionService } = await import("../../services/ktp_detection_service");
     const { tempStorage } = await import("../../utils/temp_storage");
@@ -512,7 +521,7 @@ export class MemberService {
   ): Promise<typeof MemberModel.ocrExtractResponse.static> {
     const startTime = performance.now();
     console.log('📝 [KTP Extraction] Memulai ekstraksi data KTP...');
-    
+
     // Import services (lazy import to avoid circular dependencies)
     const { ocrService } = await import("../../services/ocr_service");
     const { tempStorage } = await import("../../utils/temp_storage");
@@ -532,7 +541,7 @@ export class MemberService {
         const base64Data = stored.croppedImage.replace(/^data:image\/\w+;base64,/, "");
         const buffer = Buffer.from(base64Data, "base64");
         fileObj = new File([buffer], "cropped_ktp.jpg", { type: "image/jpeg" });
-        
+
         // Cleanup after use (optional - can also let TTL handle it)
         // await tempStorage.deleteImage(imageFileOrBase64OrSessionId);
       } else if (typeof imageFileOrBase64OrSessionId === "string") {
