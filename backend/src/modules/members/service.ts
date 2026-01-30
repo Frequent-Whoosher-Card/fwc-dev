@@ -55,8 +55,9 @@ export class MemberService {
     endDate?: string;
     gender?: string;
     hasNippKai?: string;
+    employeeTypeId?: string;
   }) {
-    const { page, limit, search, startDate, endDate, gender, hasNippKai } = params;
+    const { page, limit, search, startDate, endDate, gender, hasNippKai, employeeTypeId } = params;
     const skip = page && limit ? (page - 1) * limit : undefined;
 
     const where: any = {
@@ -73,6 +74,11 @@ export class MemberService {
     // Filter gender (enum: L or P)
     if (gender) {
       where.gender = gender as "L" | "P";
+    }
+
+    // Filter by employee type
+    if (employeeTypeId) {
+      where.employeeTypeId = employeeTypeId;
     }
 
     // Filter membership date (createdAt)
@@ -192,6 +198,11 @@ export class MemberService {
         skip,
         take: limit,
         orderBy: { createdAt: "desc" },
+        include: {
+          employeeType: {
+            select: { id: true, code: true, name: true },
+          },
+        },
       }),
       db.member.count({ where }),
     ]);
@@ -221,6 +232,9 @@ export class MemberService {
       alamat: item.alamat,
       notes: item.notes,
       employeeTypeId: item.employeeTypeId ?? null,
+      employeeType: item.employeeType
+        ? { id: item.employeeType.id, code: item.employeeType.code, name: item.employeeType.name }
+        : null,
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
       createdByName: item.createdBy

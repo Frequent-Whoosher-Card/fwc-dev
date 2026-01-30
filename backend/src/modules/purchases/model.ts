@@ -183,14 +183,6 @@ export namespace PurchaseModel {
         examples: ["Customer requested discount", "Promo special", "Bulk purchase 5 vouchers"],
       }),
     ),
-    employeeTypeId: t.Optional(
-      t.String({
-        format: "uuid",
-        description:
-          "Employee type ID (optional). If not provided, will be taken from the member's employeeTypeId.",
-        examples: ["123e4567-e89b-12d3-a456-426614174000"],
-      }),
-    ),
   });
 
   export const updatePurchaseBody = t.Object({
@@ -242,14 +234,6 @@ export namespace PurchaseModel {
         format: "date-time",
         description: "Update shift date",
         examples: ["2026-01-21T00:00:00.000Z"],
-      }),
-    ),
-    employeeTypeId: t.Optional(
-      t.Union([
-        t.String({ format: "uuid", description: "Update employee type ID" }),
-        t.Null(),
-      ], {
-        description: "Update employee type ID (pass null to clear)",
       }),
     ),
   });
@@ -320,6 +304,13 @@ export namespace PurchaseModel {
         description:
           "Filter by transaction type: 'fwc' for FWC purchases (single card), 'voucher' for VOUCHER bulk purchases",
         examples: ["fwc", "voucher"],
+      }),
+    ),
+    employeeTypeId: t.Optional(
+      t.String({
+        format: "uuid",
+        description: "Filter by employee type UUID (tipe karyawan)",
+        examples: ["123e4567-e89b-12d3-a456-426614174000"],
       }),
     ),
   });

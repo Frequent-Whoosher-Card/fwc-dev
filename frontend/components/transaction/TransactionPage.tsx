@@ -69,6 +69,7 @@ export default function TransactionPage({ role }: TransactionPageProps) {
   const [shiftDate, setShiftDate] = useState<string | undefined>();
   const [cardCategoryId, setCardCategoryId] = useState<string | undefined>();
   const [cardTypeId, setCardTypeId] = useState<string | undefined>();
+  const [employeeTypeId, setEmployeeTypeId] = useState<string | undefined>();
 
   /* =====================
      DATA STATE (DIPISAH!)
@@ -101,6 +102,7 @@ export default function TransactionPage({ role }: TransactionPageProps) {
     setShiftDate(undefined);
     setCardCategoryId(undefined);
     setCardTypeId(undefined);
+    setEmployeeTypeId(undefined);
     setPagination((p) => ({ ...p, page: 1 }));
   };
 
@@ -121,6 +123,7 @@ export default function TransactionPage({ role }: TransactionPageProps) {
       endDate: shiftDate,
       categoryId: cardCategoryId,
       typeId: cardTypeId,
+      employeeTypeId,
     };
 
     try {
@@ -164,6 +167,7 @@ export default function TransactionPage({ role }: TransactionPageProps) {
     shiftDate,
     cardCategoryId,
     cardTypeId,
+    employeeTypeId,
     pagination.page,
     searchParams.get("refresh"),
   ]);
@@ -1301,6 +1305,7 @@ export default function TransactionPage({ role }: TransactionPageProps) {
             shiftDate={shiftDate}
             cardCategoryId={cardCategoryId}
             cardTypeId={cardTypeId}
+            employeeTypeId={employeeTypeId}
             onStationChange={(v) => {
               setStationId(v);
               setPagination((p) => ({ ...p, page: 1 }));
@@ -1320,6 +1325,10 @@ export default function TransactionPage({ role }: TransactionPageProps) {
             }}
             onCardTypeChange={(v) => {
               setCardTypeId(v);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            onEmployeeTypeChange={(v) => {
+              setEmployeeTypeId(v);
               setPagination((p) => ({ ...p, page: 1 }));
             }}
             onReset={resetFilter}

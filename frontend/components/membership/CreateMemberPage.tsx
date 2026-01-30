@@ -1447,7 +1447,6 @@ export default function AddMemberPage({ programType: programTypeProp }: CreateMe
           bulkDiscountId: voucherFormData.bulkDiscountId,
           price: voucherTotalPrice,
           notes: voucherFormData.notes || "",
-          employeeTypeId: form.employeeTypeId || memberRes.data?.employeeTypeId || undefined,
         };
 
         await createVoucherPurchase(voucherPayload);
