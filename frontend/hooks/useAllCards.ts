@@ -104,8 +104,8 @@ export const useAllCards = ({ programType }: UseAllCardsProps) => {
 
       setData(mapped);
       setPagination(paging);
-    } catch {
-      toast.error("Gagal mengambil data All Card");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal mengambil data All Card");
     } finally {
       setLoading(false);
     }

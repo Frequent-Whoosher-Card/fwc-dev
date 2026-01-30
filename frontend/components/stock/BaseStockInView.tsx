@@ -126,8 +126,8 @@ export default function BaseStockInView({
           )}
         </div>
 
-        <div className="rounded-xl border bg-white overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="rounded-xl border bg-white overflow-hidden overflow-x-auto">
+          <table className="w-full min-w-[500px] text-sm">
             <thead className="bg-gray-50 border-b">
               <tr>
                 <th className="px-4 py-3 text-center w-16">No</th>

@@ -51,7 +51,7 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h2 className="text-lg font-semibold whitespace-nowrap">
             All Card ({programType})
           </h2>
@@ -123,7 +123,7 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-[1400px] w-full text-sm">
-            <thead className="bg-gray-100 border-b">
+            <thead className="bg-[#8D1231] text-white">
               <tr>
                 <th className="px-4 py-3">No</th>
                 <th className="px-4 py-3">Tanggal</th>
@@ -213,7 +213,7 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
                           }
                           className="h-8 px-3 rounded-md border text-xs font-medium border-blue-500 text-blue-600 hover:bg-blue-500 hover:text-white transition-colors duration-200 flex items-center justify-center"
                         >
-                          Edit
+                          Edit Status
                         </button>
                       </div>
                     </td>

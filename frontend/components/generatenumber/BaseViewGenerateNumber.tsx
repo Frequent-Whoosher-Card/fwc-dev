@@ -89,7 +89,7 @@ export default function BaseViewGenerateNumber() {
           <button
             onClick={handleUploadClick}
             disabled={loadingUpload}
-            className="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-gray-100 transition-colors duration-200 disabled:opacity-50"
           >
             <Upload size={18} />
             {loadingUpload ? "Uploading..." : "Upload Document"}
@@ -106,7 +106,7 @@ export default function BaseViewGenerateNumber() {
           )}
           <button
             onClick={() => handleExportZip(batch.id)}
-            className="rounded-lg bg-[#8D1231] px-6 py-2 text-white"
+            className="rounded-lg bg-[#8D1231] px-6 py-2 text-white hover:bg-[#7A102A] transition-colors duration-200"
           >
             Export ZIP
           </button>
@@ -133,7 +133,7 @@ export default function BaseViewGenerateNumber() {
       <div className="rounded-xl border bg-white overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-[#8D1231] text-white">
               <tr>
                 <th className="px-4 py-3 w-16 text-center">No</th>
                 <th className="px-4 py-3 text-left">Serial</th>
