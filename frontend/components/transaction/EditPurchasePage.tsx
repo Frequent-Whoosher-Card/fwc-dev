@@ -185,6 +185,9 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
   // Categories for card selection
   const { categories } = useCategories();
 
+  // Store purchase data for bulk purchase items display
+  const [purchaseData, setPurchaseData] = useState<any>(null);
+
   /* ======================
      INIT LOAD
   ====================== */
@@ -207,10 +210,28 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
         setNip(p.member?.nippKai ?? "");
         setMemberId(p.memberId ?? "");
 
-        // card
-        setCategoryName(p.card?.cardProduct?.category?.categoryName ?? "");
-        setTypeName(p.card?.cardProduct?.type?.typeName ?? "");
-        setSerialNumber(p.card?.serialNumber ?? "");
+        // card (handle both FWC and VOUCHER bulk purchase)
+        const isBulkPurchase =
+          p.programType === "VOUCHER" &&
+          p.bulkPurchaseItems &&
+          p.bulkPurchaseItems.length > 0;
+
+        if (isBulkPurchase) {
+          // For bulk purchase, show first item's category/type
+          const firstItem = p.bulkPurchaseItems[0];
+          setCategoryName(
+            firstItem?.card?.cardProduct?.category?.categoryName ?? ""
+          );
+          setTypeName(firstItem?.card?.cardProduct?.type?.typeName ?? "");
+          setSerialNumber(
+            `${p.bulkPurchaseItems.length} vouchers (bulk purchase)`
+          );
+        } else {
+          // For single card purchase
+          setCategoryName(p.card?.cardProduct?.category?.categoryName ?? "");
+          setTypeName(p.card?.cardProduct?.type?.typeName ?? "");
+          setSerialNumber(p.card?.serialNumber ?? "");
+        }
 
         // editable - operator and station
         setOperatorId(p.operatorId ?? "");
@@ -230,6 +251,9 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
         // editable
         setEdcRef(p.edcReferenceNumber ?? "");
         setNote(p.notes ?? "");
+
+        // Store purchase data for bulk purchase items display
+        setPurchaseData(p);
       } catch {
         alert("Gagal memuat data transaksi");
       } finally {
@@ -774,6 +798,72 @@ export default function EditPurchasePage({ role }: EditPurchasePageProps) {
             />
           </Field>
         </SectionCard>
+
+        {/* Bulk Purchase Items Section */}
+        {purchaseData &&
+          purchaseData.programType === "VOUCHER" &&
+          purchaseData.bulkPurchaseItems &&
+          purchaseData.bulkPurchaseItems.length > 0 && (
+            <SectionCard
+              title="Voucher Items (Bulk Purchase)"
+              description={`Total ${purchaseData.bulkPurchaseItems.length} vouchers dalam transaksi ini`}
+            >
+              <div className="col-span-2">
+                <div className="space-y-3">
+                  {purchaseData.bulkPurchaseItems.map(
+                    (item: any, index: number) => (
+                      <div
+                        key={item.id}
+                        className="border rounded-lg p-4 bg-white"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-xs font-semibold text-gray-500">
+                                #{index + 1}
+                              </span>
+                              <span className="text-sm font-mono font-semibold">
+                                {item.card?.serialNumber ?? "-"}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div>
+                                <span className="text-gray-500">Category:</span>
+                                <span className="ml-2 font-medium">
+                                  {
+                                    item.card?.cardProduct?.category
+                                      ?.categoryName
+                                  }
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-gray-500">Type:</span>
+                                <span className="ml-2 font-medium">
+                                  {item.card?.cardProduct?.type?.typeName}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-gray-500">Status:</span>
+                                <span className="ml-2 font-medium">
+                                  {item.card?.status ?? "-"}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-gray-500">Price:</span>
+                                <span className="ml-2 font-semibold text-[#8D1231]">
+                                  {rupiah(item.price)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+            </SectionCard>
+          )}
 
         <SectionCard title="Informasi Transaksi">
           <Field label="Purchase Date">

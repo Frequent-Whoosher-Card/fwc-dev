@@ -16,6 +16,7 @@ export class PurchaseService {
 
   /**
    * Create new purchase transaction
+   * Supports both FWC (single card) and VOUCHER (bulk purchase)
    */
   static async createPurchase(
     data: typeof PurchaseModel.createPurchaseBody.static,
@@ -23,51 +24,32 @@ export class PurchaseService {
     stationId: string,
     userId: string,
   ) {
+    // Determine purchase type: FWC (single card) or VOUCHER (bulk)
+    const programType = data.programType || "FWC";
+    const isBulkPurchase = programType === "VOUCHER" && data.cards && data.cards.length > 0;
+
+    // Validate: FWC must have cardId, VOUCHER bulk must have cards array
+    if (!isBulkPurchase && !data.cardId) {
+      throw new ValidationError(
+        "cardId wajib diisi untuk pembelian FWC. Atau gunakan cards[] untuk pembelian voucher bulk.",
+      );
+    }
+
+    if (isBulkPurchase && data.cardId) {
+      throw new ValidationError(
+        "cardId harus null untuk pembelian voucher bulk. Gunakan cards[] array.",
+      );
+    }
+
+    if (isBulkPurchase && (!data.cards || data.cards.length === 0)) {
+      throw new ValidationError(
+        "cards[] array wajib diisi dengan minimal 1 card untuk pembelian voucher bulk.",
+      );
+    }
+
     // Use database transaction to ensure atomicity
     const result = await db.$transaction(async (tx) => {
-      // 1. Validate card exists and is available for purchase
-      const card = await tx.card.findUnique({
-        where: { id: data.cardId },
-        include: {
-          cardProduct: {
-            select: {
-              id: true,
-              totalQuota: true,
-              masaBerlaku: true,
-              price: true,
-              categoryId: true,
-              typeId: true,
-            },
-          },
-        },
-      });
-
-      if (!card || card.deletedAt) {
-        throw new NotFoundError("Kartu tidak ditemukan");
-      }
-
-      // 2. Validate card status - must be IN_STATION to be purchased
-      if (card.status !== "IN_STATION") {
-        throw new ValidationError(
-          `Kartu tidak dapat dibeli. Status kartu saat ini: ${card.status}. Kartu harus berstatus IN_STATION untuk dapat dibeli.`,
-        );
-      }
-
-      // 3. Check if card already has a purchase record
-      const existingPurchase = await tx.cardPurchase.findFirst({
-        where: {
-          cardId: data.cardId,
-          deletedAt: null,
-        },
-      });
-
-      if (existingPurchase) {
-        throw new ValidationError(
-          "Kartu ini sudah pernah dibeli. Setiap kartu hanya dapat dibeli sekali.",
-        );
-      }
-
-      // 4. Validate member (required)
+      // 1. Validate member (required)
       if (!data.memberId) {
         throw new ValidationError(
           "Member ID wajib diisi. Setiap transaksi harus memiliki member.",
@@ -82,7 +64,7 @@ export class PurchaseService {
         throw new NotFoundError("Member tidak ditemukan");
       }
 
-      // 5. Validate operator exists
+      // 2. Validate operator exists
       const operator = await tx.user.findUnique({
         where: { id: operatorId },
       });
@@ -91,7 +73,7 @@ export class PurchaseService {
         throw new NotFoundError("Operator tidak ditemukan");
       }
 
-      // 6. Validate station exists
+      // 3. Validate station exists
       const station = await tx.station.findUnique({
         where: { id: stationId },
       });
@@ -100,7 +82,7 @@ export class PurchaseService {
         throw new NotFoundError("Stasiun tidak ditemukan");
       }
 
-      // 7. Validate EDC reference number (ensure uniqueness)
+      // 4. Validate EDC reference number (ensure uniqueness)
       const edcReferenceNumber = data.edcReferenceNumber.trim();
 
       if (!edcReferenceNumber) {
@@ -118,56 +100,279 @@ export class PurchaseService {
         );
       }
 
-      // 8. Calculate expired date based on masaBerlaku
+      // 5. Calculate purchase date
       const purchaseDate = new Date();
       purchaseDate.setHours(0, 0, 0, 0); // Set to start of day
 
-      const masaBerlaku = card.cardProduct.masaBerlaku;
-      const expiredDate = new Date(purchaseDate);
-      expiredDate.setDate(expiredDate.getDate() + masaBerlaku);
+      let finalPrice: number;
+      let purchaseCardId: string | null = null;
 
-      // 8.5. Determine final price: use input price or default to cardProduct.price
-      const finalPrice =
-        data.price !== undefined && data.price !== null
-          ? data.price
-          : Number(card.cardProduct.price);
+      if (isBulkPurchase) {
+        // === BULK PURCHASE (VOUCHER) ===
+        const cards = data.cards!;
+        const cardIds = cards.map((c) => c.cardId);
 
-      // 9. Create purchase record
-      const purchase = await tx.cardPurchase.create({
-        data: {
-          cardId: data.cardId,
-          memberId: data.memberId,
-          operatorId: operatorId,
-          stationId: stationId,
-          edcReferenceNumber: edcReferenceNumber,
-          purchaseDate: purchaseDate,
-          price: finalPrice,
-          notes: data.notes || null,
-          createdBy: userId,
-          updatedBy: userId,
-        },
-      });
+        // Check for duplicate card IDs
+        const uniqueCardIds = new Set(cardIds);
+        if (uniqueCardIds.size !== cardIds.length) {
+          throw new ValidationError(
+            "Terdapat duplikasi card ID dalam array cards. Setiap card hanya boleh dibeli sekali.",
+          );
+        }
 
-      // 10. Update card: set status to SOLD_ACTIVE
-      await tx.card.update({
-        where: { id: data.cardId },
-        data: {
-          status: "SOLD_ACTIVE",
-          purchaseDate: purchaseDate,
-          memberId: data.memberId,
-          expiredDate: expiredDate,
-          quotaTicket: card.cardProduct.totalQuota, // Initialize quota from product
-          updatedBy: userId,
-        },
-      });
+        // Validate all cards exist and are available
+        const cardRecords = await tx.card.findMany({
+          where: {
+            id: { in: cardIds },
+            deletedAt: null,
+          },
+          include: {
+            cardProduct: {
+              select: {
+                id: true,
+                totalQuota: true,
+                masaBerlaku: true,
+                price: true,
+                categoryId: true,
+                typeId: true,
+              },
+            },
+          },
+        });
 
-      // 11. Update inventory: REMOVED (Deprecated)
-      /*
-      const inventory = await tx.cardInventory.findFirst(...)
-      if (inventory) { ... }
-      */
+        if (cardRecords.length !== cardIds.length) {
+          const foundIds = cardRecords.map((c) => c.id);
+          const missingIds = cardIds.filter((id) => !foundIds.includes(id));
+          throw new NotFoundError(
+            `Kartu tidak ditemukan: ${missingIds.join(", ")}`,
+          );
+        }
 
-      return purchase;
+        // Validate all cards are IN_STATION
+        const invalidStatusCards = cardRecords.filter(
+          (c) => c.status !== "IN_STATION",
+        );
+        if (invalidStatusCards.length > 0) {
+          throw new ValidationError(
+            `Kartu tidak dapat dibeli. Status kartu saat ini: ${invalidStatusCards.map((c) => `${c.serialNumber} (${c.status})`).join(", ")}. Semua kartu harus berstatus IN_STATION untuk dapat dibeli.`,
+          );
+        }
+
+        // Check if any card already has a purchase record
+        const existingPurchases = await tx.cardPurchase.findMany({
+          where: {
+            cardId: { in: cardIds },
+            deletedAt: null,
+          },
+        });
+
+        if (existingPurchases.length > 0) {
+          const purchasedCardIds = existingPurchases.map((p) => p.cardId);
+          throw new ValidationError(
+            `Kartu berikut sudah pernah dibeli: ${purchasedCardIds.join(", ")}. Setiap kartu hanya dapat dibeli sekali.`,
+          );
+        }
+
+        // Calculate total price for each card
+        let totalPrice = 0;
+        const bulkPurchaseItemsData: Array<{
+          cardId: string;
+          price: number;
+        }> = [];
+
+        for (const cardInput of cards) {
+          const cardRecord = cardRecords.find((c) => c.id === cardInput.cardId);
+          if (!cardRecord) continue;
+
+          // Use provided price or default to cardProduct.price
+          const itemPrice =
+            cardInput.price !== undefined && cardInput.price !== null
+              ? cardInput.price
+              : Number(cardRecord.cardProduct.price);
+
+          bulkPurchaseItemsData.push({
+            cardId: cardRecord.id,
+            price: itemPrice,
+          });
+
+          totalPrice += itemPrice;
+        }
+
+        // Apply bulk discount if provided
+        let discountAmount = 0;
+        if (data.bulkDiscountId) {
+          const bulkDiscount = await tx.bulkDiscount.findUnique({
+            where: { id: data.bulkDiscountId },
+          });
+
+          if (bulkDiscount && bulkDiscount.discount) {
+            // Validate quantity matches discount range
+            const quantity = cards.length;
+            if (
+              (bulkDiscount.minQuantity === null ||
+                quantity >= bulkDiscount.minQuantity) &&
+              (bulkDiscount.maxQuantity === null ||
+                quantity <= bulkDiscount.maxQuantity)
+            ) {
+              // Discount is stored as percentage (e.g., 10 means 10%)
+              const discountPercentage = Number(bulkDiscount.discount);
+              discountAmount = (totalPrice * discountPercentage) / 100;
+              totalPrice = totalPrice - discountAmount;
+              if (totalPrice < 0) totalPrice = 0;
+            }
+          }
+        }
+
+        // Use provided total price or calculated total price
+        finalPrice =
+          data.price !== undefined && data.price !== null
+            ? data.price
+            : totalPrice;
+
+        // Create purchase record (cardId is null for bulk purchase)
+        const purchase = await tx.cardPurchase.create({
+          data: {
+            cardId: undefined, // Null for bulk purchase
+            memberId: data.memberId,
+            operatorId: operatorId,
+            stationId: stationId,
+            bulkDiscountId: data.bulkDiscountId || null,
+            edcReferenceNumber: edcReferenceNumber,
+            purchaseDate: purchaseDate,
+            price: finalPrice,
+            notes: data.notes || null,
+            programType: "VOUCHER",
+            createdBy: userId,
+            updatedBy: userId,
+          },
+        });
+
+        // Create bulk purchase items
+        for (const itemData of bulkPurchaseItemsData) {
+          const cardRecord = cardRecords.find((c) => c.id === itemData.cardId);
+          if (!cardRecord) continue;
+
+          const masaBerlaku = cardRecord.cardProduct.masaBerlaku;
+          const expiredDate = new Date(purchaseDate);
+          expiredDate.setDate(expiredDate.getDate() + masaBerlaku);
+
+          // Create bulk purchase item
+          await tx.bulkPurchaseItem.create({
+            data: {
+              purchaseId: purchase.id,
+              cardId: itemData.cardId,
+              price: itemData.price,
+            },
+          });
+
+          // Update card: set status to SOLD_ACTIVE
+          await tx.card.update({
+            where: { id: itemData.cardId },
+            data: {
+              status: "SOLD_ACTIVE",
+              purchaseDate: purchaseDate,
+              memberId: data.memberId,
+              expiredDate: expiredDate,
+              quotaTicket: cardRecord.cardProduct.totalQuota, // Initialize quota from product
+              updatedBy: userId,
+            },
+          });
+        }
+
+        return purchase;
+      } else {
+        // === SINGLE CARD PURCHASE (FWC) ===
+        if (!data.cardId) {
+          throw new ValidationError("cardId wajib diisi untuk pembelian FWC");
+        }
+
+        // Validate card exists and is available for purchase
+        const card = await tx.card.findUnique({
+          where: { id: data.cardId },
+          include: {
+            cardProduct: {
+              select: {
+                id: true,
+                totalQuota: true,
+                masaBerlaku: true,
+                price: true,
+                categoryId: true,
+                typeId: true,
+              },
+            },
+          },
+        });
+
+        if (!card || card.deletedAt) {
+          throw new NotFoundError("Kartu tidak ditemukan");
+        }
+
+        // Validate card status - must be IN_STATION to be purchased
+        if (card.status !== "IN_STATION") {
+          throw new ValidationError(
+            `Kartu tidak dapat dibeli. Status kartu saat ini: ${card.status}. Kartu harus berstatus IN_STATION untuk dapat dibeli.`,
+          );
+        }
+
+        // Check if card already has a purchase record
+        const existingPurchase = await tx.cardPurchase.findFirst({
+          where: {
+            cardId: data.cardId,
+            deletedAt: null,
+          },
+        });
+
+        if (existingPurchase) {
+          throw new ValidationError(
+            "Kartu ini sudah pernah dibeli. Setiap kartu hanya dapat dibeli sekali.",
+          );
+        }
+
+        // Calculate expired date based on masaBerlaku
+        const masaBerlaku = card.cardProduct.masaBerlaku;
+        const expiredDate = new Date(purchaseDate);
+        expiredDate.setDate(expiredDate.getDate() + masaBerlaku);
+
+        // Determine final price: use input price or default to cardProduct.price
+        finalPrice =
+          data.price !== undefined && data.price !== null
+            ? data.price
+            : Number(card.cardProduct.price);
+
+        purchaseCardId = data.cardId;
+
+        // Create purchase record
+        const purchase = await tx.cardPurchase.create({
+          data: {
+            cardId: purchaseCardId,
+            memberId: data.memberId,
+            operatorId: operatorId,
+            stationId: stationId,
+            edcReferenceNumber: edcReferenceNumber,
+            purchaseDate: purchaseDate,
+            price: finalPrice,
+            notes: data.notes || null,
+            programType: programType,
+            createdBy: userId,
+            updatedBy: userId,
+          },
+        });
+
+        // Update card: set status to SOLD_ACTIVE
+        await tx.card.update({
+          where: { id: data.cardId },
+          data: {
+            status: "SOLD_ACTIVE",
+            purchaseDate: purchaseDate,
+            memberId: data.memberId,
+            expiredDate: expiredDate,
+            quotaTicket: card.cardProduct.totalQuota, // Initialize quota from product
+            updatedBy: userId,
+          },
+        });
+
+        return purchase;
+      }
     });
 
     // Fetch complete purchase data with relations
@@ -200,6 +405,7 @@ export class PurchaseService {
     typeId?: string;
     operatorId?: string;
     search?: string;
+    transactionType?: "fwc" | "voucher";
     userRole?: string;
     userId?: string;
     userStationId?: string | null;
@@ -214,6 +420,7 @@ export class PurchaseService {
       typeId,
       operatorId,
       search,
+      transactionType,
       userRole,
       userId,
       userStationId,
@@ -282,9 +489,23 @@ export class PurchaseService {
       where.operatorId = operatorId;
     }
 
+    // Transaction type filter (programType) - must be set before search to avoid conflicts
+    if (transactionType) {
+      if (transactionType === "fwc") {
+        // FWC: include both "FWC" and null (for backward compatibility with old data)
+        // FWC purchases always have cardId (single card purchase), VOUCHER has cardId = null
+        where.OR = [
+          { programType: "FWC" },
+          { AND: [{ programType: null }, { cardId: { not: null } }] },
+        ];
+      } else if (transactionType === "voucher") {
+        where.programType = "VOUCHER";
+      }
+    }
+
     // Search filter
     if (search) {
-      where.OR = [
+      const searchConditions = [
         { edcReferenceNumber: { contains: search, mode: "insensitive" } },
         {
           card: {
@@ -307,6 +528,18 @@ export class PurchaseService {
           },
         },
       ];
+      
+      // If transactionType filter exists, combine with AND
+      if (transactionType && where.OR) {
+        where.AND = [
+          ...(where.AND || []),
+          where.OR,
+          { OR: searchConditions },
+        ];
+        delete where.OR;
+      } else {
+        where.OR = searchConditions;
+      }
     }
 
     const [items, total] = await Promise.all([
@@ -345,6 +578,41 @@ export class PurchaseService {
                 },
               },
             },
+          },
+          bulkPurchaseItems: {
+            include: {
+              card: {
+                select: {
+                  id: true,
+                  serialNumber: true,
+                  status: true,
+                  expiredDate: true,
+                  quotaTicket: true,
+                  cardProduct: {
+                    select: {
+                      id: true,
+                      totalQuota: true,
+                      masaBerlaku: true,
+                      category: {
+                        select: {
+                          id: true,
+                          categoryCode: true,
+                          categoryName: true,
+                        },
+                      },
+                      type: {
+                        select: {
+                          id: true,
+                          typeCode: true,
+                          typeName: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            orderBy: { createdAt: "asc" },
           },
           member: {
             select: {
@@ -395,6 +663,7 @@ export class PurchaseService {
       purchaseDate: item.purchaseDate.toISOString(),
       price: Number(item.price),
       notes: item.notes,
+      programType: item.programType,
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
       createdByName: item.createdBy
@@ -403,17 +672,38 @@ export class PurchaseService {
       updatedByName: item.updatedBy
         ? userMap.get(item.updatedBy) || null
         : null,
-      card: {
-        ...item.card,
-        expiredDate: item.card.expiredDate
-          ? item.card.expiredDate.toISOString()
-          : null,
-        cardProduct: {
-          ...item.card.cardProduct,
-          totalQuota: item.card.cardProduct.totalQuota,
-          masaBerlaku: item.card.cardProduct.masaBerlaku,
+      card: item.card
+        ? {
+            ...item.card,
+            expiredDate: item.card.expiredDate
+              ? item.card.expiredDate.toISOString()
+              : null,
+            cardProduct: {
+              ...item.card.cardProduct,
+              totalQuota: item.card.cardProduct.totalQuota,
+              masaBerlaku: item.card.cardProduct.masaBerlaku,
+            },
+          }
+        : null,
+      bulkPurchaseItems: item.bulkPurchaseItems.map((bulkItem: any) => ({
+        id: bulkItem.id,
+        purchaseId: bulkItem.purchaseId,
+        cardId: bulkItem.cardId,
+        price: Number(bulkItem.price),
+        createdAt: bulkItem.createdAt.toISOString(),
+        updatedAt: bulkItem.updatedAt.toISOString(),
+        card: {
+          ...bulkItem.card,
+          expiredDate: bulkItem.card.expiredDate
+            ? bulkItem.card.expiredDate.toISOString()
+            : null,
+          cardProduct: {
+            ...bulkItem.card.cardProduct,
+            totalQuota: bulkItem.card.cardProduct.totalQuota,
+            masaBerlaku: bulkItem.card.cardProduct.masaBerlaku,
+          },
         },
-      },
+      })),
       member: item.member,
       operator: item.operator,
       station: item.station,
@@ -466,6 +756,41 @@ export class PurchaseService {
               },
             },
           },
+        },
+        bulkPurchaseItems: {
+          include: {
+            card: {
+              select: {
+                id: true,
+                serialNumber: true,
+                status: true,
+                expiredDate: true,
+                quotaTicket: true,
+                cardProduct: {
+                  select: {
+                    id: true,
+                    totalQuota: true,
+                    masaBerlaku: true,
+                    category: {
+                      select: {
+                        id: true,
+                        categoryCode: true,
+                        categoryName: true,
+                      },
+                    },
+                    type: {
+                      select: {
+                        id: true,
+                        typeCode: true,
+                        typeName: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { createdAt: "asc" },
         },
         member: {
           select: {
@@ -521,21 +846,43 @@ export class PurchaseService {
       purchaseDate: purchase.purchaseDate.toISOString(),
       price: Number(purchase.price),
       notes: purchase.notes,
+      programType: purchase.programType,
       createdAt: purchase.createdAt.toISOString(),
       updatedAt: purchase.updatedAt.toISOString(),
       createdByName: creator?.fullName || null,
       updatedByName: updater?.fullName || null,
-      card: {
-        ...purchase.card,
-        expiredDate: purchase.card.expiredDate
-          ? purchase.card.expiredDate.toISOString()
-          : null,
-        cardProduct: {
-          ...purchase.card.cardProduct,
-          totalQuota: purchase.card.cardProduct.totalQuota,
-          masaBerlaku: purchase.card.cardProduct.masaBerlaku,
+      card: purchase.card
+        ? {
+            ...purchase.card,
+            expiredDate: purchase.card.expiredDate
+              ? purchase.card.expiredDate.toISOString()
+              : null,
+            cardProduct: {
+              ...purchase.card.cardProduct,
+              totalQuota: purchase.card.cardProduct.totalQuota,
+              masaBerlaku: purchase.card.cardProduct.masaBerlaku,
+            },
+          }
+        : null,
+      bulkPurchaseItems: purchase.bulkPurchaseItems.map((bulkItem: any) => ({
+        id: bulkItem.id,
+        purchaseId: bulkItem.purchaseId,
+        cardId: bulkItem.cardId,
+        price: Number(bulkItem.price),
+        createdAt: bulkItem.createdAt.toISOString(),
+        updatedAt: bulkItem.updatedAt.toISOString(),
+        card: {
+          ...bulkItem.card,
+          expiredDate: bulkItem.card.expiredDate
+            ? bulkItem.card.expiredDate.toISOString()
+            : null,
+          cardProduct: {
+            ...bulkItem.card.cardProduct,
+            totalQuota: bulkItem.card.cardProduct.totalQuota,
+            masaBerlaku: bulkItem.card.cardProduct.masaBerlaku,
+          },
         },
-      },
+      })),
       member: purchase.member,
       operator: purchase.operator,
       station: purchase.station,
@@ -562,6 +909,11 @@ export class PurchaseService {
         where: { id, deletedAt: null },
         include: {
           card: true,
+          bulkPurchaseItems: {
+            include: {
+              card: true,
+            },
+          },
         },
       });
 
@@ -648,6 +1000,21 @@ export class PurchaseService {
               },
             },
           },
+          bulkPurchaseItems: {
+            include: {
+              card: {
+                include: {
+                  cardProduct: {
+                    include: {
+                      category: true,
+                      type: true,
+                    },
+                  },
+                },
+              },
+            },
+            orderBy: { createdAt: "asc" },
+          },
           member: true,
           operator: true,
           station: true,
@@ -679,21 +1046,43 @@ export class PurchaseService {
         purchaseDate: updatedPurchase.purchaseDate.toISOString(),
         price: Number(updatedPurchase.price),
         notes: updatedPurchase.notes,
+        programType: updatedPurchase.programType,
         createdAt: updatedPurchase.createdAt.toISOString(),
         updatedAt: updatedPurchase.updatedAt.toISOString(),
         createdByName: creator?.fullName || null,
         updatedByName: updater?.fullName || null,
-        card: {
-          ...updatedPurchase.card,
-          expiredDate: updatedPurchase.card.expiredDate
-            ? updatedPurchase.card.expiredDate.toISOString()
-            : null,
-          cardProduct: {
-            ...updatedPurchase.card.cardProduct,
-            totalQuota: updatedPurchase.card.cardProduct.totalQuota,
-            masaBerlaku: updatedPurchase.card.cardProduct.masaBerlaku,
+        card: updatedPurchase.card
+          ? {
+              ...updatedPurchase.card,
+              expiredDate: updatedPurchase.card.expiredDate
+                ? updatedPurchase.card.expiredDate.toISOString()
+                : null,
+              cardProduct: {
+                ...updatedPurchase.card.cardProduct,
+                totalQuota: updatedPurchase.card.cardProduct.totalQuota,
+                masaBerlaku: updatedPurchase.card.cardProduct.masaBerlaku,
+              },
+            }
+          : null,
+        bulkPurchaseItems: updatedPurchase.bulkPurchaseItems.map((bulkItem: any) => ({
+          id: bulkItem.id,
+          purchaseId: bulkItem.purchaseId,
+          cardId: bulkItem.cardId,
+          price: Number(bulkItem.price),
+          createdAt: bulkItem.createdAt.toISOString(),
+          updatedAt: bulkItem.updatedAt.toISOString(),
+          card: {
+            ...bulkItem.card,
+            expiredDate: bulkItem.card.expiredDate
+              ? bulkItem.card.expiredDate.toISOString()
+              : null,
+            cardProduct: {
+              ...bulkItem.card.cardProduct,
+              totalQuota: bulkItem.card.cardProduct.totalQuota,
+              masaBerlaku: bulkItem.card.cardProduct.masaBerlaku,
+            },
           },
-        },
+        })),
         member: updatedPurchase.member,
         operator: updatedPurchase.operator,
         station: updatedPurchase.station,
@@ -887,6 +1276,7 @@ export class PurchaseService {
 
   /**
    * Soft delete purchase transaction
+   * Supports both FWC (single card) and VOUCHER (bulk purchase)
    */
   static async deletePurchase(id: string, userId: string) {
     return await db.$transaction(async (tx) => {
@@ -895,6 +1285,11 @@ export class PurchaseService {
         where: { id },
         include: {
           card: true,
+          bulkPurchaseItems: {
+            include: {
+              card: true,
+            },
+          },
         },
       });
 
@@ -911,13 +1306,36 @@ export class PurchaseService {
         },
       });
 
-      // 3. Update card status back to IN_STATION
-      await tx.card.update({
-        where: { id: purchase.cardId },
-        data: {
-          status: "IN_STATION",
-        },
-      });
+      // 3. Update card(s) status back to IN_STATION
+      if (purchase.cardId) {
+        // FWC: Single card purchase
+        await tx.card.update({
+          where: { id: purchase.cardId },
+          data: {
+            status: "IN_STATION",
+            purchaseDate: null,
+            expiredDate: null,
+            memberId: null,
+            updatedBy: userId,
+          },
+        });
+      } else if (purchase.bulkPurchaseItems && purchase.bulkPurchaseItems.length > 0) {
+        // VOUCHER: Bulk purchase - update all cards
+        const cardIds = purchase.bulkPurchaseItems.map((item: any) => item.cardId);
+        
+        await tx.card.updateMany({
+          where: {
+            id: { in: cardIds },
+          },
+          data: {
+            status: "IN_STATION",
+            purchaseDate: null,
+            expiredDate: null,
+            memberId: null,
+            updatedBy: userId,
+          },
+        });
+      }
 
       return {
         success: true,
