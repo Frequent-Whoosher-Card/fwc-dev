@@ -29,6 +29,8 @@ interface Purchase {
   } | null;
   operator: { fullName: string };
   station: { stationName: string };
+  employeeTypeId?: string | null;
+  employeeType?: { code: string; name: string } | null;
 }
 
 interface Pagination {
@@ -173,6 +175,7 @@ export default function TransactionTable({
               <th className="px-4 py-3 text-center">Shift Date</th>
               <th className="px-4 py-3 text-left">Operator Name</th>
               <th className="px-4 py-3 text-left">Station</th>
+              <th className="px-4 py-3 text-left">Tipe Karyawan</th>
               <th className="px-4 py-3 text-center">Aksi</th>
             </tr>
           </thead>
@@ -180,13 +183,13 @@ export default function TransactionTable({
           <tbody className="text-gray-700">
             {loading ? (
               <tr>
-                <td colSpan={13} className="py-10 text-center text-gray-400">
+                <td colSpan={14} className="py-10 text-center text-gray-400">
                   Loading...
                 </td>
               </tr>
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={13} className="py-10 text-center text-gray-400">
+                <td colSpan={14} className="py-10 text-center text-gray-400">
                   No data
                 </td>
               </tr>
@@ -232,6 +235,9 @@ export default function TransactionTable({
                   </td>
                   <td className="px-4 py-3 truncate">
                     {item.station.stationName}
+                  </td>
+                  <td className="px-4 py-3 truncate">
+                    {item.employeeType?.name ?? "-"}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-center gap-2">

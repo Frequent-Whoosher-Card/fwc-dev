@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter } from "next/navigation";
 
 export interface SwitchTabItem {
   label: string;
@@ -19,21 +19,27 @@ interface Props {
   onValueChange?: (value: string) => void;
 }
 
-export default function SwitchTab({ items, activeValue, onValueChange }: Props) {
+export default function SwitchTab({
+  items,
+  activeValue,
+  onValueChange,
+}: Props) {
   const pathname = usePathname();
   const router = useRouter();
 
-  const baseBtn = 'px-4 py-2 text-sm font-medium transition-colors focus:outline-none';
+  const baseBtn =
+    "px-4 py-2 text-sm font-medium transition-colors focus:outline-none";
 
   return (
-    <div className="inline-flex overflow-hidden rounded-lg border">
+    <div className="flex w-fit overflow-hidden rounded-lg border shadow-sm">
       {items.map((item, index) => {
-        const isStateBased = activeValue !== undefined && onValueChange !== undefined;
-        
+        const isStateBased =
+          activeValue !== undefined && onValueChange !== undefined;
+
         const isActive = isStateBased
           ? item.value === activeValue
-          : item.match 
-            ? item.match.test(pathname) 
+          : item.match
+            ? item.match.test(pathname)
             : item.path && pathname.startsWith(item.path);
 
         const isFirst = index === 0;
@@ -53,11 +59,15 @@ export default function SwitchTab({ items, activeValue, onValueChange }: Props) 
             onClick={handleClick}
             className={[
               baseBtn,
-              isActive ? 'bg-[#8D1231] text-white' : 'bg-white text-gray-700 hover:bg-gray-50',
-              isFirst && 'rounded-l-lg',
-              isLast && 'rounded-r-lg border-l',
-              !isFirst && !isLast && 'border-l'
-            ].filter(Boolean).join(' ')}
+              isActive
+                ? "bg-[#8D1231] text-white"
+                : "bg-white text-gray-700 hover:bg-gray-50",
+              isFirst && "rounded-l-lg",
+              isLast && "rounded-r-lg border-l",
+              !isFirst && !isLast && "border-l",
+            ]
+              .filter(Boolean)
+              .join(" ")}
           >
             {item.label}
           </button>

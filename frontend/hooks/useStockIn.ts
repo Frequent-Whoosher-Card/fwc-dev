@@ -96,8 +96,8 @@ export const useStockIn = ({ programType }: UseStockInProps) => {
       setOpenDelete(false);
       setSelectedId(null);
       fetchStockIn();
-    } catch {
-      toast.error("Gagal menghapus stock");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal menghapus stock");
     }
   };
 
@@ -187,9 +187,9 @@ export const useStockIn = ({ programType }: UseStockInProps) => {
       });
 
       doc.save(`laporan-stock-in-${programType.toLowerCase()}.pdf`);
-    } catch (err) {
+    } catch (err: any) {
       console.error("PDF Export Error (Stock In):", err);
-      toast.error("Gagal export PDF");
+      toast.error(err.message || "Gagal export PDF");
     }
   };
 

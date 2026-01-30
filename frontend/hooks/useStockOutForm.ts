@@ -116,8 +116,8 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
           bast: detail.bast || "",
         });
       }
-    } catch (err) {
-      toast.error("Gagal mengambil data");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal mengambil data");
     } finally {
       setLoading(false);
     }
@@ -132,7 +132,20 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
   // Fetch available serial when product changes
   useEffect(() => {
     const fetchSerial = async () => {
-      if (!form.productId) return;
+      setMaxAvailableSerial("");
+
+      if (!form.productId) {
+        if (!id) {
+          setForm((prev) => ({
+            ...prev,
+            startSerial: "",
+            endSerial: "",
+            quantity: "",
+          }));
+        }
+        return;
+      }
+
       try {
         const data = await stockService.getAvailableSerialsStockOut(
           form.productId,
@@ -141,8 +154,8 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
         console.log("Serial fetch result:", data);
         if (data?.startSerial) {
           setMaxAvailableSerial(data.endSerial || "");
-          // Auto-fill only in Add mode if startSerial is currently empty
-          if (!id && !form.startSerial) {
+          // Always update in Add mode to prevent stale serials from previous products
+          if (!id) {
             setForm((prev) => ({
               ...prev,
               startSerial: data.startSerial,
@@ -152,12 +165,29 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
           }
         } else {
           setMaxAvailableSerial("");
-          // User requested: "toastnya walaupun ngga dalam in office tetep bisa yah"
-          // So we don't reset form fields or show toast here.
+          // Clear serials if not available for this product
+          if (!id) {
+            setForm((prev) => ({
+              ...prev,
+              startSerial: "",
+              endSerial: "",
+              quantity: "",
+            }));
+          }
+          toast.error("Serial Number Belum Tersedia");
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to fetch available serials", error);
-        toast.error("Gagal mengambil data serial stok.");
+        setMaxAvailableSerial("");
+        if (!id) {
+          setForm((prev) => ({
+            ...prev,
+            startSerial: "",
+            endSerial: "",
+            quantity: "",
+          }));
+        }
+        toast.error(error.message || "Gagal mengambil data serial stok.");
       }
     };
     fetchSerial();

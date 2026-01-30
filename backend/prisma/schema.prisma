@@ -272,7 +272,8 @@ model EmployeeType {
   deletedBy   String?   @map("deleted_by") @db.Uuid
 
   // Relations
-  members Member[]
+  members   Member[]
+  purchases CardPurchase[]
 
   @@map("employee_types")
 }
@@ -482,6 +483,7 @@ model CardPurchase {
   id                 String       @id @default(uuid()) @map("purchase_id") @db.Uuid
   cardId             String?      @map("card_id") @db.Uuid
   memberId           String?      @map("member_id") @db.Uuid
+  employeeTypeId     String?      @map("employee_type_id") @db.Uuid
   operatorId         String       @map("operator_id") @db.Uuid
   stationId          String       @map("station_id") @db.Uuid
   bulkDiscountId     Int?         @map("bulk_discount_id")
@@ -500,6 +502,7 @@ model CardPurchase {
   // Relation
   card                Card?              @relation(fields: [cardId], references: [id])
   member              Member?            @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  employeeType        EmployeeType?     @relation(fields: [employeeTypeId], references: [id])
   operator            User               @relation("PurchaseOperator", fields: [operatorId], references: [id])
   station             Station            @relation(fields: [stationId], references: [id])
   bulkDiscount        BulkDiscount?      @relation(fields: [bulkDiscountId], references: [id])

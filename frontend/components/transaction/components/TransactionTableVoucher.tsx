@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, Fragment } from "react";
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, AlertTriangle, CheckCircle } from "lucide-react";
+import { deletePurchase } from "@/lib/services/purchase.service";
 
 /* ======================
    TYPES
@@ -43,6 +44,9 @@ interface VoucherTransaction {
 
   operator: { fullName: string };
   station: { stationName: string };
+
+  employeeTypeId?: string | null;
+  employeeType?: { code: string; name: string } | null;
 }
 
 interface Pagination {
@@ -57,6 +61,8 @@ interface Props {
   loading: boolean;
   pagination: Pagination;
   onPageChange: (page: number) => void;
+  onDelete?: () => void;
+  canDelete?: boolean;
 }
 
 /* ======================
@@ -89,8 +95,42 @@ export default function TransactionTableVoucher({
   loading,
   pagination,
   onPageChange,
+  onDelete,
+  canDelete = false,
 }: Props) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [openDelete, setOpenDelete] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<VoucherTransaction | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  const handleOpenDelete = (transaction: VoucherTransaction) => {
+    setSelectedTransaction(transaction);
+    setOpenDelete(true);
+  };
+
+  const handleCloseDelete = () => {
+    if (deleteLoading) return;
+    setOpenDelete(false);
+    setSelectedTransaction(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedTransaction) return;
+    try {
+      setDeleteLoading(true);
+      await deletePurchase(selectedTransaction.id);
+      setOpenDelete(false);
+      setSelectedTransaction(null);
+      setShowSuccessModal(true);
+      if (onDelete) onDelete();
+    } catch (error) {
+      console.error("Delete failed:", error);
+      alert("Gagal menghapus transaksi voucher");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   const toggleRow = (id: string) => {
     const newExpanded = new Set(expandedRows);
@@ -126,19 +166,21 @@ export default function TransactionTableVoucher({
               <th className="px-4 py-3 text-center">Shift Date</th>
               <th className="px-4 py-3 text-left">Operator Name</th>
               <th className="px-4 py-3 text-left">Station</th>
+              <th className="px-4 py-3 text-left">Tipe Karyawan</th>
+              <th className="px-4 py-3 text-center">Actions</th>
             </tr>
           </thead>
 
           <tbody className="text-gray-700">
             {loading ? (
               <tr>
-                <td colSpan={12} className="py-10 text-center text-gray-400">
+                <td colSpan={14} className="py-10 text-center text-gray-400">
                   Loading...
                 </td>
               </tr>
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={12} className="py-10 text-center text-gray-400">
+                <td colSpan={14} className="py-10 text-center text-gray-400">
                   No data
                 </td>
               </tr>
@@ -239,12 +281,28 @@ export default function TransactionTableVoucher({
                       <td className="px-4 py-3 truncate">
                         {item.station.stationName}
                       </td>
+                      <td className="px-4 py-3 truncate">
+                        {item.employeeType?.name ?? "-"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-2">
+                          {canDelete && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDelete(item)}
+                              className="px-3 py-1 text-xs rounded bg-[#8D1231] text-white hover:bg-[#741026]"
+                            >
+                              Hapus
+                            </button>
+                          )}
+                        </div>
+                      </td>
                     </tr>
 
                     {/* Expanded bulk purchase items */}
                     {isBulkPurchase && isExpanded && (
                       <tr key={`${item.id}-expanded`} className="bg-gray-50">
-                        <td colSpan={12} className="px-4 py-3">
+                        <td colSpan={14} className="px-4 py-3">
                           <div className="space-y-2">
                             <div className="text-xs font-semibold text-gray-600 mb-2">
                               Voucher Items ({quantity}):
@@ -312,6 +370,83 @@ export default function TransactionTableVoucher({
           >
             <ChevronRight size={18} />
           </button>
+        </div>
+      )}
+
+      {/* DELETE MODAL */}
+      {openDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-[420px] rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
+              <AlertTriangle className="text-red-600" size={22} />
+            </div>
+            <h2 className="text-center text-lg font-semibold text-gray-800">
+              Hapus Transaksi Voucher
+            </h2>
+            <p className="mt-1 text-center text-sm text-gray-600">
+              Yakin ingin menghapus transaksi voucher ini? Kartu akan dikembalikan ke status IN_STATION.
+            </p>
+            <div className="mt-4 rounded-lg bg-gray-50 px-4 py-3 text-sm">
+              <div className="flex justify-between gap-3">
+                <span className="text-gray-500">Customer Name</span>
+                <span className="max-w-[240px] truncate font-medium text-gray-800">
+                  {selectedTransaction?.member?.name ?? "-"}
+                </span>
+              </div>
+              <div className="mt-1 flex justify-between gap-3">
+                <span className="text-gray-500">Jumlah Voucher</span>
+                <span className="max-w-[240px] truncate font-medium text-gray-800">
+                  {selectedTransaction?.bulkPurchaseItems?.length ?? 0} items
+                </span>
+              </div>
+              <div className="mt-1 flex justify-between gap-3">
+                <span className="text-gray-500">Total Price</span>
+                <span className="max-w-[240px] truncate font-medium text-gray-800">
+                  {selectedTransaction ? formatCurrency(selectedTransaction.price) : "-"}
+                </span>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-center gap-3">
+              <button
+                type="button"
+                onClick={handleCloseDelete}
+                disabled={deleteLoading}
+                className="h-9 w-24 rounded-md bg-gray-100 text-sm text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={deleteLoading}
+                className="rounded-md bg-[#8D1231] px-5 py-2 text-sm text-white transition hover:bg-[#73122E] active:scale-95 disabled:opacity-50"
+              >
+                {deleteLoading ? "Menghapus..." : "Hapus"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SUCCESS MODAL */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-[380px] rounded-xl bg-white p-6 text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
+              <CheckCircle className="text-green-600" size={28} />
+            </div>
+            <h2 className="text-xl font-semibold">Berhasil</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Transaksi voucher berhasil dihapus
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowSuccessModal(false)}
+              className="mt-4 rounded-md bg-[#8D1231] px-6 py-2 text-sm text-white hover:bg-[#73122E]"
+            >
+              OK
+            </button>
+          </div>
         </div>
       )}
     </div>
