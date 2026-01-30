@@ -229,11 +229,15 @@ export class PurchaseService {
             ? data.price
             : totalPrice;
 
+        // Employee type from payload or from member
+        const employeeTypeId = data.employeeTypeId ?? member.employeeTypeId ?? null;
+
         // Create purchase record (cardId is null for bulk purchase)
         const purchase = await tx.cardPurchase.create({
           data: {
             cardId: undefined, // Null for bulk purchase
             memberId: data.memberId,
+            employeeTypeId,
             operatorId: operatorId,
             stationId: stationId,
             bulkDiscountId: data.bulkDiscountId || null,
@@ -341,11 +345,15 @@ export class PurchaseService {
 
         purchaseCardId = data.cardId;
 
+        // Employee type from payload or from member
+        const employeeTypeId = data.employeeTypeId ?? member.employeeTypeId ?? null;
+
         // Create purchase record
         const purchase = await tx.cardPurchase.create({
           data: {
             cardId: purchaseCardId,
             memberId: data.memberId,
+            employeeTypeId,
             operatorId: operatorId,
             stationId: stationId,
             edcReferenceNumber: edcReferenceNumber,
@@ -444,10 +452,9 @@ export class PurchaseService {
         gte: today,
         lte: todayEnd,
       };
-    } else if (userRole === "supervisor" && userStationId) {
-      // Supervisor: semua transaksi di stasiun tempat supervisor bertugas
-      where.stationId = userStationId;
-      // Tidak ada filter tanggal - semua data di stasiun tersebut
+    } else if (userRole === "supervisor") {
+      // Supervisor: bisa melihat semua stasiun; filter stationId opsional via query param
+      // Tidak set where.stationId sehingga semua transaksi tampil; bisa filter dengan stationId query
     }
     // admin dan superadmin: tidak ada filter otomatis, bisa filter manual via query params
 
@@ -635,6 +642,13 @@ export class PurchaseService {
               stationName: true,
             },
           },
+          employeeType: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+            },
+          },
         },
       }),
       db.cardPurchase.count({ where }),
@@ -707,6 +721,8 @@ export class PurchaseService {
       member: item.member,
       operator: item.operator,
       station: item.station,
+      employeeTypeId: item.employeeTypeId,
+      employeeType: item.employeeType,
     }));
 
     return {
@@ -814,6 +830,13 @@ export class PurchaseService {
             stationName: true,
           },
         },
+        employeeType: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+          },
+        },
       },
     });
 
@@ -840,6 +863,7 @@ export class PurchaseService {
       id: purchase.id,
       cardId: purchase.cardId,
       memberId: purchase.memberId,
+      employeeTypeId: purchase.employeeTypeId,
       operatorId: purchase.operatorId,
       stationId: purchase.stationId,
       edcReferenceNumber: purchase.edcReferenceNumber,
@@ -886,6 +910,7 @@ export class PurchaseService {
       member: purchase.member,
       operator: purchase.operator,
       station: purchase.station,
+      employeeType: purchase.employeeType,
     };
   }
 
@@ -900,6 +925,7 @@ export class PurchaseService {
       price?: number;
       notes?: string;
       shiftDate?: string;
+      employeeTypeId?: string | null;
     },
     userId: string,
   ) {
@@ -951,6 +977,16 @@ export class PurchaseService {
         }
       }
 
+      // 4b. Validate employee type if provided
+      if (data.employeeTypeId !== undefined && data.employeeTypeId !== null) {
+        const employeeType = await tx.employeeType.findUnique({
+          where: { id: data.employeeTypeId },
+        });
+        if (!employeeType) {
+          throw new ValidationError("Tipe karyawan tidak ditemukan");
+        }
+      }
+
       // 5. Check EDC reference uniqueness if provided
       if (
         data.edcReferenceNumber &&
@@ -984,6 +1020,8 @@ export class PurchaseService {
       if (data.notes !== undefined) updateData.notes = data.notes;
       if (data.shiftDate !== undefined)
         updateData.shiftDate = new Date(data.shiftDate);
+      if (data.employeeTypeId !== undefined)
+        updateData.employeeTypeId = data.employeeTypeId;
 
       // 7. Update purchase
       const updatedPurchase = await tx.cardPurchase.update({
@@ -1018,6 +1056,13 @@ export class PurchaseService {
           member: true,
           operator: true,
           station: true,
+          employeeType: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+            },
+          },
         },
       });
 
@@ -1040,6 +1085,7 @@ export class PurchaseService {
         id: updatedPurchase.id,
         cardId: updatedPurchase.cardId,
         memberId: updatedPurchase.memberId,
+        employeeTypeId: updatedPurchase.employeeTypeId,
         operatorId: updatedPurchase.operatorId,
         stationId: updatedPurchase.stationId,
         edcReferenceNumber: updatedPurchase.edcReferenceNumber,
@@ -1086,6 +1132,7 @@ export class PurchaseService {
         member: updatedPurchase.member,
         operator: updatedPurchase.operator,
         station: updatedPurchase.station,
+        employeeType: updatedPurchase.employeeType,
       };
     });
   }

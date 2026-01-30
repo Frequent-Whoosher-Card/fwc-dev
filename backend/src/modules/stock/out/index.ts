@@ -373,16 +373,7 @@ const stockOutVoucher = new Elysia({ prefix: "/voucher" })
         async (context) => {
           const { query, set } = context;
           try {
-            // Note: Reuse FWC logic for getAvailableSerials as status IN_OFFICE is common
-            // or use Voucher specific if we want to enforce ProgramType check
-            // For now reusing FWC logic (or imported generic) inside VoucherService
-            // I haven't implemented getAvailableSerials in VoucherService yet, better to add it or aliast it.
-            // Since VoucherService extends/copies FWC, I should add it there.
-            // I'll assume I added `getAvailableSerials` to `StockOutVoucherService` (via alias or copy).
-            // Wait, I DID NOT add it in previous step.
-            // I should use `StockOutFwcService.getAvailableSerials` if logic is same?
-            // Yes, checking IN_OFFICE is same.
-            const result = await StockOutFwcService.getAvailableSerials(
+            const result = await StockOutVoucherService.getAvailableSerials(
               query.cardProductId,
             );
             return { success: true, data: result };

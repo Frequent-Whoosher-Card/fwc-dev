@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import toast from 'react-hot-toast';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 
-import { CardProduct } from '@/types/card';
-import { cardFWCService } from '@/lib/services/card.fwc.service';
-import ConfirmModal from '@/components/ConfirmModal';
+import { CardProduct } from "@/types/card";
+import { cardFWCService } from "@/lib/services/card.fwc.service";
+import ConfirmModal from "@/components/ConfirmModal";
 
 interface Props {
   data: CardProduct[];
@@ -28,10 +28,10 @@ export default function CardProductTable({ data, onRefresh }: Props) {
     setLoading(true);
     try {
       await cardFWCService.deleteProduct(selectedId);
-      toast.success('Card product berhasil dihapus');
+      toast.success("Card product berhasil dihapus");
       onRefresh();
     } catch {
-      toast.error('Gagal menghapus card product');
+      toast.error("Gagal menghapus card product");
     } finally {
       setLoading(false);
       setSelectedId(null);
@@ -39,14 +39,18 @@ export default function CardProductTable({ data, onRefresh }: Props) {
   };
 
   if (!data || data.length === 0) {
-    return <div className="rounded-xl border bg-white py-6 text-center text-gray-400">Belum ada card product</div>;
+    return (
+      <div className="rounded-xl border bg-white py-6 text-center text-gray-400">
+        Belum ada card product
+      </div>
+    );
   }
 
   return (
     <>
       <div className="rounded-xl border bg-white overflow-x-auto">
         <table className="min-w-full text-sm">
-          <thead className="bg-gray-50 border-b">
+          <thead className="bg-[#8D1231] text-white">
             <tr>
               <th className="px-4 py-3 text-center">Category</th>
               <th className="px-4 py-3 text-center">Type</th>
@@ -61,17 +65,25 @@ export default function CardProductTable({ data, onRefresh }: Props) {
           <tbody className="divide-y">
             {data.map((p) => (
               <tr key={p.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 text-center">{p.category?.categoryName ?? '-'}</td>
+                <td className="px-4 py-3 text-center">
+                  {p.category?.categoryName ?? "-"}
+                </td>
 
-                <td className="px-4 py-3 text-center">{p.type?.typeName ?? '-'}</td>
+                <td className="px-4 py-3 text-center">
+                  {p.type?.typeName ?? "-"}
+                </td>
 
                 <td className="px-4 py-3 text-center">{p.masaBerlaku} hari</td>
 
-                <td className="px-4 py-3 text-center">Rp {Number(p.price).toLocaleString('id-ID')}</td>
+                <td className="px-4 py-3 text-center">
+                  Rp {Number(p.price).toLocaleString("id-ID")}
+                </td>
 
                 <td className="px-4 py-3 text-center">{p.totalQuota}</td>
 
-                <td className="px-4 py-3 font-mono text-xs text-center">{p.serialTemplate}</td>
+                <td className="px-4 py-3 font-mono text-xs text-center">
+                  {p.serialTemplate}
+                </td>
 
                 {/* ACTION */}
                 <td className="px-4 py-3 text-center">
@@ -79,14 +91,12 @@ export default function CardProductTable({ data, onRefresh }: Props) {
                     {/* EDIT */}
                     <button
                       type="button"
-                      onClick={() => router.push(`/dashboard/superadmin/createnewcard/fwc/${p.id}/edit`)}
-                      className="
-        h-9 px-3 rounded-md border
-        border-blue-500 text-blue-600
-        text-xs font-medium
-        transition-colors duration-200
-        hover:bg-blue-500 hover:text-white
-      "
+                      onClick={() =>
+                        router.push(
+                          `/dashboard/superadmin/createnewcard/fwc/${p.id}/edit`,
+                        )
+                      }
+                      className="h-9 px-3 rounded-md border border-blue-500 text-blue-600 text-xs font-medium transition-colors duration-200 hover:bg-blue-600 hover:text-white"
                     >
                       Edit
                     </button>
@@ -95,13 +105,7 @@ export default function CardProductTable({ data, onRefresh }: Props) {
                     <button
                       type="button"
                       onClick={() => setSelectedId(p.id)}
-                      className="
-        h-9 px-3 rounded-md border
-        border-[#8D1231] text-[#8D1231]
-        text-xs font-medium
-        transition-colors duration-200
-        hover:bg-[#8D1231] hover:text-white
-      "
+                      className="h-9 px-3 rounded-md border border-[#8D1231] text-[#8D1231] text-xs font-medium transition-colors duration-200 hover:bg-[#8D1231] hover:text-white"
                     >
                       Hapus
                     </button>

@@ -14,6 +14,7 @@ export interface CardProduct {
     typeName: string;
   };
   maxQuantity?: number;
+  generatedCount?: number;
   isDiscount: boolean;
 }
 

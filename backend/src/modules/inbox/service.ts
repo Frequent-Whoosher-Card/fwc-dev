@@ -44,15 +44,23 @@ export class InboxService {
         });
 
         for (const m of pendingMovements) {
-          // Check if inbox exists
+          // Check if ANY inbox notification exists for this movement
+          // (Either Direct to User OR Broadcast to Station/Supervisor)
           const exists = await db.inbox.findFirst({
             where: {
-              sentTo: userId,
               type: "STOCK_DISTRIBUTION",
               payload: {
                 path: ["movementId"],
                 equals: m.id,
               },
+              OR: [
+                { sentTo: userId }, // Sent directly to me
+                {
+                  // OR Sent as broadcast to my station & role
+                  stationId: user.stationId,
+                  targetRoles: { has: user.role?.roleCode || "supervisor" },
+                },
+              ],
             },
           });
 

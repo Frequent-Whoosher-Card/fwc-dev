@@ -96,15 +96,15 @@ export default function BaseStockOutView() {
       </div>
 
       <div className="px-6">
-        <div className="rounded-xl border bg-white overflow-hidden">
-          <div className="border-b px-4 py-3 font-medium bg-gray-50 flex justify-between items-center">
+        <div className="rounded-xl border bg-white overflow-hidden overflow-x-auto">
+          <div className="border-b px-4 py-3 font-medium bg-gray-50 flex justify-between items-center min-w-[600px]">
             <span>Serial Number</span>
             <span className="text-xs font-normal text-gray-500">
               Total: {data.sentSerialNumbers.length}
             </span>
           </div>
           <div className="max-h-[400px] overflow-y-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[600px] text-sm">
               <thead className="bg-gray-100 border-b sticky top-0 z-10">
                 <tr>
                   <th className="px-4 py-2 text-center w-16">No</th>

@@ -104,6 +104,12 @@ export default function ManageDiskonPage() {
         <Card>
           <CardHeader>
             <CardTitle>Daftar Aturan</CardTitle>
+            {!loading && rules.length > 0 && (
+              <p className="text-xs text-blue-600 font-medium">
+                Gunakan rentang quantity yang belum terdaftar untuk menghindari
+                bentrok.
+              </p>
+            )}
           </CardHeader>
           <CardContent>
             <Table>

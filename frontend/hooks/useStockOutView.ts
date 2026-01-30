@@ -29,8 +29,8 @@ export const useStockOutView = (id: string) => {
       setLoading(true);
       const item = await stockService.getStockOutById(id);
       setData(item);
-    } catch (err) {
-      toast.error("Gagal mengambil detail stock out");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal mengambil detail stock out");
       console.error(err);
     } finally {
       setLoading(false);

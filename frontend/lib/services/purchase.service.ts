@@ -41,6 +41,13 @@ export interface FWCPurchaseListItem {
   station: {
     stationName: string;
   };
+
+  employeeTypeId?: string | null;
+  employeeType?: {
+    id: string;
+    code: string;
+    name: string;
+  } | null;
 }
 
 export interface VoucherTransactionListItem {
@@ -80,6 +87,13 @@ export interface VoucherTransactionListItem {
   station: {
     stationName: string;
   };
+
+  employeeTypeId?: string | null;
+  employeeType?: {
+    id: string;
+    code: string;
+    name: string;
+  } | null;
 }
 
 export interface BulkPurchaseItem {
@@ -171,6 +185,13 @@ export interface PurchaseDetail {
     stationCode: string;
     stationName: string;
   };
+
+  employeeTypeId?: string | null;
+  employeeType?: {
+    id: string;
+    code: string;
+    name: string;
+  } | null;
 }
 
 export interface GetPurchasesParams {
@@ -272,6 +293,7 @@ export interface CreateVoucherPurchasePayload {
   bulkDiscountId?: number;
   price?: number; // Total price (optional, will be calculated if not provided)
   notes?: string;
+  employeeTypeId?: string | null; // Optional; backend uses member's employeeTypeId if not provided
 }
 
 export async function createVoucherPurchase(
@@ -285,6 +307,7 @@ export async function createVoucherPurchase(
     bulkDiscountId: payload.bulkDiscountId,
     price: payload.price,
     notes: payload.notes,
+    ...(payload.employeeTypeId !== undefined && { employeeTypeId: payload.employeeTypeId }),
   };
 
   const response = await axios.post("/purchases", requestPayload);

@@ -35,6 +35,7 @@ export class MemberService {
         gender: data.gender || null,
         alamat: data.alamat || null,
         notes: data.notes || null,
+        employeeTypeId: data.employeeTypeId ?? null,
         createdBy: userId,
         updatedBy: userId,
       },
@@ -219,6 +220,7 @@ export class MemberService {
       gender: item.gender,
       alamat: item.alamat,
       notes: item.notes,
+      employeeTypeId: item.employeeTypeId ?? null,
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
       createdByName: item.createdBy
@@ -278,6 +280,7 @@ export class MemberService {
       gender: member.gender,
       alamat: member.alamat,
       notes: member.notes,
+      employeeTypeId: member.employeeTypeId ?? null,
       createdAt: member.createdAt.toISOString(),
       updatedAt: member.updatedAt.toISOString(),
       createdByName: creator?.fullName || null,
@@ -315,21 +318,25 @@ export class MemberService {
       }
     }
 
+    const updateData: Record<string, unknown> = {
+      name: data.name,
+      identityNumber: data.identityNumber,
+      nationality: data.nationality,
+      email: data.email,
+      phone: data.phone,
+      nippKai: data.nippKai,
+      gender: data.gender,
+      alamat: data.alamat,
+      notes: data.notes ?? null,
+      updatedBy: userId,
+      updatedAt: new Date(),
+    };
+    if (data.employeeTypeId !== undefined) {
+      updateData.employeeTypeId = data.employeeTypeId;
+    }
     await db.member.update({
       where: { id },
-      data: {
-        name: data.name,
-        identityNumber: data.identityNumber,
-        nationality: data.nationality,
-        email: data.email,
-        phone: data.phone,
-        nippKai: data.nippKai,
-        gender: data.gender,
-        alamat: data.alamat,
-        notes: data.notes || null,
-        updatedBy: userId,
-        updatedAt: new Date(),
-      },
+      data: updateData as any,
     });
 
     return await this.getById(id);
