@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { API_BASE_URL } from "@/lib/apiConfig";
+import { useLanguage } from "@/hooks/useLanguage";
 
 /* =========================
    ROLE TYPE
@@ -101,7 +102,7 @@ const superadminMenuItems = [
     href: "/dashboard/superadmin/generatenumber",
   },
   {
-    title: "Create New Card",
+    title: "Create New Product",
     icon: FolderKanban,
     href: "/dashboard/superadmin/createnewcard/fwc",
   },
@@ -207,6 +208,8 @@ export default function DashboardLayout({
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
 
+  const { lang, setLang, t } = useLanguage();
+
   /* =========================
      AUTH VIA TOKEN + /auth/me
   ========================= */
@@ -310,7 +313,7 @@ export default function DashboardLayout({
      LOGOUT
   ========================= */
   const handleLogout = () => {
-    toast.success("Logout berhasil");
+    toast.success(t("logout") + " berhasil");
 
     setTimeout(() => {
       localStorage.removeItem("fwc_token");
@@ -379,7 +382,7 @@ export default function DashboardLayout({
                       className="flex items-center gap-3 flex-1"
                     >
                       <item.icon className="h-5 w-5" />
-                      {item.title}
+                      {t(item.title.toLowerCase().replace(/\s+/g, "_") as any)}
                     </Link>
 
                     {hasChildren && (
@@ -419,7 +422,11 @@ export default function DashboardLayout({
                             )}
                           >
                             <child.icon className="h-4 w-4" />
-                            {child.title}
+                            {t(
+                              child.title
+                                .toLowerCase()
+                                .replace(/\s+/g, "_") as any,
+                            )}
                           </Link>
                         );
                       })}
@@ -445,10 +452,33 @@ export default function DashboardLayout({
           </Button>
 
           <h1 className="flex-1 text-sm sm:text-base md:text-lg font-semibold truncate pr-2 whitespace-nowrap">
-            Frequent Whoosher Card
+            {t("app_title")}
           </h1>
 
           <ClientOnly>
+            <div className="flex items-center bg-gray-100 rounded-full p-1 h-9 mx-2">
+              <button
+                onClick={() => setLang("id")}
+                className={`px-3 py-1 text-xs font-semibold rounded-full transition-all ${
+                  lang === "id"
+                    ? "bg-white text-[#8D1231] shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                ID
+              </button>
+              <button
+                onClick={() => setLang("en")}
+                className={`px-3 py-1 text-xs font-semibold rounded-full transition-all ${
+                  lang === "en"
+                    ? "bg-white text-[#8D1231] shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                EN
+              </button>
+            </div>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-2">
@@ -458,14 +488,14 @@ export default function DashboardLayout({
               </DropdownMenuTrigger>
 
               <DropdownMenuContent align="end" className="w-40">
-                <DropdownMenuLabel>Akun</DropdownMenuLabel>
+                <DropdownMenuLabel>{t("account")}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={handleLogout}
                   className="text-red-600 cursor-pointer"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  Logout
+                  {t("logout")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
