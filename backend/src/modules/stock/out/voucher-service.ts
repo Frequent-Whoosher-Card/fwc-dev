@@ -742,40 +742,24 @@ export class StockOutVoucherService {
    * Get Available Serials for Stock Out Voucher
    */
   static async getAvailableSerials(cardProductId: string) {
-    // 1. Define Today's Range
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
-
+    // 1. Get Count
     const count = await db.card.count({
       where: {
         cardProductId: cardProductId,
         status: "IN_OFFICE",
-        createdAt: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
       },
     });
 
     if (count === 0) {
-      return {
-        startSerial: null,
-        endSerial: null,
-        count: 0,
-      };
+      throw new ValidationError(
+        "Stok voucher untuk produk ini habis / tidak tersedia (0 IN_OFFICE).",
+      );
     }
 
     const firstCard = await db.card.findFirst({
       where: {
         cardProductId: cardProductId,
         status: "IN_OFFICE",
-        createdAt: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
       },
       orderBy: { serialNumber: "asc" },
       select: { serialNumber: true },
@@ -785,10 +769,6 @@ export class StockOutVoucherService {
       where: {
         cardProductId: cardProductId,
         status: "IN_OFFICE",
-        createdAt: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
       },
       orderBy: { serialNumber: "desc" },
       select: { serialNumber: true },

@@ -57,8 +57,12 @@ const baseRoutes = new Elysia()
       }
     },
     {
-      // PATCH: jangan validasi strict query param agar tidak error 422
-      // query: CardProductModel.getCardProductsQuery,
+      query: t.Object({
+        search: t.Optional(t.String()),
+        programType: t.Optional(
+          t.Union([t.Literal("FWC"), t.Literal("VOUCHER")]),
+        ),
+      }),
       response: {
         200: CardProductModel.getCardProductsResponse,
         400: CardProductModel.errorResponse,
