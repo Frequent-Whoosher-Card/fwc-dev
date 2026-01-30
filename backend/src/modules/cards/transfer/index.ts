@@ -56,7 +56,7 @@ export const transfers = new Elysia({ prefix: "/transfers" })
         description:
           "Initiate a transfer of cards from one station to another.",
       },
-    }
+    },
   )
 
   // Get Transfers
@@ -65,13 +65,21 @@ export const transfers = new Elysia({ prefix: "/transfers" })
     async (context) => {
       const { query, set } = context;
       try {
-        const { stationId, status, search, page = "1", limit = "10" } = query;
+        const {
+          stationId,
+          status,
+          search,
+          page = "1",
+          limit = "10",
+          programType,
+        } = query;
         const result = await TransferService.getTransfers({
           stationId,
           status: status as any,
           search,
           page: parseInt(page),
           limit: parseInt(limit),
+          programType: programType as any,
         });
         return {
           success: true,
@@ -100,7 +108,7 @@ export const transfers = new Elysia({ prefix: "/transfers" })
         description:
           "Retrieve a list of card transfers with optional filtering by station and status.",
       },
-    }
+    },
   )
 
   // Get Transfer By ID
@@ -149,7 +157,7 @@ export const transfers = new Elysia({ prefix: "/transfers" })
         summary: "Get Transfer By ID",
         description: "Get detailed information about a specific transfer.",
       },
-    }
+    },
   )
 
   // Receive Transfer
@@ -189,5 +197,5 @@ export const transfers = new Elysia({ prefix: "/transfers" })
         description:
           "Accept and finalize an incoming card transfer at the destination station.",
       },
-    }
+    },
   );

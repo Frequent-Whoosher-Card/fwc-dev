@@ -116,11 +116,18 @@ export class TransferService {
     search?: string;
     page: number;
     limit: number;
+    programType?: "FWC" | "VOUCHER";
   }) {
     const { page, limit } = params;
     const skip = (page - 1) * limit;
 
     const where: any = { movementType: StockMovementType.TRANSFER };
+
+    if (params.programType) {
+      where.category = {
+        programType: params.programType,
+      };
+    }
 
     if (params.stationId) {
       // Show transfers where station is either Sender OR Receiver
@@ -178,8 +185,31 @@ export class TransferService {
       db.cardStockMovement.count({ where }),
     ]);
 
+    const formattedItems = items.map((item) => ({
+      id: item.id,
+      movementAt: item.movementAt.toISOString(),
+      type: item.movementType, // Schema expects "type" as string (TRANSFER)
+      status: item.status,
+      quantity: item.quantity,
+      note: item.note,
+      station: item.station ? { stationName: item.station.stationName } : null,
+      toStation: item.toStation
+        ? { stationName: item.toStation.stationName }
+        : null,
+      category: {
+        id: item.category.id,
+        categoryName: item.category.categoryName,
+      },
+      cardType: {
+        id: item.type.id,
+        typeName: item.type.typeName,
+      },
+      programType: item.category.programType,
+      // Keep original for debugging if needed, but schema might strip/error
+    }));
+
     return {
-      items,
+      items: formattedItems,
       pagination: {
         total,
         page,
@@ -190,7 +220,7 @@ export class TransferService {
   }
 
   static async getTransferById(id: string) {
-    return await db.cardStockMovement.findUnique({
+    const transfer = await db.cardStockMovement.findUnique({
       where: { id },
       include: {
         category: true,
@@ -199,6 +229,32 @@ export class TransferService {
         toStation: true,
       },
     });
+
+    if (!transfer) return null;
+
+    return {
+      id: transfer.id,
+      movementAt: transfer.movementAt.toISOString(),
+      type: transfer.movementType, // Schema expects "type" as string (TRANSFER)
+      status: transfer.status,
+      quantity: transfer.quantity,
+      note: transfer.note,
+      station: transfer.station
+        ? { stationName: transfer.station.stationName }
+        : null,
+      toStation: transfer.toStation
+        ? { stationName: transfer.toStation.stationName }
+        : null,
+      category: {
+        id: transfer.category.id,
+        categoryName: transfer.category.categoryName,
+      },
+      cardType: {
+        id: transfer.type.id,
+        typeName: transfer.type.typeName,
+      },
+      programType: transfer.category.programType,
+    };
   }
 
   // 3. Receive Transfer (Generic Accept)

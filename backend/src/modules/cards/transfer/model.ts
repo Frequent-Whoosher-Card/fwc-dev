@@ -18,6 +18,7 @@ export namespace TransferModel {
     search: t.Optional(t.String()),
     page: t.Optional(t.String()), // Receive as string from query
     limit: t.Optional(t.String()), // Receive as string from query
+    programType: t.Optional(t.String()), // FWC or VOUCHER
   });
 
   // Path Params
@@ -39,7 +40,7 @@ export namespace TransferModel {
           stationName: t.String(),
         }),
         t.Null(),
-      ])
+      ]),
     ),
     toStation: t.Optional(
       t.Union([
@@ -47,7 +48,7 @@ export namespace TransferModel {
           stationName: t.String(),
         }),
         t.Null(),
-      ])
+      ]),
     ),
     category: t.Object({
       id: t.String({ format: "uuid" }),
@@ -57,6 +58,7 @@ export namespace TransferModel {
       id: t.String({ format: "uuid" }),
       typeName: t.String(),
     }),
+    programType: t.Optional(t.Union([t.Literal("FWC"), t.Literal("VOUCHER")])),
   });
 
   // Responses
