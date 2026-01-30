@@ -53,7 +53,7 @@ export default function BaseStockIn({ programType }: BaseStockInProps) {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h2 className="text-lg font-semibold whitespace-nowrap">
             Stock In (Vendor → Office)
           </h2>
@@ -108,8 +108,8 @@ export default function BaseStockIn({ programType }: BaseStockInProps) {
           </span>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-200 text-sm">
-            <thead className="border-b bg-gray-50">
+          <table className="w-full min-w-[1000px] text-sm">
+            <thead className="bg-[#8D1231] text-white">
               <tr>
                 <th className="p-3">No</th>
                 <th className="p-3">Tanggal</th>

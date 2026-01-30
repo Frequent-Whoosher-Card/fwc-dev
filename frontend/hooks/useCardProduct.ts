@@ -1,12 +1,15 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import toast from 'react-hot-toast';
-import { CardProduct } from '@/types/card';
-import { createCardService } from '@/lib/services/card.base.service';
-import { ProgramType } from '@/lib/services/card.base.service';
+import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
+import { CardProduct } from "@/types/card";
+import { createCardService } from "@/lib/services/card.base.service";
+import { ProgramType } from "@/lib/services/card.base.service";
 
-export const useCardProduct = (id?: string, programType: ProgramType = 'FWC') => {
+export const useCardProduct = (
+  id?: string,
+  programType: ProgramType = "FWC",
+) => {
   const [data, setData] = useState<CardProduct | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,10 +31,10 @@ export const useCardProduct = (id?: string, programType: ProgramType = 'FWC') =>
         if (mounted) {
           setData(result);
         }
-      } catch (err) {
+      } catch (err: any) {
         if (mounted) {
-          setError('Gagal mengambil product');
-          toast.error('Gagal mengambil product');
+          setError(err.message || "Gagal mengambil product");
+          toast.error(err.message || "Gagal mengambil product");
         }
       } finally {
         if (mounted) {

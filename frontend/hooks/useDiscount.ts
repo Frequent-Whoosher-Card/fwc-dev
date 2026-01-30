@@ -77,19 +77,34 @@ export const useDiscount = () => {
   const create = async () => {
     try {
       setLoading(true);
-      // Validasi input
-      const minQty = Number(newRule.minQuantity) || 1; // Default to 1 if 0/empty
+      const minQty = Number(newRule.minQuantity) || 1;
 
-      // Handle maxQuantity: use undefined if 0/empty so axios omits it (or matches backend optional)
-      // Backend expects optional number, not null.
       const rawMax = Number(newRule.maxQuantity);
-      const maxQty = rawMax > 0 ? rawMax : undefined;
+      const maxQty = rawMax > 0 ? rawMax : Infinity;
+
+      if (maxQty !== Infinity && maxQty <= minQty) {
+        toast.error("Maksimal Qty harus lebih besar dari Minimal Qty");
+        return;
+      }
+
+      // VALIDASI: Cek overlap dengan aturan yang sudah ada
+      const overlappingRule = rules.find((r) => {
+        const rMin = r.minQuantity;
+        const rMax = r.maxQuantity || Infinity;
+        return minQty <= rMax && maxQty >= rMin;
+      });
+
+      if (overlappingRule) {
+        const rRange = `${overlappingRule.minQuantity} - ${overlappingRule.maxQuantity || "∞"}`;
+        toast.error(`Rentang ini bentrok dengan aturan: ${rRange}`);
+        return;
+      }
 
       const discountVal = Number(newRule.discount) || 0;
 
       await discountService.create({
         minQuantity: minQty,
-        maxQuantity: maxQty,
+        maxQuantity: maxQty === Infinity ? undefined : maxQty,
         discount: discountVal,
       });
       toast.success("Aturan diskon berhasil ditambahkan");
@@ -109,12 +124,31 @@ export const useDiscount = () => {
     try {
       setLoading(true);
 
-      const minQty = Number(editForm.minQuantity) || 1; // Default to 1
+      const minQty = Number(editForm.minQuantity) || 1;
 
       const rawMax = Number(editForm.maxQuantity);
-      const maxQty = rawMax > 0 ? rawMax : undefined;
+      const maxQty = rawMax > 0 ? rawMax : Infinity;
 
       const discountVal = Number(editForm.discount) || 0;
+
+      if (maxQty !== Infinity && maxQty <= minQty) {
+        toast.error("Maksimal Qty harus lebih besar dari Minimal Qty");
+        return;
+      }
+
+      // VALIDASI: Cek overlap dengan aturan lain (kecuali dirinya sendiri)
+      const otherRules = rules.filter((r) => r.id !== id);
+      const overlappingRule = otherRules.find((r) => {
+        const rMin = r.minQuantity;
+        const rMax = r.maxQuantity || Infinity;
+        return minQty <= rMax && maxQty >= rMin;
+      });
+
+      if (overlappingRule) {
+        const rRange = `${overlappingRule.minQuantity} - ${overlappingRule.maxQuantity || "∞"}`;
+        toast.error(`Rentang ini bentrok dengan aturan: ${rRange}`);
+        return;
+      }
 
       await discountService.update(id, {
         minQuantity: minQty,

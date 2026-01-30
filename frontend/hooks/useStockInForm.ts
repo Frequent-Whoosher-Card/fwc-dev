@@ -43,8 +43,8 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
     try {
       const data = await stockService.getProducts(programType);
       setProducts(data);
-    } catch (err) {
-      toast.error("Gagal mengambil data card product");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal mengambil data card product");
     }
   }, [programType]);
 
@@ -52,7 +52,17 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
     fetchProducts();
   }, [fetchProducts]);
 
+  useEffect(() => {
+    if (!form.productId) {
+      setMaxAvailableSerial("");
+      setFullStartSerial("");
+    }
+  }, [form.productId]);
+
   const fetchAvailableSerial = async (productId: string) => {
+    // Always clear old data first
+    setMaxAvailableSerial("");
+
     try {
       setLoadingSerial(true);
       const data = await stockService.getAvailableSerials(
@@ -67,23 +77,29 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
           initialSerial: "",
           lastSerial: "",
         }));
+        // Ensure max is also cleared here
+        setMaxAvailableSerial("");
         toast.error("Nomor Serial Belum Tersedia");
         return;
       }
 
-      const lastFiveDigits = startSerial.slice(-5);
-      const endSerialLastFive = data?.endSerial ? data.endSerial.slice(-5) : "";
-
-      setMaxAvailableSerial(endSerialLastFive);
+      setMaxAvailableSerial(data?.endSerial || "");
       setFullStartSerial(startSerial);
 
       setForm((prev) => ({
         ...prev,
-        initialSerial: lastFiveDigits,
+        initialSerial: startSerial,
         lastSerial: "",
       }));
-    } catch (err) {
-      toast.error("Gagal mengambil available serial");
+    } catch (err: any) {
+      console.error("Failed to fetch available serials", err);
+      setMaxAvailableSerial("");
+      setForm((prev) => ({
+        ...prev,
+        initialSerial: "",
+        lastSerial: "",
+      }));
+      toast.error(err.message || "Gagal mengambil data available serial");
     } finally {
       setLoadingSerial(false);
     }
@@ -105,31 +121,17 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
       return;
     }
 
-    const start = Number(form.initialSerial);
-    const end = Number(form.lastSerial);
-
-    if (isNaN(start) || isNaN(end)) {
-      toast.error("Serial harus berupa angka");
-      return;
-    }
-
-    if (end < start) {
-      toast.error("Range serial tidak valid");
-      return;
-    }
-
     try {
       setSaving(true);
 
       // Extract serialDate if Voucher
       let serialDate: string | undefined;
-      // Assuming structure ...YYMMDDxxxxx
       if (
         programType === "VOUCHER" &&
-        fullStartSerial &&
-        fullStartSerial.length >= 11
+        form.initialSerial &&
+        form.initialSerial.length >= 11
       ) {
-        const datePart = fullStartSerial.slice(-11, -5); // YYMMDD
+        const datePart = form.initialSerial.slice(-11, -5); // YYMMDD
         if (/^\d{6}$/.test(datePart)) {
           const year = `20${datePart.slice(0, 2)}`;
           const month = datePart.slice(2, 4);
@@ -138,11 +140,15 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
         }
       }
 
+      const getSuffix = (serial: string) => {
+        return serial.length > 5 ? serial.slice(-5) : serial.padStart(5, "0");
+      };
+
       await stockService.createStockIn({
         movementAt: new Date(form.tanggal).toISOString(),
         cardProductId: form.productId,
-        startSerial: form.initialSerial.padStart(5, "0"),
-        endSerial: form.lastSerial.padStart(5, "0"),
+        startSerial: getSuffix(form.initialSerial),
+        endSerial: getSuffix(form.lastSerial),
         note: "",
         programType,
         serialDate,

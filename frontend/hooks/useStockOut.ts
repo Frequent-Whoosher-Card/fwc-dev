@@ -155,9 +155,11 @@ export const useStockOut = ({ programType }: UseStockOutProps) => {
             "Card Type",
             "Batch",
             "Stasiun",
+            "Nota Dinas",
+            "BAST",
+            "Qty",
             "Serial Number",
             "Status",
-            "Note",
           ],
         ],
         body: allData.map((item: any, index: number) => [
@@ -169,15 +171,17 @@ export const useStockOut = ({ programType }: UseStockOutProps) => {
           item.cardType?.name ?? "-",
           item.batchId ?? "-",
           item.stationName ?? "-",
+          item.notaDinas ?? "-",
+          item.bast ?? "-",
+          item.quantity ?? 0,
           item.sentSerialNumbers?.length > 0
             ? `${item.sentSerialNumbers[0]} - ${item.sentSerialNumbers[item.sentSerialNumbers.length - 1]}`
             : "-",
           item.status ?? "-",
-          item.note ?? "-",
         ]),
         styles: {
           font: "helvetica",
-          fontSize: 8,
+          fontSize: 7,
           cellPadding: 2,
           halign: "center",
         },
@@ -189,15 +193,14 @@ export const useStockOut = ({ programType }: UseStockOutProps) => {
         },
         columnStyles: {
           0: { cellWidth: 8 },
-          6: { cellWidth: 40 },
-          8: { halign: "left" },
+          9: { cellWidth: 35 },
         },
       });
 
       doc.save(`laporan-stock-out-${programType.toLowerCase()}.pdf`);
-    } catch (err) {
+    } catch (err: any) {
       console.error("PDF Export Error (Stock Out):", err);
-      toast.error("Gagal export PDF");
+      toast.error(err.message || "Gagal export PDF");
     }
   };
 
