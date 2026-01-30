@@ -97,7 +97,7 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
           onExportPDF={handleExportPDF}
           onAdd={() =>
             router.push(
-              `/dashboard/superadmin/stock/${programType.toLowerCase()}/all/add`,
+              `/dashboard/superadmin/stock/${programType.toLowerCase()}/all/transfer`,
             )
           }
           showFields={{
@@ -111,7 +111,7 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
             add: true,
           }}
           statusOptions={statusOptions}
-          addLabel="Tambah"
+          addLabel="Transfer Kartu"
         />
       </div>
 
@@ -132,6 +132,7 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
                 <th className="px-4 py-3">Type</th>
                 <th className="px-4 py-3">Dari Stasiun</th>
                 <th className="px-4 py-3">Ke Stasiun</th>
+                <th className="px-4 py-3">Expired Date</th>
                 <th className="px-4 py-3">Status</th>
                 {programType === "VOUCHER" && (
                   <th className="px-4 py-3">Diskon</th>
@@ -186,6 +187,13 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
                       {row.previousStationName}
                     </td>
                     <td className="px-4 py-3 text-center">{row.stationName}</td>
+                    <td className="px-4 py-3 text-center whitespace-nowrap">
+                      {row.expiredDate
+                        ? new Date(row.expiredDate)
+                            .toLocaleDateString("id-ID")
+                            .replace(/\//g, "-")
+                        : "-"}
+                    </td>
                     <td className="px-4 py-3 text-center">
                       <StatusBadge status={row.status} />
                     </td>

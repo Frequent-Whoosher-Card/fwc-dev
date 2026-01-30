@@ -414,6 +414,8 @@ export class StockOutVoucherService {
                 lost: finalLost.length,
                 damaged: finalDamaged.length,
                 validatedAt: new Date(),
+                lostSerialNumbers: finalLost,
+                damagedSerialNumbers: finalDamaged,
               },
             },
           },
@@ -441,6 +443,13 @@ export class StockOutVoucherService {
           const message = `Laporan Isu dari Station (VOUCHER): ${issueDetails.join(", ")}. Mohon tinjau dan setujui perubahan status.`;
 
           // Refactored to use Broadcast (Array Pattern)
+          const validatorUser = await tx.user.findUnique({
+            where: { id: validatorUserId },
+            select: { fullName: true },
+          });
+          const localReporterName =
+            validatorUser?.fullName || "Unknown Supervisor";
+
           await tx.inbox.create({
             data: {
               title: "Laporan Isu Stok (Voucher)",
@@ -454,7 +463,7 @@ export class StockOutVoucherService {
               payload: {
                 movementId: movementId,
                 stationId: validatorStationId,
-                reporterName: "Supervisor (validatedBy)",
+                reporterName: localReporterName,
                 lostCount: finalLost.length,
                 damagedCount: finalDamaged.length,
                 lostSerialNumbers: finalLost,
