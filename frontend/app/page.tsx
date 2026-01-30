@@ -203,16 +203,21 @@ export default function LoginPage() {
           router.push('/dashboard');
       }
     } catch (err) {
-      console.error(err);
       const rawMsg = err instanceof Error ? err.message : 'Terjadi kesalahan sistem';
+
+      // Jangan console.error jika cuma turnstile failed (biar ga merah di Next.js)
+      if (rawMsg === 'Turnstile failed') {
+        console.warn('[Login] Turnstile verification required/pending');
+      } else {
+        console.error(err);
+      }
+
       const isDev = process.env.NODE_ENV === 'development';
 
       if (rawMsg === 'Turnstile failed') {
-        setAuthErrorMessage(
-          isDev 
-            ? 'Turnstile failed (Client-side execution)' 
-            : 'Verifikasi keamanan gagal. Silakan coba lagi.'
-        );
+        // Pesan yang lebih natural dan umum di telinga pengguna Indonesia
+        const msg = 'Mohon selesaikan verifikasi Captcha terlebih dahulu!';
+        setAuthErrorMessage(msg);
       } else {
         setAuthErrorMessage(
           isDev 
