@@ -14,6 +14,14 @@ export namespace MemberModel {
     alamat: t.Union([t.String(), t.Null()]),
     notes: t.Union([t.String(), t.Null()]),
     employeeTypeId: t.Union([t.String({ format: "uuid" }), t.Null()]),
+    employeeType: t.Union([
+      t.Object({
+        id: t.String({ format: "uuid" }),
+        code: t.String(),
+        name: t.String(),
+      }),
+      t.Null(),
+    ]),
     createdAt: t.String({ format: "date-time" }),
     updatedAt: t.String({ format: "date-time" }),
     createdByName: t.Union([t.String(), t.Null()]),
@@ -188,6 +196,12 @@ export namespace MemberModel {
     hasNippKai: t.Optional(
       t.String({ 
         description: "Filter members that have NIPKAI. Set to 'true' to filter only members with NIPKAI" 
+      })
+    ),
+    employeeTypeId: t.Optional(
+      t.String({
+        format: "uuid",
+        description: "Filter by employee type UUID (tipe karyawan)",
       })
     ),
   });

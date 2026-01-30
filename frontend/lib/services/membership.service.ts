@@ -19,6 +19,8 @@ export interface MemberListItem {
   operatorName?: string | null;
   createdAt?: string | null;
   updatedAt?: string;
+  employeeTypeId?: string | null;
+  employeeType?: { id: string; code: string; name: string } | null;
 }
 
 export interface OCRExtractResponse {
@@ -53,6 +55,7 @@ export const getMembers = async (params?: {
   endDate?: string;
   cardCategory?: string;
   hasNippKai?: boolean;
+  employeeTypeId?: string;
 }) => {
   const query = new URLSearchParams();
 
@@ -79,6 +82,10 @@ export const getMembers = async (params?: {
     query.append("hasNippKai", "true");
   }
 
+  if (params?.employeeTypeId) {
+    query.append("employeeTypeId", params.employeeTypeId);
+  }
+
   const res = await apiFetch(`/members?${query.toString()}`, { method: "GET" });
 
   const data = res?.data ?? {};
@@ -102,6 +109,8 @@ export const getMembers = async (params?: {
               operatorName: item.createdByName ?? null,
               createdAt: item.createdAt ?? null,
               updatedAt: item.updatedAt ?? null,
+              employeeTypeId: item.employeeTypeId ?? null,
+              employeeType: item.employeeType ?? null,
             }),
           )
         : [],

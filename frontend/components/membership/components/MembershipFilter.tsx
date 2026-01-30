@@ -1,15 +1,25 @@
+import { useEffect, useState } from "react";
 import { Calendar, RotateCcw } from "lucide-react";
 import { RefObject } from "react";
+import { getEmployeeTypes } from "@/lib/services/employee-type.service";
+
+interface EmployeeTypeItem {
+  id: string;
+  code: string;
+  name: string;
+}
 
 interface MembershipFilterProps {
   cardCategory: "all" | "NIPKAI";
   gender: "all" | "L" | "P";
+  employeeTypeId: string;
   startDate: string;
   endDate: string;
   startDateRef: RefObject<HTMLInputElement>;
   endDateRef: RefObject<HTMLInputElement>;
   onCardCategoryChange: (value: "all" | "NIPKAI") => void;
   onGenderChange: (value: "all" | "L" | "P") => void;
+  onEmployeeTypeChange: (value: string) => void;
   onStartDateChange: (value: string) => void;
   onEndDateChange: (value: string) => void;
   onReset: () => void;
@@ -18,16 +28,33 @@ interface MembershipFilterProps {
 export default function MembershipFilter({
   cardCategory,
   gender,
+  employeeTypeId,
   startDate,
   endDate,
   startDateRef,
   endDateRef,
   onCardCategoryChange,
   onGenderChange,
+  onEmployeeTypeChange,
   onStartDateChange,
   onEndDateChange,
   onReset,
 }: MembershipFilterProps) {
+  const [employeeTypes, setEmployeeTypes] = useState<EmployeeTypeItem[]>([]);
+
+  useEffect(() => {
+    getEmployeeTypes({ limit: 200 })
+      .then((res) => setEmployeeTypes(res.data ?? []))
+      .catch(() => setEmployeeTypes([]));
+  }, []);
+
+  const isFilterActive =
+    gender !== "all" ||
+    cardCategory !== "all" ||
+    !!employeeTypeId ||
+    !!startDate ||
+    !!endDate;
+
   return (
     <div className="flex items-center gap-2 rounded-lg border bg-white px-4 py-3">
       {/* All Button */}
@@ -65,6 +92,24 @@ export default function MembershipFilter({
         <option value="all">Gender</option>
         <option value="L">Laki - Laki</option>
         <option value="P">Perempuan</option>
+      </select>
+
+      {/* Employee Type */}
+      <select
+        value={employeeTypeId}
+        onChange={(e) => onEmployeeTypeChange(e.target.value)}
+        className={`h-9 min-w-[140px] rounded-md border px-3 text-sm focus:outline-none ${
+          employeeTypeId
+            ? "border-[#8D1231] bg-red-50 text-[#8D1231]"
+            : "border-gray-300 bg-white text-gray-600"
+        }`}
+      >
+        <option value="">Tipe Karyawan</option>
+        {employeeTypes.map((et) => (
+          <option key={et.id} value={et.id}>
+            {et.name}
+          </option>
+        ))}
       </select>
 
       {/* Start Date */}
@@ -117,7 +162,7 @@ export default function MembershipFilter({
       <button
         onClick={onReset}
         className={`flex h-9 w-9 items-center justify-center rounded-md border transition ${
-          gender !== "all" || cardCategory !== "all" || startDate || endDate
+          isFilterActive
             ? "border-[#8D1231] bg-[#8D1231] text-white hover:bg-[#73122E]"
             : "border-gray-300 text-gray-500"
         }`}

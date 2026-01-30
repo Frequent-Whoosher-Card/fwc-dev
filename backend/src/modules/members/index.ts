@@ -27,7 +27,7 @@ const baseRoutes = new Elysia()
     async (context) => {
       const { query, set } = context;
       try {
-        const { page, limit, search, startDate, endDate, gender, hasNippKai } = query;
+        const { page, limit, search, startDate, endDate, gender, hasNippKai, employeeTypeId } = query;
         
         // Validate dates if provided
         if (startDate && isNaN(new Date(startDate).getTime())) {
@@ -57,6 +57,7 @@ const baseRoutes = new Elysia()
           endDate,
           gender,
           hasNippKai,
+          employeeTypeId: employeeTypeId || undefined,
         });
         return {
           success: true,

@@ -26,6 +26,7 @@ interface Membership {
   address?: string | null;
   operator_name?: string | null;
   updated_at?: string | null;
+  employee_type_name?: string | null;
 }
 
 interface Pagination {
@@ -65,6 +66,7 @@ export default function MembershipPage({ role }: MembershipPageProps) {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [cardCategory, setCardCategory] = useState<"all" | "NIPKAI">("all");
   const [gender, setGender] = useState<"all" | "L" | "P">("all");
+  const [employeeTypeId, setEmployeeTypeId] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
@@ -110,6 +112,7 @@ export default function MembershipPage({ role }: MembershipPageProps) {
   const resetFilter = () => {
     setCardCategory("all");
     setGender("all");
+    setEmployeeTypeId("");
     setStartDate("");
     setEndDate("");
     if (startDateRef.current) startDateRef.current.value = "";
@@ -129,6 +132,7 @@ export default function MembershipPage({ role }: MembershipPageProps) {
         limit: LIMIT,
         search: debouncedSearch || undefined,
         gender: gender !== "all" ? gender : undefined,
+        employeeTypeId: employeeTypeId || undefined,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
         hasNippKai: cardCategory === "NIPKAI" ? true : undefined,
@@ -147,6 +151,7 @@ export default function MembershipPage({ role }: MembershipPageProps) {
         address: item.alamat,
         operator_name: item.updatedByName ?? item.createdByName,
         updated_at: formatDate(item.updatedAt),
+        employee_type_name: item.employeeType?.name ?? null,
       }));
 
       setData(mapped);
@@ -169,7 +174,7 @@ export default function MembershipPage({ role }: MembershipPageProps) {
       fetchMembers(1);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, cardCategory, gender, startDate, endDate]);
+  }, [debouncedSearch, cardCategory, gender, employeeTypeId, startDate, endDate]);
 
   useEffect(() => {
     fetchMembers(pagination.page);
@@ -217,6 +222,7 @@ export default function MembershipPage({ role }: MembershipPageProps) {
       <MembershipFilter
         cardCategory={cardCategory}
         gender={gender}
+        employeeTypeId={employeeTypeId}
         startDate={startDate}
         endDate={endDate}
         startDateRef={startDateRef}
@@ -227,6 +233,10 @@ export default function MembershipPage({ role }: MembershipPageProps) {
         }}
         onGenderChange={(v) => {
           setGender(v);
+          setPagination((p) => ({ ...p, page: 1 }));
+        }}
+        onEmployeeTypeChange={(v) => {
+          setEmployeeTypeId(v);
           setPagination((p) => ({ ...p, page: 1 }));
         }}
         onStartDateChange={setStartDate}
