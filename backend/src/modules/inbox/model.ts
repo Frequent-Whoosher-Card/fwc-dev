@@ -37,6 +37,7 @@ export namespace InboxModel {
     endDate: t.Optional(t.String()),
     type: t.Optional(t.String()),
     programType: t.Optional(t.String()), // Added programType FILTER
+    search: t.Optional(t.String()), // Added search
   });
 
   export const getSupervisorInboxQuery = t.Object({
@@ -46,6 +47,7 @@ export namespace InboxModel {
     endDate: t.Optional(t.String()),
     status: t.Optional(t.String()),
     programType: t.Optional(t.String()), // Added programType FILTER
+    search: t.Optional(t.String()), // Added search
   });
 
   export const getInboxResponse = t.Object({

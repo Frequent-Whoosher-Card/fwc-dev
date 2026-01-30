@@ -1,7 +1,7 @@
 import { Elysia, t } from "elysia";
 import { authMiddleware } from "../../../middleware/auth";
 import { CardProductService } from "./service";
-import { formatErrorResponse } from "../../../utils/errors";
+import { formatErrorResponse, NotFoundError } from "../../../utils/errors";
 import { CardProductModel } from "./model";
 import { rbacMiddleware } from "../../../middleware/rbac";
 
@@ -57,8 +57,12 @@ const baseRoutes = new Elysia()
       }
     },
     {
-      // PATCH: jangan validasi strict query param agar tidak error 422
-      // query: CardProductModel.getCardProductsQuery,
+      query: t.Object({
+        search: t.Optional(t.String()),
+        programType: t.Optional(
+          t.Union([t.Literal("FWC"), t.Literal("VOUCHER")]),
+        ),
+      }),
       response: {
         200: CardProductModel.getCardProductsResponse,
         400: CardProductModel.errorResponse,
@@ -81,6 +85,10 @@ const baseRoutes = new Elysia()
         const cardProduct = await CardProductService.getCardProductById(
           params.id,
         );
+
+        if (!cardProduct) {
+          throw new NotFoundError("Card product not found");
+        }
 
         return {
           success: true,

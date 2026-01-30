@@ -36,6 +36,7 @@ export const inbox = new Elysia({ prefix: "/inbox" })
             endDate?: string;
             type?: string;
             programType?: string; // Added programType
+            search?: string; // Added search
           };
         };
         try {
@@ -52,6 +53,7 @@ export const inbox = new Elysia({ prefix: "/inbox" })
             endDate: query.endDate,
             type: query.type,
             programType: query.programType, // Pass programType
+            search: query.search, // Pass search
           });
 
           return {
@@ -283,6 +285,7 @@ Setelah sukses, pesan inbox akan otomatis ditandai sebagai **Sudah Dibaca** dan 
             endDate: query.endDate,
             status: query.status,
             programType: query.programType, // Pass programType
+            search: query.search, // Pass search
           });
 
           return {

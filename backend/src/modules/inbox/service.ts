@@ -10,7 +10,8 @@ export class InboxService {
     const page = Number(params.page) || 1;
     const limit = Number(params.limit) || 10;
     const skip = (page - 1) * limit;
-    const { status, search, programType } = params;
+    const { status, search, programType, startDate, endDate, isRead, type } =
+      params;
 
     // --- 1. SYNC LOGIC (Backfill) ---
     // Check if there are any PENDING stock distributions for this user (Supervisor)
@@ -43,15 +44,23 @@ export class InboxService {
         });
 
         for (const m of pendingMovements) {
-          // Check if inbox exists
+          // Check if ANY inbox notification exists for this movement
+          // (Either Direct to User OR Broadcast to Station/Supervisor)
           const exists = await db.inbox.findFirst({
             where: {
-              sentTo: userId,
               type: "STOCK_DISTRIBUTION",
               payload: {
                 path: ["movementId"],
                 equals: m.id,
               },
+              OR: [
+                { sentTo: userId }, // Sent directly to me
+                {
+                  // OR Sent as broadcast to my station & role
+                  stationId: user.stationId,
+                  targetRoles: { has: user.role?.roleCode || "supervisor" },
+                },
+              ],
             },
           });
 
@@ -114,89 +123,121 @@ export class InboxService {
     const userStationId = user?.stationId || null;
 
     // 2. Build Where Clause
-    // 2. Build Where Clause
     const isAdmin = ["admin", "superadmin"].includes(roleCode);
-
     const broadcastFilter: any = { targetRoles: { has: roleCode } };
 
-    // Only apply station scope if user is NOT admin/superadmin
-    // Admins should see broadcasts from ALL stations
     if (!isAdmin) {
       broadcastFilter.AND = [
         {
-          OR: [
-            { stationId: null }, // Global Broadcast
-            { stationId: userStationId }, // Scoped Broadcast
-          ],
+          OR: [{ stationId: null }, { stationId: userStationId }],
         },
       ];
     }
 
     const where: any = {
-      OR: [
-        { sentTo: userId }, // Legacy or Direct Message
-        broadcastFilter, // Broadcast Message
+      AND: [
+        {
+          OR: [{ sentTo: userId }, broadcastFilter],
+        },
       ],
     };
 
+    // --- Apply Filters to AND array ---
+
     if (status) {
-      // Define station scope filter based on role
       const stationScope = isAdmin
-        ? {} // Admin sees all stations
-        : { OR: [{ stationId: null }, { stationId: userStationId }] }; // Supervisor sees global + own station
+        ? {}
+        : { OR: [{ stationId: null }, { stationId: userStationId }] };
 
       if (status === "UNREAD") {
-        where.AND = [
-          {
-            OR: [
-              { sentTo: userId, isRead: false },
-              {
-                AND: [
-                  { targetRoles: { has: roleCode } },
-                  stationScope,
-                  { NOT: { readByUserIds: { has: userId } } },
-                ],
-              },
-            ],
-          },
-        ];
+        where.AND.push({
+          OR: [
+            { sentTo: userId, isRead: false },
+            {
+              AND: [
+                { targetRoles: { has: roleCode } },
+                stationScope,
+                { NOT: { readByUserIds: { has: userId } } },
+              ],
+            },
+          ],
+        });
+      } else if (status === "READ") {
+        where.AND.push({
+          OR: [
+            { sentTo: userId, isRead: true },
+            {
+              AND: [
+                { targetRoles: { has: roleCode } },
+                stationScope,
+                { readByUserIds: { has: userId } },
+              ],
+            },
+          ],
+        });
+      } else if (status === "PENDING_VALIDATION") {
+        where.AND.push({
+          type: "STOCK_DISTRIBUTION",
+          payload: { path: ["status"], equals: "PENDING" },
+        });
+      } else if (status === "ACCEPTED") {
+        where.AND.push({
+          type: "STOCK_DISTRIBUTION",
+          payload: { path: ["status"], equals: "COMPLETED" },
+        });
+      } else if (status === "CARD_MISSING") {
+        where.AND.push({
+          type: "STOCK_ISSUE_REPORT",
+          payload: { path: ["validationResult", "lost"], gt: 0 },
+        });
+      } else if (status === "CARD_DAMAGED") {
+        where.AND.push({
+          type: "STOCK_ISSUE_REPORT",
+          payload: { path: ["validationResult", "damaged"], gt: 0 },
+        });
       }
-      if (status === "READ") {
-        where.AND = [
-          {
-            OR: [
-              { sentTo: userId, isRead: true },
-              {
-                AND: [
-                  { targetRoles: { has: roleCode } },
-                  stationScope,
-                  { readByUserIds: { has: userId } },
-                ],
-              },
-            ],
-          },
-        ];
-      }
+    }
+
+    if (isRead !== undefined) {
+      where.AND.push({ isRead });
+    }
+
+    if (type) {
+      where.AND.push({ type });
     }
 
     if (programType) {
-      where.programType = programType;
+      where.AND.push({ programType });
     }
 
-    if (search) {
-      const searchFilter = {
-        OR: [
-          { title: { contains: search, mode: "insensitive" } },
-          { message: { contains: search, mode: "insensitive" } },
-        ],
-      };
-
-      // Merge with existing AND if present
-      if (where.AND) {
-        where.AND.push(searchFilter);
-      } else {
-        where.AND = [searchFilter];
+    if (startDate || endDate) {
+      const dateFilter: any = {};
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        dateFilter.gte = start;
       }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        dateFilter.lte = end;
+      }
+      where.AND.push({ sentAt: dateFilter });
+    }
+
+    const cleanSearch = search?.trim();
+    if (cleanSearch) {
+      where.AND.push({
+        OR: [
+          { title: { contains: cleanSearch, mode: "insensitive" } },
+          { message: { contains: cleanSearch, mode: "insensitive" } },
+          {
+            sender: {
+              fullName: { contains: cleanSearch, mode: "insensitive" },
+            },
+          },
+        ],
+      });
     }
 
     // 3. Execute Query
@@ -205,7 +246,7 @@ export class InboxService {
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: "desc" },
+        orderBy: { sentAt: "desc" },
         include: {
           sender: {
             select: {
@@ -477,6 +518,7 @@ export class InboxService {
     endDate?: string;
     status?: string;
     programType?: string;
+    search?: string;
   }) {
     const { page = 1, limit = 10 } = params;
     const skip = (page - 1) * limit;
@@ -489,13 +531,19 @@ export class InboxService {
       },
     };
 
-    if (params.startDate && params.endDate) {
-      where.sentAt = {
-        gte: new Date(params.startDate),
-        lte: new Date(params.endDate),
-      };
-    } else if (params.startDate) {
-      where.sentAt = { gte: new Date(params.startDate) };
+    if (params.startDate || params.endDate) {
+      const dateFilter: any = {};
+      if (params.startDate) {
+        const start = new Date(params.startDate);
+        start.setHours(0, 0, 0, 0);
+        dateFilter.gte = start;
+      }
+      if (params.endDate) {
+        const end = new Date(params.endDate);
+        end.setHours(23, 59, 59, 999);
+        dateFilter.lte = end;
+      }
+      where.sentAt = dateFilter;
     }
 
     if (params.status && params.status !== "all") {
@@ -504,6 +552,24 @@ export class InboxService {
 
     if (params.programType) {
       where.programType = params.programType;
+    }
+
+    const cleanSearch = params.search?.trim();
+    if (cleanSearch) {
+      where.AND = [
+        ...(where.AND || []),
+        {
+          OR: [
+            { title: { contains: params.search, mode: "insensitive" } },
+            { message: { contains: params.search, mode: "insensitive" } },
+            {
+              sender: {
+                fullName: { contains: params.search, mode: "insensitive" },
+              },
+            },
+          ],
+        },
+      ];
     }
 
     const [items, total] = await Promise.all([

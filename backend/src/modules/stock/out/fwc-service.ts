@@ -600,6 +600,8 @@ export class StockOutFwcService {
                   lost: finalLost.length,
                   damaged: finalDamaged.length,
                   validatedAt: new Date(),
+                  lostSerialNumbers: finalLost,
+                  damagedSerialNumbers: finalDamaged,
                 },
               },
             },
@@ -626,6 +628,13 @@ export class StockOutFwcService {
             const message = `Laporan Isu dari Station (FWC): ${issueDetails.join(", ")}. Mohon tinjau dan setujui perubahan status.`;
 
             // Refactored to use Broadcast (Array Pattern)
+            const validatorUser = await tx.user.findUnique({
+              where: { id: validatorUserId },
+              select: { fullName: true },
+            });
+            const localReporterName =
+              validatorUser?.fullName || "Unknown Supervisor";
+
             await tx.inbox.create({
               data: {
                 title: "Laporan Isu Stok (FWC)",
@@ -639,7 +648,7 @@ export class StockOutFwcService {
                 payload: {
                   movementId: movementId,
                   stationId: validatorStationId,
-                  reporterName: "Supervisor (validatedBy)",
+                  reporterName: localReporterName,
                   lostCount: finalLost.length,
                   damagedCount: finalDamaged.length,
                   lostSerialNumbers: finalLost,
@@ -1362,56 +1371,35 @@ export class StockOutFwcService {
    * Returns start/end serials with status IN_OFFICE for a given Product
    */
   static async getAvailableSerials(cardProductId: string) {
-    // 1. Define Today's Range
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
-
-    // 2. Get Count
+    // 1. Get Count
     const count = await db.card.count({
       where: {
         cardProductId: cardProductId,
         status: "IN_OFFICE",
-        createdAt: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
       },
     });
 
     if (count === 0) {
-      return {
-        startSerial: null,
-        endSerial: null,
-        count: 0,
-      };
+      throw new ValidationError(
+        "Stok kartu untuk produk ini habis / tidak tersedia (0 IN_OFFICE).",
+      );
     }
 
-    // 3. Get Min (Start)
+    // 2. Get Min (Start)
     const firstCard = await db.card.findFirst({
       where: {
         cardProductId: cardProductId,
         status: "IN_OFFICE",
-        createdAt: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
       },
       orderBy: { serialNumber: "asc" },
       select: { serialNumber: true },
     });
 
-    // 4. Get Max (End)
+    // 3. Get Max (End)
     const lastCard = await db.card.findFirst({
       where: {
         cardProductId: cardProductId,
         status: "IN_OFFICE",
-        createdAt: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
       },
       orderBy: { serialNumber: "desc" },
       select: { serialNumber: true },

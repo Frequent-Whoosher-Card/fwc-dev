@@ -58,6 +58,7 @@ const baseRoutes = new Elysia()
           typeId: cleanParam(query.typeId),
           operatorId: cleanParam(query.operatorId),
           search: cleanParam(query.search),
+          transactionType: cleanParam(query.transactionType) as "fwc" | "voucher" | undefined,
           // Pass user context for role-based filtering
           userRole: user.role.roleCode,
           userId: user.id,
@@ -84,7 +85,7 @@ const baseRoutes = new Elysia()
       detail: {
         tags: ["Purchases"],
         summary: "Get all purchases",
-        description: `Retrieve all purchase transactions with pagination, filters, and search.
+        description: `Retrieve all purchase transactions with pagination, filters, and search. Supports both FWC and VOUCHER program types.
 
 **Role-Based Automatic Filtering:**
 - **petugas**: Automatically filters to show only today's transactions created by the authenticated petugas user. Manual date/operator filters are ignored.
@@ -101,10 +102,15 @@ const baseRoutes = new Elysia()
 **Search:**
 Supports searching by:
 - EDC Reference Number
-- Card Serial Number
+- Card Serial Number (for FWC purchases and individual cards in VOUCHER bulk purchases)
 - Customer Name (member name)
 - Customer Identity Number (NIK)
 - Operator Name
+
+**Response Format:**
+- Each purchase includes \`programType\` field ("FWC" or "VOUCHER")
+- FWC purchases: \`card\` field contains card details, \`bulkPurchaseItems\` is empty array
+- VOUCHER purchases: \`card\` field is null, \`bulkPurchaseItems\` contains array of all purchased cards
 
 **Pagination:**
 - **page**: Page number (default: 1)
@@ -152,11 +158,17 @@ Supports searching by:
 - Role-based filtering does NOT apply to this endpoint (you can view any purchase if you know the ID).
 
 **Response includes:**
-- Purchase details (EDC reference, price, dates, notes)
-- Card information (serial number, card product, category, type)
+- Purchase details (EDC reference, price, dates, notes, programType)
+- Card information (for FWC: single card details; for VOUCHER: null)
+- Bulk Purchase Items (for VOUCHER: array of all cards with details; for FWC: empty array)
+  - Each item includes: cardId, price, card details (serialNumber, status, cardProduct, etc.)
 - Member information (name, identity number)
 - Operator information (full name, username)
-- Station information (code, name)`,
+- Station information (code, name)
+
+**Program Types:**
+- **FWC**: \`card\` field contains card details, \`bulkPurchaseItems\` is empty array
+- **VOUCHER**: \`card\` field is null, \`bulkPurchaseItems\` contains array of all purchased cards`,
       },
     },
   );
@@ -214,26 +226,55 @@ const writeRoutes = new Elysia()
       detail: {
         tags: ["Purchases"],
         summary: "Create new purchase transaction",
-        description: `Create a new card purchase transaction.
+        description: `Create a new card purchase transaction. Supports both FWC (single card) and VOUCHER (bulk purchase) program types.
+
+**Program Types:**
+- **FWC**: Single card purchase (default). Requires \`cardId\` field.
+- **VOUCHER**: Bulk purchase for multiple vouchers. Requires \`cards\` array with minimum 1 card.
 
 **Requirements:**
 - User must have a station assigned (stationId). If not, returns 400 error.
 - Member ID is required - every transaction must have a member.
-- Card must exist and have status "IN_STATION" to be purchased.
-- Card must not already have a purchase record (each card can only be purchased once).
+- For FWC: Card must exist and have status "IN_STATION" to be purchased.
+- For VOUCHER: All cards in \`cards\` array must exist and have status "IN_STATION".
+- Cards must not already have a purchase record (each card can only be purchased once).
 - EDC Reference Number must be provided by user and must be unique.
+
+**FWC Purchase (Single Card):**
+- Provide \`cardId\` (required)
+- \`cards\` array should not be provided or empty
+- \`programType\` defaults to "FWC" if not specified
+- Single card status updated to "SOLD_ACTIVE"
+
+**VOUCHER Purchase (Bulk):**
+- Provide \`cards\` array with minimum 1 card object: \`[{cardId: string, price?: number}]\`
+- \`cardId\` should not be provided (will be null for bulk purchases)
+- \`programType\` should be "VOUCHER"
+- \`bulkDiscountId\` (optional): Apply bulk discount based on quantity
+- All cards in array will be updated to "SOLD_ACTIVE"
+- Total price calculated from sum of card prices, with bulk discount applied if applicable
+
+**Bulk Discount:**
+- Optional \`bulkDiscountId\` can be provided for VOUCHER purchases
+- Discount is applied if quantity matches discount rule (minQuantity <= quantity <= maxQuantity)
+- Discount amount is subtracted from subtotal
 
 **Automatic Fields:**
 - **operatorId**: Automatically set from authenticated user's ID
 - **stationId**: Automatically set from authenticated user's stationId
 - **purchaseDate**: Automatically set to current date/time
-- **price**: If not provided, automatically uses cardProduct.price. Can be overridden for discounts/promos.
+- **price**: 
+  - For FWC: If not provided, uses cardProduct.price
+  - For VOUCHER: If not provided, calculated from sum of card prices (after bulk discount if applicable)
+  - Can be overridden for discounts/promos
 
 **Card Status Update:**
-After successful purchase, the card status is automatically updated to "SOLD_ACTIVE".
+After successful purchase:
+- FWC: Single card status updated to "SOLD_ACTIVE"
+- VOUCHER: All cards in bulkPurchaseItems updated to "SOLD_ACTIVE"
 
 **Card Expired Date:**
-Automatically calculated based on purchaseDate + cardProduct.masaBerlaku (in days).
+Automatically calculated based on purchaseDate + cardProduct.masaBerlaku (in days) for each card.
 
 **Access Control:**
 - Roles allowed: petugas, supervisor, admin, superadmin
@@ -400,11 +441,13 @@ const deleteRoutes = new Elysia()
       detail: {
         tags: ["Purchases"],
         summary: "Delete a purchase transaction (soft delete)",
-        description: `Soft delete a purchase transaction and restore card to IN_STATION status.
+        description: `Soft delete a purchase transaction and restore card(s) to IN_STATION status.
 
 **Process:**
 1. Mark purchase as deleted (set deletedAt timestamp)
-2. Card status changed from SOLD_ACTIVE back to IN_STATION
+2. Card status changed from SOLD_ACTIVE back to IN_STATION:
+   - **FWC**: Single card restored to IN_STATION
+   - **VOUCHER**: All cards in bulkPurchaseItems restored to IN_STATION
 3. Deleted purchases won't appear in purchase lists
 
 **Access Control:**
