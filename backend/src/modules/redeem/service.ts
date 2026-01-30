@@ -1,12 +1,9 @@
+
 import db from "../../config/db";
 import { CardStatus } from "@prisma/client";
 import { NotFoundError, ValidationError } from "../../utils/errors";
 
 export class RedeemService {
-  /**
-   * Check card details by serial number
-   * @param serialNumber Serial number of the card
-   */
   static async checkSerial(serialNumber: string, product?: string) {
     const card = await db.card.findUnique({
       where: { serialNumber },
@@ -21,37 +18,21 @@ export class RedeemService {
         },
       },
     });
-
-    if (!card) {
-      throw new NotFoundError("Card not found");
-    }
-
-    // Product type validation (moved here)
+    if (!card) throw new NotFoundError("Card not found");
     if (product && card.programType !== product) {
-      throw new ValidationError(`Kartu ini bukan produk yang sesuai (${product}). Produk kartu: ${card.programType}`);
+      throw new ValidationError(
+        `Kartu ini bukan produk yang sesuai (${product}). Produk kartu: ${card.programType}`,
+      );
     }
-
-    // Determine status text
     let statusActive = "Tidak Aktif";
-    if (card.status === CardStatus.SOLD_ACTIVE) {
-      statusActive = "ACTIVE";
-    } else if (card.status === CardStatus.SOLD_INACTIVE) {
-      statusActive = "EXPIRED";
-    } else {
-      statusActive = card.status;
-    }
-
-    // Customer Name & NIK
-    let customerName = "-";
-    let nik = "-";
+    if (card.status === CardStatus.SOLD_ACTIVE) statusActive = "ACTIVE";
+    else if (card.status === CardStatus.SOLD_INACTIVE) statusActive = "EXPIRED";
+    else statusActive = card.status;
+    let customerName = "-", nik = "-";
     if (card.member) {
       customerName = card.member.name;
       nik = card.member.identityNumber;
-    } else if (card.user) {
-      // Fallback or optional: if internal card assigned to user
-      // customerName = card.user.fullName;
     }
-
     return {
       nik,
       customerName,
@@ -66,20 +47,10 @@ export class RedeemService {
         const desc = card.cardProduct.type.routeDescription;
         if (!desc) return null;
         const parts = desc.split("-").map((s) => s.trim());
-        if (parts.length >= 2) {
-          return {
-            origin: parts[0],
-            destination: parts[1],
-          };
-        }
-        return {
-          origin: desc,
-          destination: "-",
-        };
+        if (parts.length >= 2) return { origin: parts[0], destination: parts[1] };
+        return { origin: desc, destination: "-" };
       })(),
-      cardProduct: {
-        totalQuota: card.cardProduct.totalQuota,
-      },
+      cardProduct: { totalQuota: card.cardProduct.totalQuota },
     };
   }
 
@@ -91,111 +62,63 @@ export class RedeemService {
     product: "FWC" | "VOUCHER",
     notes?: string
   ): Promise<{ transactionNumber: string; remainingQuota: number; quotaUsed: number; redeemType: string }> {
-
-    return await db.$transaction(
-      async (tx) => {
-        const card = await tx.card.findUnique({
-          where: { serialNumber },
-          include: { cardProduct: true, fileObject: true },
-        });
-
-        if (!card) {
-          throw new NotFoundError("Card not found");
-        }
-
-        // Product type validation
-        if (card.programType !== product) {
-          throw new ValidationError(`Card product type mismatch. Expected: ${product}, Found: ${card.programType}`);
-        }
-
-        // Check if card is active
-        if (card.status !== CardStatus.SOLD_ACTIVE) {
-          throw new ValidationError("Card is not active");
-        }
-
-        // Check Expired Date
-        if (card.expiredDate && new Date() > card.expiredDate) {
-          throw new ValidationError("Card is expired");
-        }
-
-        // Determine quota used from redeem type
-        const quotaUsed = redeemType === "ROUNDTRIP" ? 2 : 1;
-
-        // Check Quota
-        if (card.quotaTicket < quotaUsed) {
-          throw new ValidationError("Not enough quota");
-        }
-
-        const prevQuota = card.quotaTicket;
-
-        // Calculate transaction number with new format
-        const date = new Date();
-        const yy = date.getFullYear().toString().slice(-2);
-        const mm = (date.getMonth() + 1).toString().padStart(2, '0');
-        const dd = date.getDate().toString().padStart(2, '0');
-        const dateStr = `${yy}${mm}${dd}`;
-        const count = await tx.redeem.count({
-          where: {
-            createdAt: {
-              gte: new Date(date.setHours(0, 0, 0, 0)),
-              lt: new Date(date.setHours(23, 59, 59, 999)),
-            },
-            programType: product,
-          },
-        });
-        let productCode = product === 'FWC' ? 'FW' : (product === 'VOUCHER' ? 'VC' : 'XX');
-        const transactionNumber = `RDM-${productCode}-${dateStr}-${(count + 1).toString().padStart(4, '0')}`;
-
-        // Create Redeem Record
-        const redeem = await tx.redeem.create({
-          data: {
-            cardId: card.id,
-            operatorId,
-            stationId,
-            transactionNumber,
-            shiftDate: new Date(),
-            status: "Success",
-            redeem_type: redeemType as any,
-            fileObjectId: card.fileObjectId,
-            notes: notes || null,
-            programType: product,
-          } as any,
-        });
-
-        // Update Card Quota
-        const updatedCard = await tx.card.update({
-          where: { id: card.id },
-          data: {
-            quotaTicket: { decrement: quotaUsed },
-            updatedAt: new Date(),
-          },
-        });
-
-        // Create Usage Log - Link to Redeem transaction
-        await tx.cardUsageLog.create({
-          data: {
-            cardId: card.id,
-            redeemId: redeem.id,
-            quotaUsed: quotaUsed,
-            remainingQuota: updatedCard.quotaTicket,
-            usageDate: new Date(),
-          },
-        });
-
-        return {
+    return await db.$transaction(async (tx) => {
+      const card = await tx.card.findUnique({ where: { serialNumber }, include: { cardProduct: true, fileObject: true } });
+      if (!card) throw new NotFoundError("Card not found");
+      if (card.programType !== product) throw new ValidationError(`Card product type mismatch. Expected: ${product}, Found: ${card.programType}`);
+      if (card.status !== CardStatus.SOLD_ACTIVE) throw new ValidationError("Card is not active");
+      if (card.expiredDate && new Date() > card.expiredDate) throw new ValidationError("Card is expired");
+      const quotaUsed = redeemType === "ROUNDTRIP" ? 2 : 1;
+      if (card.quotaTicket < quotaUsed) throw new ValidationError("Not enough quota");
+      const date = new Date();
+      const yy = date.getFullYear().toString().slice(-2);
+      const mm = (date.getMonth() + 1).toString().padStart(2, '0');
+      const dd = date.getDate().toString().padStart(2, '0');
+      const dateStr = `${yy}${mm}${dd}`;
+      const count = await tx.redeem.count({
+        where: {
+          createdAt: { gte: new Date(date.setHours(0, 0, 0, 0)), lt: new Date(date.setHours(23, 59, 59, 999)) },
+          programType: product,
+        },
+      });
+      let productCode = product === 'FWC' ? 'FW' : (product === 'VOUCHER' ? 'VC' : 'XX');
+      const transactionNumber = `RDM-${productCode}-${dateStr}-${(count + 1).toString().padStart(4, '0')}`;
+      const redeem = await tx.redeem.create({
+        data: {
+          cardId: card.id,
+          operatorId,
+          stationId,
           transactionNumber,
+          shiftDate: new Date(),
+          status: "Success",
+          redeem_type: redeemType as any,
+          fileObjectId: card.fileObjectId,
+          notes: notes || null,
+          programType: product,
+        } as any,
+      });
+      const updatedCard = await tx.card.update({
+        where: { id: card.id },
+        data: { quotaTicket: { decrement: quotaUsed }, updatedAt: new Date() },
+      });
+      await tx.cardUsageLog.create({
+        data: {
+          cardId: card.id,
+          redeemId: redeem.id,
+          quotaUsed: quotaUsed,
           remainingQuota: updatedCard.quotaTicket,
-          quotaUsed,
-          redeemType,
-        };
-      },
-      {
-        timeout: 10000,
-      }
-    );
+          usageDate: new Date(),
+        },
+      });
+      return {
+        transactionNumber,
+        remainingQuota: updatedCard.quotaTicket,
+        quotaUsed,
+        redeemType,
+      };
+    }, { timeout: 10000 });
   }
 
-  // Get All Redeems (List)
   static async getRedeems(params: {
     page?: number;
     limit?: number;
@@ -205,111 +128,73 @@ export class RedeemService {
     search?: string;
     category?: string;
     cardType?: string;
-    product?: 'FWC' | 'VOUCHER';
+    redeemType?: string;
+    product?: "FWC" | "VOUCHER";
+    isDeleted?: boolean;
   }) {
+
+    const page = params.page ?? 1;
+    const limit = params.limit ?? 10;
     const {
-      page = 1,
-      limit = 10,
       startDate,
       endDate,
       stationId,
       search,
       category,
       cardType,
+      redeemType,
       product,
+      isDeleted,
     } = params;
     const skip = (page - 1) * limit;
 
-    const where: any = {
-      deletedAt: null, // Only show non-deleted redeems
-    };
-
-    // Product Filter
-    if (product) {
-      if (!where.card) where.card = {};
-      where.card.programType = product;
-    }
-
-    // Date Range Filter
-    if (startDate || endDate) {
-      where.createdAt = {};
-      if (startDate) {
-        where.createdAt.gte = new Date(startDate);
+    const where: any = {};
+    if (isDeleted) {
+      // Logic for Deleted Items: Filter by deletedAt
+      if (startDate || endDate) {
+        where.deletedAt = {};
+        if (startDate) where.deletedAt.gte = new Date(startDate);
+        if (endDate) {
+          const end = new Date(endDate);
+          end.setHours(23, 59, 59, 999);
+          where.deletedAt.lte = end;
+        }
+      } else {
+        where.deletedAt = { not: null };
       }
-      if (endDate) {
-        // Set end date to end of day
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        where.createdAt.lte = end;
+    } else {
+      // Logic for Active Items: deletedAt is null, filter by createdAt
+      where.deletedAt = null;
+      if (startDate || endDate) {
+        where.createdAt = {};
+        if (startDate) where.createdAt.gte = new Date(startDate);
+        if (endDate) {
+          const end = new Date(endDate);
+          end.setHours(23, 59, 59, 999);
+          where.createdAt.lte = end;
+        }
       }
     }
-
-    // Station Filter
-    if (stationId) {
-      where.stationId = stationId;
-    }
-
-    // RedeemType Filter
-    // RedeemType filter removed
-
-    // Category Filter
+    if (product) { if (!where.card) where.card = {}; where.card.programType = product; }
+    if (stationId) where.stationId = stationId;
     if (category) {
-      if (!where.card) {
-        where.card = {};
-      }
-      if (!where.card.cardProduct) {
-        where.card.cardProduct = {};
-      }
-      where.card.cardProduct.category = {
-        categoryName: {
-          equals: category,
-          mode: "insensitive",
-        },
-      };
+      if (!where.card) where.card = {};
+      if (!where.card.cardProduct) where.card.cardProduct = {};
+      where.card.cardProduct.category = { categoryName: { equals: category, mode: "insensitive" } };
     }
-
-    // CardType Filter
     if (cardType) {
-      if (!where.card) {
-        where.card = {};
-      }
-      if (!where.card.cardProduct) {
-        where.card.cardProduct = {};
-      }
-      where.card.cardProduct.type = {
-        typeName: {
-          equals: cardType,
-          mode: "insensitive",
-        },
-      };
+      if (!where.card) where.card = {};
+      if (!where.card.cardProduct) where.card.cardProduct = {};
+      where.card.cardProduct.type = { typeName: { equals: cardType, mode: "insensitive" } };
     }
-
-    // Search Filter
     if (search) {
       where.OR = [
         { transactionNumber: { contains: search, mode: "insensitive" } },
-        {
-          card: {
-            serialNumber: { contains: search, mode: "insensitive" },
-          },
-        },
-        {
-          card: {
-            member: {
-              identityNumber: { contains: search, mode: "insensitive" },
-            },
-          },
-        },
-        {
-          card: {
-            member: {
-              name: { contains: search, mode: "insensitive" },
-            },
-          },
-        },
+        { card: { serialNumber: { contains: search, mode: "insensitive" } } },
+        { card: { member: { identityNumber: { contains: search, mode: "insensitive" } } } },
+        { card: { member: { name: { contains: search, mode: "insensitive" } } } },
       ];
     }
-
     const [items, total] = await Promise.all([
       db.redeem.findMany({
         where,
@@ -317,69 +202,45 @@ export class RedeemService {
         skip,
         orderBy: { createdAt: "desc" },
         include: {
-          station: {
-            select: {
-              id: true,
-              stationName: true,
-            },
-          },
-          operator: {
-            select: {
-              id: true,
-              fullName: true,
-            },
-          },
+          station: { select: { id: true, stationName: true } },
+          operator: { select: { id: true, fullName: true } },
           card: {
             select: {
               id: true,
               serialNumber: true,
               quotaTicket: true,
               programType: true,
-              member: {
-                select: {
-                  id: true,
-                  name: true,
-                  identityNumber: true,
-                },
-              },
-              cardProduct: {
-                select: {
-                  category: { select: { categoryName: true } },
-                  type: { select: { typeName: true } },
-                },
-              },
+              member: { select: { id: true, name: true, identityNumber: true } },
+              cardProduct: { select: { totalQuota: true, category: { select: { categoryName: true } }, type: { select: { typeName: true } } } },
               purchases: {
                 orderBy: { purchaseDate: "desc" },
                 take: 1,
-                select: {
-                  member: {
-                    select: {
-                      id: true,
-                      name: true,
-                      identityNumber: true,
-                    },
-                  },
-                },
+                select: { member: { select: { id: true, name: true, identityNumber: true } } },
               },
             },
           },
+          fileObject: true,
         },
       }),
       db.redeem.count({ where }),
     ]);
+    const usageLogs = await db.cardUsageLog.findMany({ where: { redeemId: { in: items.map((it) => it.id) }, deletedAt: null } });
+    const usageLogMap = new Map(usageLogs.map(log => [log.redeemId, log]));
 
     const formattedItems = items.map((item) => {
       const fallbackMember = item.card.member || item.card.purchases?.[0]?.member || null;
+      const usageLog = usageLogMap.get(item.id);
       return {
         id: item.id,
-        transactionNumber: item.transactionNumber, // <-- tambahkan field ini
+        transactionNumber: item.transactionNumber,
         cardId: item.cardId,
         operatorId: item.operatorId,
         stationId: item.stationId,
         shiftDate: item.shiftDate.toISOString(),
         status: item.status,
         redeemType: item.redeem_type,
-        quotaUsed: item.redeem_type === "SINGLE" ? 1 : 2,
+        quotaUsed: usageLog?.quotaUsed ?? (item.redeem_type === "SINGLE" ? 1 : 2),
+        remainingQuota: usageLog?.remainingQuota ?? 0,
         notes: item.notes,
         createdAt: item.createdAt.toISOString(),
         updatedAt: item.updatedAt.toISOString(),
@@ -393,6 +254,12 @@ export class RedeemService {
           member: fallbackMember,
           cardProduct: item.card.cardProduct,
         },
+        fileObject: item.fileObject ? {
+          id: item.fileObject.id,
+          path: `${process.env.BASE_URL}:${process.env.APP_PORT}/${item.fileObject.relativePath}`,
+          mimeType: item.fileObject.mimeType,
+          createdAt: item.fileObject.createdAt.toISOString(),
+        } : undefined,
       };
     });
 
@@ -424,40 +291,42 @@ export class RedeemService {
             fullName: true,
           },
         },
-          card: {
-            select: {
-              id: true,
-              serialNumber: true,
-              quotaTicket: true,
-              programType: true,
-              member: {
-                select: {
-                  id: true,
-                  name: true,
-                  identityNumber: true,
-                },
+        card: {
+          select: {
+            id: true,
+            serialNumber: true,
+            quotaTicket: true,
+            programType: true,
+            member: {
+              select: {
+                id: true,
+                name: true,
+                identityNumber: true,
               },
-              cardProduct: {
-                select: {
-                  category: { select: { categoryName: true } },
-                  type: { select: { typeName: true } },
-                },
+            },
+            cardProduct: {
+              select: {
+                totalQuota: true,
+                category: { select: { categoryName: true } },
+                type: { select: { typeName: true } },
               },
-              purchases: {
-                orderBy: { purchaseDate: "desc" },
-                take: 1,
-                select: {
-                  member: {
-                    select: {
-                      id: true,
-                      name: true,
-                      identityNumber: true,
-                    },
+            },
+            purchases: {
+              orderBy: { purchaseDate: "desc" },
+              take: 1,
+              select: {
+                member: {
+                  select: {
+                    id: true,
+                    name: true,
+                    identityNumber: true,
                   },
                 },
               },
             },
           },
+        },
+        fileObject: true,
       },
     });
 
@@ -493,12 +362,17 @@ export class RedeemService {
         member: fallbackMember,
         cardProduct: redeem.card.cardProduct,
       },
+      fileObject: redeem.fileObject ? {
+        id: redeem.fileObject.id,
+        path: `${process.env.BASE_URL}:${process.env.APP_PORT}/${redeem.fileObject.relativePath}`,
+        mimeType: redeem.fileObject.mimeType,
+        createdAt: redeem.fileObject.createdAt.toISOString(),
+      } : undefined,
     };
   }
 
   // Update Redeem (e.g., Notes)
   static async updateRedeem(id: string, data: { notes?: string }) {
-    // Get full redeem data (with all fields needed by API)
     const redeem = await db.redeem.findUnique({
       where: { id },
       include: {
@@ -510,35 +384,20 @@ export class RedeemService {
             serialNumber: true,
             quotaTicket: true,
             member: { select: { id: true, name: true, identityNumber: true } },
-            cardProduct: {
-              select: {
-                category: { select: { categoryName: true } },
-                type: { select: { typeName: true } },
-              },
-            },
+            cardProduct: { select: { totalQuota: true, category: { select: { categoryName: true } }, type: { select: { typeName: true } } } },
             purchases: {
               orderBy: { purchaseDate: "desc" },
               take: 1,
-              select: {
-                member: { select: { id: true, name: true, identityNumber: true } },
-              },
+              select: { member: { select: { id: true, name: true, identityNumber: true } } },
             },
           },
         },
       },
     });
-
-    if (!redeem) {
-      throw new NotFoundError("Redeem transaction not found");
-    }
-
-    // Update notes
+    if (!redeem) throw new NotFoundError("Redeem transaction not found");
     await db.redeem.update({ where: { id }, data: { notes: data.notes } });
-
-    // Fallback quotaUsed: SINGLE=1, ROUNDTRIP=2
     const quotaUsed = redeem.redeem_type === 'SINGLE' ? 1 : 2;
     const fallbackMember = redeem.card.member || redeem.card.purchases?.[0]?.member || null;
-
     return {
       id: redeem.id,
       transactionNumber: redeem.transactionNumber,
@@ -564,70 +423,42 @@ export class RedeemService {
     };
   }
 
-  // Delete Redeem (soft delete) and restore quota
-  static async deleteRedeem(id: string, userId?: string) {
+  static async deleteRedeem(id: string, userId: string | undefined, notes?: string) {
     return await db.$transaction(async (tx) => {
-      const redeem = await tx.redeem.findUnique({ where: { id }, include: { card: true } });
+      const redeem = await tx.redeem.findUnique({
+        where: { id },
+        include: { card: true },
+      });
       if (!redeem) throw new NotFoundError("Redeem transaction not found");
       if (redeem.deletedAt) throw new ValidationError("Redeem already deleted");
-
-      // Optional: enforce product type validation if product param is provided (future-proof)
-      // Example: if (product && redeem.card.programType !== product) { throw new ValidationError(...) }
-
-      // Cari log usage terkait redeem ini
       const usageLog = await tx.cardUsageLog.findFirst({ where: { redeemId: id, deletedAt: null } });
       if (!usageLog) throw new NotFoundError("Usage log for redeem not found");
       const quotaToRestore = usageLog.quotaUsed;
+      await tx.card.update({ where: { id: redeem.cardId }, data: { quotaTicket: { increment: quotaToRestore }, updatedAt: new Date() } });
+      await tx.cardUsageLog.update({ where: { id: usageLog.id }, data: { deletedAt: new Date(), deletedBy: userId || null, quotaUsed: 0 } });
 
-      // Restore quota ke kartu
-      await tx.card.update({
-        where: { id: redeem.cardId },
-        data: {
-          quotaTicket: { increment: quotaToRestore },
-          updatedAt: new Date(),
-        },
-      });
-
-      // Update usage log: soft delete dan quotaUsed=0
-      await tx.cardUsageLog.update({
-        where: { id: usageLog.id },
+      const deleted = await tx.redeem.update({
+        where: { id },
         data: {
           deletedAt: new Date(),
           deletedBy: userId || null,
-          quotaUsed: 0,
-        },
+          updatedAt: new Date(),
+          updatedBy: userId || null,
+          notes: notes || redeem.notes // Update notes with deletion reason if provided
+        }
       });
-
-      // Mark redeem as deleted
-      const deleted = await tx.redeem.update({
-        where: { id },
-        data: { deletedAt: new Date(), deletedBy: userId || null, updatedAt: new Date(), updatedBy: userId || null },
-      });
-
       return { id: deleted.id, restoredQuota: quotaToRestore };
     });
   }
 
-  // Export daily report for a given date and operator's station
   static async exportDailyReport(params: { date?: string; userId: string; stationId: string; format: "csv" | "xlsx" | "pdf" | "jpg" }) {
     const { date, stationId, format, userId } = params;
     const target = date ? new Date(date) : new Date();
-    const start = new Date(target);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(target);
-    end.setHours(23, 59, 59, 999);
-
-    const operator = await db.user.findUnique({
-      where: { id: userId },
-      include: { role: true },
-    });
-
+    const start = new Date(target); start.setHours(0, 0, 0, 0);
+    const end = new Date(target); end.setHours(23, 59, 59, 999);
+    const operator = await db.user.findUnique({ where: { id: userId }, include: { role: true } });
     const items = await db.redeem.findMany({
-      where: {
-        stationId,
-        createdAt: { gte: start, lte: end },
-        deletedAt: null,
-      },
+      where: { stationId, createdAt: { gte: start, lte: end }, deletedAt: null },
       orderBy: { createdAt: "asc" },
       include: {
         station: { select: { stationName: true } },
@@ -647,20 +478,13 @@ export class RedeemService {
         },
       },
     });
-
-    // Build rows: trxnumber, serialnum, cardcategory, cardtype, redeem type, kuota dipakai, sisa kuota, stasiun penukaran, nominal
-    // Ambil usage log untuk setiap redeem
-    const usageLogs = await db.cardUsageLog.findMany({
-      where: {
-        redeemId: { in: items.map((it) => it.id) },
-        deletedAt: null,
-      },
-    });
+    const usageLogs = await db.cardUsageLog.findMany({ where: { redeemId: { in: items.map((it) => it.id) }, deletedAt: null } });
     const usageLogMap = new Map(usageLogs.map(log => [log.redeemId, log]));
     const rows = items.map((it) => {
       const product = it.card.cardProduct;
       const usageLog = usageLogMap.get(it.id);
-      const quotaUsed = usageLog?.quotaUsed ?? (it.redeem_type === 'SINGLE' ? 1 : 2);
+      const quotaUsed =
+        usageLog?.quotaUsed ?? (it.redeem_type === "SINGLE" ? 1 : 2);
       const remainingQuota = usageLog?.remainingQuota ?? 0;
       const unit = Number(product.price) / product.totalQuota;
       const nominal = unit * quotaUsed;
@@ -677,12 +501,12 @@ export class RedeemService {
       };
     });
 
-    const filenameBase = `redeem_${start.toISOString().slice(0,10)}_${stationId}`;
+    const filenameBase = `redeem_${start.toISOString().slice(0, 10)}_${stationId}`;
 
-    const nomorReport = `REDEEM-${start.toISOString().slice(0,10).replace(/-/g, "")}-${stationId.substring(0,6)}`;
+    const nomorReport = `REDEEM-${start.toISOString().slice(0, 10).replace(/-/g, "")}-${stationId.substring(0, 6)}`;
     const petugasName = operator?.fullName || "-";
     const shiftKerja = ""; // not used for now
-    const tanggalDinas = start.toISOString().slice(0,10);
+    const tanggalDinas = start.toISOString().slice(0, 10);
 
     if (format === "csv") {
       // Header dan meta sesuai role
@@ -701,9 +525,9 @@ export class RedeemService {
           [],
         ];
       }
-      const headerRow = ["Nomor Transaksi","Seri Kartu","Kategori","Tipe Kartu","Tipe Redeem","Kuota Dipakai","Sisa Kuota","Stasiun","Nominal"];
-      const dataRows = rows.map(r => [r.trxnumber,r.serialnum,r.cardcategory,r.cardtype,r.redeem_type,r.quota_used,r.remaining_quota,r.station,r.nominal]);
-      const csv = metaRows.map(r=>r.join(",")).concat([headerRow.join(",")]).concat(dataRows.map(r=>r.join(","))).join("\n");
+      const headerRow = ["Nomor Transaksi", "Seri Kartu", "Kategori", "Tipe Kartu", "Tipe Redeem", "Kuota Dipakai", "Sisa Kuota", "Stasiun", "Nominal"];
+      const dataRows = rows.map(r => [r.trxnumber, r.serialnum, r.cardcategory, r.cardtype, r.redeem_type, r.quota_used, r.remaining_quota, r.station, r.nominal]);
+      const csv = metaRows.map(r => r.join(",")).concat([headerRow.join(",")]).concat(dataRows.map(r => r.join(","))).join("\n");
       return { buffer: new TextEncoder().encode(csv), contentType: "text/csv", filename: `${filenameBase}.csv` };
     }
 
@@ -715,8 +539,8 @@ export class RedeemService {
       ["Shift Kerja", shiftKerja],
       ["Tanggal Dinas", tanggalDinas],
       [],
-      ["Nomor Transaksi","Seri Kartu","Kategori","Tipe Kartu","Tipe Redeem","Kuota Dipakai","Sisa Kuota","Stasiun","Nominal"],
-      ...rows.map(r => [r.trxnumber,r.serialnum,r.cardcategory,r.cardtype,r.redeem_type,r.quota_used,r.remaining_quota,r.station,r.nominal]),
+      ["Nomor Transaksi", "Seri Kartu", "Kategori", "Tipe Kartu", "Tipe Redeem", "Kuota Dipakai", "Sisa Kuota", "Stasiun", "Nominal"],
+      ...rows.map(r => [r.trxnumber, r.serialnum, r.cardcategory, r.cardtype, r.redeem_type, r.quota_used, r.remaining_quota, r.station, r.nominal]),
     ];
     const worksheet = XLSX.utils.aoa_to_sheet(aoa);
     const workbook = XLSX.utils.book_new();
@@ -826,8 +650,8 @@ export class RedeemService {
     ctx.fillStyle = "#000";
     ctx.font = "bold 24px Sans";
     ctx.textAlign = "center";
-    ctx.fillText("Laporan", width/2, 40);
-    ctx.fillText("Penjualan Frequent Whoosher Card", width/2, 72);
+    ctx.fillText("Laporan", width / 2, 40);
+    ctx.fillText("Penjualan Frequent Whoosher Card", width / 2, 72);
     ctx.textAlign = "left";
     ctx.font = "16px Sans";
     ctx.fillText(`Nama Petugas: ${petugasName}`, 40, 120);
@@ -851,7 +675,7 @@ export class RedeemService {
     }
     y += 24;
     ctx.font = "bold 16px Sans";
-    ctx.fillText(`Total Keseluruhan Terjual: ${totalTerjual}`, 40, y); y+=24;
+    ctx.fillText(`Total Keseluruhan Terjual: ${totalTerjual}`, 40, y); y += 24;
     ctx.fillText(`Nominal Keseluruhan: Rp${totalNominal.toLocaleString("id-ID")}`, 40, y);
     y += 80;
     ctx.font = "16px Sans";
@@ -866,35 +690,31 @@ export class RedeemService {
   }
 
   static async uploadLastRedeemDoc(id: string, imageBase64: string, mimeType: string | undefined, userId: string) {
-    const redeem = await db.redeem.findUnique({
-      where: { id },
-      include: {
-        card: true,
-      },
-    });
+    const redeem = await db.redeem.findUnique({ where: { id }, include: { card: { include: { member: true } } } });
     if (!redeem) throw new NotFoundError("Redeem transaction not found");
-    // Only allow upload if card quotaTicket is 0 (last redeem)
-    if (redeem.card.quotaTicket !== 0) {
-      throw new ValidationError("Upload allowed only when card quota is 0 (last redeem)");
-    }
+    if (redeem.card.quotaTicket !== 0) throw new ValidationError("Upload allowed only when card quota is 0 (last redeem)");
 
+    const memberId = redeem.card.member?.id || "unknown-member";
     const type = mimeType && (mimeType === "image/jpeg" || mimeType === "image/png") ? mimeType : "image/jpeg";
     const ext = type === "image/png" ? "png" : "jpg";
-    const buf = Buffer.from(imageBase64, "base64");
+
+    // Fix: Strip data URI prefix if present to avoid corrupted file
+    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+    const buf = Buffer.from(base64Data, "base64");
+
     const checksumSha256 = (await import("crypto")).createHash("sha256").update(buf).digest("hex");
 
-    const dir = `assets/uploads/redeem`;
+    // Path: storage/lastredeem/{memberId}/{redeemId}.{ext}
+    const dir = `storage/lastredeem/${memberId}`;
     const storedName = `${id}.${ext}`;
     const relativePath = `${dir}/${storedName}`;
+
     const fs = (await import("fs")).promises;
     await fs.mkdir(dir, { recursive: true });
     await fs.writeFile(relativePath, buf);
 
-    // Delete existing fileObject with same relativePath (if any)
     const existing = await db.fileObject.findUnique({ where: { relativePath } });
-    if (existing) {
-      await db.fileObject.delete({ where: { id: existing.id } });
-    }
+    if (existing) await db.fileObject.delete({ where: { id: existing.id } });
 
     const file = await db.fileObject.create({
       data: {
@@ -908,11 +728,7 @@ export class RedeemService {
         purpose: "LAST_REDEEM",
       },
     });
-
-    const updated = await db.redeem.update({
-      where: { id },
-      data: { fileObjectId: file.id, updatedAt: new Date(), updatedBy: userId },
-    });
+    const updated = await db.redeem.update({ where: { id }, data: { fileObjectId: file.id, updatedAt: new Date(), updatedBy: userId } });
     return { id: updated.id, fileObjectId: file.id, path: relativePath };
   }
 }

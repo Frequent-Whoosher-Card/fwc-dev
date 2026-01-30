@@ -1,6 +1,7 @@
 import db from "../../config/db";
 import { ValidationError, NotFoundError } from "../../utils/errors";
 import { PurchaseModel } from "./model";
+import { EmailService } from "../../services/emailService";
 
 export class PurchaseService {
   /**
@@ -170,7 +171,20 @@ export class PurchaseService {
     });
 
     // Fetch complete purchase data with relations
-    return await this.getById(result.id);
+    const purchaseData = await this.getById(result.id);
+
+    // Send email notification (non-blocking)
+    try {
+      await this.sendPurchaseConfirmationEmail(purchaseData);
+    } catch (emailError) {
+      // Log error but don't fail transaction
+      console.error(
+        "⚠️ Failed to send purchase confirmation email:",
+        emailError,
+      );
+    }
+
+    return purchaseData;
   }
 
   /**
@@ -381,10 +395,6 @@ export class PurchaseService {
       purchaseDate: item.purchaseDate.toISOString(),
       price: Number(item.price),
       notes: item.notes,
-      activationStatus: item.activationStatus,
-      activatedAt: item.activatedAt ? item.activatedAt.toISOString() : null,
-      activatedBy: item.activatedBy,
-      physicalCardSerialNumber: item.physicalCardSerialNumber,
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
       createdByName: item.createdBy
@@ -462,6 +472,7 @@ export class PurchaseService {
             id: true,
             name: true,
             identityNumber: true,
+            email: true,
           },
         },
         operator: {
@@ -510,12 +521,6 @@ export class PurchaseService {
       purchaseDate: purchase.purchaseDate.toISOString(),
       price: Number(purchase.price),
       notes: purchase.notes,
-      activationStatus: purchase.activationStatus,
-      activatedAt: purchase.activatedAt
-        ? purchase.activatedAt.toISOString()
-        : null,
-      activatedBy: purchase.activatedBy,
-      physicalCardSerialNumber: purchase.physicalCardSerialNumber,
       createdAt: purchase.createdAt.toISOString(),
       updatedAt: purchase.updatedAt.toISOString(),
       createdByName: creator?.fullName || null,
@@ -877,6 +882,96 @@ export class PurchaseService {
         operator: updatedPurchase.operator,
         station: updatedPurchase.station,
       };
+    });
+  }
+
+  /**
+   * Soft delete purchase transaction
+   */
+  static async deletePurchase(id: string, userId: string) {
+    return await db.$transaction(async (tx) => {
+      // 1. Validate purchase exists and not already deleted
+      const purchase = await tx.cardPurchase.findUnique({
+        where: { id },
+        include: {
+          card: true,
+        },
+      });
+
+      if (!purchase || purchase.deletedAt) {
+        throw new NotFoundError("Transaksi tidak ditemukan");
+      }
+
+      // 2. Soft delete purchase
+      const deletedPurchase = await tx.cardPurchase.update({
+        where: { id },
+        data: {
+          deletedAt: new Date(),
+          deletedBy: userId,
+        },
+      });
+
+      // 3. Update card status back to IN_STATION
+      await tx.card.update({
+        where: { id: purchase.cardId },
+        data: {
+          status: "IN_STATION",
+        },
+      });
+
+      return {
+        success: true,
+        message: "Transaksi berhasil dihapus",
+        id: deletedPurchase.id,
+      };
+    });
+  }
+
+  /**
+   * Send purchase confirmation email to member
+   */
+  private static async sendPurchaseConfirmationEmail(
+    purchaseData: any,
+  ): Promise<void> {
+    // Check if member has email
+    if (!purchaseData.member?.email) {
+      console.log("⏭️  Member has no email, skipping notification");
+      return;
+    }
+
+    // Prepare email data
+    const productType = `${purchaseData.card.cardProduct.category.categoryName} - ${purchaseData.card.cardProduct.type.typeName}`;
+    const purchaseDate = new Date(purchaseData.purchaseDate).toLocaleDateString(
+      "id-ID",
+      {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      },
+    );
+
+    const expiredDate = purchaseData.card.expiredDate
+      ? new Date(purchaseData.card.expiredDate).toLocaleDateString("id-ID", {
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+        })
+      : "N/A";
+
+    await EmailService.sendPurchaseConfirmation({
+      memberEmail: purchaseData.member.email,
+      memberName: purchaseData.member.name,
+      nik: purchaseData.member.identityNumber,
+      cardCategory: purchaseData.card.cardProduct.category.categoryName,
+      cardType: purchaseData.card.cardProduct.type.typeName,
+      serialNumber: purchaseData.card.serialNumber,
+      masaBerlaku: expiredDate,
+      kuota: purchaseData.card.quotaTicket,
+      serialEdc: purchaseData.edcReferenceNumber,
+      stasiunPembelian: purchaseData.station.stationName,
+      harga: Number(purchaseData.price),
+      purchaseDate: purchaseDate,
+      productType: productType,
     });
   }
 }

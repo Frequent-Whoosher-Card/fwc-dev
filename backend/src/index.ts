@@ -1,4 +1,5 @@
 import path from "path";
+import { config } from "dotenv";
 import { Elysia } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { docsConfig } from "./docs";
@@ -21,6 +22,11 @@ import { AuthenticationError, AuthorizationError } from "./utils/errors";
 import { inbox } from "./modules/inbox";
 import { redeem } from "./modules/redeem";
 import { cardSwaps } from "./modules/card-swaps";
+import { bulkDiscount } from "./modules/discount";
+import { employeeTypeController } from "./modules/employee-types";
+
+config();
+const PORT = process.env.APP_PORT ? Number(process.env.APP_PORT) : 3001;
 
 const app = new Elysia()
   .use(docsConfig)
@@ -34,6 +40,7 @@ const app = new Elysia()
   .use(users)
   .use(members)
   .use(purchases)
+  .use(employeeTypeController)
   .use(cardSwaps)
   .use(cardCategory)
   .use(cardTypes)
@@ -48,6 +55,7 @@ const app = new Elysia()
   .use(metrics)
   .use(inbox)
   .use(redeem)
+  .use(bulkDiscount)
   // .use(superset)
 
   .onError(({ code, error, set }) => {
@@ -144,10 +152,10 @@ const app = new Elysia()
     const filePath = path.join(process.cwd(), "storage", cleanPath);
     return Bun.file(filePath);
   })
-  .listen(3001);
+  .listen(PORT);
 
 console.log(
-  `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`
+  `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
 );
 
 // Cleanup job for temporary storage (runs every 30 minutes)
@@ -158,14 +166,14 @@ setInterval(
       const cleanedCount = await tempStorage.cleanupExpired();
       if (cleanedCount > 0) {
         console.log(
-          `[Cleanup] Removed ${cleanedCount} expired temporary file(s)`
+          `[Cleanup] Removed ${cleanedCount} expired temporary file(s)`,
         );
       }
     } catch (error) {
       console.error("[Cleanup] Error cleaning up temporary files:", error);
     }
   },
-  30 * 60 * 1000
+  30 * 60 * 1000,
 ); // 30 minutes
 
 // Run cleanup immediately on startup
@@ -175,13 +183,13 @@ setInterval(
     const cleanedCount = await tempStorage.cleanupExpired();
     if (cleanedCount > 0) {
       console.log(
-        `[Cleanup] Removed ${cleanedCount} expired temporary file(s) on startup`
+        `[Cleanup] Removed ${cleanedCount} expired temporary file(s) on startup`,
       );
     }
   } catch (error) {
     console.error(
       "[Cleanup] Error cleaning up temporary files on startup:",
-      error
+      error,
     );
   }
 })();

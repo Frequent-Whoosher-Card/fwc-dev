@@ -1,4 +1,5 @@
 import { Elysia, t } from "elysia";
+import db from "../../config/db";
 import { authMiddleware } from "../../middleware/auth";
 import { formatErrorResponse } from "../../utils/errors";
 import { InboxService } from "./service";
@@ -21,6 +22,86 @@ type AuthContextUser = {
 
 export const inbox = new Elysia({ prefix: "/inbox" })
   .use(authMiddleware)
+  .group("", (app) =>
+    app.use(rbacMiddleware(["supervisor", "admin", "superadmin"])).get(
+      "/",
+      async (context) => {
+        const { user, query, set } = context as typeof context & {
+          user: { id: string };
+          query: {
+            page?: string;
+            limit?: string;
+            isRead?: string;
+            startDate?: string;
+            endDate?: string;
+            type?: string;
+            programType?: string; // Added programType
+            search?: string; // Added search
+          };
+        };
+        try {
+          const result = await InboxService.getUserInbox(user.id, {
+            page: query.page ? parseInt(query.page) : undefined,
+            limit: query.limit ? parseInt(query.limit) : undefined,
+            isRead:
+              query.isRead === "true"
+                ? true
+                : query.isRead === "false"
+                  ? false
+                  : undefined,
+            startDate: query.startDate,
+            endDate: query.endDate,
+            type: query.type,
+            programType: query.programType, // Pass programType
+            search: query.search, // Pass search
+          });
+
+          return {
+            success: true,
+            data: result,
+          };
+        } catch (error) {
+          set.status = 500;
+          return formatErrorResponse(error);
+        }
+      },
+      {
+        query: InboxModel.getInboxQuery, // Ensure this model is updated or use t.Optional for new fields if not strict
+        response: {
+          200: InboxModel.getInboxResponse,
+          400: InboxModel.errorResponse,
+          401: InboxModel.errorResponse,
+          403: InboxModel.errorResponse,
+          404: InboxModel.errorResponse,
+          409: InboxModel.errorResponse,
+          422: InboxModel.errorResponse,
+          500: InboxModel.errorResponse,
+        },
+        detail: {
+          tags: ["Inbox"],
+          summary: "Get Admin Inbox",
+          description: `Mendapatkan daftar pesan/notifikasi untuk admin properti (Admin & Superadmin).
+
+**Tipe Pesan yang Tersedia:**
+
+1. **STOCK_ISSUE_APPROVAL**
+   - **Deskripsi**: Laporan validasi stock out yang **bermasalah** (ada kartu Hilang atau Rusak).
+   - **Pemicu**: Supervisor memvalidasi stock out dan ada kartu hilang/rusak.
+   - **Payload**: Berisi \`lostSerialNumbers\` dan \`damagedSerialNumbers\`.
+   - **Action**: Perlu Approval via endpoint \`POST /inbox/:id/approve-issue\`.
+
+2. **STOCK_OUT_REPORT**
+   - **Deskripsi**: Laporan validasi stock out sukses (semua kartu diterima).
+   - **Pemicu**: Supervisor memvalidasi stock out semua barang diterima.
+   - **Action**: Hanya notifikasi (Read Only).
+
+3. **LOW_STOCK** (Hidden)
+   - **Deskripsi**: Peringatan stok menipis (< Threshold).
+   - **Catatan**: Secara default difilter keluar dari endpoint ini agar tidak spamming.`,
+        },
+      },
+    ),
+  )
   .group("", (app) =>
     app
       .use(rbacMiddleware(["admin", "superadmin"]))
@@ -57,81 +138,7 @@ export const inbox = new Elysia({ prefix: "/inbox" })
             422: InboxModel.errorResponse,
             500: InboxModel.errorResponse,
           },
-        }
-      )
-      .get(
-        "/",
-        async (context) => {
-          const { user, query, set } = context as typeof context & {
-            user: { id: string };
-            query: {
-              page?: string;
-              limit?: string;
-              isRead?: string;
-              startDate?: string;
-              endDate?: string;
-              type?: string;
-            };
-          };
-          try {
-            const result = await InboxService.getUserInbox(user.id, {
-              page: query.page ? parseInt(query.page) : undefined,
-              limit: query.limit ? parseInt(query.limit) : undefined,
-              isRead:
-                query.isRead === "true"
-                  ? true
-                  : query.isRead === "false"
-                    ? false
-                    : undefined,
-              startDate: query.startDate,
-              endDate: query.endDate,
-              type: query.type,
-            });
-
-            return {
-              success: true,
-              data: result,
-            };
-          } catch (error) {
-            set.status = 500;
-            return formatErrorResponse(error);
-          }
         },
-        {
-          query: InboxModel.getInboxQuery, // Ensure this model is updated or use t.Optional for new fields if not strict
-          response: {
-            200: InboxModel.getInboxResponse,
-            400: InboxModel.errorResponse,
-            401: InboxModel.errorResponse,
-            403: InboxModel.errorResponse,
-            404: InboxModel.errorResponse,
-            409: InboxModel.errorResponse,
-            422: InboxModel.errorResponse,
-            500: InboxModel.errorResponse,
-          },
-          detail: {
-            tags: ["Inbox"],
-            summary: "Get Admin Inbox",
-            description: `Mendapatkan daftar pesan/notifikasi untuk admin properti (Admin & Superadmin).
-
-**Tipe Pesan yang Tersedia:**
-
-1. **STOCK_ISSUE_APPROVAL**
-   - **Deskripsi**: Laporan validasi stock out yang **bermasalah** (ada kartu Hilang atau Rusak).
-   - **Pemicu**: Supervisor memvalidasi stock out dan ada kartu hilang/rusak.
-   - **Payload**: Berisi \`lostSerialNumbers\` dan \`damagedSerialNumbers\`.
-   - **Action**: Perlu Approval via endpoint \`POST /inbox/:id/approve-issue\`.
-
-2. **STOCK_OUT_REPORT**
-   - **Deskripsi**: Laporan validasi stock out sukses (semua kartu diterima).
-   - **Pemicu**: Supervisor memvalidasi stock out semua barang diterima.
-   - **Action**: Hanya notifikasi (Read Only).
-
-3. **LOW_STOCK** (Hidden)
-   - **Deskripsi**: Peringatan stok menipis (< Threshold).
-   - **Catatan**: Secara default difilter keluar dari endpoint ini agar tidak spamming.`,
-          },
-        }
       )
       .patch(
         "/:id/read",
@@ -166,7 +173,7 @@ export const inbox = new Elysia({ prefix: "/inbox" })
             tags: ["Inbox"],
             summary: "Mark Inbox as Read",
           },
-        }
+        },
       )
       .post(
         "/:id/approve-issue",
@@ -180,7 +187,7 @@ export const inbox = new Elysia({ prefix: "/inbox" })
             const result = await InboxService.processStockIssueApproval(
               params.id,
               body.action,
-              user.id
+              user.id,
             );
             return {
               success: true,
@@ -223,7 +230,7 @@ export const inbox = new Elysia({ prefix: "/inbox" })
 **Hasil:**
 Setelah sukses, pesan inbox akan otomatis ditandai sebagai **Sudah Dibaca** dan tidak bisa diproses ulang.`,
           },
-        }
+        },
       )
       .get(
         "/:id",
@@ -235,7 +242,7 @@ Setelah sukses, pesan inbox akan otomatis ditandai sebagai **Sudah Dibaca** dan 
           try {
             const result = await InboxService.getInboxDetail(
               params.id,
-              user.id
+              user.id,
             );
             return {
               success: true,
@@ -262,8 +269,8 @@ Setelah sukses, pesan inbox akan otomatis ditandai sebagai **Sudah Dibaca** dan 
             description:
               "Mendapatkan detail pesan inbox secara lengkap termasuk informasi pengirim (role) dan payload.",
           },
-        }
-      )
+        },
+      ),
   )
   .group("", (app) =>
     app.use(rbacMiddleware(["superadmin", "supervisor"])).get(
@@ -277,6 +284,8 @@ Setelah sukses, pesan inbox akan otomatis ditandai sebagai **Sudah Dibaca** dan 
             startDate: query.startDate,
             endDate: query.endDate,
             status: query.status,
+            programType: query.programType, // Pass programType
+            search: query.search, // Pass search
           });
 
           return {
@@ -300,6 +309,6 @@ Setelah sukses, pesan inbox akan otomatis ditandai sebagai **Sudah Dibaca** dan 
           summary: "Get Messages Sent By Supervisors",
           description: "Melihat pesan yang dikirim oleh peran Supervisor.",
         },
-      }
-    )
+      },
+    ),
   );

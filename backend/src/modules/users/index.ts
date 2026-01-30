@@ -207,7 +207,8 @@ const baseRoutes = new Elysia()
           targetUserId,
           body.currentPassword,
           body.newPassword,
-          body.confirmPassword
+          body.confirmPassword,
+          isAdmin // ignoreCurrentPassword if admin
         );
 
         return {

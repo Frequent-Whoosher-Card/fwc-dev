@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Mail, ChevronDown } from "lucide-react";
+import { ArrowLeft, Mail, ChevronDown, Eye, EyeOff } from "lucide-react";
 
 import {
   getRoles,
   getUserById,
   updateUser,
+  changePassword,
   RoleItem,
 } from "@/lib/services/user.service";
 import { getStations, StationItem } from "@/lib/services/station.service";
@@ -23,6 +24,8 @@ interface UserForm {
   phone: string;
   roleId: string;
   stationId: string;
+  newPassword?: string;
+  confirmPassword?: string;
 }
 
 /* ======================
@@ -41,6 +44,8 @@ export default function EditUserPage() {
     phone: "",
     roleId: "",
     stationId: "",
+    newPassword: "",
+    confirmPassword: "",
   });
 
   const [roles, setRoles] = useState<RoleItem[]>([]);
@@ -48,12 +53,18 @@ export default function EditUserPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
+  
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   /* ======================
      HELPERS (SAMA DENGAN ADD)
   ====================== */
   const sanitizeNip = (value: string) =>
     value.replace(/\D/g, "").slice(0, 20);
+
+  const sanitizeUsername = (value: string) =>
+    value.toLowerCase().replace(/[^a-z0-9_]/g, "");
 
   const isValidEmail = (email: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -86,8 +97,10 @@ export default function EditUserPage() {
           username: user.username ?? "",
           email: user.email ?? "",
           phone: user.phone ?? "",
-          roleId: user.role?.id ?? "",
-          stationId: user.station?.id ?? "",
+          roleId: user.roleId ?? "",
+          stationId: user.stationId ?? "",
+          newPassword: "",
+          confirmPassword: "",
         });
 
         const roleItems = Array.isArray(roleRes.data)
@@ -138,6 +151,22 @@ export default function EditUserPage() {
     if (!form.stationId)
       newErrors.stationId = "Stasiun is required";
 
+    if (!form.stationId)
+      newErrors.stationId = "Stasiun is required";
+
+    // PASSWORD VALIDATION (OPTIONAL)
+    if (form.newPassword) {
+       // Rules: 8 chars, Start with Uppercase, Contain Number
+       const passwordRegex = /^[A-Z](?=.*\d).{7,}$/;
+       if (!passwordRegex.test(form.newPassword)) {
+          newErrors.newPassword = "Password harus 8+ karakter, berawalan Huruf Besar, & mengandung Angka";
+       }
+
+       if (form.newPassword !== form.confirmPassword) {
+          newErrors.confirmPassword = "Passwords do not match";
+       }
+    }
+
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
@@ -155,6 +184,14 @@ export default function EditUserPage() {
         stationId: form.stationId,
         isActive: true,
       });
+
+      // UPDATE PASSWORD IF PROVIDED
+      if (form.newPassword) {
+         await changePassword(userId, {
+            newPassword: form.newPassword,
+            confirmPassword: form.confirmPassword || "",
+         });
+      }
 
       router.push("/dashboard/superadmin/user");
     } catch (err: any) {
@@ -231,8 +268,14 @@ export default function EditUserPage() {
             </label>
             <input
               value={form.username}
-              disabled
-              className="h-11 w-full rounded-md border bg-gray-100 px-4 text-sm"
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  username: sanitizeUsername(e.target.value),
+                })
+              }
+              className="h-11 w-full rounded-md border px-4 text-sm"
+              placeholder="Username"
             />
           </div>
 
@@ -313,6 +356,136 @@ export default function EditUserPage() {
             </select>
             <ChevronDown className="absolute right-3 top-[55%] h-4 w-4 text-gray-400" />
           </div>
+          
+           {/* === CHANGE PASSWORD SECTION (OPTIONAL) === */}
+           <div className="mt-8 border-t pt-6 md:col-span-2">
+            <h3 className="mb-4 text-base font-semibold text-gray-800">
+              Change Password <span className="text-xs font-normal text-gray-400">(Optional)</span>
+            </h3>
+
+             <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                {/* NEW PASSWORD */}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  New Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    placeholder="Leave empty to keep current"
+                    value={form.newPassword}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setForm({ ...form, newPassword: val });
+
+                      // Real-time validation
+                      if (val) {
+                          const passwordRegex = /^[A-Z](?=.*\d).{7,}$/;
+                          if (!passwordRegex.test(val)) {
+                          setErrors((prev) => ({
+                              ...prev,
+                              newPassword: "Must start with Uppercase, contain Number, min 8 chars",
+                          }));
+                          } else {
+                          setErrors((prev) => {
+                              const newErr = { ...prev };
+                              delete newErr.newPassword;
+                              return newErr;
+                          });
+                          }
+                      } else {
+                          setErrors((prev) => {
+                              const newErr = { ...prev };
+                              delete newErr.newPassword;
+                              return newErr;
+                          });
+                      }
+                    }}
+                    className={`h-11 w-full rounded-md border px-4 pr-10 text-sm ${
+                      errors.newPassword ? "border-red-500 ring-1 ring-red-500" : ""
+                    }`}
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                 {errors.newPassword && (
+                  <p className="mt-1 text-xs text-red-500">{errors.newPassword}</p>
+                )}
+                
+                {/* PASSWORD REQUIREMENTS CHECKLIST */}
+               {form.newPassword && (
+                <div className="mt-2 text-xs space-y-1 p-2 bg-gray-50 rounded-md border text-gray-600">
+                  <p className="font-semibold mb-1">Syarat Password:</p>
+                  <div className={`flex items-center gap-2 ${form.newPassword.length >= 8 ? "text-green-600" : "text-gray-500"}`}>
+                    <span>{form.newPassword.length >= 8 ? "✅" : "○"}</span> Minimal 8 Karakter
+                  </div>
+                  <div className={`flex items-center gap-2 ${/^[A-Z]/.test(form.newPassword) ? "text-green-600" : "text-gray-500"}`}>
+                     <span>{/^[A-Z]/.test(form.newPassword) ? "✅" : "○"}</span> Berawalan Huruf Besar
+                  </div>
+                  <div className={`flex items-center gap-2 ${/\d/.test(form.newPassword) ? "text-green-600" : "text-gray-500"}`}>
+                     <span>{/\d/.test(form.newPassword) ? "✅" : "○"}</span> Mengandung Angka
+                  </div>
+                </div>
+               )}
+              </div>
+
+                {/* CONFIRM PASSWORD */}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Confirm New Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Confirm new password"
+                    value={form.confirmPassword}
+                    onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+                    className="h-11 w-full rounded-md border px-4 pr-10 text-sm"
+                    disabled={!form.newPassword}
+                    autoComplete="new-password" 
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    disabled={!form.newPassword}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+
+                {/* CONFIRM PASSWORD CHECKLIST */}
+                 {form.confirmPassword && (
+                  <div className="mt-2 text-xs space-y-1 p-2 bg-gray-50 rounded-md border text-gray-600">
+                    <p className="font-semibold mb-1">Syarat Password:</p>
+                    <div className={`flex items-center gap-2 ${form.confirmPassword.length >= 8 ? "text-green-600" : "text-gray-500"}`}>
+                      <span>{form.confirmPassword.length >= 8 ? "✅" : "○"}</span> Minimal 8 Karakter
+                    </div>
+                    <div className={`flex items-center gap-2 ${/^[A-Z]/.test(form.confirmPassword) ? "text-green-600" : "text-gray-500"}`}>
+                       <span>{/^[A-Z]/.test(form.confirmPassword) ? "✅" : "○"}</span> Berawalan Huruf Besar
+                    </div>
+                    <div className={`flex items-center gap-2 ${/\d/.test(form.confirmPassword) ? "text-green-600" : "text-gray-500"}`}>
+                       <span>{/\d/.test(form.confirmPassword) ? "✅" : "○"}</span> Mengandung Angka
+                    </div>
+                    {/* MATCH CHECK */}
+                     <div className={`flex items-center gap-2 ${form.confirmPassword === form.newPassword && form.confirmPassword !== "" ? "text-green-600" : "text-gray-500"}`}>
+                       <span>{form.confirmPassword === form.newPassword && form.confirmPassword !== "" ? "✅" : "○"}</span> Password Cocok
+                    </div>
+                  </div>
+                 )}
+
+                 {errors.confirmPassword && (
+                  <p className="mt-1 text-xs text-red-500">{errors.confirmPassword}</p>
+                )}
+              </div>
+             </div>
+           </div>
         </div>
 
         {/* ACTION */}

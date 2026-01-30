@@ -27,6 +27,16 @@ const baseRoutes = new Elysia()
     async (context) => {
       const { query, set } = context as typeof context;
 
+      // PATCH: Validasi programType hanya jika ada dan harus FWC/VOUCHER
+      if (
+        query?.programType &&
+        query.programType !== "FWC" &&
+        query.programType !== "VOUCHER"
+      ) {
+        // Abaikan programType tidak valid, treat as no filter
+        query.programType = undefined;
+      }
+
       try {
         const cardProducts = await CardProductService.getCardProducts(
           query?.search,
@@ -47,7 +57,8 @@ const baseRoutes = new Elysia()
       }
     },
     {
-      query: CardProductModel.getCardProductsQuery,
+      // PATCH: jangan validasi strict query param agar tidak error 422
+      // query: CardProductModel.getCardProductsQuery,
       response: {
         200: CardProductModel.getCardProductsResponse,
         400: CardProductModel.errorResponse,
@@ -123,6 +134,7 @@ const adminRoutes = new Elysia()
           body.price,
           user.id,
           body.maxQuantity,
+          body.isDiscount,
         );
 
         return {
@@ -172,6 +184,7 @@ const adminRoutes = new Elysia()
           body.price,
           user.id,
           body.maxQuantity,
+          body.isDiscount,
         );
 
         return {

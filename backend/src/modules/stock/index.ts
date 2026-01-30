@@ -1,4 +1,4 @@
-import { Elysia } from "elysia";
+import { Elysia, t } from "elysia";
 import { formatErrorResponse } from "../../utils/errors";
 import { StockModel } from "./model";
 import { StockService } from "./service";
@@ -36,7 +36,7 @@ export const stock = new Elysia({ prefix: "/stock" })
         summary: "Get Low Stock Alerts",
         description: "Mendapatkan notifikasi stok menipis.",
       },
-    }
+    },
   )
   .get(
     "/",
@@ -60,11 +60,27 @@ export const stock = new Elysia({ prefix: "/stock" })
 
         // Map basic response shape match schema expecting counts
         const data = {
-          movements: result.movements.map((m) => ({
+          movements: result.movements.map((m: any) => ({
             ...m,
-            sentSerialNumbersCount: m.sentSerialNumbers.length,
-            receivedSerialNumbersCount: m.receivedSerialNumbers.length,
-            lostSerialNumbersCount: m.lostSerialNumbers.length,
+            sentSerialNumbersCount: m.sentSerialNumbers?.length ?? 0,
+            receivedSerialNumbersCount: m.receivedSerialNumbers?.length ?? 0,
+            lostSerialNumbersCount: m.lostSerialNumbers?.length ?? 0,
+            category: {
+              categoryName: m.category?.categoryName ?? "-",
+              categoryCode: m.category?.categoryCode ?? "-",
+            },
+            cardType: m.type
+              ? {
+                  typeName: m.type.typeName ?? "-",
+                  typeCode: m.type.typeCode ?? "-",
+                }
+              : { typeName: "-", typeCode: "-" },
+            station: m.station
+              ? {
+                  stationName: m.station.stationName ?? "-",
+                  stationCode: m.station.stationCode ?? "-",
+                }
+              : null,
           })),
           pagination: result.pagination,
         };
@@ -98,7 +114,7 @@ export const stock = new Elysia({ prefix: "/stock" })
         summary: "Get All Stock Movements",
         description: "Unified history of all Stock IN and Stock OUT movements.",
       },
-    }
+    },
   )
   .get(
     "/:id",
@@ -119,6 +135,9 @@ export const stock = new Elysia({ prefix: "/stock" })
       }
     },
     {
+      params: t.Object({
+        id: t.String({ format: "uuid" }),
+      }),
       response: {
         200: StockModel.getDetailResponse, // Schema defined as Any for flexibility
         400: StockModel.errorResponse,
@@ -133,5 +152,5 @@ export const stock = new Elysia({ prefix: "/stock" })
         tags: ["Stock Analysis"],
         summary: "Get Stock Movement Detail",
       },
-    }
+    },
   );

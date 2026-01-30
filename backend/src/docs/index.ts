@@ -36,7 +36,7 @@ if (serverUrl) {
 } else {
   // Use relative URL (empty string means same origin)
   servers.push({
-    url: "/",
+    url: "/api",
     description: "Current server",
   });
   // Add localhost as fallback for development
@@ -362,12 +362,20 @@ export const docsConfig = swagger({
           "Stock All & Inventory management endpoints for card inventory",
       },
       {
-        name: "Stock In",
+        name: "Stock In FWC",
         description: "Stock in management endpoints for card inventory",
       },
       {
-        name: "Stock Out",
+        name: "Stock In Voucher",
+        description: "Stock in management endpoints for voucher inventory",
+      },
+      {
+        name: "Stock Out FWC",
         description: "Stock out management endpoints for card inventory",
+      },
+      {
+        name: "Stock Out Voucher",
+        description: "Stock out management endpoints for voucher inventory",
       },
       {
         name: "Stock Analysis",

@@ -10,6 +10,7 @@ type GetInventoryParams = {
   categoryName?: string;
   typeName?: string;
   stationName?: string;
+  programType?: "FWC" | "VOUCHER";
 };
 
 interface InventoryMonitorOptions {
@@ -21,6 +22,7 @@ interface InventoryMonitorOptions {
   categoryName?: string;
   typeName?: string;
   stationName?: string;
+  programType?: "FWC" | "VOUCHER";
 }
 
 export class CardInventoryService {
@@ -35,6 +37,7 @@ export class CardInventoryService {
       categoryName,
       typeName,
       stationName,
+      programType,
     } = params;
     const skip = (page - 1) * limit;
 
@@ -42,8 +45,13 @@ export class CardInventoryService {
     const cardWhere: any = {};
 
     // Filter by Product (Category/Type)
-    if (categoryId || typeId || categoryName || typeName) {
+    if (categoryId || typeId || categoryName || typeName || programType) {
       const productWhere: any = {};
+      if (programType) {
+        productWhere.category = {
+          programType: programType,
+        };
+      }
       if (categoryId) productWhere.categoryId = categoryId;
       if (typeId) productWhere.typeId = typeId;
       if (categoryName) {
@@ -94,7 +102,13 @@ export class CardInventoryService {
 
     // Include valid statuses for inventory
     cardWhere.status = {
-      in: ["IN_OFFICE", "IN_STATION", "SOLD_ACTIVE", "SOLD_INACTIVE"],
+      in: [
+        "IN_OFFICE",
+        "IN_STATION",
+        "IN_TRANSIT",
+        "SOLD_ACTIVE",
+        "SOLD_INACTIVE",
+      ],
     };
 
     // 2. Aggregate from Cards
@@ -122,6 +136,7 @@ export class CardInventoryService {
           cardAktif: 0,
           cardNonAktif: 0,
           cardBelumTerjual: 0,
+          cardInTransit: 0,
           createdAt: new Date(), // Dummy
           updatedAt: new Date(), // Dummy
         });
@@ -132,9 +147,10 @@ export class CardInventoryService {
       const status = item.status;
 
       if (status === "IN_OFFICE") entry.cardOffice += count;
-      else if (status === "IN_STATION") {
+      else if (status === "IN_STATION" || status === "IN_TRANSIT") {
         entry.cardBelumTerjual += count;
         entry.cardBeredar += count;
+        if (status === "IN_TRANSIT") entry.cardInTransit += count;
       } else if (status === "SOLD_ACTIVE") {
         entry.cardAktif += count;
         entry.cardBeredar += count;
@@ -236,7 +252,13 @@ export class CardInventoryService {
     // Recalculate numbers
     const cardWhere: any = {
       status: {
-        in: ["IN_OFFICE", "IN_STATION", "SOLD_ACTIVE", "SOLD_INACTIVE"],
+        in: [
+          "IN_OFFICE",
+          "IN_STATION",
+          "IN_TRANSIT",
+          "SOLD_ACTIVE",
+          "SOLD_INACTIVE",
+        ],
       },
       cardProduct: {
         categoryId: inventoryMeta.categoryId,
@@ -260,13 +282,15 @@ export class CardInventoryService {
     let cardAktif = 0;
     let cardNonAktif = 0;
     let cardBeredar = 0;
+    let cardInTransit = 0;
 
     for (const c of counts) {
       const count = c._count._all;
       if (c.status === "IN_OFFICE") cardOffice += count;
-      else if (c.status === "IN_STATION") {
+      else if (c.status === "IN_STATION" || c.status === "IN_TRANSIT") {
         cardBelumTerjual += count;
         cardBeredar += count;
+        if (c.status === "IN_TRANSIT") cardInTransit += count;
       } else if (c.status === "SOLD_ACTIVE") {
         cardAktif += count;
         cardBeredar += count;
@@ -283,6 +307,7 @@ export class CardInventoryService {
       cardAktif,
       cardNonAktif,
       cardBeredar,
+      cardInTransit,
     };
   }
 
@@ -304,10 +329,17 @@ export class CardInventoryService {
       categoryName,
       typeName,
       stationName,
+      programType,
     } = opts;
 
     // 1. Build Product Filter (to get Category/Type info)
     const productWhere: any = {};
+    if (programType) {
+      productWhere.category = {
+        programType: programType,
+      };
+    }
+
     if (categoryId) productWhere.categoryId = categoryId;
     if (typeId) productWhere.typeId = typeId;
     if (categoryName) {
@@ -349,6 +381,7 @@ export class CardInventoryService {
         in: [
           "IN_OFFICE",
           "IN_STATION",
+          "IN_TRANSIT",
           "SOLD_ACTIVE",
           "SOLD_INACTIVE",
         ] as any[],
@@ -399,6 +432,7 @@ export class CardInventoryService {
         totalBelumTerjual: number;
         totalAktif: number;
         totalNonAktif: number;
+        totalInTransit: number;
       }
     >();
 
@@ -416,6 +450,7 @@ export class CardInventoryService {
           totalBelumTerjual: 0,
           totalAktif: 0,
           totalNonAktif: 0,
+          totalInTransit: 0,
         });
       }
     }
@@ -433,6 +468,7 @@ export class CardInventoryService {
 
         if (status === "IN_OFFICE") entry.totalOffice += count;
         else if (status === "IN_STATION") entry.totalBelumTerjual += count;
+        else if (status === "IN_TRANSIT") entry.totalInTransit += count;
         else if (status === "SOLD_ACTIVE") entry.totalAktif += count;
         else if (status === "SOLD_INACTIVE") entry.totalNonAktif += count;
       }
@@ -441,7 +477,10 @@ export class CardInventoryService {
     // 5. Transform to Final Output
     return Array.from(resultMap.values()).map((item) => {
       const totalBeredar =
-        item.totalBelumTerjual + item.totalAktif + item.totalNonAktif;
+        item.totalBelumTerjual +
+        item.totalInTransit +
+        item.totalAktif +
+        item.totalNonAktif;
       const totalStock = item.totalOffice + totalBeredar;
 
       return {
@@ -455,12 +494,13 @@ export class CardInventoryService {
         totalAktif: item.totalAktif,
         totalNonAktif: item.totalNonAktif,
         totalBelumTerjual: item.totalBelumTerjual,
+        totalInTransit: item.totalInTransit,
       };
     });
   }
 
   // Get Station Summary
-  static async getStationSummary() {
+  static async getStationSummary(programType?: "FWC" | "VOUCHER") {
     // 1. Ambil data stasiun dahulu (Master data biasanya tidak terlalu besar)
     const stations = await db.station.findMany({
       select: {
@@ -472,40 +512,55 @@ export class CardInventoryService {
     });
 
     // 2. Aggregate inventory berdasarkan stationId (Realtime Count)
+    const cardWhere: any = {
+      status: "IN_STATION",
+    };
+
+    if (programType) {
+      cardWhere.cardProduct = { category: { programType } };
+    }
     const cardCounts = await db.card.groupBy({
       by: ["stationId", "status"],
-      where: {
-        status: "IN_STATION", // Hanya IN_STATION yang dihitung sebagai stok stasiun?
-      },
+      where: cardWhere,
       _count: { _all: true },
     });
     // Note: cardBelumTerjual = IN_STATION.
 
     // Group by Station
-    const summaryMap = new Map();
+    const summaryMap = new Map<string, { total: number; inTransit: number }>();
     cardCounts.forEach((c) => {
-      if (!c.stationId) return; // Should not happen for IN_STATION logic, but safety check
-      const current = summaryMap.get(c.stationId) || 0;
-      summaryMap.set(c.stationId, current + c._count._all);
+      if (!c.stationId) return;
+      const current = summaryMap.get(c.stationId) || {
+        total: 0,
+        inTransit: 0,
+      };
+      const count = c._count._all;
+      current.total += count;
+      if (c.status === "IN_TRANSIT") {
+        current.inTransit += count;
+      }
+      summaryMap.set(c.stationId, current);
     });
 
     // 3. Transform
     const result = stations.map((station) => {
-      const count = summaryMap.get(station.id) || 0;
+      const stats = summaryMap.get(station.id) || {
+        total: 0,
+        inTransit: 0,
+      };
 
       return {
         stationId: station.id,
         stationName: station.stationName,
         stationCode: station.stationCode,
         // Properti lain (cardBeredar, dll) sebelumnya ada di CardInventory.
-        // Jika diminta format SAMA PERSIS, kita harus sediakan default 0.
-        // Tapi method ini sepertinya fokus ke summary "Total Card Available".
-        cardBeredar: count, // Asumsi Beredar = yang ada di station (belum terjual)
+        cardBeredar: stats.total, // Asumsi Beredar = yang ada di station (belum terjual) + intransit matches logic?
         cardAktif: 0, // Tidak dihitung di summary level ini
         cardNonAktif: 0,
-        cardBelumTerjual: count,
+        cardBelumTerjual: stats.total, // Including transit
+        cardInTransit: stats.inTransit,
         cardOffice: 0,
-        totalCards: count,
+        totalCards: stats.total,
       };
     });
 
@@ -520,6 +575,7 @@ export class CardInventoryService {
         cardAktif: 0,
         cardNonAktif: 0,
         cardBelumTerjual: 0,
+        cardInTransit: 0,
         cardOffice: officeCount,
         totalCards: officeCount,
       });
@@ -541,6 +597,7 @@ export class CardInventoryService {
       search,
       categoryName,
       typeName,
+      programType,
     } = params;
     const skip = (page - 1) * limit;
 
@@ -550,8 +607,13 @@ export class CardInventoryService {
     };
 
     // Filter by Product (Category/Type)
-    if (categoryId || typeId || categoryName || typeName) {
+    if (categoryId || typeId || categoryName || typeName || programType) {
       const productWhere: any = {};
+      if (programType) {
+        productWhere.category = {
+          programType: programType,
+        };
+      }
       if (categoryId) productWhere.categoryId = categoryId;
       if (typeId) productWhere.typeId = typeId;
       if (categoryName) {
@@ -621,6 +683,7 @@ export class CardInventoryService {
           cardAktif: 0,
           cardNonAktif: 0,
           cardBelumTerjual: 0,
+          cardInTransit: 0,
           category: product.category,
           type: product.type,
           station: null,
@@ -652,27 +715,40 @@ export class CardInventoryService {
     };
   }
 
-  static async getTotalSummary() {
+  static async getTotalSummary(programType?: "FWC" | "VOUCHER") {
+    const where: any = {};
+    if (programType) {
+      where.cardProduct = { category: { programType } };
+    }
+
     // Menghitung total jumlah seluruh kartu dari tabel Card
     const [totalCards, totalLost, totalDamaged, totalIn, totalOut] =
       await Promise.all([
         // Total All Active = (Office + Transit + Station + Sold)
         db.card.count({
           where: {
+            ...where,
             status: {
-              in: ["IN_OFFICE", "IN_STATION", "SOLD_ACTIVE", "SOLD_INACTIVE"],
+              in: [
+                "IN_OFFICE",
+                "IN_STATION",
+                "IN_TRANSIT",
+                "SOLD_ACTIVE",
+                "SOLD_INACTIVE",
+              ],
             },
           },
         }),
-        db.card.count({ where: { status: "LOST" } }),
-        db.card.count({ where: { status: "DAMAGED" } }),
+        db.card.count({ where: { ...where, status: "LOST" } }),
+        db.card.count({ where: { ...where, status: "DAMAGED" } }),
         // Total In = Currently In Office
-        db.card.count({ where: { status: "IN_OFFICE" } }),
+        db.card.count({ where: { ...where, status: "IN_OFFICE" } }),
         // Total Out = Distributed (Station + Sold) - Exclude Transit
         db.card.count({
           where: {
+            ...where,
             status: {
-              in: ["IN_STATION", "SOLD_ACTIVE", "SOLD_INACTIVE"],
+              in: ["IN_STATION", "IN_TRANSIT", "SOLD_ACTIVE", "SOLD_INACTIVE"],
             },
           },
         }),
@@ -706,18 +782,26 @@ export class CardInventoryService {
       categoryName,
       typeName,
       stationName,
+      programType,
     } = opts;
 
     const cardWhere: any = {
-      // stationId: { not: null }, // Allow nulls to catch unassigned/orphaned cards (Sold but no station)
-      status: { in: ["IN_STATION", "SOLD_ACTIVE", "SOLD_INACTIVE"] },
+      stationId: { not: null }, // Only show valid stations
+      status: {
+        in: ["IN_STATION", "IN_TRANSIT", "SOLD_ACTIVE", "SOLD_INACTIVE"],
+      },
     };
 
     if (stationId) cardWhere.stationId = stationId;
 
     // Filter Product
-    if (categoryId || typeId || categoryName || typeName) {
+    if (categoryId || typeId || categoryName || typeName || programType) {
       const productWhere: any = {};
+      if (programType) {
+        productWhere.category = {
+          programType: programType,
+        };
+      }
       if (categoryId) productWhere.categoryId = categoryId;
       if (typeId) productWhere.typeId = typeId;
       if (categoryName) {
@@ -779,6 +863,7 @@ export class CardInventoryService {
           cardBelumTerjual: 0, // IN_STATION
           aktif: 0, // SOLD_ACTIVE
           nonAktif: 0, // SOLD_INACTIVE
+          inTransit: 0, // IN_TRANSIT
           // Beredar = sum
         });
       }
@@ -789,6 +874,7 @@ export class CardInventoryService {
       if (item.status === "IN_STATION") entry.cardBelumTerjual += count;
       else if (item.status === "SOLD_ACTIVE") entry.aktif += count;
       else if (item.status === "SOLD_INACTIVE") entry.nonAktif += count;
+      else if (item.status === "IN_TRANSIT") entry.inTransit += count;
     }
 
     // Enrich
@@ -832,7 +918,8 @@ export class CardInventoryService {
         // total = aktif + nonAktif; (from previous code)
         // cardBeredar = cardBeredar (from CardInventory, which was sum of all 3)
         // cardBelumTerjual
-        const cardBeredar = inv.cardBelumTerjual + inv.aktif + inv.nonAktif;
+        const cardBeredar =
+          inv.cardBelumTerjual + inv.inTransit + inv.aktif + inv.nonAktif;
 
         return {
           stationName: stationName,
@@ -843,6 +930,7 @@ export class CardInventoryService {
           nonAktif: inv.nonAktif,
           total: total,
           cardBelumTerjual: inv.cardBelumTerjual,
+          cardInTransit: inv.inTransit,
         };
       })
       .filter(Boolean);

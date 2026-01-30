@@ -39,6 +39,7 @@ export interface RedeemItem {
   status: string;
   redeemType: string;
   quotaUsed: number;
+  remainingQuota: number;
   nominal?: number; // Calculated field
   notes: string | null;
   createdAt: string;
@@ -86,9 +87,9 @@ export interface RedeemFilterParams {
   search?: string;
   category?: string;
   cardType?: string;
-  // redeemType removed
-    // redeemType removed
+  redeemType?: string;
   product?: 'FWC' | 'VOUCHER';
+  isDeleted?: boolean;
 }
 
 export interface LastDocUploadRequest {
@@ -172,6 +173,7 @@ export const redeemService = {
     if (params.cardType) queryParams.append('cardType', params.cardType);
     if (params.redeemType) queryParams.append('redeemType', params.redeemType);
     if (params.product) queryParams.append('product', params.product);
+    if (params.isDeleted) queryParams.append('isDeleted', 'true');
 
 
     const token = typeof window !== 'undefined' ? localStorage.getItem('fwc_token') : null;
@@ -224,13 +226,15 @@ export const redeemService = {
   /**
    * Delete (soft delete) redeem and restore quota
    */
-  deleteRedeem: async (id: string): Promise<{ id: string; restoredQuota: number }> => {
+  deleteRedeem: async (id: string, notes?: string): Promise<{ id: string; restoredQuota: number }> => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('fwc_token') : null;
     const response = await fetch(`${API_BASE_URL}/redeem/${id}`, {
       method: 'DELETE',
       headers: {
+        'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
+      body: JSON.stringify({ notes }),
     });
     if (!response.ok) throw new Error(await response.text());
     const body = await response.json();
