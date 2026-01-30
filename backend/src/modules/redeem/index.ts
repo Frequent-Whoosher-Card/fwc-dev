@@ -2,17 +2,17 @@ import { Elysia } from "elysia";
 import { RedeemService } from "./service";
 import { RedeemModel } from "./model";
 import { formatErrorResponse } from "../../utils/errors";
-import { authMiddleware } from "src/middleware/auth";
-import { rbacMiddleware } from "src/middleware/rbac";
+import { authMiddleware } from "../../middleware/auth";
+import { permissionMiddleware } from "../../middleware/permission";
 
-const redeemRoutes = new Elysia()
+// Check & Read Routes (View)
+const readRoutes = new Elysia()
   .use(authMiddleware)
-  .use(rbacMiddleware(["superadmin", "admin", "supervisor", "petugas"]))
+  .use(permissionMiddleware("redeem.view"))
   .get(
     "/check/:serialNumber",
     async ({ params, query, set }) => {
       try {
-        // Accept product from query or params
         const serialNumber = params.serialNumber;
         const product = query.product;
         const data = await RedeemService.checkSerial(serialNumber, product);
@@ -39,61 +39,10 @@ const redeemRoutes = new Elysia()
       detail: {
         summary: "Check Card by Serial Number",
         tags: ["Redeem"],
-        description:
-          "Get card details, member info, and status by serial number",
+        description: "Get card details, member info, and status by serial number",
       },
-    },
+    }
   )
-  .post(
-    "/",
-    async ({
-      body: { serialNumber, redeemType, product, notes },
-      user,
-      set,
-    }) => {
-      try {
-        if (!user?.stationId) {
-          set.status = 400;
-          throw new Error("User does not have a station assigned");
-        }
-
-        const result = await RedeemService.redeemCard(
-          serialNumber,
-          redeemType,
-          user.id,
-          user.stationId,
-          product,
-          notes,
-        );
-
-        return {
-          success: true,
-          message: "Card redeemed successfully",
-          data: result,
-        };
-      } catch (error) {
-        set.status =
-          error instanceof Error && "statusCode" in error
-            ? (error as any).statusCode
-            : 500;
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      body: RedeemModel.redeemRequest,
-      detail: {
-        summary: "Redeem Card Ticket",
-        tags: ["Redeem"],
-        description:
-          "Redeem a ticket from the card. Type: SINGLE (1) or ROUNDTRIP (2)",
-      },
-    },
-  );
-
-const listRedeemRoutes = new Elysia()
-  .use(authMiddleware)
-  .use(rbacMiddleware(["superadmin", "admin", "supervisor", "petugas"]))
-  // List Redeems
   .get(
     "/",
     async ({ query, set }) => {
@@ -112,7 +61,7 @@ const listRedeemRoutes = new Elysia()
           cardType: query.cardType,
           redeemType: query.redeemType,
           product: query.product as any,
-          isDeleted: query.isDeleted === 'true',
+          isDeleted: query.isDeleted === "true",
         });
 
         return {
@@ -135,9 +84,8 @@ const listRedeemRoutes = new Elysia()
         tags: ["Redeem"],
         description: "Get list of redeem transactions with filters",
       },
-    },
+    }
   )
-  // Get Redeem Detail
   .get(
     "/:id",
     async ({ params: { id }, set }) => {
@@ -167,9 +115,62 @@ const listRedeemRoutes = new Elysia()
         tags: ["Redeem"],
         description: "Get detail of a redeem transaction",
       },
+    }
+  );
+
+// Create Routes
+const createRoutes = new Elysia()
+  .use(authMiddleware)
+  .use(permissionMiddleware("redeem.create"))
+  .post(
+    "/",
+    async ({
+      body: { serialNumber, redeemType, product, notes },
+      user,
+      set,
+    }) => {
+      try {
+        if (!user?.stationId) {
+          set.status = 400;
+          throw new Error("User does not have a station assigned");
+        }
+
+        const result = await RedeemService.redeemCard(
+          serialNumber,
+          redeemType,
+          user.id,
+          user.stationId,
+          product,
+          notes
+        );
+
+        return {
+          success: true,
+          message: "Card redeemed successfully",
+          data: result,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
     },
-  )
-  // Update Redeem (Notes)
+    {
+      body: RedeemModel.redeemRequest,
+      detail: {
+        summary: "Redeem Card Ticket",
+        tags: ["Redeem"],
+        description: "Redeem a ticket from the card. Type: SINGLE (1) or ROUNDTRIP (2)",
+      },
+    }
+  );
+
+// Update Routes
+const updateRoutes = new Elysia()
+  .use(authMiddleware)
+  .use(permissionMiddleware("redeem.update"))
   .patch(
     "/:id",
     async ({ params: { id }, body, set }) => {
@@ -200,13 +201,13 @@ const listRedeemRoutes = new Elysia()
         tags: ["Redeem"],
         description: "Update redeem transaction (notes only)",
       },
-    },
+    }
   );
 
-// Delete route (soft delete + restore quota). Not allowed for role 'petugas'.
-const deleteRedeemRoutes = new Elysia()
+// Delete Routes (Soft Delete)
+const deleteRoutes = new Elysia()
   .use(authMiddleware)
-  .use(rbacMiddleware(["superadmin", "admin", "supervisor"]))
+  .use(permissionMiddleware("redeem.delete"))
   .delete(
     "/:id",
     async ({ params: { id }, body, user, set }) => {
@@ -232,13 +233,13 @@ const deleteRedeemRoutes = new Elysia()
         tags: ["Redeem"],
         description: "Soft delete redeem and restore consumed quota to card",
       },
-    },
+    }
   );
 
-// Export route (all roles). Export daily report in CSV/XLSX
-const exportRedeemRoutes = new Elysia()
+// Export Routes
+const exportRoutes = new Elysia()
   .use(authMiddleware)
-  .use(rbacMiddleware(["superadmin", "admin", "supervisor", "petugas"]))
+  .use(permissionMiddleware("redeem.export"))
   .get(
     "/export",
     async ({ query, user, set }) => {
@@ -270,13 +271,13 @@ const exportRedeemRoutes = new Elysia()
         description:
           "Export today's redeem transactions for operator (CSV/XLSX/PDF/JPG)",
       },
-    },
+    }
   );
 
-// Upload last redeem documentation (role: petugas)
-const lastDocRoutes = new Elysia()
+// Upload Documentation Routes
+const docRoutes = new Elysia()
   .use(authMiddleware)
-  .use(rbacMiddleware(["petugas", "superadmin"]))
+  .use(permissionMiddleware("redeem.upload_photo"))
   .post(
     "/:id/last-doc",
     async ({ params: { id }, body, user, set }) => {
@@ -286,7 +287,7 @@ const lastDocRoutes = new Elysia()
           id,
           imageBase64,
           mimeType,
-          user!.id,
+          user!.id
         );
         return {
           success: true,
@@ -306,12 +307,13 @@ const lastDocRoutes = new Elysia()
         description:
           "Upload a photo when performing the last redeem (prev quota 1 or 2)",
       },
-    },
+    }
   );
 
 export const redeem = new Elysia({ prefix: "/redeem" })
-  .use(redeemRoutes)
-  .use(listRedeemRoutes)
-  .use(deleteRedeemRoutes)
-  .use(exportRedeemRoutes)
-  .use(lastDocRoutes);
+  .use(readRoutes)
+  .use(createRoutes)
+  .use(updateRoutes)
+  .use(deleteRoutes)
+  .use(exportRoutes)
+  .use(docRoutes);

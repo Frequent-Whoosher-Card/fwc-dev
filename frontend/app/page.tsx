@@ -33,7 +33,7 @@ export default function LoginPage() {
         setupAppCheck();
         try {
           await getAppCheckToken();
-        } catch {}
+        } catch { }
       }
 
       if (isTurnstileEnabled()) {
@@ -74,12 +74,20 @@ export default function LoginPage() {
       }
 
       // Turnstile
-      if (!isTurnstileEnabled()) {
-        throw new Error('Turnstile disabled');
+      // Turnstile
+      let turnstileToken = 'disabled';
+      if (isTurnstileEnabled()) {
+        try {
+          const token = await executeTurnstile();
+          if (token) {
+            turnstileToken = token;
+          } else {
+            console.warn('Turnstile failed to get token, using disabled mode fallback');
+          }
+        } catch (e) {
+          console.warn('Turnstile execution error, using disabled mode fallback', e);
+        }
       }
-
-      const turnstileToken = await executeTurnstile();
-      if (!turnstileToken) throw new Error('Turnstile failed');
 
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',

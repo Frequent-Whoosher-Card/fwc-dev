@@ -3,8 +3,8 @@ import { ProgramType } from "@prisma/client";
 import { ValidationError } from "../../../utils/errors";
 import { parseSmartSerial } from "../../../utils/serialHelper";
 import { InboxService } from "../../inbox/service";
-import { BatchService } from "src/services/batchService";
-import { LowStockService } from "src/services/lowStockService";
+import { BatchService } from "../../../services/batchService";
+import { LowStockService } from "../../../services/lowStockService";
 import { ActivityLogService } from "../../activity-log/service";
 
 function normalizeSerials(arr: string[]) {
@@ -909,10 +909,10 @@ export class StockOutFwcService {
         validatedByName,
         station: movement.station
           ? {
-              id: movement.station.id,
-              name: movement.station.stationName,
-              code: movement.station.stationCode,
-            }
+            id: movement.station.id,
+            name: movement.station.stationName,
+            code: movement.station.stationCode,
+          }
           : null,
         cardCategory: {
           id: movement.category.id,
@@ -975,7 +975,7 @@ export class StockOutFwcService {
         if (movement.status !== "PENDING") {
           throw new ValidationError(
             "Tidak dapat mengubah tujuan stasiun karena status sudah " +
-              movement.status,
+            movement.status,
           );
         }
         dataToUpdate.stationId = body.stationId;

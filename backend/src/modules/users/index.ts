@@ -3,7 +3,7 @@ import { UserService } from "./service";
 import { UserModel } from "./model";
 import { formatErrorResponse } from "../../utils/errors";
 import { authMiddleware } from "../../middleware/auth";
-import { rbacMiddleware } from "../../middleware/rbac";
+import { permissionMiddleware } from "../../middleware/permission";
 
 type AuthContextUser = {
   user: {
@@ -238,11 +238,46 @@ const baseRoutes = new Elysia()
         description: "Change password for a user",
       },
     }
+  )
+  // Get Current User's Menu
+  .get(
+    "/me/menu",
+    async (context) => {
+      const { user, set } = context as typeof context & AuthContextUser;
+      try {
+        const { MenuAccessService } = await import("../menu-access/service");
+        const menu = await MenuAccessService.getUserMenu(user.id);
+
+        return {
+          success: true,
+          message: "User menu fetched successfully",
+          data: menu,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      response: {
+        200: UserModel.userMenuResponse,
+        401: UserModel.errorResponse,
+        500: UserModel.errorResponse,
+      },
+      detail: {
+        tags: ["Users & Roles"],
+        summary: "Get current user's menu",
+        description: "Get menu items accessible to current user based on their permissions",
+      },
+    }
   );
 
 // Admin routes (superadmin and admin only)
 const adminRoutes = new Elysia()
-  .use(rbacMiddleware(["superadmin", "admin"]))
+  .use(permissionMiddleware("user.manage"))
   // Create Role
   .post(
     "/roles",
@@ -314,6 +349,83 @@ const adminRoutes = new Elysia()
         tags: ["Users & Roles"],
         summary: "Update role",
         description: "Update a role (superadmin/admin only)",
+      },
+    }
+  )
+  // Get Role Permissions
+  .get(
+    "/roles/:id/permissions",
+    async (context) => {
+      const { params, set } = context as typeof context & AuthContextUser;
+      try {
+        const permissions = await UserService.getRolePermissions(params.id);
+
+        return {
+          success: true,
+          message: "Role permissions fetched successfully",
+          data: permissions,
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      response: {
+        200: UserModel.rolePermissionsResponse,
+        400: UserModel.errorResponse,
+        403: UserModel.errorResponse,
+        404: UserModel.errorResponse,
+        500: UserModel.errorResponse,
+      },
+      detail: {
+        tags: ["Users & Roles"],
+        summary: "Get role permissions",
+        description: "Get all permissions assigned to a specific role",
+      },
+    }
+  )
+  // Update Role Permissions
+  .put(
+    "/roles/:id/permissions",
+    async (context) => {
+      const { params, body, set, user } = context as typeof context &
+        AuthContextUser;
+      try {
+        await UserService.updateRolePermissions(
+          params.id,
+          body.permissionIds,
+          user.id
+        );
+
+        return {
+          success: true,
+          message: "Role permissions updated successfully",
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      body: UserModel.updateRolePermissionsBody,
+      response: {
+        200: UserModel.successResponse,
+        400: UserModel.errorResponse,
+        403: UserModel.errorResponse,
+        404: UserModel.errorResponse,
+        500: UserModel.errorResponse,
+      },
+      detail: {
+        tags: ["Users & Roles"],
+        summary: "Update role permissions",
+        description: "Update permissions assigned to a specific role",
       },
     }
   )
@@ -399,7 +511,7 @@ const adminRoutes = new Elysia()
 
 // Superadmin routes (superadmin only)
 const superadminRoutes = new Elysia()
-  .use(rbacMiddleware(["superadmin"]))
+  .use(permissionMiddleware("role.manage"))
   // Delete Role
   .delete(
     "/roles/:id",

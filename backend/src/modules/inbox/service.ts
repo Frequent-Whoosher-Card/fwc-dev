@@ -468,8 +468,10 @@ export class InboxService {
             createdAt: new Date(),
           },
         });
+        return true; // Alert sent
       }
     }
+    return false; // No alert sent
   }
 
   /**
@@ -491,21 +493,23 @@ export class InboxService {
       },
     });
 
+    let alertsSent = 0;
     await db.$transaction(async (tx) => {
       for (const inv of inventories) {
         if (inv.stationId) {
-          await InboxService.checkItemLowStock(
+          const result = await InboxService.checkItemLowStock(
             inv.categoryId,
             inv.typeId,
             inv.stationId,
             inv.cardBeredar,
             tx,
           );
+          if (result) alertsSent++;
         }
       }
     });
 
-    return { stationsChecked: inventories.length };
+    return { alertsSent, stationsChecked: inventories.length };
   }
 
   /**
@@ -795,10 +799,10 @@ export class InboxService {
       },
       station: inbox.station
         ? {
-            id: inbox.station.id,
-            code: inbox.station.stationCode,
-            name: inbox.station.stationName,
-          }
+          id: inbox.station.id,
+          code: inbox.station.stationCode,
+          name: inbox.station.stationName,
+        }
         : null,
     };
   }

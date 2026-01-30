@@ -1,6 +1,6 @@
-import { Elysia } from "elysia";
+import { Elysia, t } from "elysia";
 import { authMiddleware } from "../../middleware/auth";
-import { rbacMiddleware } from "../../middleware/rbac";
+import { permissionMiddleware } from "../../middleware/permission";
 import { formatErrorResponse } from "../../utils/errors";
 import { BulkDiscountService } from "./service";
 import { BulkDiscountModel } from "./model";
@@ -21,7 +21,7 @@ type AuthContextUser = {
 
 export const bulkDiscount = new Elysia({ prefix: "/discounts" })
   .use(authMiddleware)
-  .use(rbacMiddleware(["superadmin", "admin"])) // Only admins can manage discounts
+  .use(permissionMiddleware("discount.manage")) // Only admins can manage discounts
   .get(
     "/",
     async ({ query, set }) => {
@@ -84,7 +84,7 @@ export const bulkDiscount = new Elysia({ prefix: "/discounts" })
       const { params, body, user, set } = context as typeof context &
         AuthContextUser;
       try {
-        const id = parseInt(params.id);
+        const id = params.id;
         const discount = await BulkDiscountService.update(id, body, user.id);
         return {
           success: true,
@@ -96,6 +96,9 @@ export const bulkDiscount = new Elysia({ prefix: "/discounts" })
       }
     },
     {
+      params: t.Object({
+        id: t.Numeric(),
+      }),
       body: BulkDiscountModel.updateBulkDiscountBody,
       response: {
         200: BulkDiscountModel.singleBulkDiscountResponse,
@@ -114,7 +117,7 @@ export const bulkDiscount = new Elysia({ prefix: "/discounts" })
     async (context) => {
       const { params, user, set } = context as typeof context & AuthContextUser;
       try {
-        const id = parseInt(params.id);
+        const id = params.id;
         const result = await BulkDiscountService.delete(id, user.id);
         return result;
       } catch (error) {
@@ -123,8 +126,11 @@ export const bulkDiscount = new Elysia({ prefix: "/discounts" })
       }
     },
     {
+      params: t.Object({
+        id: t.Numeric(),
+      }),
       response: {
-        200: BulkDiscountModel.errorResponse, // { success, message }
+        200: BulkDiscountModel.deleteBulkDiscountResponse, // { success, message }
         400: BulkDiscountModel.errorResponse,
         500: BulkDiscountModel.errorResponse,
       },
