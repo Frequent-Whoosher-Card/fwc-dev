@@ -26,8 +26,8 @@ export const useStockInView = (
       setLoading(true);
       const movement = await stockService.getStockInById(id, programType);
       setData(movement);
-    } catch (err) {
-      toast.error("Gagal mengambil detail stock");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal mengambil detail stock");
     } finally {
       setLoading(false);
     }
