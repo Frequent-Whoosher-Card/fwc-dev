@@ -30,11 +30,11 @@ export namespace CardProductModel {
           id: t.String(),
           categoryName: t.String(),
         }),
-        type: t.Object({
+        type: t.Nullable(t.Object({
           id: t.String(),
           typeName: t.String(),
           typeCode: t.String(),
-        }),
+        })),
       }),
     ),
   });
@@ -53,7 +53,7 @@ export namespace CardProductModel {
   export const getCardProductByIdResponse = t.Object({
     success: t.Boolean(),
     message: t.String(),
-    data: t.Object({
+    data: t.Nullable(t.Object({
       id: t.String(),
       categoryId: t.String(),
       typeId: t.String(),
@@ -73,7 +73,7 @@ export namespace CardProductModel {
       updatedBy: t.Nullable(t.String()),
       deletedAt: t.Nullable(t.Date()),
       deletedBy: t.Nullable(t.String()),
-    }),
+    })),
   });
 
   // Create Card Product Request

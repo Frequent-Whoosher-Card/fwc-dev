@@ -1,7 +1,7 @@
 import { Elysia, t } from "elysia";
 import { CardSwapModel } from "./model";
 import { CardSwapService } from "./service";
-import { rbacMiddleware } from "../../middleware/rbac";
+import { permissionMiddleware } from "../../middleware/permission";
 import { formatErrorResponse } from "../../utils/errors";
 
 type AuthContextUser = {
@@ -21,7 +21,7 @@ type AuthContextUser = {
 
 // Routes for creating swap requests (petugas, supervisor, admin, superadmin)
 const requestRoutes = new Elysia()
-  .use(rbacMiddleware(["petugas", "supervisor", "admin", "superadmin"]))
+  .use(permissionMiddleware("card.swap.create"))
   .post(
     "/",
     async (context) => {
@@ -240,7 +240,7 @@ Endpoint untuk membatalkan swap request oleh pembuat request.
 
 // Routes for approval (supervisor, admin, superadmin only)
 const approvalRoutes = new Elysia()
-  .use(rbacMiddleware(["supervisor", "admin", "superadmin"]))
+  .use(permissionMiddleware("card.swap.manage"))
   .post(
     "/:id/approve",
     async (context) => {
@@ -363,7 +363,7 @@ Endpoint untuk reject swap request dengan alasan penolakan. Hanya bisa dilakukan
 
 // Routes for execution (petugas, supervisor, admin, superadmin)
 const executionRoutes = new Elysia()
-  .use(rbacMiddleware(["petugas", "supervisor", "admin", "superadmin"]))
+  .use(permissionMiddleware("card.swap.view"))
   .post(
     "/:id/execute",
     async (context) => {

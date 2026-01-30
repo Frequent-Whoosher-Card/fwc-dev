@@ -4,7 +4,7 @@ import { authMiddleware } from "../../middleware/auth";
 import { formatErrorResponse } from "../../utils/errors";
 import { InboxService } from "./service";
 import { InboxModel } from "./model";
-import { rbacMiddleware } from "src/middleware/rbac";
+import { permissionMiddleware } from "../../middleware/permission";
 
 type AuthContextUser = {
   user: {
@@ -23,7 +23,7 @@ type AuthContextUser = {
 export const inbox = new Elysia({ prefix: "/inbox" })
   .use(authMiddleware)
   .group("", (app) =>
-    app.use(rbacMiddleware(["supervisor", "admin", "superadmin"])).get(
+    app.use(permissionMiddleware("inbox.view")).get(
       "/",
       async (context) => {
         const { user, query, set } = context as typeof context & {
@@ -104,7 +104,7 @@ export const inbox = new Elysia({ prefix: "/inbox" })
   )
   .group("", (app) =>
     app
-      .use(rbacMiddleware(["admin", "superadmin"]))
+      .use(permissionMiddleware("inbox.approve"))
       .post(
         "/check-low-stock",
         async (context) => {
@@ -273,7 +273,7 @@ Setelah sukses, pesan inbox akan otomatis ditandai sebagai **Sudah Dibaca** dan 
       ),
   )
   .group("", (app) =>
-    app.use(rbacMiddleware(["superadmin", "supervisor"])).get(
+    app.use(permissionMiddleware("inbox.view")).get(
       "/sent-by-supervisor",
       async (context) => {
         const { query, set } = context;

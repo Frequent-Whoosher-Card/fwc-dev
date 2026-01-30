@@ -4,7 +4,7 @@ import { StockModel } from "./model";
 import { StockService } from "./service";
 import { stockIn } from "./in";
 import { stockOut } from "./out";
-import { authMiddleware } from "src/middleware/auth";
+import { authMiddleware } from "../../middleware/auth";
 
 // Combine everything into a single "stock" group
 export const stock = new Elysia({ prefix: "/stock" })
@@ -71,15 +71,15 @@ export const stock = new Elysia({ prefix: "/stock" })
             },
             cardType: m.type
               ? {
-                  typeName: m.type.typeName ?? "-",
-                  typeCode: m.type.typeCode ?? "-",
-                }
+                typeName: m.type.typeName ?? "-",
+                typeCode: m.type.typeCode ?? "-",
+              }
               : { typeName: "-", typeCode: "-" },
             station: m.station
               ? {
-                  stationName: m.station.stationName ?? "-",
-                  stationCode: m.station.stationCode ?? "-",
-                }
+                stationName: m.station.stationName ?? "-",
+                stationCode: m.station.stationCode ?? "-",
+              }
               : null,
           })),
           pagination: result.pagination,

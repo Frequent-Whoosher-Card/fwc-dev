@@ -287,11 +287,11 @@ export class UserService {
       },
       station: user.station
         ? {
-            id: user.station.id,
-            stationCode: user.station.stationCode,
-            stationName: user.station.stationName,
-            location: user.station.location,
-          }
+          id: user.station.id,
+          stationCode: user.station.stationCode,
+          stationName: user.station.stationName,
+          location: user.station.location,
+        }
         : null,
       isActive: user.isActive,
       lastLogin: user.lastLogin?.toISOString() || null,
@@ -394,10 +394,10 @@ export class UserService {
         },
         station: user.station
           ? {
-              id: user.station.id,
-              stationCode: user.station.stationCode,
-              stationName: user.station.stationName,
-            }
+            id: user.station.id,
+            stationCode: user.station.stationCode,
+            stationName: user.station.stationName,
+          }
           : null,
         isActive: user.isActive,
         lastLogin: user.lastLogin?.toISOString() || null,
@@ -453,10 +453,10 @@ export class UserService {
       },
       station: user.station
         ? {
-            id: user.station.id,
-            stationCode: user.station.stationCode,
-            stationName: user.station.stationName,
-          }
+          id: user.station.id,
+          stationCode: user.station.stationCode,
+          stationName: user.station.stationName,
+        }
         : null,
       isActive: user.isActive,
       lastLogin: user.lastLogin?.toISOString() || null,
@@ -576,11 +576,11 @@ export class UserService {
       },
       station: updatedUser.station
         ? {
-            id: updatedUser.station.id,
-            stationCode: updatedUser.station.stationCode,
-            stationName: updatedUser.station.stationName,
-            location: updatedUser.station.location,
-          }
+          id: updatedUser.station.id,
+          stationCode: updatedUser.station.stationCode,
+          stationName: updatedUser.station.stationName,
+          location: updatedUser.station.location,
+        }
         : null,
       isActive: updatedUser.isActive,
       lastLogin: updatedUser.lastLogin?.toISOString() || null,
@@ -666,5 +666,90 @@ export class UserService {
     });
 
     return { message: "Password changed successfully" };
+  }
+
+  // ========== ROLE PERMISSION OPERATIONS ==========
+
+  /**
+   * Get permissions for a role
+   */
+  static async getRolePermissions(roleId: string) {
+    const role = await db.role.findFirst({
+      where: {
+        id: roleId,
+        deletedAt: null,
+      },
+    });
+
+    if (!role) {
+      throw new NotFoundError("Role not found");
+    }
+
+    const rolePermissions = await db.rolePermission.findMany({
+      where: {
+        roleId: roleId,
+      },
+      include: {
+        permission: true,
+      },
+    });
+
+    return {
+      roleId: role.id,
+      roleName: role.roleName,
+      permissions: rolePermissions.map((rp) => rp.permission.id),
+    };
+  }
+
+  /**
+   * Update permissions for a role
+   */
+  static async updateRolePermissions(
+    roleId: string,
+    permissionIds: string[],
+    updatedBy?: string
+  ) {
+    const role = await db.role.findFirst({
+      where: {
+        id: roleId,
+        deletedAt: null,
+      },
+    });
+
+    if (!role) {
+      throw new NotFoundError("Role not found");
+    }
+
+    // Verify all permissions exist
+    const permissions = await db.permission.findMany({
+      where: {
+        id: {
+          in: permissionIds,
+        },
+      },
+    });
+
+    if (permissions.length !== permissionIds.length) {
+      throw new ValidationError("One or more invalid permission IDs");
+    }
+
+    // Delete existing role permissions
+    await db.rolePermission.deleteMany({
+      where: {
+        roleId: roleId,
+      },
+    });
+
+    // Create new role permissions
+    if (permissionIds.length > 0) {
+      await db.rolePermission.createMany({
+        data: permissionIds.map((permissionId) => ({
+          roleId: roleId,
+          permissionId: permissionId,
+        })),
+      });
+    }
+
+    return { message: "Role permissions updated successfully" };
   }
 }

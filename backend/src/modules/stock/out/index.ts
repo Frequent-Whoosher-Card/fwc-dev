@@ -1,7 +1,7 @@
 import { Elysia, t } from "elysia";
 import db from "../../../config/db";
 import { authMiddleware } from "../../../middleware/auth";
-import { rbacMiddleware } from "../../../middleware/rbac";
+import { permissionMiddleware } from "../../../middleware/permission";
 import { ValidationError, formatErrorResponse } from "../../../utils/errors";
 import { StockOutFwcService } from "./fwc-service";
 import { StockOutFwcModel } from "./fwc-model";
@@ -28,7 +28,7 @@ const stockOutFwc = new Elysia({ prefix: "/fwc" })
   .use(authMiddleware)
   .group("", (app) =>
     app
-      .use(rbacMiddleware(["supervisor", "admin", "superadmin"]))
+      .use(permissionMiddleware("stock.out.view"))
       .get(
         "/",
         async (context) => {
@@ -84,6 +84,116 @@ const stockOutFwc = new Elysia({ prefix: "/fwc" })
           detail: { tags: ["Stock Out FWC"], summary: "Get Detail" },
         },
       )
+      .get(
+        "/available-serials",
+        async (context) => {
+          const { query, set } = context;
+          try {
+            const result = await StockOutFwcService.getAvailableSerials(
+              query.cardProductId,
+            );
+            return { success: true, data: result };
+          } catch (error) {
+            set.status = 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          query: StockOutFwcModel.getAvailableSerialsQuery,
+          response: {
+            200: StockOutFwcModel.getAvailableSerialsResponse,
+            400: StockOutFwcModel.errorResponse,
+            500: StockOutFwcModel.errorResponse,
+          },
+          detail: { tags: ["Stock Out FWC"], summary: "Get Available Serials" },
+        },
+      )
+  )
+  .group("", (app) =>
+    app
+      .use(permissionMiddleware("stock.out.create"))
+      .post(
+        "/",
+        async (context) => {
+          const { body, set, user } = context as typeof context &
+            AuthContextUser;
+          try {
+            const result = await StockOutFwcService.stockOutDistribution(
+              new Date(body.movementAt),
+              body.cardProductId,
+              body.stationId,
+              body.startSerial,
+              body.endSerial,
+              user.id,
+              body.note,
+              body.notaDinas,
+              body.bast,
+            );
+            return {
+              success: true,
+              message: "Distribusi stok berhasil dibuat (PENDING)",
+              data: result,
+            };
+          } catch (error) {
+            set.status =
+              error instanceof Error && "statusCode" in error
+                ? (error as any).statusCode
+                : 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          body: StockOutFwcModel.stockOutRequest,
+          response: {
+            200: StockOutFwcModel.stockOutResponse,
+            400: StockOutFwcModel.errorResponse,
+            500: StockOutFwcModel.errorResponse,
+          },
+          detail: { tags: ["Stock Out FWC"], summary: "Create Stock Out" },
+        },
+      )
+  )
+  .group("", (app) =>
+    app
+      .use(permissionMiddleware("stock.out.update"))
+      .patch(
+        "/:id",
+        async (context) => {
+          const { params, body, set, user } = context as typeof context &
+            AuthContextUser;
+          try {
+            const result = await StockOutFwcService.update(
+              params.id,
+              body,
+              user.id,
+            );
+            return {
+              success: true,
+              message: "Data stock out berhasil diperbarui",
+              data: result,
+            };
+          } catch (error) {
+            set.status =
+              error instanceof Error && "statusCode" in error
+                ? (error as any).statusCode
+                : 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          body: StockOutFwcModel.updateStockOutBody,
+          response: {
+            200: StockOutFwcModel.updateStockOutResponse,
+            400: StockOutFwcModel.errorResponse,
+            500: StockOutFwcModel.errorResponse,
+          },
+          detail: { tags: ["Stock Out FWC"], summary: "Update Stock Out" },
+        },
+      )
+  )
+  .group("", (app) =>
+    app
+      .use(permissionMiddleware("stock.out.validate"))
       .post(
         "/:movementId/validate",
         async (context) => {
@@ -127,109 +237,11 @@ const stockOutFwc = new Elysia({ prefix: "/fwc" })
           },
           detail: { tags: ["Stock Out FWC"], summary: "Validate Stock Out" },
         },
-      ),
+      )
   )
   .group("", (app) =>
     app
-      .use(rbacMiddleware(["superadmin", "admin"]))
-      .get(
-        "/available-serials",
-        async (context) => {
-          const { query, set } = context;
-          try {
-            const result = await StockOutFwcService.getAvailableSerials(
-              query.cardProductId,
-            );
-            return { success: true, data: result };
-          } catch (error) {
-            set.status = 500;
-            return formatErrorResponse(error);
-          }
-        },
-        {
-          query: StockOutFwcModel.getAvailableSerialsQuery,
-          response: {
-            200: StockOutFwcModel.getAvailableSerialsResponse,
-            400: StockOutFwcModel.errorResponse,
-            500: StockOutFwcModel.errorResponse,
-          },
-          detail: { tags: ["Stock Out FWC"], summary: "Get Available Serials" },
-        },
-      )
-      .post(
-        "/",
-        async (context) => {
-          const { body, set, user } = context as typeof context &
-            AuthContextUser;
-          try {
-            const result = await StockOutFwcService.stockOutDistribution(
-              new Date(body.movementAt),
-              body.cardProductId,
-              body.stationId,
-              body.startSerial,
-              body.endSerial,
-              user.id,
-              body.note,
-              body.notaDinas,
-              body.bast,
-            );
-            return {
-              success: true,
-              message: "Distribusi stok berhasil dibuat (PENDING)",
-              data: result,
-            };
-          } catch (error) {
-            set.status =
-              error instanceof Error && "statusCode" in error
-                ? (error as any).statusCode
-                : 500;
-            return formatErrorResponse(error);
-          }
-        },
-        {
-          body: StockOutFwcModel.stockOutRequest,
-          response: {
-            200: StockOutFwcModel.stockOutResponse,
-            400: StockOutFwcModel.errorResponse,
-            500: StockOutFwcModel.errorResponse,
-          },
-          detail: { tags: ["Stock Out FWC"], summary: "Create Stock Out" },
-        },
-      )
-      .patch(
-        "/:id",
-        async (context) => {
-          const { params, body, set, user } = context as typeof context &
-            AuthContextUser;
-          try {
-            const result = await StockOutFwcService.update(
-              params.id,
-              body,
-              user.id,
-            );
-            return {
-              success: true,
-              message: "Data stock out berhasil diperbarui",
-              data: result,
-            };
-          } catch (error) {
-            set.status =
-              error instanceof Error && "statusCode" in error
-                ? (error as any).statusCode
-                : 500;
-            return formatErrorResponse(error);
-          }
-        },
-        {
-          body: StockOutFwcModel.updateStockOutBody,
-          response: {
-            200: StockOutFwcModel.updateStockOutResponse,
-            400: StockOutFwcModel.errorResponse,
-            500: StockOutFwcModel.errorResponse,
-          },
-          detail: { tags: ["Stock Out FWC"], summary: "Update Stock Out" },
-        },
-      )
+      .use(permissionMiddleware("stock.out.delete"))
       .delete(
         "/:id",
         async (context) => {
@@ -261,7 +273,7 @@ const stockOutVoucher = new Elysia({ prefix: "/voucher" })
   .use(authMiddleware)
   .group("", (app) =>
     app
-      .use(rbacMiddleware(["supervisor", "admin", "superadmin"]))
+      .use(permissionMiddleware("stock.out.validate"))
       .get(
         "/",
         async (context) => {
@@ -367,7 +379,7 @@ const stockOutVoucher = new Elysia({ prefix: "/voucher" })
   )
   .group("", (app) =>
     app
-      .use(rbacMiddleware(["superadmin", "admin"]))
+      .use(permissionMiddleware("stock.out.update"))
       .get(
         "/available-serials",
         async (context) => {
@@ -505,7 +517,7 @@ export const stockOut = new Elysia({ prefix: "/out" })
   .use(stockOutVoucher)
   .group("", (app) =>
     app
-      .use(rbacMiddleware(["supervisor", "admin", "superadmin"]))
+      .use(permissionMiddleware("stock.out.validate"))
       .post(
         "/validate/:movementId",
         async (context) => {
@@ -583,7 +595,10 @@ export const stockOut = new Elysia({ prefix: "/out" })
           },
         },
       )
-      // Get Stock Issue Detail
+  )
+  .group("", (app) =>
+    app
+      .use(permissionMiddleware("stock.issue.view"))
       .get(
         "/issue/:movementId",
         async (context) => {
@@ -605,7 +620,10 @@ export const stockOut = new Elysia({ prefix: "/out" })
           },
         },
       )
-      // Resolve Stock Issue (Admin Approval)
+  )
+  .group("", (app) =>
+    app
+      .use(permissionMiddleware("stock.issue.resolve"))
       .post(
         "/issue/:movementId/resolve",
         async (context) => {
@@ -639,5 +657,5 @@ export const stockOut = new Elysia({ prefix: "/out" })
               "Approve or Reject 'Lost/Damaged' reports from Supervisors.",
           },
         },
-      ),
+      )
   );

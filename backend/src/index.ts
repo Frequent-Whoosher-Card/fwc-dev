@@ -24,6 +24,8 @@ import { redeem } from "./modules/redeem";
 import { cardSwaps } from "./modules/card-swaps";
 import { bulkDiscount } from "./modules/discount";
 import { employeeTypeController } from "./modules/employee-types";
+import { permissions } from "./modules/permissions";
+import { menuAccess } from "./modules/menu-access";
 
 config();
 const PORT = process.env.APP_PORT ? Number(process.env.APP_PORT) : 3001;
@@ -56,6 +58,8 @@ const app = new Elysia()
   .use(inbox)
   .use(redeem)
   .use(bulkDiscount)
+  .use(permissions)
+  .use(menuAccess)
   // .use(superset)
 
   .onError(({ code, error, set }) => {
