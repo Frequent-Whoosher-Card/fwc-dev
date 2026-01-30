@@ -6,10 +6,12 @@ export type TransactionType = "fwc" | "voucher";
 
 export interface FWCPurchaseListItem {
   id: string;
+  cardId: string | null;
   edcReferenceNumber: string;
   purchaseDate: string;
   shiftDate?: string | null;
   price: number;
+  programType?: "FWC" | "VOUCHER" | null;
 
   card: {
     id: string;
@@ -22,7 +24,9 @@ export interface FWCPurchaseListItem {
         typeName: string;
       };
     };
-  };
+  } | null;
+
+  bulkPurchaseItems: BulkPurchaseItem[];
 
   member: {
     id: string;
@@ -41,14 +45,17 @@ export interface FWCPurchaseListItem {
 
 export interface VoucherTransactionListItem {
   id: string;
+  cardId: string | null;
   edcReferenceNumber: string;
   purchaseDate: string;
   shiftDate?: string | null;
   price: number;
+  programType?: "FWC" | "VOUCHER" | null;
 
-  voucher: {
+  card: {
+    id: string;
     serialNumber: string;
-    voucherProduct: {
+    cardProduct: {
       category: {
         categoryName: string;
       };
@@ -56,7 +63,9 @@ export interface VoucherTransactionListItem {
         typeName: string;
       };
     };
-  };
+  } | null;
+
+  bulkPurchaseItems: BulkPurchaseItem[];
 
   member: {
     id: string;
@@ -73,38 +82,83 @@ export interface VoucherTransactionListItem {
   };
 }
 
-export interface PurchaseDetail {
+export interface BulkPurchaseItem {
   id: string;
-  edcReferenceNumber: string;
-  purchaseDate: string;
+  purchaseId: string;
+  cardId: string;
   price: number;
-  notes?: string;
   createdAt: string;
   updatedAt: string;
-  createdByName: string;
-  updatedByName: string;
-
   card: {
     id: string;
     serialNumber: string;
-    expiredDate: string;
+    status: string;
+    expiredDate: string | null;
+    quotaTicket: number;
     cardProduct: {
+      id: string;
+      totalQuota: number;
+      masaBerlaku: number;
       category: {
         id: string;
+        categoryCode: string;
         categoryName: string;
       };
       type: {
         id: string;
+        typeCode: string;
         typeName: string;
       };
     };
   };
+}
+
+export interface PurchaseDetail {
+  id: string;
+  cardId: string | null;
+  memberId: string | null;
+  operatorId: string;
+  stationId: string;
+  edcReferenceNumber: string;
+  purchaseDate: string;
+  price: number;
+  notes?: string | null;
+  programType?: "FWC" | "VOUCHER" | null;
+  createdAt: string;
+  updatedAt: string;
+  createdByName: string | null;
+  updatedByName: string | null;
+
+  card: {
+    id: string;
+    serialNumber: string;
+    status: string;
+    expiredDate: string | null;
+    quotaTicket: number;
+    cardProduct: {
+      id: string;
+      totalQuota: number;
+      masaBerlaku: number;
+      category: {
+        id: string;
+        categoryCode: string;
+        categoryName: string;
+      };
+      type: {
+        id: string;
+        typeCode: string;
+        typeName: string;
+      };
+    };
+  } | null;
+
+  bulkPurchaseItems: BulkPurchaseItem[];
 
   member: {
     id: string;
     name: string;
     identityNumber: string;
-  };
+  } | null;
 
   operator: {
     id: string;
@@ -159,18 +213,80 @@ export const getPurchases = async (params?: GetPurchasesParams) => {
     query.append("transactionType", params.transactionType);
   }
 
-  return apiFetch(`/purchases?${query.toString()}`, {
+  const response = await apiFetch(`/purchases?${query.toString()}`, {
     method: "GET",
   });
+
+  // Ensure bulkPurchaseItems is always an array in response
+  if (response?.data?.items) {
+    response.data.items = response.data.items.map((item: any) => ({
+      ...item,
+      bulkPurchaseItems: Array.isArray(item.bulkPurchaseItems)
+        ? item.bulkPurchaseItems
+        : [],
+      card: item.card || null,
+      programType: item.programType || null,
+    }));
+  }
+
+  return response;
 };
 
-export const getPurchaseById = (id: string | number) => {
-  return apiFetch(`/purchases/${id}`, {
+export const getPurchaseById = async (id: string | number): Promise<PurchaseDetail> => {
+  const response = await apiFetch(`/purchases/${id}`, {
     method: "GET",
   });
+
+  // Ensure bulkPurchaseItems is always an array in response
+  if (response?.data) {
+    return {
+      ...response.data,
+      bulkPurchaseItems: Array.isArray(response.data.bulkPurchaseItems)
+        ? response.data.bulkPurchaseItems
+        : [],
+      card: response.data.card || null,
+      programType: response.data.programType || null,
+    };
+  }
+
+  return response.data;
 };
 
 export async function createPurchase(payload: any): Promise<Purchase> {
   const response = await axios.post("/purchases", payload);
+  return response.data.data;
+}
+
+/**
+ * CREATE VOUCHER BULK PURCHASE
+ * Create purchase transaction for multiple vouchers (bulk purchase)
+ */
+export interface CreateVoucherPurchasePayload {
+  memberId: string;
+  cards: Array<{
+    cardId: string;
+    price?: number;
+  }>;
+  edcReferenceNumber: string;
+  programType?: "VOUCHER";
+  bulkDiscountId?: number;
+  price?: number; // Total price (optional, will be calculated if not provided)
+  notes?: string;
+}
+
+export async function createVoucherPurchase(
+  payload: CreateVoucherPurchasePayload
+): Promise<PurchaseDetail> {
+  const requestPayload = {
+    memberId: payload.memberId,
+    cards: payload.cards,
+    edcReferenceNumber: payload.edcReferenceNumber,
+    programType: payload.programType || "VOUCHER",
+    bulkDiscountId: payload.bulkDiscountId,
+    price: payload.price,
+    notes: payload.notes,
+  };
+
+  const response = await axios.post("/purchases", requestPayload);
   return response.data.data;
 }

@@ -125,7 +125,10 @@ export default function TransactionPage({ role }: TransactionPageProps) {
 
     try {
       if (activeTab === "fwc") {
-        const res = await getPurchases(params);
+        const res = await getPurchases({
+          ...params,
+          transactionType: "fwc",
+        });
         if (res.success && res.data) {
           setFWCData(res.data.items);
           setPagination(res.data.pagination);
@@ -133,12 +136,14 @@ export default function TransactionPage({ role }: TransactionPageProps) {
       }
 
       if (activeTab === "voucher") {
-        setVoucherData([]);
-        setPagination((p) => ({
-          ...p,
-          totalPages: 1,
-          total: 0,
-        }));
+        const res = await getPurchases({
+          ...params,
+          transactionType: "voucher",
+        });
+        if (res.success && res.data) {
+          setVoucherData(res.data.items);
+          setPagination(res.data.pagination);
+        }
       }
     } finally {
       setLoading(false);
@@ -175,7 +180,8 @@ export default function TransactionPage({ role }: TransactionPageProps) {
   };
 
   const handleAddMember = () => {
-    router.push(`${basePath}/membership/create`);
+    const programType = activeTab === "voucher" ? "voucher" : "fwc";
+    router.push(`${basePath}/membership/create?programType=${programType}`);
   };
 
   const handleExportPDF = async () => {
