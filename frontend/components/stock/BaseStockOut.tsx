@@ -110,7 +110,7 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1200px] border-collapse text-sm">
-            <thead className="bg-gray-100 border-b">
+            <thead className="bg-[#8D1231] text-white">
               <tr>
                 <th className="px-3 py-2 text-center">No</th>
                 <th className="px-3 py-2 text-center">Tanggal</th>

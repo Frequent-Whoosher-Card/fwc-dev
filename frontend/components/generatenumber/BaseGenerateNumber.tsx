@@ -158,8 +158,8 @@ export default function BaseGenerateNumber({
         )}
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
-            <thead className="bg-gray-50 border-b">
-              <tr className="text-left text-gray-600 uppercase text-xs tracking-wide">
+            <thead className="bg-[#8D1231] text-white">
+              <tr className="text-left uppercase text-xs tracking-wide">
                 <th className="px-4 py-3">No</th>
                 <th className="px-4 py-3">Tanggal</th>
                 <th className="px-4 py-3">Product</th>
@@ -228,7 +228,7 @@ export default function BaseGenerateNumber({
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => handleExportZip(item.id)}
-                            className="rounded border border-green-600 p-1 text-green-600 hover:bg-green-50"
+                            className="rounded border border-green-600 p-1 text-green-600 hover:bg-green-600 hover:text-white transition-colors duration-200"
                             title="Download ZIP"
                           >
                             <Download size={18} />
@@ -239,14 +239,14 @@ export default function BaseGenerateNumber({
                                 `/dashboard/superadmin/generatenumber/${(programType || "fwc").toLowerCase()}/${item.id}/view`,
                               )
                             }
-                            className="rounded border border-[#8D1231] p-1 text-[#8D1231] hover:bg-red-50"
+                            className="rounded border border-[#8D1231] p-1 text-[#8D1231] hover:bg-[#8D1231] hover:text-white transition-colors duration-200"
                             title="View Detail"
                           >
                             <Eye size={18} />
                           </button>
                           <button
                             onClick={() => handleDelete(item.id)}
-                            className="rounded border border-red-600 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                            className="rounded border border-red-600 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-600 hover:text-white transition-colors duration-200"
                           >
                             Hapus
                           </button>

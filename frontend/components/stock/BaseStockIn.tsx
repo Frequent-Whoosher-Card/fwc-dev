@@ -109,7 +109,7 @@ export default function BaseStockIn({ programType }: BaseStockInProps) {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1000px] text-sm">
-            <thead className="border-b bg-gray-50">
+            <thead className="bg-[#8D1231] text-white">
               <tr>
                 <th className="p-3">No</th>
                 <th className="p-3">Tanggal</th>

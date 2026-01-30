@@ -50,8 +50,8 @@ export default function BaseCardProductTable({
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
-            <thead className="bg-gray-50 border-b">
-              <tr className="text-left text-gray-600 uppercase text-xs tracking-wide">
+            <thead className="bg-[#8D1231] text-white">
+              <tr className="text-left uppercase text-xs tracking-wide">
                 <th className="px-6 py-3">No</th>
                 <th className="px-6 py-3">Category</th>
                 <th className="px-6 py-3 text-center">Type</th>
@@ -121,14 +121,14 @@ export default function BaseCardProductTable({
                       <div className="flex items-center justify-center gap-3">
                         <button
                           onClick={() => handleEdit(item.id)}
-                          className="rounded border border-blue-600 px-3 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 transition-colors"
+                          className="rounded border border-blue-600 px-3 py-1 text-xs font-medium text-blue-600 hover:bg-blue-600 hover:text-white transition-colors duration-200"
                         >
                           Edit
                         </button>
                         {onDelete && (
                           <button
                             onClick={() => onDelete(item.id)}
-                            className="rounded border border-red-600 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
+                            className="rounded border border-red-600 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-600 hover:text-white transition-colors duration-200"
                           >
                             Delete
                           </button>

@@ -123,7 +123,7 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-[1400px] w-full text-sm">
-            <thead className="bg-gray-100 border-b">
+            <thead className="bg-[#8D1231] text-white">
               <tr>
                 <th className="px-4 py-3">No</th>
                 <th className="px-4 py-3">Tanggal</th>
