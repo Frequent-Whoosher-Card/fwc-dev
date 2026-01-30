@@ -13,6 +13,7 @@ export namespace MemberModel {
     gender: t.Union([t.Literal("L"), t.Literal("P"), t.Null()]),
     alamat: t.Union([t.String(), t.Null()]),
     notes: t.Union([t.String(), t.Null()]),
+    employeeTypeId: t.Union([t.String({ format: "uuid" }), t.Null()]),
     createdAt: t.String({ format: "date-time" }),
     updatedAt: t.String({ format: "date-time" }),
     createdByName: t.Union([t.String(), t.Null()]),
@@ -76,6 +77,14 @@ export namespace MemberModel {
         description: "Notes or additional information",
       })
     ),
+    employeeTypeId: t.Optional(
+      t.Union([
+        t.String({ format: "uuid", description: "Employee type ID" }),
+        t.Null(),
+      ], {
+        description: "Employee type ID (e.g. tipe karyawan). Optional.",
+      })
+    ),
   });
 
   export const updateMemberBody = t.Object({
@@ -136,6 +145,14 @@ export namespace MemberModel {
       t.String({
         maxLength: 1000,
         description: "Notes or additional information",
+      })
+    ),
+    employeeTypeId: t.Optional(
+      t.Union([
+        t.String({ format: "uuid", description: "Employee type ID" }),
+        t.Null(),
+      ], {
+        description: "Update employee type ID. Pass null to clear.",
       })
     ),
   });
