@@ -132,7 +132,20 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
   // Fetch available serial when product changes
   useEffect(() => {
     const fetchSerial = async () => {
-      if (!form.productId) return;
+      setMaxAvailableSerial("");
+
+      if (!form.productId) {
+        if (!id) {
+          setForm((prev) => ({
+            ...prev,
+            startSerial: "",
+            endSerial: "",
+            quantity: "",
+          }));
+        }
+        return;
+      }
+
       try {
         const data = await stockService.getAvailableSerialsStockOut(
           form.productId,
@@ -165,6 +178,15 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
         }
       } catch (error: any) {
         console.error("Failed to fetch available serials", error);
+        setMaxAvailableSerial("");
+        if (!id) {
+          setForm((prev) => ({
+            ...prev,
+            startSerial: "",
+            endSerial: "",
+            quantity: "",
+          }));
+        }
         toast.error(error.message || "Gagal mengambil data serial stok.");
       }
     };

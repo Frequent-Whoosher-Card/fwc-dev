@@ -90,10 +90,12 @@ export default function BaseStockInAdd({ programType }: BaseStockInAddProps) {
             <div>
               <label className="text-sm font-medium">Initial Serial</label>
               <input
-                className="w-full rounded-lg border px-4 py-2"
+                className="w-full rounded-lg border px-4 py-2 bg-gray-50"
                 value={form.initialSerial}
                 disabled
-                placeholder={loadingSerial ? "Loading..." : ""}
+                placeholder={
+                  loadingSerial ? "Loading..." : "Otomatis dari stok tersedia"
+                }
               />
             </div>
 
@@ -109,10 +111,12 @@ export default function BaseStockInAdd({ programType }: BaseStockInAddProps) {
                   }))
                 }
                 disabled={!form.productId}
+                placeholder="Masukkan full serial atau suffix"
               />
               {maxAvailableSerial && (
                 <p className="mt-1 text-xs text-gray-500">
-                  Serial yang tersedia sampai nomor {maxAvailableSerial}
+                  Tersedia sampai serial:{" "}
+                  <span className="font-mono">{maxAvailableSerial}</span>
                 </p>
               )}
             </div>
