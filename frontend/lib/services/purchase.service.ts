@@ -204,6 +204,7 @@ export interface GetPurchasesParams {
   typeId?: string;
   stationId?: string;
   transactionType?: TransactionType;
+  employeeTypeId?: string;
 }
 
 export const updatePurchase = (id: string | number, payload: any) => {
@@ -233,6 +234,7 @@ export const getPurchases = async (params?: GetPurchasesParams) => {
   if (params?.transactionType) {
     query.append("transactionType", params.transactionType);
   }
+  if (params?.employeeTypeId) query.append("employeeTypeId", params.employeeTypeId);
 
   const response = await apiFetch(`/purchases?${query.toString()}`, {
     method: "GET",
@@ -293,7 +295,6 @@ export interface CreateVoucherPurchasePayload {
   bulkDiscountId?: number;
   price?: number; // Total price (optional, will be calculated if not provided)
   notes?: string;
-  employeeTypeId?: string | null; // Optional; backend uses member's employeeTypeId if not provided
 }
 
 export async function createVoucherPurchase(
@@ -307,7 +308,6 @@ export async function createVoucherPurchase(
     bulkDiscountId: payload.bulkDiscountId,
     price: payload.price,
     notes: payload.notes,
-    ...(payload.employeeTypeId !== undefined && { employeeTypeId: payload.employeeTypeId }),
   };
 
   const response = await axios.post("/purchases", requestPayload);

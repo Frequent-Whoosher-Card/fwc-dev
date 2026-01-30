@@ -100,9 +100,8 @@ export class PurchaseService {
         );
       }
 
-      // 5. Calculate purchase date
+      // 5. Purchase date = waktu simpan (tanggal + jam menit detik)
       const purchaseDate = new Date();
-      purchaseDate.setHours(0, 0, 0, 0); // Set to start of day
 
       let finalPrice: number;
       let purchaseCardId: string | null = null;
@@ -229,15 +228,11 @@ export class PurchaseService {
             ? data.price
             : totalPrice;
 
-        // Employee type from payload or from member
-        const employeeTypeId = data.employeeTypeId ?? member.employeeTypeId ?? null;
-
         // Create purchase record (cardId is null for bulk purchase)
         const purchase = await tx.cardPurchase.create({
           data: {
             cardId: undefined, // Null for bulk purchase
             memberId: data.memberId,
-            employeeTypeId,
             operatorId: operatorId,
             stationId: stationId,
             bulkDiscountId: data.bulkDiscountId || null,
@@ -345,15 +340,11 @@ export class PurchaseService {
 
         purchaseCardId = data.cardId;
 
-        // Employee type from payload or from member
-        const employeeTypeId = data.employeeTypeId ?? member.employeeTypeId ?? null;
-
         // Create purchase record
         const purchase = await tx.cardPurchase.create({
           data: {
             cardId: purchaseCardId,
             memberId: data.memberId,
-            employeeTypeId,
             operatorId: operatorId,
             stationId: stationId,
             edcReferenceNumber: edcReferenceNumber,
@@ -414,6 +405,7 @@ export class PurchaseService {
     operatorId?: string;
     search?: string;
     transactionType?: "fwc" | "voucher";
+    employeeTypeId?: string;
     userRole?: string;
     userId?: string;
     userStationId?: string | null;
@@ -429,6 +421,7 @@ export class PurchaseService {
       operatorId,
       search,
       transactionType,
+      employeeTypeId,
       userRole,
       userId,
       userStationId,
@@ -494,6 +487,11 @@ export class PurchaseService {
     // Operator filter (only apply if not already set by role-based filter)
     if (!where.operatorId && operatorId) {
       where.operatorId = operatorId;
+    }
+
+    // Employee type filter (via member - employee type is stored in membership)
+    if (employeeTypeId) {
+      where.member = { employeeTypeId };
     }
 
     // Transaction type filter (programType) - must be set before search to avoid conflicts
@@ -626,6 +624,14 @@ export class PurchaseService {
               id: true,
               name: true,
               identityNumber: true,
+              employeeTypeId: true,
+              employeeType: {
+                select: {
+                  id: true,
+                  code: true,
+                  name: true,
+                },
+              },
             },
           },
           operator: {
@@ -640,13 +646,6 @@ export class PurchaseService {
               id: true,
               stationCode: true,
               stationName: true,
-            },
-          },
-          employeeType: {
-            select: {
-              id: true,
-              code: true,
-              name: true,
             },
           },
         },
@@ -721,8 +720,8 @@ export class PurchaseService {
       member: item.member,
       operator: item.operator,
       station: item.station,
-      employeeTypeId: item.employeeTypeId,
-      employeeType: item.employeeType,
+      employeeTypeId: item.member?.employeeTypeId ?? null,
+      employeeType: item.member?.employeeType ?? null,
     }));
 
     return {
@@ -814,6 +813,14 @@ export class PurchaseService {
             name: true,
             identityNumber: true,
             email: true,
+            employeeTypeId: true,
+            employeeType: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+              },
+            },
           },
         },
         operator: {
@@ -828,13 +835,6 @@ export class PurchaseService {
             id: true,
             stationCode: true,
             stationName: true,
-          },
-        },
-        employeeType: {
-          select: {
-            id: true,
-            code: true,
-            name: true,
           },
         },
       },
@@ -863,7 +863,7 @@ export class PurchaseService {
       id: purchase.id,
       cardId: purchase.cardId,
       memberId: purchase.memberId,
-      employeeTypeId: purchase.employeeTypeId,
+      employeeTypeId: purchase.member?.employeeTypeId ?? null,
       operatorId: purchase.operatorId,
       stationId: purchase.stationId,
       edcReferenceNumber: purchase.edcReferenceNumber,
@@ -910,7 +910,7 @@ export class PurchaseService {
       member: purchase.member,
       operator: purchase.operator,
       station: purchase.station,
-      employeeType: purchase.employeeType,
+      employeeType: purchase.member?.employeeType ?? null,
     };
   }
 
@@ -925,7 +925,6 @@ export class PurchaseService {
       price?: number;
       notes?: string;
       shiftDate?: string;
-      employeeTypeId?: string | null;
     },
     userId: string,
   ) {
@@ -977,16 +976,6 @@ export class PurchaseService {
         }
       }
 
-      // 4b. Validate employee type if provided
-      if (data.employeeTypeId !== undefined && data.employeeTypeId !== null) {
-        const employeeType = await tx.employeeType.findUnique({
-          where: { id: data.employeeTypeId },
-        });
-        if (!employeeType) {
-          throw new ValidationError("Tipe karyawan tidak ditemukan");
-        }
-      }
-
       // 5. Check EDC reference uniqueness if provided
       if (
         data.edcReferenceNumber &&
@@ -1020,8 +1009,6 @@ export class PurchaseService {
       if (data.notes !== undefined) updateData.notes = data.notes;
       if (data.shiftDate !== undefined)
         updateData.shiftDate = new Date(data.shiftDate);
-      if (data.employeeTypeId !== undefined)
-        updateData.employeeTypeId = data.employeeTypeId;
 
       // 7. Update purchase
       const updatedPurchase = await tx.cardPurchase.update({
@@ -1053,16 +1040,19 @@ export class PurchaseService {
             },
             orderBy: { createdAt: "asc" },
           },
-          member: true,
-          operator: true,
-          station: true,
-          employeeType: {
-            select: {
-              id: true,
-              code: true,
-              name: true,
+          member: {
+            include: {
+              employeeType: {
+                select: {
+                  id: true,
+                  code: true,
+                  name: true,
+                },
+              },
             },
           },
+          operator: true,
+          station: true,
         },
       });
 
@@ -1085,7 +1075,7 @@ export class PurchaseService {
         id: updatedPurchase.id,
         cardId: updatedPurchase.cardId,
         memberId: updatedPurchase.memberId,
-        employeeTypeId: updatedPurchase.employeeTypeId,
+        employeeTypeId: updatedPurchase.member?.employeeTypeId ?? null,
         operatorId: updatedPurchase.operatorId,
         stationId: updatedPurchase.stationId,
         edcReferenceNumber: updatedPurchase.edcReferenceNumber,
@@ -1132,7 +1122,7 @@ export class PurchaseService {
         member: updatedPurchase.member,
         operator: updatedPurchase.operator,
         station: updatedPurchase.station,
-        employeeType: updatedPurchase.employeeType,
+        employeeType: updatedPurchase.member?.employeeType ?? null,
       };
     });
   }
@@ -1173,6 +1163,9 @@ export class PurchaseService {
       }
 
       const oldCardId = purchase.cardId;
+      if (!oldCardId) {
+        throw new ValidationError("Transaksi ini tidak memiliki card (bukan FWC single card)");
+      }
 
       // 2. Validate wrong card
       const wrongCard = await tx.card.findUnique({
@@ -1225,7 +1218,7 @@ export class PurchaseService {
           purchaseDate: null,
           expiredDate: null,
           updatedBy: userId,
-        },
+        } as Record<string, unknown>,
       });
 
       // 6. Update wrong card - set to DELETED status
@@ -1303,20 +1296,26 @@ export class PurchaseService {
         updatedAt: updatedPurchase.updatedAt.toISOString(),
         createdByName: creator?.fullName || null,
         updatedByName: updater?.fullName || null,
-        card: {
-          ...updatedPurchase.card,
-          expiredDate: updatedPurchase.card.expiredDate
-            ? updatedPurchase.card.expiredDate.toISOString()
-            : null,
-          cardProduct: {
-            ...updatedPurchase.card.cardProduct,
-            totalQuota: updatedPurchase.card.cardProduct.totalQuota,
-            masaBerlaku: updatedPurchase.card.cardProduct.masaBerlaku,
-          },
-        },
+        card: updatedPurchase.card
+          ? {
+              ...updatedPurchase.card,
+              expiredDate: updatedPurchase.card.expiredDate
+                ? updatedPurchase.card.expiredDate.toISOString()
+                : null,
+              cardProduct: {
+                ...updatedPurchase.card.cardProduct,
+                totalQuota: updatedPurchase.card.cardProduct.totalQuota,
+                masaBerlaku: updatedPurchase.card.cardProduct.masaBerlaku,
+              },
+            }
+          : null,
         member: updatedPurchase.member,
         operator: updatedPurchase.operator,
         station: updatedPurchase.station,
+        employeeTypeId: updatedPurchase.member?.employeeTypeId ?? null,
+        employeeType:
+          (updatedPurchase.member as { employeeType?: { id: string; code: string; name: string } | null } | null)
+            ?.employeeType ?? null,
       };
     });
   }

@@ -13,6 +13,7 @@ interface Membership {
   address?: string | null;
   operator_name?: string | null;
   updated_at?: string | null;
+  employee_type_name?: string | null;
 }
 
 interface Pagination {
@@ -84,6 +85,9 @@ export default function MembershipTable({
               <th className="px-4 py-3 text-center whitespace-nowrap w-[100px]">
                 Gender
               </th>
+              <th className="px-4 py-3 text-left whitespace-nowrap min-w-[140px]">
+                Tipe Karyawan
+              </th>
               <th className="px-4 py-3 text-left whitespace-nowrap min-w-[180px]">
                 Email
               </th>
@@ -117,6 +121,9 @@ export default function MembershipTable({
                   {item.nationality || "-"}
                 </td>
                 <td className="px-4 py-2 text-center">{item.gender || "-"}</td>
+                <td className="px-4 py-2 text-left">
+                  {item.employee_type_name || "-"}
+                </td>
                 <td className="px-4 py-2 text-left">{item.email || "-"}</td>
                 <td className="px-4 py-2 text-center">{item.phone || "-"}</td>
                 <td className="px-4 py-2 text-left">{item.address || "-"}</td>
