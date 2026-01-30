@@ -105,48 +105,19 @@ export class StockOutFwcService {
         status: "IN_OFFICE",
       },
       select: { id: true, serialNumber: true },
+      orderBy: { serialNumber: "asc" },
     });
 
     // Validate fetched cards
-    if (cards.length !== sent.length) {
-      const found = new Set(cards.map((c) => c.serialNumber));
-      const missing = sent.filter((sn) => !found.has(sn));
-
-      // Analisis kenapa missing
-      const invalidCards = await db.card.findMany({
-        where: {
-          serialNumber: { in: missing },
-          cardProductId,
-        },
-        select: { serialNumber: true, status: true },
-      });
-
-      const statusMap = new Map(
-        invalidCards.map((c) => [c.serialNumber, c.status]),
+    if (cards.length === 0) {
+      throw new ValidationError(
+        "Tidak ada kartu Available (IN_OFFICE) dalam range serial yang dipilih.",
       );
-
-      const alreadyDistributed = [];
-      const notFound = [];
-
-      for (const sn of missing) {
-        const status = statusMap.get(sn);
-        if (status) {
-          alreadyDistributed.push(`${sn} (${status})`);
-        } else {
-          notFound.push(sn);
-        }
-      }
-
-      let errMsg = "Validasi Gagal:";
-      if (alreadyDistributed.length > 0) {
-        errMsg += ` Serial berikut bukan status IN_OFFICE (sudah terdistribusi/rusak/dll): ${alreadyDistributed.join(", ")}.`;
-      }
-      if (notFound.length > 0) {
-        errMsg += ` Serial berikut tidak ditemukan di database (Belum Stock In?): ${notFound.join(", ")}.`;
-      }
-
-      throw new ValidationError(errMsg);
     }
+
+    // NOTE: We allow "skipping" already distributed cards in the range.
+    // So if user requests 1000-1010 but 1005 is already OUT, we just process the other 10.
+    // The strict check (cards.length !== sent.length) is removed to support this.
 
     const sentCount = cards.length;
 
@@ -195,6 +166,11 @@ export class StockOutFwcService {
         );
 
         // 6) Create movement OUT PENDING
+        // 6) Create movement OUT PENDING
+
+        // Use ACTUAL processed/found cards, not the requested full range
+        const finalSerials = cards.map((c) => c.serialNumber);
+
         const movement = await tx.cardStockMovement.create({
           data: {
             movementAt,
@@ -208,7 +184,7 @@ export class StockOutFwcService {
             note: note ?? null,
             notaDinas: notaDinas ?? null,
             bast: bast ?? null,
-            sentSerialNumbers: sent, // Store array
+            sentSerialNumbers: finalSerials, // CORRECTED: Use actual serials
             receivedSerialNumbers: [],
             lostSerialNumbers: [],
             createdAt: new Date(),
@@ -235,7 +211,7 @@ export class StockOutFwcService {
               cardProductId: cardProductId,
               quantity: sentCount,
               status: "PENDING",
-              serials: sent,
+              serials: finalSerials, // CORRECTED: Use actual serials
             },
             isRead: false,
             readByUserIds: [],
@@ -571,18 +547,31 @@ export class StockOutFwcService {
         // Find the inbox item for this supervisor and movement
         const supervisorInbox = await tx.inbox.findFirst({
           where: {
-            sentTo: validatorUserId,
             type: "STOCK_DISTRIBUTION",
-            // We can't query JSON fields easily in all Prisma versions/DBs with exact match,
-            // but finding by user + type + approximate time is usually safe.
-            // Ideally we store inboxId in a better way, but for now we search.
-            // Or we check payload path if supported.
             payload: {
               path: ["movementId"],
               equals: movementId,
             },
+            OR: [
+              { sentTo: validatorUserId }, // Direct message (Legacy)
+              {
+                // Check both stationId (source) and toStationId (dest) to be safe
+                stationId: {
+                  in: [movement.toStationId, movement.stationId].filter(
+                    Boolean,
+                  ) as string[],
+                },
+                targetRoles: { has: "supervisor" },
+              },
+            ],
           },
         });
+
+        const validatorUser = await tx.user.findUnique({
+          where: { id: validatorUserId },
+          select: { fullName: true },
+        });
+        const validatedByName = validatorUser?.fullName || "System";
 
         if (supervisorInbox) {
           const oldPayload = (supervisorInbox.payload as any) || {};
@@ -600,6 +589,7 @@ export class StockOutFwcService {
                   lost: finalLost.length,
                   damaged: finalDamaged.length,
                   validatedAt: new Date(),
+                  validatedByName, // Added this field
                   lostSerialNumbers: finalLost,
                   damagedSerialNumbers: finalDamaged,
                 },
@@ -608,59 +598,62 @@ export class StockOutFwcService {
           });
         }
 
-        // 9) NOTIFIKASI KE ADMIN JIKA ADA MASALAH (LOST/DAMAGED)
-        if (finalLost.length > 0 || finalDamaged.length > 0) {
-          const admins = await tx.user.findMany({
-            where: {
-              role: { roleCode: { in: ["admin", "superadmin"] } },
-              isActive: true,
-            },
-            select: { id: true },
-          });
+        // 9) NOTIFIKASI KE ADMIN (Selalu kirim, baik ada masalah atau tidak)
+        const hasIssue = finalLost.length > 0 || finalDamaged.length > 0;
+        const admins = await tx.user.findMany({
+          where: {
+            role: { roleCode: { in: ["admin", "superadmin"] } },
+            isActive: true,
+          },
+          select: { id: true },
+        });
 
-          if (admins.length > 0) {
+        if (admins.length > 0) {
+          let title = "Laporan Isu Stok (FWC)";
+          let message = "";
+          let type = "STOCK_ISSUE_REPORT";
+          let statusLabel = "PENDING_APPROVAL";
+
+          if (!hasIssue) {
+            title = "Konfirmasi Penerimaan Stok (FWC)";
+            message = `Station ${stationName} telah menerima ${finalReceived.length} kartu FWC dengan lengkap.`;
+            type = "STOCK_DISTRIBUTION_SUCCESS"; // Different type for informational
+            statusLabel = "COMPLETED";
+          } else {
             const issueDetails = [];
             if (finalLost.length)
               issueDetails.push(`${finalLost.length} Hilang`);
             if (finalDamaged.length)
               issueDetails.push(`${finalDamaged.length} Rusak`);
-
-            const message = `Laporan Isu dari Station (FWC): ${issueDetails.join(", ")}. Mohon tinjau dan setujui perubahan status.`;
-
-            // Refactored to use Broadcast (Array Pattern)
-            const validatorUser = await tx.user.findUnique({
-              where: { id: validatorUserId },
-              select: { fullName: true },
-            });
-            const localReporterName =
-              validatorUser?.fullName || "Unknown Supervisor";
-
-            await tx.inbox.create({
-              data: {
-                title: "Laporan Isu Stok (FWC)",
-                message: message,
-                targetRoles: ["admin", "superadmin"], // Broadcast
-                sentTo: null,
-                sentBy: validatorUserId,
-                stationId: validatorStationId,
-                type: "STOCK_ISSUE_REPORT",
-                programType: ProgramType.FWC,
-                payload: {
-                  movementId: movementId,
-                  stationId: validatorStationId,
-                  reporterName: localReporterName,
-                  lostCount: finalLost.length,
-                  damagedCount: finalDamaged.length,
-                  lostSerialNumbers: finalLost,
-                  damagedSerialNumbers: finalDamaged,
-                  status: "PENDING_APPROVAL",
-                },
-                isRead: false,
-                readByUserIds: [],
-                createdAt: new Date(),
-              },
-            });
+            message = `Laporan Isu dari Station (FWC): ${issueDetails.join(", ")}. Mohon tinjau dan setujui perubahan status.`;
           }
+
+          await tx.inbox.create({
+            data: {
+              title: title,
+              message: message,
+              targetRoles: ["admin", "superadmin"],
+              sentTo: null,
+              sentBy: validatorUserId,
+              stationId: validatorStationId,
+              type: type as any,
+              programType: ProgramType.FWC,
+              payload: {
+                movementId: movementId,
+                stationId: validatorStationId,
+                reporterName: validatedByName, // REUSED HERE
+                lostCount: finalLost.length,
+                damagedCount: finalDamaged.length,
+                receivedCount: finalReceived.length,
+                lostSerialNumbers: finalLost,
+                damagedSerialNumbers: finalDamaged,
+                status: statusLabel,
+              },
+              isRead: false,
+              readByUserIds: [],
+              createdAt: new Date(),
+            },
+          });
         }
 
         return {
@@ -924,10 +917,10 @@ export class StockOutFwcService {
           name: movement.type.typeName,
           code: movement.type.typeCode,
         },
-        sentSerialNumbers: movement.sentSerialNumbers,
-        receivedSerialNumbers: movement.receivedSerialNumbers,
-        lostSerialNumbers: movement.lostSerialNumbers,
-        damagedSerialNumbers: movement.damagedSerialNumbers ?? [],
+        sentSerialNumbers: movement.sentSerialNumbers.sort(),
+        receivedSerialNumbers: movement.receivedSerialNumbers.sort(),
+        lostSerialNumbers: movement.lostSerialNumbers.sort(),
+        damagedSerialNumbers: (movement.damagedSerialNumbers ?? []).sort(),
       },
     };
   }
@@ -988,6 +981,18 @@ export class StockOutFwcService {
             "Tidak dapat mengubah stock karena status sudah " + movement.status,
           );
         }
+
+        // 0. Clean up Notification (Inbox)
+        // Since we are deleting the movement, the notification is invalid.
+        await tx.inbox.deleteMany({
+          where: {
+            type: "STOCK_DISTRIBUTION",
+            payload: {
+              path: ["movementId"],
+              equals: id,
+            },
+          },
+        });
 
         // 1. REVERT EXISTING STOCK (Logic mirip delete pending)
         const oldSent = normalizeSerials(
@@ -1205,6 +1210,18 @@ export class StockOutFwcService {
       }
 
       // 2. Logic based on Status
+
+      // 2.1 Always delete associated INBOX notification
+      await tx.inbox.deleteMany({
+        where: {
+          type: "STOCK_DISTRIBUTION",
+          payload: {
+            path: ["movementId"],
+            equals: id,
+          },
+        },
+      });
+
       if (movement.status === "PENDING") {
         // --- CANCEL PENDING SHIPMENT ---
         // Cards should be IN_TRANSIT

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { RotateCcw, Calendar, Search } from "lucide-react";
+import { Calendar, Search, RefreshCw } from "lucide-react";
 
 export interface InboxFilters {
   status?: string;
@@ -27,9 +27,11 @@ function useDebounce<T>(value: T, delay: number): T {
 
 export default function InboxFilter({
   onFilter,
+  onRefresh,
   onAddNote,
 }: {
   onFilter: (filters: InboxFilters) => void;
+  onRefresh?: () => void;
   onAddNote?: () => void;
 }) {
   // =========================
@@ -99,13 +101,15 @@ export default function InboxFilter({
       </div>
 
       <div className="flex gap-2 ml-auto">
-        <button
-          onClick={reset}
-          title="Reset Filter"
-          className="p-2.5 border rounded-xl text-gray-400 hover:bg-gray-50 hover:text-red-600 transition-colors"
-        >
-          <RotateCcw size={20} />
-        </button>
+        {onRefresh && (
+          <button
+            onClick={onRefresh}
+            title="Refresh Data"
+            className="p-2.5 border rounded-xl text-gray-400 hover:bg-gray-50 hover:text-blue-600 transition-colors"
+          >
+            <RefreshCw size={20} />
+          </button>
+        )}
       </div>
     </div>
   );

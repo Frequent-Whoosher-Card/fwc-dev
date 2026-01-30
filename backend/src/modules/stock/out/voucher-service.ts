@@ -91,41 +91,17 @@ export class StockOutVoucherService {
         status: "IN_OFFICE",
       },
       select: { id: true, serialNumber: true },
+      orderBy: { serialNumber: "asc" },
     });
 
-    if (cards.length !== sent.length) {
-      const found = new Set(cards.map((c) => c.serialNumber));
-      const missing = sent.filter((sn) => !found.has(sn));
-
-      // Check failures
-      const invalidCards = await db.card.findMany({
-        where: {
-          serialNumber: { in: missing },
-          cardProductId,
-        },
-        select: { serialNumber: true, status: true },
-      });
-
-      const statusMap = new Map(
-        invalidCards.map((c) => [c.serialNumber, c.status]),
+    if (cards.length === 0) {
+      throw new ValidationError(
+        "Tidak ada voucher Available (IN_OFFICE) dalam range serial yang dipilih.",
       );
-
-      const alreadyDistributed = [];
-      const notFound = [];
-
-      for (const sn of missing) {
-        const s = statusMap.get(sn);
-        if (s) alreadyDistributed.push(`${sn} (${s})`);
-        else notFound.push(sn);
-      }
-
-      let msg = `Validasi Stock Out Voucher Gagal (Tgl Produksi: ${d.toISOString().split("T")[0]}):`;
-      if (alreadyDistributed.length)
-        msg += ` Sudah keluar: ${alreadyDistributed.join(", ")}.`;
-      if (notFound.length) msg += ` Tidak ditemukan: ${notFound.join(", ")}.`;
-
-      throw new ValidationError(msg);
     }
+
+    // Skip missing cards validation to support filling gaps in range.
+    // Proceed with whatever is IN_OFFICE.
 
     const sentCount = cards.length;
 
@@ -164,6 +140,9 @@ export class StockOutVoucherService {
           stationId,
         );
 
+        // Use ACTUAL processed/found cards, not the requested full range
+        const finalSerials = cards.map((c) => c.serialNumber);
+
         const movement = await tx.cardStockMovement.create({
           data: {
             movementAt,
@@ -177,7 +156,7 @@ export class StockOutVoucherService {
             note: note ?? null,
             notaDinas: notaDinas ?? null,
             bast: bast ?? null,
-            sentSerialNumbers: sent, // Store array
+            sentSerialNumbers: finalSerials, // CORRECTED: Use actual serials
             receivedSerialNumbers: [],
             lostSerialNumbers: [],
             createdAt: new Date(),
@@ -205,7 +184,7 @@ export class StockOutVoucherService {
               quantity: sentCount,
               status: "PENDING",
               serialDate: d.toISOString(),
-              serials: sent,
+              serials: finalSerials, // CORRECTED: Use actual serials
             },
             isRead: false,
             readByUserIds: [],
@@ -389,12 +368,30 @@ export class StockOutVoucherService {
       });
 
       // Update Inbox for Supervisor (Mark completed)
+      const validatorUser = await tx.user.findUnique({
+        where: { id: validatorUserId },
+        select: { fullName: true },
+      });
+      const localReporterName = validatorUser?.fullName || "Unknown Supervisor";
+
       const spvInbox = await tx.inbox.findFirst({
         where: {
-          sentTo: validatorUserId,
           type: "STOCK_DISTRIBUTION",
-          // approximate match
-          createdAt: { gte: new Date(movement.createdAt.getTime() - 60000) },
+          payload: {
+            path: ["movementId"],
+            equals: movementId,
+          },
+          OR: [
+            { sentTo: validatorUserId },
+            {
+              stationId: {
+                in: [movement.toStationId, movement.stationId].filter(
+                  Boolean,
+                ) as string[],
+              },
+              targetRoles: { has: "supervisor" },
+            },
+          ],
         },
       });
 
@@ -414,6 +411,7 @@ export class StockOutVoucherService {
                 lost: finalLost.length,
                 damaged: finalDamaged.length,
                 validatedAt: new Date(),
+                validatedByName: localReporterName,
                 lostSerialNumbers: finalLost,
                 damagedSerialNumbers: finalDamaged,
               },
@@ -422,60 +420,67 @@ export class StockOutVoucherService {
         });
       }
 
-      // 9) NOTIFIKASI KE ADMIN JIKA ADA MASALAH (LOST/DAMAGED)
+      // 9) NOTIFIKASI KE ADMIN (Selalu kirim)
+      const hasIssue = finalLost.length > 0 || finalDamaged.length > 0;
+      const admins = await tx.user.findMany({
+        where: {
+          role: { roleCode: { in: ["admin", "superadmin"] } },
+          isActive: true,
+        },
+        select: { id: true },
+      });
 
-      // 9) NOTIFIKASI KE ADMIN JIKA ADA MASALAH (LOST/DAMAGED)
-      if (finalLost.length > 0 || finalDamaged.length > 0) {
-        const admins = await tx.user.findMany({
-          where: {
-            role: { roleCode: { in: ["admin", "superadmin"] } },
-            isActive: true,
-          },
-          select: { id: true },
+      if (admins.length > 0) {
+        const station = await tx.station.findUnique({
+          where: { id: validatorStationId },
+          select: { stationName: true },
         });
+        const stationName = station?.stationName || "Unknown Station";
 
-        if (admins.length > 0) {
+        let title = "Laporan Isu Stok (Voucher)";
+        let message = "";
+        let type = "STOCK_ISSUE_REPORT";
+        let statusLabel = "PENDING_APPROVAL";
+
+        if (!hasIssue) {
+          title = "Konfirmasi Penerimaan Stok (Voucher)";
+          message = `Station ${stationName} telah menerima ${finalReceived.length} voucher dengan lengkap.`;
+          type = "STOCK_DISTRIBUTION_SUCCESS";
+          statusLabel = "COMPLETED";
+        } else {
           const issueDetails = [];
           if (finalLost.length) issueDetails.push(`${finalLost.length} Hilang`);
           if (finalDamaged.length)
             issueDetails.push(`${finalDamaged.length} Rusak`);
-
-          const message = `Laporan Isu dari Station (VOUCHER): ${issueDetails.join(", ")}. Mohon tinjau dan setujui perubahan status.`;
-
-          // Refactored to use Broadcast (Array Pattern)
-          const validatorUser = await tx.user.findUnique({
-            where: { id: validatorUserId },
-            select: { fullName: true },
-          });
-          const localReporterName =
-            validatorUser?.fullName || "Unknown Supervisor";
-
-          await tx.inbox.create({
-            data: {
-              title: "Laporan Isu Stok (Voucher)",
-              message: message,
-              targetRoles: ["admin", "superadmin"], // Broadcast
-              sentTo: null,
-              sentBy: validatorUserId,
-              stationId: validatorStationId,
-              type: "STOCK_ISSUE_REPORT",
-              programType: ProgramType.VOUCHER,
-              payload: {
-                movementId: movementId,
-                stationId: validatorStationId,
-                reporterName: localReporterName,
-                lostCount: finalLost.length,
-                damagedCount: finalDamaged.length,
-                lostSerialNumbers: finalLost,
-                damagedSerialNumbers: finalDamaged,
-                status: "PENDING_APPROVAL",
-              },
-              isRead: false,
-              readByUserIds: [],
-              createdAt: new Date(),
-            },
-          });
+          message = `Laporan Isu dari Station (VOUCHER): ${issueDetails.join(", ")}. Mohon tinjau dan setujui perubahan status.`;
         }
+
+        await tx.inbox.create({
+          data: {
+            title,
+            message,
+            targetRoles: ["admin", "superadmin"],
+            sentTo: null,
+            sentBy: validatorUserId,
+            stationId: validatorStationId,
+            type: type as any,
+            programType: ProgramType.VOUCHER,
+            payload: {
+              movementId,
+              stationId: validatorStationId,
+              reporterName: localReporterName,
+              lostCount: finalLost.length,
+              damagedCount: finalDamaged.length,
+              receivedCount: finalReceived.length,
+              lostSerialNumbers: finalLost,
+              damagedSerialNumbers: finalDamaged,
+              status: statusLabel,
+            },
+            isRead: false,
+            readByUserIds: [],
+            createdAt: new Date(),
+          },
+        });
       }
 
       return {
@@ -659,10 +664,10 @@ export class StockOutVoucherService {
           name: movement.type.typeName,
           code: movement.type.typeCode,
         },
-        sentSerialNumbers: movement.sentSerialNumbers,
-        receivedSerialNumbers: movement.receivedSerialNumbers,
-        lostSerialNumbers: movement.lostSerialNumbers,
-        damagedSerialNumbers: movement.damagedSerialNumbers,
+        sentSerialNumbers: movement.sentSerialNumbers.sort(),
+        receivedSerialNumbers: movement.receivedSerialNumbers.sort(),
+        lostSerialNumbers: movement.lostSerialNumbers.sort(),
+        damagedSerialNumbers: (movement.damagedSerialNumbers ?? []).sort(),
       },
     };
   }
@@ -702,6 +707,17 @@ export class StockOutVoucherService {
       if (!movement) throw new ValidationError("Not found");
       if (movement.status !== "PENDING")
         throw new ValidationError("Cannot delete non-pending");
+
+      // Delete Inbox
+      await tx.inbox.deleteMany({
+        where: {
+          type: "STOCK_DISTRIBUTION",
+          payload: {
+            path: ["movementId"],
+            equals: id,
+          },
+        },
+      });
 
       // Revert cards to IN_OFFICE
       const count = await tx.card.updateMany({
@@ -777,7 +793,6 @@ export class StockOutVoucherService {
     return {
       startSerial: firstCard?.serialNumber || null,
       endSerial: lastCard?.serialNumber || null,
-      count,
     };
   }
 }

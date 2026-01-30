@@ -171,7 +171,7 @@ export default function InboxPage() {
 
       {/* FILTER */}
       <div className="rounded-xl border bg-white px-4 py-3 shadow-sm">
-        <InboxFilter onFilter={handleFilter} onAddNote={handleAddNote} />
+        <InboxFilter onFilter={handleFilter} onAddNote={handleAddNote} onRefresh={() => fetchInbox(currentFilters)} />
       </div>
 
       {/* LIST */}
