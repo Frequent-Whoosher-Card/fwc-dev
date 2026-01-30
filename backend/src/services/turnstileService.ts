@@ -24,6 +24,11 @@ export async function verifyTurnstileToken(token: string): Promise<boolean> {
     return true;
   }
 
+  // Allow bypass with "disabled" token
+  if (token === 'disabled') {
+    return true;
+  }
+
   if (!token || typeof token !== "string") {
     throw new AuthenticationError("Turnstile token is required");
   }

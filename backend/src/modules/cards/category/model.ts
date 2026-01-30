@@ -29,24 +29,26 @@ export namespace CardCategoryModel {
   // Get spesific card category response
   export const getCardCategoryByIdResponse = t.Object({
     success: t.Boolean(),
-    data: t.Object({
-      id: t.String(),
-      categoryCode: t.String(),
-      categoryName: t.String(),
-      description: t.String(),
-      programType: t.Nullable(
-        t.Union([t.Literal("FWC"), t.Literal("VOUCHER")], {
-          default: "FWC",
-          description: "Tipe Program (FWC/VOUCHER)",
-        }),
-      ),
-      createdAt: t.Date(),
-      createdBy: t.Nullable(t.String()),
-      updatedAt: t.Date(),
-      updatedBy: t.Nullable(t.String()),
-      deletedAt: t.Nullable(t.Date()),
-      deletedBy: t.Nullable(t.String()),
-    }),
+    data: t.Nullable(
+      t.Object({
+        id: t.String(),
+        categoryCode: t.String(),
+        categoryName: t.String(),
+        description: t.Nullable(t.String()),
+        programType: t.Nullable(
+          t.Union([t.Literal("FWC"), t.Literal("VOUCHER")], {
+            default: "FWC",
+            description: "Tipe Program (FWC/VOUCHER)",
+          }),
+        ),
+        createdAt: t.Date(),
+        createdBy: t.Nullable(t.String()),
+        updatedAt: t.Date(),
+        updatedBy: t.Nullable(t.String()),
+        deletedAt: t.Nullable(t.Date()),
+        deletedBy: t.Nullable(t.String()),
+      }),
+    ),
   });
 
   //   Create Card Category Request
@@ -74,7 +76,7 @@ export namespace CardCategoryModel {
       id: t.String(),
       categoryCode: t.String(),
       categoryName: t.String(),
-      description: t.String(),
+      description: t.Nullable(t.String()),
       programType: t.Nullable(
         t.Union([t.Literal("FWC"), t.Literal("VOUCHER")], {
           default: "FWC",
@@ -115,7 +117,7 @@ export namespace CardCategoryModel {
       id: t.String(),
       categoryCode: t.String(),
       categoryName: t.String(),
-      description: t.String(),
+      description: t.Nullable(t.String()),
       programType: t.Nullable(
         t.Union([t.Literal("FWC"), t.Literal("VOUCHER")], {
           default: "FWC",
@@ -139,7 +141,7 @@ export namespace CardCategoryModel {
       id: t.String(),
       categoryCode: t.String(),
       categoryName: t.String(),
-      description: t.String(),
+      description: t.Nullable(t.String()),
       createdAt: t.Date(),
       createdBy: t.Nullable(t.String()),
       updatedAt: t.Date(),

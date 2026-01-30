@@ -1,7 +1,7 @@
 import { Elysia, t } from "elysia";
 import { PurchaseModel } from "./model";
 import { PurchaseService } from "./service";
-import { rbacMiddleware } from "../../middleware/rbac";
+import { permissionMiddleware } from "../../middleware/permission";
 import { formatErrorResponse } from "../../utils/errors";
 
 type AuthContextUser = {
@@ -21,7 +21,7 @@ type AuthContextUser = {
 
 // Base routes (Read) - All authenticated users
 const baseRoutes = new Elysia()
-  .use(rbacMiddleware(["petugas", "supervisor", "admin", "superadmin"]))
+  .use(permissionMiddleware("purchase.view"))
   .get(
     "/",
     async (context) => {
@@ -59,6 +59,7 @@ const baseRoutes = new Elysia()
           operatorId: cleanParam(query.operatorId),
           search: cleanParam(query.search),
           transactionType: cleanParam(query.transactionType) as "fwc" | "voucher" | undefined,
+          employeeTypeId: cleanParam(query.employeeTypeId),
           // Pass user context for role-based filtering
           userRole: user.role.roleCode,
           userId: user.id,
@@ -173,9 +174,9 @@ Supports searching by:
     },
   );
 
-// Write routes (Create) - petugas, supervisor, admin, superadmin
-const writeRoutes = new Elysia()
-  .use(rbacMiddleware(["petugas", "supervisor", "admin", "superadmin"]))
+// Create routes (Create) - petugas, supervisor, admin, superadmin
+const createRoutes = new Elysia()
+  .use(permissionMiddleware("purchase.create"))
   .post(
     "/",
     async (context) => {
@@ -281,7 +282,10 @@ Automatically calculated based on purchaseDate + cardProduct.masaBerlaku (in day
 - User must have stationId assigned`,
       },
     },
-  )
+  );
+
+const updateRoutes = new Elysia()
+  .use(permissionMiddleware("purchase.update"))
   .patch(
     "/:id",
     async (context) => {
@@ -343,7 +347,7 @@ Automatically calculated based on purchaseDate + cardProduct.masaBerlaku (in day
 
 // Correction routes (supervisor, admin, superadmin only)
 const correctionRoutes = new Elysia()
-  .use(rbacMiddleware(["supervisor", "admin", "superadmin"]))
+  .use(permissionMiddleware("purchase.correction"))
   .patch(
     "/:id/correct-card-mismatch",
     async (context) => {
@@ -410,7 +414,7 @@ const correctionRoutes = new Elysia()
 
 // Delete routes - Admin and Superadmin only
 const deleteRoutes = new Elysia()
-  .use(rbacMiddleware(["admin", "superadmin"]))
+  .use(permissionMiddleware("purchase.delete"))
   .delete(
     "/:id",
     async (context) => {
@@ -461,7 +465,8 @@ const deleteRoutes = new Elysia()
 // Combine all routes
 export const purchases = new Elysia({ prefix: "/purchases" })
   .use(baseRoutes)
-  .use(writeRoutes)
+  .use(createRoutes)
+  .use(updateRoutes)
   .use(correctionRoutes)
   .use(deleteRoutes);
 

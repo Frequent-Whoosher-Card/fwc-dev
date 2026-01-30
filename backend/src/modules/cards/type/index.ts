@@ -1,6 +1,6 @@
 import { Elysia, t } from "elysia";
 import { authMiddleware } from "../../../middleware/auth";
-import { rbacMiddleware } from "../../../middleware/rbac";
+import { permissionMiddleware } from "../../../middleware/permission";
 import { formatErrorResponse } from "../../../utils/errors";
 import { CardTypeService } from "./service";
 import { CardTypeModel } from "./model";
@@ -21,7 +21,7 @@ type AuthContextUser = {
 
 const baseRoutes = new Elysia()
   .use(authMiddleware)
-  .use(rbacMiddleware(["petugas", "supervisor", "admin", "superadmin"]))
+  .use(permissionMiddleware("card.type.view"))
   .get(
     "/",
     async (context) => {
@@ -149,7 +149,7 @@ const baseRoutes = new Elysia()
   );
 
 const adminRoutes = new Elysia()
-  .use(rbacMiddleware(["admin", "superadmin"]))
+  .use(permissionMiddleware("card.type.manage"))
   .post(
     "/",
     async (context) => {
@@ -243,7 +243,7 @@ const adminRoutes = new Elysia()
   );
 
 const superadminRoutes = new Elysia()
-  .use(rbacMiddleware(["superadmin"]))
+  .use(permissionMiddleware("card.type.delete"))
   .delete(
     "/:id",
     async (context) => {

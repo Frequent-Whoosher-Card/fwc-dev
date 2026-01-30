@@ -3,29 +3,32 @@ import { TransferService } from "./service";
 import { TransferModel } from "./model";
 import { authMiddleware } from "../../../middleware/auth";
 import { formatErrorResponse } from "../../../utils/errors";
+import { permissionMiddleware } from "../../../middleware/permission";
 
 export const transfers = new Elysia({ prefix: "/transfers" })
   .use(authMiddleware)
-
   // Create Transfer
-  .post(
-    "/",
-    async (context) => {
-      const { body, user, set } = context;
-      try {
-        const { stationId, toStationId, categoryId, typeId, cardIds, note } =
-          body;
-        const userId = user.id;
+  .group("", (app) =>
+    app
+      .use(permissionMiddleware("transfer.create"))
+      .post(
+        "/",
+        async (context) => {
+          const { body, user, set } = context as any; // Allow permission middleware to enhance context if needed
+          try {
+            const { stationId, toStationId, categoryId, typeId, cardIds, note } =
+              body;
+            const userId = user.id;
 
-        const movement = await TransferService.createTransfer({
-          stationId,
-          toStationId,
-          categoryId,
-          typeId,
-          cardIds,
-          note,
-          userId,
-        });
+            const movement = await TransferService.createTransfer({
+              stationId,
+              toStationId,
+              categoryId,
+              typeId,
+              cardIds,
+              note,
+              userId,
+            });
 
         return {
           success: true,

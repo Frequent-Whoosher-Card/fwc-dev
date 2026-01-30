@@ -210,6 +210,7 @@ export class TransferService {
 
     return {
       items: formattedItems,
+      items: formattedItems,
       pagination: {
         total,
         page,

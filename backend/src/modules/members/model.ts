@@ -6,7 +6,7 @@ export namespace MemberModel {
     id: t.String({ format: "uuid" }),
     name: t.String(),
     identityNumber: t.String(),
-    nationality: t.String(),
+    nationality: t.Union([t.String(), t.Null()]),
     email: t.Union([t.String(), t.Null()]),
     phone: t.Union([t.String(), t.Null()]),
     nippKai: t.Union([t.String(), t.Null()]),
@@ -14,6 +14,14 @@ export namespace MemberModel {
     alamat: t.Union([t.String(), t.Null()]),
     notes: t.Union([t.String(), t.Null()]),
     employeeTypeId: t.Union([t.String({ format: "uuid" }), t.Null()]),
+    employeeType: t.Union([
+      t.Object({
+        id: t.String({ format: "uuid" }),
+        code: t.String(),
+        name: t.String(),
+      }),
+      t.Null(),
+    ]),
     createdAt: t.String({ format: "date-time" }),
     updatedAt: t.String({ format: "date-time" }),
     createdByName: t.Union([t.String(), t.Null()]),
@@ -161,20 +169,20 @@ export namespace MemberModel {
     page: t.Optional(t.String()),
     limit: t.Optional(t.String()),
     search: t.Optional(
-      t.String({ 
-        description: "Search across all member fields: Customer Name, Identity Number, Nationality, Gender (L/P/Laki-laki/Perempuan), Email, Phone, Address, Membership Date (YYYY-MM-DD/DD/MM/YYYY/DD-MM-YYYY), Last Updated (YYYY-MM-DD/DD/MM/YYYY/DD-MM-YYYY), and Last Updated By (user name). Supports partial matching." 
+      t.String({
+        description: "Search across all member fields: Customer Name, Identity Number, Nationality, Gender (L/P/Laki-laki/Perempuan), Email, Phone, Address, Membership Date (YYYY-MM-DD/DD/MM/YYYY/DD-MM-YYYY), Last Updated (YYYY-MM-DD/DD/MM/YYYY/DD-MM-YYYY), and Last Updated By (user name). Supports partial matching."
       })
     ),
     startDate: t.Optional(
-      t.String({ 
+      t.String({
         format: "date",
-        description: "Start date for membership date filter (YYYY-MM-DD)" 
+        description: "Start date for membership date filter (YYYY-MM-DD)"
       })
     ),
     endDate: t.Optional(
-      t.String({ 
+      t.String({
         format: "date",
-        description: "End date for membership date filter (YYYY-MM-DD)" 
+        description: "End date for membership date filter (YYYY-MM-DD)"
       })
     ),
     gender: t.Optional(
@@ -182,12 +190,18 @@ export namespace MemberModel {
         t.Literal("L"),
         t.Literal("P"),
       ], {
-        description: "Filter by gender: L (Laki-laki) or P (Perempuan)" 
+        description: "Filter by gender: L (Laki-laki) or P (Perempuan)"
       })
     ),
     hasNippKai: t.Optional(
-      t.String({ 
-        description: "Filter members that have NIPKAI. Set to 'true' to filter only members with NIPKAI" 
+      t.String({
+        description: "Filter members that have NIPKAI. Set to 'true' to filter only members with NIPKAI"
+      })
+    ),
+    employeeTypeId: t.Optional(
+      t.String({
+        format: "uuid",
+        description: "Filter by employee type UUID (tipe karyawan)",
       })
     ),
   });

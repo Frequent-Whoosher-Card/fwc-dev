@@ -1,8 +1,8 @@
 import db from "../../../config/db";
 import { ProgramType } from "@prisma/client";
 import { ValidationError } from "../../../utils/errors";
-import { BatchService } from "src/services/batchService";
-import { LowStockService } from "src/services/lowStockService";
+import { BatchService } from "../../../services/batchService";
+import { LowStockService } from "../../../services/lowStockService";
 import { ActivityLogService } from "../../activity-log/service";
 
 function normalizeSerials(arr: string[]) {
@@ -591,6 +591,7 @@ export class StockOutVoucherService {
         id: item.category.id,
         name: item.category.categoryName,
         code: item.category.categoryCode,
+        programType: item.category.programType as "FWC" | "VOUCHER" | null,
       },
       cardType: {
         id: item.type.id,
@@ -658,6 +659,10 @@ export class StockOutVoucherService {
           id: movement.category.id,
           name: movement.category.categoryName,
           code: movement.category.categoryCode,
+          programType: movement.category.programType as
+            | "FWC"
+            | "VOUCHER"
+            | null,
         },
         cardType: {
           id: movement.type.id,

@@ -29,24 +29,26 @@ export namespace CardTypeModel {
   // Get Card Type By Id Response
   export const getCardTypeByIdResponse = t.Object({
     success: t.Boolean(),
-    data: t.Object({
-      id: t.String(),
-      typeCode: t.String(),
-      typeName: t.String(),
-      routeDescription: t.String(),
-      programType: t.Nullable(
-        t.Union([t.Literal("FWC"), t.Literal("VOUCHER")], {
-          default: "FWC",
-          description: "Tipe Program (FWC/VOUCHER)",
-        }),
-      ),
-      createdAt: t.Date(),
-      createdBy: t.Nullable(t.String()),
-      updatedAt: t.Date(),
-      updatedBy: t.Nullable(t.String()),
-      deletedAt: t.Nullable(t.Date()),
-      deletedBy: t.Nullable(t.String()),
-    }),
+    data: t.Nullable(
+      t.Object({
+        id: t.String(),
+        typeCode: t.String(),
+        typeName: t.String(),
+        routeDescription: t.Nullable(t.String()),
+        programType: t.Nullable(
+          t.Union([t.Literal("FWC"), t.Literal("VOUCHER")], {
+            default: "FWC",
+            description: "Tipe Program (FWC/VOUCHER)",
+          }),
+        ),
+        createdAt: t.Date(),
+        createdBy: t.Nullable(t.String()),
+        updatedAt: t.Date(),
+        updatedBy: t.Nullable(t.String()),
+        deletedAt: t.Nullable(t.Date()),
+        deletedBy: t.Nullable(t.String()),
+      }),
+    ),
   });
 
   //   Create Card Type Request
@@ -76,11 +78,13 @@ export namespace CardTypeModel {
       id: t.String(),
       typeCode: t.String(),
       typeName: t.String(),
-      routeDescription: t.String(),
-      programType: t.Union([t.Literal("FWC"), t.Literal("VOUCHER")], {
-        default: "FWC",
-        description: "Tipe Program (FWC/VOUCHER)",
-      }),
+      routeDescription: t.Nullable(t.String()),
+      programType: t.Nullable(
+        t.Union([t.Literal("FWC"), t.Literal("VOUCHER")], {
+          default: "FWC",
+          description: "Tipe Program (FWC/VOUCHER)",
+        }),
+      ),
       createdAt: t.Date(),
       createdBy: t.Nullable(t.String()),
       updatedAt: t.Date(),
@@ -115,7 +119,7 @@ export namespace CardTypeModel {
       id: t.String(),
       typeCode: t.String(),
       typeName: t.String(),
-      routeDescription: t.String(),
+      routeDescription: t.Nullable(t.String()),
       programType: t.Nullable(
         t.Union([t.Literal("FWC"), t.Literal("VOUCHER")], {
           default: "FWC",
@@ -139,7 +143,7 @@ export namespace CardTypeModel {
       id: t.String(),
       typeCode: t.String(),
       typeName: t.String(),
-      routeDescription: t.String(),
+      routeDescription: t.Nullable(t.String()),
       createdAt: t.Date(),
       createdBy: t.Nullable(t.String()),
       updatedAt: t.Date(),
