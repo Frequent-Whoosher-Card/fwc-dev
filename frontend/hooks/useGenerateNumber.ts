@@ -142,21 +142,21 @@ export function useGenerateNumber({
     }
   }, []);
 
-  const handleExportZip = async (currentBatch: BatchData | null) => {
-    if (!currentBatch) {
+  const handleExportZip = async (id: string) => {
+    if (!id) {
       toast.error("Data tidak ditemukan");
       return;
     }
 
     try {
-      const { blob, filename } = await CardGenerateService.downloadZip(
-        currentBatch.id,
-      );
+      const { blob, filename } = await CardGenerateService.downloadZip(id);
       saveAs(blob, filename);
       toast.success("Export ZIP berhasil");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Export ZIP error:", error);
-      toast.error("Gagal mendownload ZIP");
+      const msg =
+        error?.response?.data?.error?.message || "Gagal mendownload ZIP";
+      toast.error(msg);
     }
   };
 

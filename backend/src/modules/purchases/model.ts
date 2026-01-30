@@ -1,22 +1,14 @@
 import { t } from "elysia";
 
 export namespace PurchaseModel {
-  // --- Data Shape ---
-  export const purchaseData = t.Object({
+  // --- Bulk Purchase Item Data Shape ---
+  export const bulkPurchaseItemData = t.Object({
     id: t.String({ format: "uuid" }),
+    purchaseId: t.String({ format: "uuid" }),
     cardId: t.String({ format: "uuid" }),
-    memberId: t.Union([t.String({ format: "uuid" }), t.Null()]),
-    operatorId: t.String({ format: "uuid" }),
-    stationId: t.String({ format: "uuid" }),
-    edcReferenceNumber: t.String(),
-    purchaseDate: t.String({ format: "date-time" }),
     price: t.Number(),
-    notes: t.Union([t.String(), t.Null()]),
     createdAt: t.String({ format: "date-time" }),
     updatedAt: t.String({ format: "date-time" }),
-    createdByName: t.Union([t.String(), t.Null()]),
-    updatedByName: t.Union([t.String(), t.Null()]),
-    // Relations
     card: t.Object({
       id: t.String({ format: "uuid" }),
       serialNumber: t.String(),
@@ -39,6 +31,51 @@ export namespace PurchaseModel {
         }),
       }),
     }),
+  });
+
+  // --- Data Shape ---
+  export const purchaseData = t.Object({
+    id: t.String({ format: "uuid" }),
+    cardId: t.Union([t.String({ format: "uuid" }), t.Null()]),
+    memberId: t.Union([t.String({ format: "uuid" }), t.Null()]),
+    operatorId: t.String({ format: "uuid" }),
+    stationId: t.String({ format: "uuid" }),
+    edcReferenceNumber: t.String(),
+    purchaseDate: t.String({ format: "date-time" }),
+    price: t.Number(),
+    notes: t.Union([t.String(), t.Null()]),
+    programType: t.Union([t.Literal("FWC"), t.Literal("VOUCHER"), t.Null()]),
+    createdAt: t.String({ format: "date-time" }),
+    updatedAt: t.String({ format: "date-time" }),
+    createdByName: t.Union([t.String(), t.Null()]),
+    updatedByName: t.Union([t.String(), t.Null()]),
+    // Relations
+    card: t.Union([
+      t.Object({
+        id: t.String({ format: "uuid" }),
+        serialNumber: t.String(),
+        status: t.String(),
+        expiredDate: t.Union([t.String({ format: "date-time" }), t.Null()]),
+        quotaTicket: t.Number(),
+        cardProduct: t.Object({
+          id: t.String({ format: "uuid" }),
+          totalQuota: t.Number(),
+          masaBerlaku: t.Number(),
+          category: t.Object({
+            id: t.String({ format: "uuid" }),
+            categoryCode: t.String(),
+            categoryName: t.String(),
+          }),
+          type: t.Object({
+            id: t.String({ format: "uuid" }),
+            typeCode: t.String(),
+            typeName: t.String(),
+          }),
+        }),
+      }),
+      t.Null(),
+    ]),
+    bulkPurchaseItems: t.Array(bulkPurchaseItemData),
     member: t.Union([
       t.Object({
         id: t.String({ format: "uuid" }),
@@ -61,12 +98,37 @@ export namespace PurchaseModel {
 
   // --- Requests ---
   export const createPurchaseBody = t.Object({
-    cardId: t.String({
-      format: "uuid",
-      description:
-        "Card ID to purchase. Card must exist and have status 'IN_STATION'.",
-      examples: ["123e4567-e89b-12d3-a456-426614174000"],
-    }),
+    cardId: t.Optional(
+      t.String({
+        format: "uuid",
+        description:
+          "Card ID to purchase (required for FWC, must be null for VOUCHER bulk purchase). Card must exist and have status 'IN_STATION'.",
+        examples: ["123e4567-e89b-12d3-a456-426614174000"],
+      }),
+    ),
+    cards: t.Optional(
+      t.Array(
+        t.Object({
+          cardId: t.String({
+            format: "uuid",
+            description: "Card ID to purchase in bulk",
+            examples: ["123e4567-e89b-12d3-a456-426614174000"],
+          }),
+          price: t.Optional(
+            t.Number({
+              description: "Price for this specific card (default: from cardProduct.price)",
+              examples: [50000, 75000],
+              minimum: 0,
+            }),
+          ),
+        }),
+        {
+          description:
+            "Array of cards for bulk purchase (required for VOUCHER, must be empty for FWC). Minimum 1 card for bulk purchase.",
+          minItems: 1,
+        },
+      ),
+    ),
     memberId: t.String({
       format: "uuid",
       description:
@@ -80,11 +142,28 @@ export namespace PurchaseModel {
         "EDC Reference Number (No. Reference EDC). Must be unique across all purchases.",
       examples: ["EDC-20260102-001", "REF-123456"],
     }),
+    programType: t.Optional(
+      t.Union([
+        t.Literal("FWC"),
+        t.Literal("VOUCHER"),
+      ], {
+        description:
+          "Program type: FWC (single card purchase) or VOUCHER (bulk purchase). If not provided, defaults to FWC.",
+        examples: ["FWC", "VOUCHER"],
+      }),
+    ),
+    bulkDiscountId: t.Optional(
+      t.Number({
+        description: "Bulk discount ID (optional, for bulk purchases)",
+        examples: [1, 2],
+        minimum: 1,
+      }),
+    ),
     price: t.Optional(
       t.Number({
         description:
-          "Purchase price (default: from cardProduct.price, can be overridden for discounts/promos). Must be >= 0.",
-        examples: [50000, 75000, 100000],
+          "Total purchase price (for FWC: single card price, for VOUCHER: total of all cards after discount). Default: calculated from cardProduct.price or sum of cards. Can be overridden for discounts/promos. Must be >= 0.",
+        examples: [50000, 75000, 100000, 225000],
         minimum: 0,
       }),
     ),
@@ -92,7 +171,7 @@ export namespace PurchaseModel {
       t.String({
         maxLength: 500,
         description: "Optional notes for this transaction",
-        examples: ["Customer requested discount", "Promo special"],
+        examples: ["Customer requested discount", "Promo special", "Bulk purchase 5 vouchers"],
       }),
     ),
   });
@@ -209,6 +288,13 @@ export namespace PurchaseModel {
         description:
           "Search by EDC reference number, card serial number, customer name, identity number, or operator name (case-insensitive partial match)",
         examples: ["EDC123", "CARD001", "John Doe", "1234567890"],
+      }),
+    ),
+    transactionType: t.Optional(
+      t.Union([t.Literal("fwc"), t.Literal("voucher")], {
+        description:
+          "Filter by transaction type: 'fwc' for FWC purchases (single card), 'voucher' for VOUCHER bulk purchases",
+        examples: ["fwc", "voucher"],
       }),
     ),
   });
