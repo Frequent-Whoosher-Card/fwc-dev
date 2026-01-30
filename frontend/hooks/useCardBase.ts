@@ -37,8 +37,8 @@ export const useCardBase = ({ programType }: UseCardBaseProps) => {
       const data = await service.getProducts();
       setProducts(data);
       setPage(1); // Reset to page 1 on fetch
-    } catch {
-      toast.error("Gagal mengambil card products");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal mengambil card products");
     } finally {
       setLoading(false);
     }
@@ -48,8 +48,8 @@ export const useCardBase = ({ programType }: UseCardBaseProps) => {
     try {
       const data = await service.getCategories();
       setCategories(data);
-    } catch {
-      toast.error("Gagal mengambil categories");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal mengambil categories");
     }
   }, [service]);
 
@@ -57,8 +57,8 @@ export const useCardBase = ({ programType }: UseCardBaseProps) => {
     try {
       const data = await service.getTypes();
       setTypes(data);
-    } catch {
-      toast.error("Gagal mengambil types");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal mengambil types");
     }
   }, [service]);
 
@@ -77,7 +77,7 @@ export const useCardBase = ({ programType }: UseCardBaseProps) => {
       fetchProducts();
       setShowDeleteConfirm(false);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Gagal menghapus product");
+      toast.error(err.message || "Gagal menghapus product");
     } finally {
       setIsDeleting(false);
       setProductIdToDelete(null);

@@ -50,7 +50,7 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h2 className="text-lg font-semibold whitespace-nowrap">
             Stock Out (Admin → Stasiun)
           </h2>
@@ -120,6 +120,7 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
                 <th className="px-3 py-2 text-center">Nota Dinas</th>
                 <th className="px-3 py-2 text-center">BAST</th>
                 <th className="px-3 py-2 text-center">Stasiun</th>
+                <th className="px-3 py-2 text-center">Qty</th>
                 <th className="px-3 py-2 text-center whitespace-nowrap">
                   Serial Number
                 </th>
@@ -134,7 +135,7 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={13}
+                    colSpan={14}
                     className="px-6 py-8 text-center text-gray-500"
                   >
                     Loading...
@@ -143,7 +144,7 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
               ) : data.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={13}
+                    colSpan={14}
                     className="px-6 py-8 text-center text-gray-500"
                   >
                     Tidak ada data stock keluar
@@ -181,6 +182,9 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
                       ) : (
                         "-"
                       )}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      {row.quantity || 0}
                     </td>
                     <td className="px-3 py-2 text-center font-medium whitespace-nowrap">
                       {row.sentSerialNumbers?.length > 0

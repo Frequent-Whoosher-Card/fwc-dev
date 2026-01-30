@@ -52,7 +52,7 @@ export default function BaseGenerateNumber({
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h2 className="text-lg font-semibold">{title}</h2>
         <SwitchTab items={tabs} />
       </div>

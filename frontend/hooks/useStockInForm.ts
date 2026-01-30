@@ -43,8 +43,8 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
     try {
       const data = await stockService.getProducts(programType);
       setProducts(data);
-    } catch (err) {
-      toast.error("Gagal mengambil data card product");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal mengambil data card product");
     }
   }, [programType]);
 
@@ -82,8 +82,8 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
         initialSerial: lastFiveDigits,
         lastSerial: "",
       }));
-    } catch (err) {
-      toast.error("Gagal mengambil available serial");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal mengambil data available serial");
     } finally {
       setLoadingSerial(false);
     }

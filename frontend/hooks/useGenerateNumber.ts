@@ -56,8 +56,8 @@ export function useGenerateNumber({
     try {
       const data = await CardGenerateService.getProducts(programType);
       setProducts(data);
-    } catch {
-      toast.error("Gagal mengambil card product");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal mengambil card product");
     }
   }, [programType]);
 
@@ -90,8 +90,8 @@ export function useGenerateNumber({
           });
         }
         setPage(currentPage);
-      } catch {
-        toast.error("Gagal mengambil history generate");
+      } catch (err: any) {
+        toast.error(err.message || "Gagal mengambil history generate");
         setHistory([]);
         setPagination(null);
       } finally {
@@ -134,8 +134,8 @@ export function useGenerateNumber({
         serials,
         documentUrl: movement.document?.url,
       });
-    } catch {
-      toast.error("Gagal mengambil data generate");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal mengambil data generate");
       setBatch(null);
     } finally {
       setLoadingBatch(false);
@@ -154,9 +154,7 @@ export function useGenerateNumber({
       toast.success("Export ZIP berhasil");
     } catch (error: any) {
       console.error("Export ZIP error:", error);
-      const msg =
-        error?.response?.data?.error?.message || "Gagal mendownload ZIP";
-      toast.error(msg);
+      toast.error(error.message || "Gagal mendownload ZIP");
     }
   };
 
@@ -169,9 +167,9 @@ export function useGenerateNumber({
       });
       toast.success("Upload dokumen berhasil");
       await fetchHistoryDetail(batchId); // Refresh details
-    } catch (error) {
+    } catch (error: any) {
       console.error("Upload document error:", error);
-      toast.error("Gagal mengupload dokumen");
+      toast.error(error.message || "Gagal mengupload dokumen");
     } finally {
       setLoadingUpload(false);
     }
@@ -187,9 +185,11 @@ export function useGenerateNumber({
       }
       // Cleanup? Usually tough for opened windows. URL.revokeObjectURL(url) should ideally happen later.
       // But keeping it alive for the window session is fine for now.
-    } catch (error) {
+    } catch (error: any) {
       console.error("View document error:", error);
-      toast.error("Gagal membuka dokumen (Mungkin file tidak ditemukan)");
+      toast.error(
+        error.message || "Gagal membuka dokumen (Mungkin file tidak ditemukan)",
+      );
     }
   };
 
@@ -199,8 +199,8 @@ export function useGenerateNumber({
       if (typeof nextSerial === "string") {
         setStartNumber(nextSerial);
       }
-    } catch {
-      toast.error("Gagal mengambil next serial number");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal mengambil next serial number");
     }
   }, []);
 
@@ -261,11 +261,7 @@ export function useGenerateNumber({
       fetchNextSerial(selectedProduct.id);
       fetchProducts(); // Refresh products to get updated generatedCount
     } catch (err: any) {
-      toast.error(
-        err?.response?.data?.error?.message ||
-          err?.response?.data?.message ||
-          "Terjadi kesalahan",
-      );
+      toast.error(err.message || "Terjadi kesalahan");
     } finally {
       setLoading(false);
     }
@@ -281,11 +277,7 @@ export function useGenerateNumber({
       fetchHistory(page); // Refresh current page
     } catch (err: any) {
       console.error("Delete error:", err);
-      toast.error(
-        err?.response?.data?.error?.message ||
-          err?.response?.data?.message ||
-          "Gagal menghapus history",
-      );
+      toast.error(err.message || "Gagal menghapus history");
     } finally {
       setLoadingHistory(false);
     }

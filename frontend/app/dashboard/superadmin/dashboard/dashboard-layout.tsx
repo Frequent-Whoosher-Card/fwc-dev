@@ -444,7 +444,7 @@ export default function DashboardLayout({
             <Menu className="h-5 w-5" />
           </Button>
 
-          <h1 className="flex-1 text-lg font-semibold">
+          <h1 className="flex-1 text-sm sm:text-base md:text-lg font-semibold truncate pr-2 whitespace-nowrap">
             Frequent Whoosher Card
           </h1>
 

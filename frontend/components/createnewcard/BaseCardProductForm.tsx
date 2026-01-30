@@ -104,7 +104,7 @@ export default function BaseCardProductForm({
       setMaxLimitType("no_max");
       setIsDiscount(false);
     } catch (e: any) {
-      toast.error(e?.response?.data?.message || `Gagal membuat ${programType}`);
+      toast.error(e.message || `Gagal membuat ${programType}`);
     } finally {
       setLoading(false);
     }

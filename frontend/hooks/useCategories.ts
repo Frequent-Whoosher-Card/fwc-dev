@@ -31,10 +31,10 @@ export function useCategories() {
 
         setCategories(options);
         setError(null);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to load categories:", err);
-        setError("Gagal memuat kategori");
-        toast.error("Gagal memuat kategori kartu");
+        setError(err.message || "Gagal memuat kategori");
+        toast.error(err.message || "Gagal memuat kategori kartu");
 
         setCategories([
           { value: "GOLD", label: "Gold", id: "gold" },
