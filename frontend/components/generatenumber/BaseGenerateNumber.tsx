@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Eye, Download } from "lucide-react";
 import { useGenerateNumber } from "@/hooks/useGenerateNumber";
 import SwitchTab, { SwitchTabItem } from "@/components/SwitchTab";
+import { useLanguage } from "@/hooks/useLanguage";
 
 interface BaseGenerateNumberProps {
   title: string;
@@ -36,6 +37,8 @@ export default function BaseGenerateNumber({
     handleExportZip,
   } = useGenerateNumber({ programType });
 
+  const { t } = useLanguage();
+
   const tabs: SwitchTabItem[] = [
     { label: "FWC", path: "/dashboard/superadmin/generatenumber/fwc" },
     { label: "Voucher", path: "/dashboard/superadmin/generatenumber/voucher" },
@@ -59,14 +62,16 @@ export default function BaseGenerateNumber({
 
       {/* FORM */}
       <div className="rounded-xl border bg-white p-6 space-y-4 max-w-xl">
-        <div className="text-sm font-medium text-gray-700">Pilih Product:</div>
+        <div className="text-sm font-medium text-gray-700">
+          {t("choose_product")}
+        </div>
         <select
           className="w-full rounded-lg border px-4 py-2 disabled:bg-gray-100"
           value={selectedProductId}
           disabled={loading}
           onChange={(e) => handleSelectProduct(e.target.value)}
         >
-          <option value="">-- Pilih Card Product --</option>
+          <option value="">{t("select_card_product")}</option>
           {products.map((p) => (
             <option key={p.id} value={p.id}>
               {p.category.categoryName} - {p.type.typeName}
@@ -75,7 +80,7 @@ export default function BaseGenerateNumber({
         </select>
 
         <div className="text-sm font-medium text-gray-700">
-          Next Serial Number:
+          {t("next_serial_number")}
         </div>
         <input
           className="w-full rounded-lg border px-4 py-2 font-mono bg-gray-100"
@@ -84,11 +89,15 @@ export default function BaseGenerateNumber({
         />
 
         <div className="space-y-1">
-          <div className="text-sm font-medium text-gray-700">Jumlah:</div>
+          <div className="text-sm font-medium text-gray-700">
+            {t("quantity_label")}
+          </div>
           <input
             className="w-full rounded-lg border px-4 py-2 font-mono disabled:bg-gray-100"
             placeholder={
-              programType === "VOUCHER" ? "Jumlah generate" : "Jumlah kartu"
+              programType === "VOUCHER"
+                ? t("placeholder_qty_voucher")
+                : t("placeholder_qty_card")
             }
             value={quantity}
             disabled={loading}
@@ -127,7 +136,7 @@ export default function BaseGenerateNumber({
 
         {calculatedEndSerial && (
           <div className="text-sm font-mono">
-            Serial terakhir: <b>{calculatedEndSerial}</b>
+            {t("last_serial")} <b>{calculatedEndSerial}</b>
           </div>
         )}
 
@@ -139,10 +148,10 @@ export default function BaseGenerateNumber({
           {loading ? (
             <>
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              Generating...
+              {t("generating")}
             </>
           ) : (
-            "Generate"
+            t("generate_btn")
           )}
         </button>
       </div>
@@ -152,7 +161,7 @@ export default function BaseGenerateNumber({
         {pagination && (
           <div className="flex items-center justify-end px-4 py-3 border-b bg-gray-50">
             <span className="inline-flex items-center gap-2 rounded-lg border border-[#8D1231]/20 bg-[#8D1231]/5 px-3 py-1 text-sm font-medium text-[#8D1231]">
-              Total Data: <b>{pagination.total || 0}</b>
+              {t("total_data")}: <b>{pagination.total || 0}</b>
             </span>
           </div>
         )}
@@ -160,28 +169,28 @@ export default function BaseGenerateNumber({
           <table className="min-w-full text-sm">
             <thead className="bg-[#8D1231] text-white">
               <tr className="text-left uppercase text-xs tracking-wide">
-                <th className="px-4 py-3">No</th>
-                <th className="px-4 py-3">Tanggal</th>
-                <th className="px-4 py-3">Product</th>
-                <th className="px-4 py-3">Serial</th>
-                <th className="px-4 py-3 text-center">Qty</th>
-                <th className="px-4 py-3 text-center">Created By</th>
-                <th className="px-4 py-3 text-center">Diskon</th>
-                <th className="px-4 py-3 text-center">Action</th>
+                <th className="px-4 py-3">{t("no")}</th>
+                <th className="px-4 py-3">{t("date")}</th>
+                <th className="px-4 py-3">{t("category")}</th>
+                <th className="px-4 py-3">{t("serial_number")}</th>
+                <th className="px-4 py-3 text-center">{t("quantity")}</th>
+                <th className="px-4 py-3 text-center">{t("created_by")}</th>
+                <th className="px-4 py-3 text-center">{t("discount")}</th>
+                <th className="px-4 py-3 text-center">{t("action")}</th>
               </tr>
             </thead>
 
             <tbody className="divide-y">
               {loadingHistory ? (
                 <tr>
-                  <td colSpan={7} className="py-6 text-center text-gray-400">
-                    Loading...
+                  <td colSpan={8} className="py-6 text-center text-gray-400">
+                    {t("loading")}
                   </td>
                 </tr>
               ) : history.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-6 text-center text-gray-400">
-                    Belum ada data
+                  <td colSpan={8} className="py-6 text-center text-gray-400">
+                    {t("no_data")}
                   </td>
                 </tr>
               ) : (
@@ -220,8 +229,8 @@ export default function BaseGenerateNumber({
                       <td className="px-4 py-3 text-center">
                         {programType === "VOUCHER"
                           ? isDiscount
-                            ? "Ya"
-                            : "Tidak"
+                            ? t("yes")
+                            : t("no_val")
                           : "-"}
                       </td>
                       <td className="px-4 py-3 text-center">
@@ -229,7 +238,7 @@ export default function BaseGenerateNumber({
                           <button
                             onClick={() => handleExportZip(item.id)}
                             className="rounded border border-green-600 p-1 text-green-600 hover:bg-green-600 hover:text-white transition-colors duration-200"
-                            title="Download ZIP"
+                            title={t("download_zip")}
                           >
                             <Download size={18} />
                           </button>
@@ -240,7 +249,7 @@ export default function BaseGenerateNumber({
                               )
                             }
                             className="rounded border border-[#8D1231] p-1 text-[#8D1231] hover:bg-[#8D1231] hover:text-white transition-colors duration-200"
-                            title="View Detail"
+                            title={t("view_detail")}
                           >
                             <Eye size={18} />
                           </button>
@@ -248,7 +257,7 @@ export default function BaseGenerateNumber({
                             onClick={() => handleDelete(item.id)}
                             className="rounded border border-red-600 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-600 hover:text-white transition-colors duration-200"
                           >
-                            Hapus
+                            {t("hapus")}
                           </button>
                         </div>
                       </td>
@@ -301,7 +310,7 @@ export default function BaseGenerateNumber({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
           <div className="flex items-center gap-3 rounded-lg bg-white px-6 py-4 shadow-lg">
             <span className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-[#8D1231]" />
-            <span className="text-sm font-medium">Generating serial...</span>
+            <span className="text-sm font-medium">{t("generating")}</span>
           </div>
         </div>
       )}
