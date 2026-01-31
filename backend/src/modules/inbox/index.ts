@@ -273,42 +273,83 @@ Setelah sukses, pesan inbox akan otomatis ditandai sebagai **Sudah Dibaca** dan 
       ),
   )
   .group("", (app) =>
-    app.use(permissionMiddleware("inbox.view")).get(
-      "/sent-by-supervisor",
-      async (context) => {
-        const { query, set } = context;
-        try {
-          const result = await InboxService.getMessagesSentBySupervisors({
-            page: query.page ? parseInt(query.page) : undefined,
-            limit: query.limit ? parseInt(query.limit) : undefined,
-            startDate: query.startDate,
-            endDate: query.endDate,
-            status: query.status,
-            programType: query.programType, // Pass programType
-            search: query.search, // Pass search
-          });
+    app
+      .use(permissionMiddleware("inbox.view"))
+      .get(
+        "/supervisor-noted-history",
+        async (context) => {
+          const { query, set } = context;
+          try {
+            const result = await InboxService.getSupervisorNotedHistory({
+              page: query.page ? parseInt(query.page) : undefined,
+              limit: query.limit ? parseInt(query.limit) : undefined,
+              startDate: query.startDate,
+              endDate: query.endDate,
+              status: query.status,
+              programType: query.programType,
+              search: query.search,
+              stationId: query.stationId,
+            });
 
-          return {
-            success: true,
-            data: result,
-          };
-        } catch (error) {
-          set.status = 500;
-          return formatErrorResponse(error);
-        }
-      },
-      {
-        // Reuse query schema as it fits basic pagination
-        query: InboxModel.getSupervisorInboxQuery, // Create new query model
-        response: {
-          200: InboxModel.getSupervisorInboxResponse,
-          500: InboxModel.errorResponse,
+            return {
+              success: true,
+              data: result,
+            };
+          } catch (error) {
+            set.status = 500;
+            return formatErrorResponse(error);
+          }
         },
-        detail: {
-          tags: ["Inbox"],
-          summary: "Get Messages Sent By Supervisors",
-          description: "Melihat pesan yang dikirim oleh peran Supervisor.",
+        {
+          query: InboxModel.getSupervisorNotedHistoryQuery,
+          response: {
+            200: InboxModel.getSupervisorInboxResponse, // Reusing response schema as it's identical
+            500: InboxModel.errorResponse,
+          },
+          detail: {
+            tags: ["Inbox"],
+            summary: "Get Supervisor Noted History (Global)",
+            description:
+              "Melihat history Noted Supervisor secara global (untuk Superadmin).",
+          },
         },
-      },
-    ),
+      )
+      .get(
+        "/sent-by-supervisor",
+        async (context) => {
+          const { query, set } = context;
+          try {
+            const result = await InboxService.getMessagesSentBySupervisors({
+              page: query.page ? parseInt(query.page) : undefined,
+              limit: query.limit ? parseInt(query.limit) : undefined,
+              startDate: query.startDate,
+              endDate: query.endDate,
+              status: query.status,
+              programType: query.programType, // Pass programType
+              search: query.search, // Pass search
+            });
+
+            return {
+              success: true,
+              data: result,
+            };
+          } catch (error) {
+            set.status = 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          // Reuse query schema as it fits basic pagination
+          query: InboxModel.getSupervisorInboxQuery, // Create new query model
+          response: {
+            200: InboxModel.getSupervisorInboxResponse,
+            500: InboxModel.errorResponse,
+          },
+          detail: {
+            tags: ["Inbox"],
+            summary: "Get Messages Sent By Supervisors",
+            description: "Melihat pesan yang dikirim oleh peran Supervisor.",
+          },
+        },
+      ),
   );

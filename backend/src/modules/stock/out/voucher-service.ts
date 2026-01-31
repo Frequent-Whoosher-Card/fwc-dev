@@ -798,6 +798,7 @@ export class StockOutVoucherService {
     return {
       startSerial: firstCard?.serialNumber || null,
       endSerial: lastCard?.serialNumber || null,
+      count,
     };
   }
 }

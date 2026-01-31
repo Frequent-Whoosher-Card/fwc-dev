@@ -639,6 +639,143 @@ export class InboxService {
   }
 
   /**
+   * Get Supervisor Noted History (Global View for Superadmin)
+   */
+  static async getSupervisorNotedHistory(params: {
+    page?: number;
+    limit?: number;
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+    programType?: string;
+    search?: string;
+    stationId?: string; // Additional filter
+  }) {
+    const { page = 1, limit = 10 } = params;
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      type: "STOCK_DISTRIBUTION",
+      targetRoles: { has: "supervisor" }, // Must be targeted to supervisors
+    };
+
+    if (params.stationId) {
+      where.stationId = params.stationId;
+    }
+
+    if (params.startDate || params.endDate) {
+      const dateFilter: any = {};
+      if (params.startDate) {
+        const start = new Date(params.startDate);
+        start.setHours(0, 0, 0, 0);
+        dateFilter.gte = start;
+      }
+      if (params.endDate) {
+        const end = new Date(params.endDate);
+        end.setHours(23, 59, 59, 999);
+        dateFilter.lte = end;
+      }
+      where.sentAt = dateFilter;
+    }
+
+    // Status filter logic (mapped from frontend values)
+    if (params.status) {
+      if (params.status === "PENDING_VALIDATION") {
+        where.payload = { path: ["status"], equals: "PENDING" };
+      } else if (params.status === "ACCEPTED") {
+        where.payload = { path: ["status"], equals: "COMPLETED" };
+      }
+      // Add more status mappings if needed (e.g. issues from payload)
+    }
+
+    if (params.programType) {
+      where.programType = params.programType;
+    }
+
+    const cleanSearch = params.search?.trim();
+    if (cleanSearch) {
+      where.AND = [
+        ...(where.AND || []),
+        {
+          OR: [
+            { title: { contains: params.search, mode: "insensitive" } },
+            { message: { contains: params.search, mode: "insensitive" } },
+            {
+              sender: {
+                fullName: { contains: params.search, mode: "insensitive" },
+              },
+            },
+            {
+              station: {
+                stationName: { contains: params.search, mode: "insensitive" },
+              },
+            },
+          ],
+        },
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      db.inbox.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { sentAt: "desc" },
+        include: {
+          sender: {
+            select: {
+              id: true,
+              fullName: true,
+              role: { select: { roleName: true } },
+            },
+          },
+          recipient: {
+            select: { id: true, fullName: true },
+          },
+          station: {
+            select: { id: true, stationName: true },
+          },
+        },
+      }),
+      db.inbox.count({ where }),
+    ]);
+
+    const mapped = items.map((i) => ({
+      id: i.id,
+      title: i.title,
+      message: i.message,
+      sentAt: i.sentAt.toISOString(),
+      isRead: i.isRead, // Read status in this context might refer to if ANY supervisor read it, or just raw value
+      sender: {
+        id: i.sender?.id || "Unknown",
+        fullName: i.sender?.fullName || "Unknown Sender",
+        role: i.sender?.role?.roleName || "System",
+      },
+      recipient: {
+        id: i.recipient?.id || "Broadcast",
+        fullName:
+          i.recipient?.fullName ||
+          `Supervisors @ ${i.station?.stationName || "Unknown"}`,
+      },
+      station: i.station
+        ? { id: i.station.id, stationName: i.station.stationName }
+        : null,
+      programType: (i as any).programType,
+      payload: i.payload,
+    }));
+
+    return {
+      items: mapped,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
    * Process Stock Issue Approval
    */
   static async processStockIssueApproval(
@@ -799,10 +936,10 @@ export class InboxService {
       },
       station: inbox.station
         ? {
-          id: inbox.station.id,
-          code: inbox.station.stationCode,
-          name: inbox.station.stationName,
-        }
+            id: inbox.station.id,
+            code: inbox.station.stationCode,
+            name: inbox.station.stationName,
+          }
         : null,
     };
   }

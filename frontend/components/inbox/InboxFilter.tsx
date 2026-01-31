@@ -29,10 +29,16 @@ export default function InboxFilter({
   onFilter,
   onRefresh,
   onAddNote,
+  stations,
+  selectedStation,
+  onStationChange,
 }: {
   onFilter: (filters: InboxFilters) => void;
   onRefresh?: () => void;
   onAddNote?: () => void;
+  stations?: any[];
+  selectedStation?: string;
+  onStationChange?: (id: string) => void;
 }) {
   // =========================
   // STATE FILTER (LOCAL UI)
@@ -84,6 +90,25 @@ export default function InboxFilter({
 
       <DateInput label="Start" value={startDate} onChange={setStartDate} />
       <DateInput label="End" value={endDate} onChange={setEndDate} />
+
+      {/* OPTIONAL: STATION FILTER */}
+      {stations && onStationChange && (
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">Station</span>
+          <select
+            value={selectedStation}
+            onChange={(e) => onStationChange(e.target.value)}
+            className="h-9 w-[160px] rounded-md border px-3 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
+          >
+            <option value="">Semua Stasiun</option>
+            {stations.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.stationName}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium">Status</span>

@@ -5,6 +5,7 @@ import {
   CardStatus,
 } from "@prisma/client";
 import { AppError } from "../../../utils/errors";
+import { ActivityLogService } from "../../activity-log/service";
 
 export class TransferService {
   // 1. Create Transfer (Send Cards)
@@ -92,7 +93,7 @@ export class TransferService {
           id: { in: cardIds },
         },
         data: {
-          status: CardStatus.IN_TRANSIT,
+          status: CardStatus.ON_TRANSFER,
           stationId: null, // Removed from source station context
           previousStationId: stationId, // Track where it came from
           updatedBy: userId,
@@ -104,6 +105,15 @@ export class TransferService {
       /* 
       await tx.cardInventory.update(...)
       */
+
+      // 6. Log Activity
+      await ActivityLogService.createActivityLog(
+        userId,
+        "Creates Transfer",
+        `Created transfer of ${quantity} cards to station ${toStationId} with note: ${
+          note || "-"
+        }`,
+      );
 
       return movement;
     });
@@ -210,7 +220,6 @@ export class TransferService {
 
     return {
       items: formattedItems,
-      items: formattedItems,
       pagination: {
         total,
         page,
@@ -303,6 +312,13 @@ export class TransferService {
       const existingInv = await tx.cardInventory.findUnique(...)
       if (existingInv) ... else ...
       */
+
+      // 4. Log Activity
+      await ActivityLogService.createActivityLog(
+        userId,
+        "Receives Transfer",
+        `Received transfer ${movement.id} with ${movement.quantity} cards`,
+      );
 
       return updatedMovement;
     });
