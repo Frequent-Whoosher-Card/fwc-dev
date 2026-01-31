@@ -35,12 +35,19 @@ if (serverUrl) {
   });
 } else {
   // Use relative URL (empty string means same origin)
-  servers.push({
-    url: "/api",
-    description: "Current server",
-  });
-  // Add localhost as fallback for development
-  if (process.env.NODE_ENV !== "production") {
+  // Use relative URL based on environment
+  if (process.env.NODE_ENV === "production") {
+    servers.push({
+      url: "/api",
+      description: "Production server",
+    });
+  } else {
+    // Development environment
+    servers.push({
+      url: "/",
+      description: "Development server (Current Host)",
+    });
+    // Add localhost as specific fallback
     servers.push({
       url: "http://localhost:3001",
       description: "Local development server",
@@ -144,7 +151,13 @@ export const docsConfig = swagger({
             { name: "category", in: "query", schema: { type: "string" } },
             { name: "cardType", in: "query", schema: { type: "string" } },
             { name: "redeemType", in: "query", schema: { type: "string" } },
-            { name: "product", in: "query", schema: { type: "string" } },
+            { name: "product", in: "query", schema: { type: "string", enum: ["FWC", "VOUCHER"] } },
+            {
+              name: "isDeleted",
+              in: "query",
+              schema: { type: "string", enum: ["true", "false"] },
+              description: "Filter for deleted transactions (History Delete)",
+            },
           ],
           responses: {
             200: { description: "Redeem transactions fetched successfully" },
