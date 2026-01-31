@@ -5,11 +5,14 @@ import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "../../../lib/apiConfig";
 import { useAuthClient } from "../../../hooks/useAuthClient";
 import toast from "react-hot-toast";
+import { useLanguage } from "../../../hooks/useLanguage";
+import ClientOnly from "@/components/ui/client-only";
 
 export default function Header() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const auth = useAuthClient();
+  const { lang, setLang, t } = useLanguage();
 
   const handleLogout = async () => {
     try {
@@ -33,12 +36,36 @@ export default function Header() {
   return (
     <header className="h-20 bg-white border-b border-gray-200 flex items-center justify-between px-8">
       {/* TITLE */}
-      <h1 className="text-lg font-semibold text-gray-800">
-        Frequent Whoosher Card
-      </h1>
+      <h1 className="text-lg font-semibold text-gray-800">{t("app_title")}</h1>
 
       {/* RIGHT SECTION */}
       <div className="flex items-center gap-6">
+        {/* LANGUAGE SWITCHER */}
+        <ClientOnly>
+          <div className="flex items-center bg-gray-100 rounded-full p-1 h-9">
+            <button
+              onClick={() => setLang("id")}
+              className={`px-3 py-1 text-xs font-semibold rounded-full transition-all ${
+                lang === "id"
+                  ? "bg-white text-[#8D1231] shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              ID
+            </button>
+            <button
+              onClick={() => setLang("en")}
+              className={`px-3 py-1 text-xs font-semibold rounded-full transition-all ${
+                lang === "en"
+                  ? "bg-white text-[#8D1231] shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              EN
+            </button>
+          </div>
+        </ClientOnly>
+
         {/* USER DROPDOWN */}
         <div className="relative">
           <button
@@ -62,13 +89,13 @@ export default function Header() {
           {open && (
             <div className="absolute right-0 mt-2 w-40 bg-white border rounded-md shadow-md text-sm z-50">
               <button className="w-full text-left px-4 py-2 hover:bg-gray-100">
-                Akun
+                {t("account")}
               </button>
               <button
                 onClick={handleLogout}
                 className="w-full text-left px-4 py-2 text-red-600 hover:bg-gray-100"
               >
-                Logout
+                {t("logout")}
               </button>
             </div>
           )}

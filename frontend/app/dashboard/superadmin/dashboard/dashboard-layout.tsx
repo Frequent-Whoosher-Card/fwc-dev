@@ -33,15 +33,28 @@ import {
   Briefcase,
   ArrowDownToLine,
   ArrowUpNarrowWide,
-
   IdCard,
+  Home,
+  Settings,
+  Database,
+  Package,
+  Truck,
+  FileText,
+  Layout,
+  List,
+  Plus,
+  Search,
+  History,
+  LogIn,
+  Wallet,
+  BarChart3,
+  Activity,
+  BadgePercent,
+  TicketCheck,
+  Warehouse,
+  Globe,
   type LucideIcon,
   Circle,
-  BarChart3,
-  ArrowLeftRight,
-  BadgePercent,
-  Notebook,
-  Layers
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -58,6 +71,7 @@ import {
 
 import { API_BASE_URL } from "@/lib/apiConfig";
 import { MenuService, MenuItem } from "@/lib/services/menuService";
+import { useLanguage } from "@/hooks/useLanguage";
 
 /* =========================
    ICON MAPPING HELPER
@@ -67,42 +81,56 @@ const resolveIcon = (iconName: string | null): LucideIcon => {
 
   const map: Record<string, LucideIcon> = {
     // Standard Layout & UI
-    LayoutDashboard,
-    Menu,
-    X,
-    User,
-    LogOut,
-    ChevronDown,
-    Circle,
-    Shield,
+    layoutdashboard: LayoutDashboard,
+    menu: Menu,
+    x: X,
+    user: User,
+    logout: LogOut,
+    chevrondown: ChevronDown,
+    circle: Circle,
+    shield: Shield,
+    home: Home,
+    settings: Settings,
+    layout: Layout,
+    list: List,
+    plus: Plus,
+    search: Search,
 
     // Feature Icons
-    CreditCard,
-    FilePlus,
-    Receipt,
-    ShoppingCart,
-    Users,
-    Gift,
-    UserCog,
-    Inbox,
-    ClipboardList,
+    creditcard: CreditCard,
+    fileplus: FilePlus,
+    receipt: Receipt,
+    shoppingcart: ShoppingCart,
+    users: Users,
+    gift: Gift,
+    usercog: UserCog,
+    inbox: Inbox,
+    clipboardlist: ClipboardList,
+    database: Database,
+    package: Package,
+    truck: Truck,
+    filetext: FileText,
+    history: History,
+    login: LogIn,
+    wallet: Wallet,
+    barchart3: BarChart3,
+    activity: Activity,
+    badgepercent: BadgePercent,
+    ticketcheck: TicketCheck,
+    warehouse: Warehouse,
 
     // RBAC / New Icons
-    FolderKanban,      // Stok
-    UserCircle,        // User Management
-    PercentCircle,     // Redeem
-    Briefcase,         // Stok Station
-    ArrowDownToLine,   // Stok Masuk
-    ArrowUpNarrowWide, // Stok Keluar
-    IdCard,            // New Product Card / Stok All
-    BarChart3,         // Sales
-    ArrowLeftRight,    // Swaps
-    BadgePercent,      // Discounts
-    Notebook,          // Notes
-    Layers,            // Layers/Stock
+    folderkanban: FolderKanban, // Stok
+    usercircle: UserCircle, // User Management
+    percentcircle: PercentCircle, // Redeem
+    briefcase: Briefcase, // Stok Station
+    arrowdowntoline: ArrowDownToLine, // Stok Masuk
+    arrowupnarrowwide: ArrowUpNarrowWide, // Stok Keluar
+    idcard: IdCard, // New Product Card / Stok All
   };
 
-  return map[iconName] || Circle;
+  const normalized = iconName.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return map[normalized] || Circle;
 };
 
 /* =========================
@@ -128,12 +156,13 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { lang, setLang, t } = useLanguage();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   const [role, setRole] = useState<Role | null>(null);
-  const [userName, setUserName] = useState("User");
+  const [userName, setUserName] = useState<string>("");
 
   // Auth & Menu Loading State
   const [loading, setLoading] = useState(true);
@@ -192,7 +221,9 @@ export default function DashboardLayout({
         // 3. Redirect if not in correct dashboard
         const basePath = `/dashboard/${mappedRole}`;
         if (!pathname.startsWith(basePath)) {
-          console.warn(`[DashboardLayout] Redirecting from ${pathname} to ${basePath}`);
+          console.warn(
+            `[DashboardLayout] Redirecting from ${pathname} to ${basePath}`,
+          );
           router.replace(basePath);
         }
 
@@ -203,20 +234,24 @@ export default function DashboardLayout({
 
           // Transform API menu to UI menu structure
           const transformMenu = (items: MenuItem[]): any[] => {
-            return items.map(item => {
+            return items.map((item) => {
               let href = item.route || "#";
               // Replace dynamic :role placeholder
               if (href.includes(":role")) {
                 href = href.replace(":role", mappedRole);
               }
 
-              console.log(`[DashboardLayout] Transforming: ${item.label} -> ${href} (Role: ${mappedRole})`);
+              console.log(
+                `[DashboardLayout] Transforming: ${item.label} -> ${href} (Role: ${mappedRole})`,
+              );
 
               return {
                 title: item.label,
                 href: href,
                 icon: resolveIcon(item.icon),
-                children: item.children ? transformMenu(item.children) : undefined
+                children: item.children
+                  ? transformMenu(item.children)
+                  : undefined,
               };
             });
           };
@@ -230,7 +265,6 @@ export default function DashboardLayout({
           setMenuItems([]);
           toast.error("Gagal memuat menu");
         }
-
       } catch (err: any) {
         console.error("auth/me error:", err);
         setAuthError(err?.message || "Gagal autentikasi");
@@ -263,7 +297,9 @@ export default function DashboardLayout({
         <span style={{ fontWeight: 400, fontSize: 14 }}>
           Silakan login kembali.
         </span>
-        <Button onClick={() => router.replace("/")} className="ml-4">Login</Button>
+        <Button onClick={() => router.replace("/")} className="ml-4">
+          Login
+        </Button>
       </div>
     );
   }
@@ -425,37 +461,63 @@ export default function DashboardLayout({
           </Button>
 
           <h1 className="flex-1 text-sm sm:text-base md:text-lg font-semibold truncate pr-2 whitespace-nowrap">
-            Frequent Whoosher Card
+            {t("app_title")}
           </h1>
 
           <ClientOnly>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  <span className="text-sm font-medium">{userName}</span>
-                </Button>
-              </DropdownMenuTrigger>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setLang(lang === "id" ? "en" : "id")}
+                className="flex items-center gap-2 px-2 h-9"
+                title={
+                  lang === "id"
+                    ? "Switch to English"
+                    : "Ganti ke Bahasa Indonesia"
+                }
+              >
+                <Globe className="h-4 w-4" />
+                <span className="text-xs font-bold w-5">
+                  {lang.toUpperCase()}
+                </span>
+              </Button>
 
-              <DropdownMenuContent align="end" className="w-40">
-                <DropdownMenuLabel>Akun</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => router.push('/dashboard/superadmin/change-password')}
-                  className="cursor-pointer"
-                >
-                  <User className="mr-2 h-4 w-4" />
-                  Ubah Password
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={handleLogout}
-                  className="text-red-600 cursor-pointer"
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Logout
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="flex items-center gap-2 h-9"
+                  >
+                    <User className="h-5 w-5" />
+                    <span className="hidden sm:inline text-sm font-medium">
+                      {userName}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel>{t("account")}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() =>
+                      router.push("/dashboard/superadmin/change-password")
+                    }
+                    className="cursor-pointer"
+                  >
+                    <User className="mr-2 h-4 w-4" />
+                    {t("change_password")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="text-red-600 cursor-pointer"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    {t("logout")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </ClientOnly>
         </header>
 
