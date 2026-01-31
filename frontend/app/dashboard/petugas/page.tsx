@@ -3,17 +3,19 @@
 import Button from "../components/Button";
 import Table from "../components/Table";
 import Pagination from "../components/Pagination";
+import { useLanguage } from "@/hooks/useLanguage";
 
 export default function PetugasPage() {
+  const { t } = useLanguage();
   const columns = [
-    "No",
-    "NIK",
-    "Card Category",
-    "Card Type",
-    "Card Aktif",
-    "Card Expired",
-    "Stasiun",
-    "Aksi",
+    t("no"),
+    t("nik"),
+    t("card_category"),
+    t("card_type"),
+    t("card_aktif"),
+    t("card_expired"),
+    t("stasiun"),
+    t("action"),
   ];
 
   const rows = [
@@ -26,7 +28,7 @@ export default function PetugasPage() {
       "12-12-2026",
       "Halim",
       <button key="1" className="text-blue-600 text-sm">
-        Detail
+        {t("view_detail")}
       </button>,
     ],
     [
@@ -38,7 +40,7 @@ export default function PetugasPage() {
       "08-05-2026",
       "Karawang",
       <button key="2" className="text-blue-600 text-sm">
-        Detail
+        {t("view_detail")}
       </button>,
     ],
   ];
@@ -48,7 +50,7 @@ export default function PetugasPage() {
       {/* HEADER */}
       <div>
         <h2 className="text-lg font-semibold">
-          Daftar Member Frequent Whoosher Card
+          {t("member_list")} {t("app_title")}
         </h2>
         <p className="text-xs text-gray-500">
           last update 12 December 2025 09.30 AM
@@ -58,17 +60,17 @@ export default function PetugasPage() {
       {/* ACTION BAR */}
       <div className="flex items-center justify-between">
         <div>
-          <Button variant="primary">Tambah</Button>
+          <Button variant="primary">{t("tambah")}</Button>
         </div>
 
         <div className="flex gap-2">
           <input
             type="text"
-            placeholder="Search..."
+            placeholder={t("search")}
             className="h-9 px-3 text-sm border rounded-md"
           />
-          <Button variant="secondary">Filter</Button>
-          <Button variant="secondary">Export</Button>
+          <Button variant="secondary">{t("filter")}</Button>
+          <Button variant="secondary">{t("export")}</Button>
         </div>
       </div>
 
