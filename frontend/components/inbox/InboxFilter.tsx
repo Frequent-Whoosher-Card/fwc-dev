@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { RotateCcw, Calendar, Search } from "lucide-react";
+import { Calendar, Search, RefreshCw } from "lucide-react";
 
 export interface InboxFilters {
   status?: string;
@@ -27,10 +27,18 @@ function useDebounce<T>(value: T, delay: number): T {
 
 export default function InboxFilter({
   onFilter,
+  onRefresh,
   onAddNote,
+  stations,
+  selectedStation,
+  onStationChange,
 }: {
   onFilter: (filters: InboxFilters) => void;
+  onRefresh?: () => void;
   onAddNote?: () => void;
+  stations?: any[];
+  selectedStation?: string;
+  onStationChange?: (id: string) => void;
 }) {
   // =========================
   // STATE FILTER (LOCAL UI)
@@ -83,6 +91,25 @@ export default function InboxFilter({
       <DateInput label="Start" value={startDate} onChange={setStartDate} />
       <DateInput label="End" value={endDate} onChange={setEndDate} />
 
+      {/* OPTIONAL: STATION FILTER */}
+      {stations && onStationChange && (
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">Station</span>
+          <select
+            value={selectedStation}
+            onChange={(e) => onStationChange(e.target.value)}
+            className="h-9 w-[160px] rounded-md border px-3 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
+          >
+            <option value="">Semua Stasiun</option>
+            {stations.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.stationName}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium">Status</span>
         <select
@@ -99,13 +126,15 @@ export default function InboxFilter({
       </div>
 
       <div className="flex gap-2 ml-auto">
-        <button
-          onClick={reset}
-          title="Reset Filter"
-          className="p-2.5 border rounded-xl text-gray-400 hover:bg-gray-50 hover:text-red-600 transition-colors"
-        >
-          <RotateCcw size={20} />
-        </button>
+        {onRefresh && (
+          <button
+            onClick={onRefresh}
+            title="Refresh Data"
+            className="p-2.5 border rounded-xl text-gray-400 hover:bg-gray-50 hover:text-blue-600 transition-colors"
+          >
+            <RefreshCw size={20} />
+          </button>
+        )}
       </div>
     </div>
   );

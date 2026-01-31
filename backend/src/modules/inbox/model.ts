@@ -125,6 +125,17 @@ export namespace InboxModel {
     }),
   });
 
+  export const getSupervisorNotedHistoryQuery = t.Object({
+    page: t.Optional(t.String()),
+    limit: t.Optional(t.String()),
+    startDate: t.Optional(t.String()),
+    endDate: t.Optional(t.String()),
+    status: t.Optional(t.String()),
+    programType: t.Optional(t.String()),
+    search: t.Optional(t.String()),
+    stationId: t.Optional(t.String()), // Added stationId
+  });
+
   export const getInboxDetailResponse = t.Object({
     success: t.Boolean(),
     data: t.Object({

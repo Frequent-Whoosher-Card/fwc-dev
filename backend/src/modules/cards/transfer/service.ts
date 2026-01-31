@@ -5,6 +5,7 @@ import {
   CardStatus,
 } from "@prisma/client";
 import { AppError } from "../../../utils/errors";
+import { ActivityLogService } from "../../activity-log/service";
 
 export class TransferService {
   // 1. Create Transfer (Send Cards)
@@ -92,7 +93,7 @@ export class TransferService {
           id: { in: cardIds },
         },
         data: {
-          status: CardStatus.IN_TRANSIT,
+          status: CardStatus.ON_TRANSFER,
           stationId: null, // Removed from source station context
           previousStationId: stationId, // Track where it came from
           updatedBy: userId,
@@ -105,6 +106,15 @@ export class TransferService {
       await tx.cardInventory.update(...)
       */
 
+      // 6. Log Activity
+      await ActivityLogService.createActivityLog(
+        userId,
+        "Creates Transfer",
+        `Created transfer of ${quantity} cards to station ${toStationId} with note: ${
+          note || "-"
+        }`,
+      );
+
       return movement;
     });
   }
@@ -116,11 +126,18 @@ export class TransferService {
     search?: string;
     page: number;
     limit: number;
+    programType?: "FWC" | "VOUCHER";
   }) {
     const { page, limit } = params;
     const skip = (page - 1) * limit;
 
     const where: any = { movementType: StockMovementType.TRANSFER };
+
+    if (params.programType) {
+      where.category = {
+        programType: params.programType,
+      };
+    }
 
     if (params.stationId) {
       // Show transfers where station is either Sender OR Receiver
@@ -179,10 +196,26 @@ export class TransferService {
     ]);
 
     const formattedItems = items.map((item) => ({
-      ...item,
-      type: item.movementType, // Map movementType -> type (string)
-      cardType: item.type, // Map type relation -> cardType (object)
+      id: item.id,
       movementAt: item.movementAt.toISOString(),
+      type: item.movementType, // Schema expects "type" as string (TRANSFER)
+      status: item.status,
+      quantity: item.quantity,
+      note: item.note,
+      station: item.station ? { stationName: item.station.stationName } : null,
+      toStation: item.toStation
+        ? { stationName: item.toStation.stationName }
+        : null,
+      category: {
+        id: item.category.id,
+        categoryName: item.category.categoryName,
+      },
+      cardType: {
+        id: item.type.id,
+        typeName: item.type.typeName,
+      },
+      programType: item.category.programType,
+      // Keep original for debugging if needed, but schema might strip/error
     }));
 
     return {
@@ -197,7 +230,7 @@ export class TransferService {
   }
 
   static async getTransferById(id: string) {
-    const result = await db.cardStockMovement.findUnique({
+    const transfer = await db.cardStockMovement.findUnique({
       where: { id },
       include: {
         category: true,
@@ -207,13 +240,30 @@ export class TransferService {
       },
     });
 
-    if (!result) return null;
+    if (!transfer) return null;
 
     return {
-      ...result,
-      type: result.movementType,
-      cardType: result.type,
-      movementAt: result.movementAt.toISOString(),
+      id: transfer.id,
+      movementAt: transfer.movementAt.toISOString(),
+      type: transfer.movementType, // Schema expects "type" as string (TRANSFER)
+      status: transfer.status,
+      quantity: transfer.quantity,
+      note: transfer.note,
+      station: transfer.station
+        ? { stationName: transfer.station.stationName }
+        : null,
+      toStation: transfer.toStation
+        ? { stationName: transfer.toStation.stationName }
+        : null,
+      category: {
+        id: transfer.category.id,
+        categoryName: transfer.category.categoryName,
+      },
+      cardType: {
+        id: transfer.type.id,
+        typeName: transfer.type.typeName,
+      },
+      programType: transfer.category.programType,
     };
   }
 
@@ -262,6 +312,13 @@ export class TransferService {
       const existingInv = await tx.cardInventory.findUnique(...)
       if (existingInv) ... else ...
       */
+
+      // 4. Log Activity
+      await ActivityLogService.createActivityLog(
+        userId,
+        "Receives Transfer",
+        `Received transfer ${movement.id} with ${movement.quantity} cards`,
+      );
 
       return updatedMovement;
     });

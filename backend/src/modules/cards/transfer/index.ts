@@ -16,8 +16,14 @@ export const transfers = new Elysia({ prefix: "/transfers" })
         async (context) => {
           const { body, user, set } = context as any; // Allow permission middleware to enhance context if needed
           try {
-            const { stationId, toStationId, categoryId, typeId, cardIds, note } =
-              body;
+            const {
+              stationId,
+              toStationId,
+              categoryId,
+              typeId,
+              cardIds,
+              note,
+            } = body;
             const userId = user.id;
 
             const movement = await TransferService.createTransfer({
@@ -61,24 +67,28 @@ export const transfers = new Elysia({ prefix: "/transfers" })
           },
         },
       )
-  )
 
-  // Get Transfers (View)
-  .group("", (app) =>
-    app
-      .use(permissionMiddleware("transfer.view"))
+      // Get Transfers
       .get(
         "/",
         async (context) => {
           const { query, set } = context;
           try {
-            const { stationId, status, search, page = "1", limit = "10" } = query;
+            const {
+              stationId,
+              status,
+              search,
+              page = "1",
+              limit = "10",
+              programType,
+            } = query;
             const result = await TransferService.getTransfers({
               stationId,
               status: status as any,
               search,
               page: parseInt(page),
               limit: parseInt(limit),
+              programType: programType as any,
             });
             return {
               success: true,
@@ -109,6 +119,8 @@ export const transfers = new Elysia({ prefix: "/transfers" })
           },
         },
       )
+
+      // Get Transfer By ID
       .get(
         "/:id",
         async (context) => {
@@ -156,12 +168,8 @@ export const transfers = new Elysia({ prefix: "/transfers" })
           },
         },
       )
-  )
 
-  // Receive Transfer (Manage)
-  .group("", (app) =>
-    app
-      .use(permissionMiddleware("transfer.manage"))
+      // Receive Transfer
       .post(
         "/:id/receive",
         async (context) => {
@@ -199,5 +207,5 @@ export const transfers = new Elysia({ prefix: "/transfers" })
               "Accept and finalize an incoming card transfer at the destination station.",
           },
         },
-      )
+      ),
   );
