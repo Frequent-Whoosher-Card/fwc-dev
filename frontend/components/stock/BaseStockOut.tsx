@@ -8,6 +8,7 @@ import { StockPagination } from "./StockPagination";
 import SwitchTab, { SwitchTabItem } from "@/components/SwitchTab";
 import StatusBadge from "@/components/ui/status-badge";
 import { useStockOut } from "@/hooks/useStockOut";
+import { useLanguage } from "@/hooks/useLanguage";
 
 interface BaseStockOutProps {
   programType: "FWC" | "VOUCHER";
@@ -15,6 +16,7 @@ interface BaseStockOutProps {
 
 export default function BaseStockOut({ programType }: BaseStockOutProps) {
   const router = useRouter();
+  const { t } = useLanguage();
 
   const tabs: SwitchTabItem[] = [
     { label: "FWC", path: "/dashboard/superadmin/stock/fwc/out" },
@@ -52,7 +54,7 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h2 className="text-lg font-semibold whitespace-nowrap">
-            Stock Out (Admin → Stasiun)
+            {t("stock_out_title")}
           </h2>
           <SwitchTab items={tabs} />
         </div>
@@ -98,36 +100,36 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
             exportPDF: true,
             add: true,
           }}
-          addLabel="Tambah"
+          addLabel={t("tambah")}
         />
       </div>
 
       <div className="rounded-lg border bg-white overflow-hidden">
         <div className="flex items-center justify-end px-4 py-3 border-b bg-gray-50">
           <span className="inline-flex items-center gap-2 rounded-lg border border-[#8D1231]/20 bg-[#8D1231]/5 px-3 py-1 text-sm font-medium text-[#8D1231]">
-            Total Data: <b>{pagination.total || 0}</b>
+            {t("total_data")}: <b>{pagination.total || 0}</b>
           </span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1200px] border-collapse text-sm">
             <thead className="bg-[#8D1231] text-white">
               <tr>
-                <th className="px-3 py-2 text-center">No</th>
-                <th className="px-3 py-2 text-center">Tanggal</th>
-                <th className="px-3 py-2 text-center">Card Category</th>
-                <th className="px-3 py-2 text-center">Card Type</th>
-                <th className="px-3 py-2 text-center">Batch</th>
-                <th className="px-3 py-2 text-center">Nota Dinas</th>
-                <th className="px-3 py-2 text-center">BAST</th>
-                <th className="px-3 py-2 text-center">Stasiun</th>
-                <th className="px-3 py-2 text-center">Qty</th>
+                <th className="px-3 py-2 text-center">{t("no")}</th>
+                <th className="px-3 py-2 text-center">{t("date")}</th>
+                <th className="px-3 py-2 text-center">{t("card_category")}</th>
+                <th className="px-3 py-2 text-center">{t("card_type")}</th>
+                <th className="px-3 py-2 text-center">{t("batch")}</th>
+                <th className="px-3 py-2 text-center">{t("nota_dinas")}</th>
+                <th className="px-3 py-2 text-center">{t("bast")}</th>
+                <th className="px-3 py-2 text-center">{t("stasiun")}</th>
+                <th className="px-3 py-2 text-center">{t("quantity")}</th>
                 <th className="px-3 py-2 text-center whitespace-nowrap">
-                  Serial Number
+                  {t("serial_number")}
                 </th>
-                <th className="px-3 py-2 text-center">Status</th>
-                <th className="px-3 py-2 text-center">Note</th>
+                <th className="px-3 py-2 text-center">{t("status")}</th>
+                <th className="px-3 py-2 text-center">{t("note")}</th>
                 <th className="px-4 py-3 text-center">View</th>
-                <th className="px-3 py-2 text-center">Aksi</th>
+                <th className="px-3 py-2 text-center">{t("action")}</th>
               </tr>
             </thead>
 
@@ -138,7 +140,7 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
                     colSpan={14}
                     className="px-6 py-8 text-center text-gray-500"
                   >
-                    Loading...
+                    {t("loading")}
                   </td>
                 </tr>
               ) : data.length === 0 ? (
@@ -147,7 +149,7 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
                     colSpan={14}
                     className="px-6 py-8 text-center text-gray-500"
                   >
-                    Tidak ada data stock keluar
+                    {t("no_stock_out_data")}
                   </td>
                 </tr>
               ) : (
@@ -225,7 +227,7 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
                           }}
                           className={`rounded-md border px-3 py-1 text-xs transition-colors duration-200 ${row.status === "APPROVED" ? "border-gray-300 text-gray-400 bg-gray-100 cursor-not-allowed" : "border-blue-500 text-blue-600 hover:bg-blue-500 hover:text-white"}`}
                         >
-                          Edit
+                          {t("edit")}
                         </button>
                         <button
                           onClick={() => {
@@ -234,7 +236,7 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
                           }}
                           className="rounded-md border border-[#8D1231] px-3 py-1 text-xs text-[#8D1231] hover:bg-[#8D1231] hover:text-white"
                         >
-                          Hapus
+                          {t("hapus")}
                         </button>
                       </div>
                     </td>

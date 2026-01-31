@@ -22,8 +22,8 @@ export default function CreateRedeemModal({
   const [products, setProducts] = useState<any[]>([]);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
-  // Only 5 digit input
-  const [serialLast5, setSerialLast5] = useState('');
+  // Partial input for recommendation mode (7 digits for FWC, 11 for VOUCHER)
+  const [partialSerialInput, setPartialSerialInput] = useState('');
   const [serialNumber, setSerialNumber] = useState('');
   // Fetch card products on open
   useEffect(() => {
@@ -54,35 +54,55 @@ export default function CreateRedeemModal({
       });
   }, [isOpen, product]);
 
-  // Update selected product
+  const [inputMode, setInputMode] = useState<'MANUAL' | 'RECOMMENDATION'>('MANUAL');
+  const [manualSerial, setManualSerial] = useState('');
+
+  // Update selected product - only for Recommendation mode logic
   useEffect(() => {
     const p = products.find((x) => x.id === selectedProductId) || null;
     setSelectedProduct(p);
-    setSerialLast5('');
-    setSerialNumber('');
+    setPartialSerialInput('');
+    // Do not reset serialNumber here if in MANUAL mode
   }, [selectedProductId, products]);
 
-  // Gabungkan serial number: serialTemplate + yearSuffix + 5 digit input
+  // Recommendation Mode: Gabungkan serial number
   useEffect(() => {
-    if (
-      selectedProduct &&
-      typeof selectedProduct.serialTemplate === 'string' &&
-      selectedProduct.serialTemplate.length >= 4 &&
-      serialLast5.length === 5
-    ) {
-      const yearSuffix = new Date().getFullYear().toString().slice(-2);
-      const prefix = `${selectedProduct.serialTemplate}${yearSuffix}`;
-      const serial = `${prefix}${serialLast5}`;
-      // Only set if result is all digits and length >= 11
-      if (/^\d+$/.test(serial) && serial.length >= 11) {
-        setSerialNumber(serial);
+    if (inputMode === 'RECOMMENDATION') {
+      const requiredLength = selectedProduct?.programType === 'VOUCHER' ? 11 : 7;
+
+      if (
+        selectedProduct &&
+        typeof selectedProduct.serialTemplate === 'string' &&
+        selectedProduct.serialTemplate.length >= 4 &&
+        partialSerialInput.length === requiredLength
+      ) {
+        // Old logic: Template + Year + Input
+        // New logic: Template + Input (Input includes Year+Seq)
+        // FWC: 4 digit template + 7 digit input = 11 digits
+        // Voucher: 4 digit template + 11 digit input = 15 digits
+
+        const prefix = selectedProduct.serialTemplate;
+        const serial = `${prefix}${partialSerialInput}`;
+
+        // Only set if result is all digits and length is valid
+        if (/^\d+$/.test(serial)) {
+          setSerialNumber(serial);
+        } else {
+          setSerialNumber("");
+        }
       } else {
         setSerialNumber("");
       }
-    } else {
-      setSerialNumber("");
     }
-  }, [selectedProduct, serialLast5]);
+  }, [selectedProduct, partialSerialInput, inputMode]);
+
+  // Manual Mode: serialNumber follows manualSerial input
+  useEffect(() => {
+    if (inputMode === 'MANUAL') {
+      setSerialNumber(manualSerial);
+    }
+  }, [manualSerial, inputMode]);
+
   const [cardData, setCardData] = useState<RedeemCheckResponse | null>(null);
   const [redeemType, setRedeemType] = useState<'SINGLE' | 'ROUNDTRIP'>('SINGLE');
   // notes state removed
@@ -104,15 +124,20 @@ export default function CreateRedeemModal({
   }, []);
 
   const handleCheckSerial = async () => {
+    // Validation based on mode
+    if (inputMode === 'RECOMMENDATION') {
+      if (!selectedProduct) {
+        toast.error('Pilih produk kartu terlebih dahulu');
+        return;
+      }
 
-    if (!selectedProduct) {
-      toast.error('Pilih produk kartu terlebih dahulu');
-      return;
+      const requiredLength = selectedProduct?.programType === 'VOUCHER' ? 11 : 7;
+      if (partialSerialInput.length !== requiredLength || !partialSerialInput.match(/^\d+$/)) {
+        toast.error(`Masukkan ${requiredLength} digit terakhir serial`);
+        return;
+      }
     }
-    if (!serialLast5.match(/^\d{5}$/)) {
-      toast.error('Masukkan 5 digit terakhir serial');
-      return;
-    }
+
     if (!serialNumber) {
       toast.error('Serial number tidak valid');
       return;
@@ -120,7 +145,12 @@ export default function CreateRedeemModal({
 
     setIsLoading(true);
     try {
-      const data = await redeemService.checkSerial(serialNumber, selectedProduct?.programType || product);
+      // Always use the 'product' prop (FWC/VOUCHER) determined by the parent context
+      // This ensures we validate against the expected product type regardless of input mode or selected dropdown item quirks
+      const progType = product;
+
+      const data = await redeemService.checkSerial(serialNumber, progType);
+
       // Validasi status kartu - HARUS dicek SEBELUM set cardData
       if (data.statusActive !== 'ACTIVE') {
         toast.error('Kartu tidak aktif. Silakan gunakan kartu yang aktif.');
@@ -138,7 +168,9 @@ export default function CreateRedeemModal({
       let errorMessage = 'Terjadi kesalahan saat mengambil data kartu';
       // Handle specific error messages
       if (error.message.includes('bukan produk yang sesuai')) {
-        errorMessage = 'Kartu ini bukan produk yang sesuai. Silakan gunakan kartu dengan produk yang benar.';
+        // Backend returns: "Kartu ini bukan produk yang sesuai (EXPECTED). Produk kartu: ACTUAL"
+        // We want to show this detail to the user.
+        errorMessage = error.message;
       } else if (error.message.includes('not found') || error.message.includes('Not found')) {
         errorMessage = 'Data kartu tidak ditemukan. Periksa kembali nomor seri kartu.';
       } else if (error.message.includes('inactive') || error.message.includes('not active')) {
@@ -157,6 +189,13 @@ export default function CreateRedeemModal({
     }
   };
 
+  const handleManualKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleCheckSerial();
+    }
+  };
+
   const handleRedeem = async () => {
     if (!cardData) {
       toast.error('Silakan check kartu terlebih dahulu');
@@ -169,12 +208,16 @@ export default function CreateRedeemModal({
         toast.error('User info tidak ditemukan. Silakan login ulang.');
         return;
       }
+
+      // Determine program type for payload
+      const progType = product;
+
       const payload = {
         serialNumber,
         redeemType,
         operatorId: userInfo.id || userInfo.operatorId || userInfo.userId,
         stationId: userInfo.stationId || userInfo.station?.id,
-        product: selectedProduct?.programType || product, // use selected card's programType for backend
+        product: progType,
       };
       const result = await redeemService.createRedeem(payload);
       // Show result summary
@@ -194,6 +237,8 @@ export default function CreateRedeemModal({
       );
       // Reset form
       setSerialNumber('');
+      setManualSerial('');
+      setPartialSerialInput('');
       setCardData(null);
       setRedeemType('SINGLE');
       onSuccess();
@@ -220,81 +265,132 @@ export default function CreateRedeemModal({
 
   const handleClose = () => {
     setSerialNumber('');
+    setManualSerial('');
+    setPartialSerialInput('');
     setCardData(null);
     setRedeemType('SINGLE');
     onClose();
   };
 
   if (!isOpen) return null;
+  // Dynamic labels based on required length
+  const requiredLength = selectedProduct?.programType === 'VOUCHER' ? 11 : 7;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-semibold mb-4">Tambah Redeem Kuota</h2>
+        <div className="text-sm text-gray-500 mb-4 font-medium">Produk: {product}</div>
 
-        {/* Card Product Dropdown */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Pilih Produk Kartu</label>
-          <select
-            className="w-full rounded-lg border px-4 py-2 disabled:bg-gray-100"
-            value={selectedProductId}
-            disabled={isLoading}
-            onChange={e => setSelectedProductId(e.target.value)}
-          >
-            <option value="">-- Pilih Card Product --</option>
-            {products.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.category.categoryName} - {p.type.typeName}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Input Mode Toggle */}
+        {!cardData && (
+          <div className="flex p-1 bg-gray-100 rounded-lg mb-6">
+            <button
+              onClick={() => setInputMode('MANUAL')}
+              className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${inputMode === 'MANUAL'
+                ? 'bg-white text-[#8D1231] shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+                }`}
+            >
+              Manual / Scan
+            </button>
+            <button
+              onClick={() => setInputMode('RECOMMENDATION')}
+              className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${inputMode === 'RECOMMENDATION'
+                ? 'bg-white text-[#8D1231] shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+                }`}
+            >
+              Recommendation
+            </button>
+          </div>
+        )}
 
-        {/* Serial Input (5 digit) */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">5 Digit Terakhir Serial Kartu</label>
-          <div className="flex gap-2 items-center">
-
-            {/* Prefix (Left) - Show only when product selected and serial has 5 chars (optional condition) */}
-            {selectedProduct && serialLast5.length === 5 && (
-              <span
-                className="bg-gray-100 border rounded-md px-3 py-2 text-sm font-mono text-gray-600 flex items-center h-[38px]"
-                title="Prefix Serial Number"
-              >
-                {selectedProduct.serialTemplate}{new Date().getFullYear().toString().slice(-2)}
-              </span>
-            )}
-
+        {/* Manual Mode Input */}
+        {inputMode === 'MANUAL' && !cardData && (
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1">Serial Number (Scan/Input)</label>
             <input
               type="text"
-              value={serialLast5}
-              onChange={e => setSerialLast5(e.target.value.replace(/\D/g, '').slice(0, 5))}
-              placeholder={selectedProduct ? "Misal: 12345" : "Pilih Produk Kartu terlebih dulu"}
-              className={`flex-1 px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono tracking-wide ${serialLast5.length === 5 ? 'bg-blue-50 border-blue-200' : ''}`}
-              disabled={isLoading || !selectedProduct}
-              maxLength={5}
-              style={{ minWidth: 100 }}
+              value={manualSerial}
+              onChange={(e) => setManualSerial(e.target.value)}
+              onKeyDown={handleManualKeyDown}
+              placeholder="Scan Barcode atau ketik serial..."
+              autoFocus
+              className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono tracking-wide"
+              disabled={isLoading}
             />
+            <p className="text-xs text-gray-400 mt-1">Tekan Enter untuk cek otomatis</p>
           </div>
-          {/* Helper text explaining the full serial */}
-          {serialNumber && (
-            <p className="text-xs text-gray-500 mt-1">
-              Full Serial: <span className="font-mono font-medium">{serialNumber}</span>
-            </p>
-          )}
-        </div>
+        )}
+
+        {/* Recommendation Mode Inputs */}
+        {inputMode === 'RECOMMENDATION' && !cardData && (
+          <>
+            {/* Card Product Dropdown */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">Pilih Produk Kartu</label>
+              <select
+                className="w-full rounded-lg border px-4 py-2 disabled:bg-gray-100"
+                value={selectedProductId}
+                disabled={isLoading}
+                onChange={e => setSelectedProductId(e.target.value)}
+              >
+                <option value="">-- Pilih Card Product --</option>
+                {products.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.category.categoryName} - {p.type.typeName}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Serial Input (Variable length) */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">{requiredLength} Digit Terakhir Serial Kartu</label>
+              <div className="flex gap-2 items-center">
+
+                {/* Prefix (Left) - Show only when product selected */}
+                {selectedProduct && selectedProduct.serialTemplate && (
+                  <span
+                    className="bg-gray-100 border rounded-md px-3 py-2 text-sm font-mono text-gray-600 flex items-center h-[38px]"
+                    title="Prefix Serial Number"
+                  >
+                    {selectedProduct.serialTemplate}
+                  </span>
+                )}
+
+                <input
+                  type="text"
+                  value={partialSerialInput}
+                  onChange={e => setPartialSerialInput(e.target.value.replace(/\D/g, '').slice(0, requiredLength))}
+                  placeholder={selectedProduct ? `Misal: ${'1'.repeat(requiredLength)}` : "Pilih Produk Kartu dulu"}
+                  className={`flex-1 px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono tracking-wide ${partialSerialInput.length === requiredLength ? 'bg-blue-50 border-blue-200' : ''}`}
+                  disabled={isLoading || !selectedProduct}
+                  maxLength={requiredLength}
+                  style={{ minWidth: 100 }}
+                />
+              </div>
+              {/* Helper text explaining the full serial */}
+              {serialNumber && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Full Serial: <span className="font-mono font-medium">{serialNumber}</span>
+                </p>
+              )}
+            </div>
+          </>
+        )}
 
         {/* Step 1: Check Serial */}
         {!cardData ? (
           <div className="space-y-4">
-            {/* Card Product Dropdown & Serial Input sudah di atas */}
             <div className="flex gap-2">
               <button
                 onClick={handleCheckSerial}
-                disabled={isLoading || serialLast5.length !== 5 || !serialNumber}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                disabled={isLoading || (inputMode === 'RECOMMENDATION' && (partialSerialInput.length !== requiredLength || !serialNumber)) || (inputMode === 'MANUAL' && !serialNumber)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 w-full"
               >
-                {isLoading ? 'Checking...' : 'Check'}
+                {isLoading ? 'Checking...' : 'Check Serial'}
               </button>
             </div>
           </div>
@@ -411,7 +507,7 @@ export default function CreateRedeemModal({
                 }}
                 className="flex-1 px-4 py-2 border rounded-md text-sm font-medium hover:bg-gray-50"
               >
-                Ubah Serial
+                Scan/Input Ulang
               </button>
               <button
                 onClick={handleRedeem}

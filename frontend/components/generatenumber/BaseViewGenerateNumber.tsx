@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Upload, Eye } from "lucide-react";
 import { useGenerateNumber } from "@/hooks/useGenerateNumber";
+import { useLanguage } from "@/hooks/useLanguage";
 
 export default function BaseViewGenerateNumber() {
   const { id } = useParams<{ id: string }>();
@@ -17,6 +18,7 @@ export default function BaseViewGenerateNumber() {
     handleViewDocument,
     loadingUpload,
   } = useGenerateNumber();
+  const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleUploadClick = () => {
@@ -45,18 +47,18 @@ export default function BaseViewGenerateNumber() {
   }, [id, fetchHistoryDetail]);
 
   if (loadingBatch) {
-    return <div className="p-6">Loading...</div>;
+    return <div className="p-6">{t("loading")}</div>;
   }
 
   if (!batch) {
     return (
       <div className="p-6 space-y-4">
-        <p className="text-red-500">Data tidak ditemukan</p>
+        <p className="text-red-500">{t("not_found")}</p>
         <button
           onClick={() => router.back()}
           className="underline text-[#8D1231]"
         >
-          Kembali
+          {t("back")}
         </button>
       </div>
     );
@@ -73,9 +75,7 @@ export default function BaseViewGenerateNumber() {
           >
             <ArrowLeft size={18} />
           </button>
-          <h2 className="text-lg font-semibold">
-            Detail Serial Number + Barcode
-          </h2>
+          <h2 className="text-lg font-semibold">{t("detail_serial")}</h2>
         </div>
 
         <div className="flex items-center gap-4">
@@ -92,7 +92,7 @@ export default function BaseViewGenerateNumber() {
             className="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-gray-100 transition-colors duration-200 disabled:opacity-50"
           >
             <Upload size={18} />
-            {loadingUpload ? "Uploading..." : "Upload Document"}
+            {loadingUpload ? t("loading") : t("upload_document")}
           </button>
 
           {batch.documentUrl && (
@@ -101,14 +101,14 @@ export default function BaseViewGenerateNumber() {
               className="flex items-center gap-2 rounded-lg border border-[#8D1231] px-4 py-2 text-sm font-medium text-[#8D1231] hover:bg-[#8D1231] hover:text-white transition-colors"
             >
               <Eye size={18} />
-              View Document
+              {t("view_document")}
             </button>
           )}
           <button
             onClick={() => handleExportZip(batch.id)}
             className="rounded-lg bg-[#8D1231] px-6 py-2 text-white hover:bg-[#7A102A] transition-colors duration-200"
           >
-            Export ZIP
+            {t("export_zip")}
           </button>
         </div>
       </div>
@@ -116,16 +116,16 @@ export default function BaseViewGenerateNumber() {
       {/* INFO */}
       <div className="rounded-xl border bg-white p-4 text-sm space-y-1">
         <p>
-          <b>Tanggal:</b> {batch.date}
+          <b>{t("date")}:</b> {batch.date}
         </p>
         <p>
-          <b>Product:</b> {batch.productLabel}
+          <b>{t("category")}:</b> {batch.productLabel}
         </p>
         <p>
-          <b>Range:</b> {batch.start} – {batch.end}
+          <b>{t("range")}</b> {batch.start} – {batch.end}
         </p>
         <p>
-          <b>Total:</b> {batch.serials.length}
+          <b>{t("total")}</b> {batch.serials.length}
         </p>
       </div>
 
@@ -135,9 +135,9 @@ export default function BaseViewGenerateNumber() {
           <table className="w-full text-sm">
             <thead className="bg-[#8D1231] text-white">
               <tr>
-                <th className="px-4 py-3 w-16 text-center">No</th>
-                <th className="px-4 py-3 text-left">Serial</th>
-                <th className="px-4 py-3 text-left">Barcode</th>
+                <th className="px-4 py-3 w-16 text-center">{t("no")}</th>
+                <th className="px-4 py-3 text-left">{t("serial_number")}</th>
+                <th className="px-4 py-3 text-left">{t("barcode")}</th>
               </tr>
             </thead>
             <tbody>
@@ -154,7 +154,7 @@ export default function BaseViewGenerateNumber() {
                       />
                     ) : (
                       <span className="text-gray-400 text-xs">
-                        Barcode tidak tersedia
+                        {t("barcode_unavailable")}
                       </span>
                     )}
                   </td>
