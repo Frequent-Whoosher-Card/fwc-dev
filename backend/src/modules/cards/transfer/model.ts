@@ -59,6 +59,8 @@ export namespace TransferModel {
       typeName: t.String(),
     }),
     programType: t.Optional(t.Union([t.Literal("FWC"), t.Literal("VOUCHER")])),
+    sentSerialNumbers: t.Array(t.String()),
+    receivedSerialNumbers: t.Array(t.String()),
   });
 
   // Responses

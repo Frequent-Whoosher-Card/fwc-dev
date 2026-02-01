@@ -94,7 +94,7 @@ export class TransferService {
         },
         data: {
           status: CardStatus.ON_TRANSFER,
-          stationId: null, // Removed from source station context
+          stationId: toStationId, // Assign to destination station immediately (as Incoming)
           previousStationId: stationId, // Track where it came from
           updatedBy: userId,
           updatedAt: new Date(),
@@ -215,7 +215,8 @@ export class TransferService {
         typeName: item.type.typeName,
       },
       programType: item.category.programType,
-      // Keep original for debugging if needed, but schema might strip/error
+      sentSerialNumbers: item.sentSerialNumbers,
+      receivedSerialNumbers: item.receivedSerialNumbers,
     }));
 
     return {
@@ -264,6 +265,8 @@ export class TransferService {
         typeName: transfer.type.typeName,
       },
       programType: transfer.category.programType,
+      sentSerialNumbers: transfer.sentSerialNumbers,
+      receivedSerialNumbers: transfer.receivedSerialNumbers,
     };
   }
 
