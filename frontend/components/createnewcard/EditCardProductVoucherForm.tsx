@@ -1,24 +1,25 @@
-'use client';
+"use client";
 
-import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import toast from 'react-hot-toast';
-import { ArrowLeft } from 'lucide-react';
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
+import { ArrowLeft } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
-import { CardProduct, CategoryOption, TypeOption } from '@/types/card';
-import { cardVoucherService } from '@/lib/services/card.voucher.service';
+import { CardProduct, CategoryOption, TypeOption } from "@/types/card";
+import { cardVoucherService } from "@/lib/services/card.voucher.service";
 
 /* ======================
    HELPERS (RUPIAH)
 ====================== */
 const formatRupiah = (value: string) => {
-  const number = value.replace(/\D/g, '');
-  if (!number) return '';
-  return `Rp ${number.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
+  const number = value.replace(/\D/g, "");
+  if (!number) return "";
+  return `Rp ${number.replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 };
 
 const parseRupiah = (value: string) => {
-  return Number(value.replace(/Rp|\s|\./g, ''));
+  return Number(value.replace(/Rp|\s|\./g, ""));
 };
 
 interface Props {
@@ -28,27 +29,40 @@ interface Props {
   onSuccess: () => void;
 }
 
-export default function EditCardProductVoucherForm({ product, categories, types, onSuccess }: Props) {
+export default function EditCardProductVoucherForm({
+  product,
+  categories,
+  types,
+  onSuccess,
+}: Props) {
   const router = useRouter();
 
   const [validityDays, setValidityDays] = useState(String(product.masaBerlaku));
   const [price, setPrice] = useState(formatRupiah(String(product.price)));
   const [quota, setQuota] = useState(String(product.totalQuota));
+  const [isActive, setIsActive] = useState(product.isActive);
   const [loading, setLoading] = useState(false);
 
   /* ======================
      DERIVED (DISPLAY ONLY)
   ====================== */
-  const categoryName = useMemo(() => categories.find((c) => c.id === product.categoryId)?.categoryName || '-', [categories, product.categoryId]);
+  const categoryName = useMemo(
+    () =>
+      categories.find((c) => c.id === product.categoryId)?.categoryName || "-",
+    [categories, product.categoryId],
+  );
 
-  const typeName = useMemo(() => types.find((t) => t.id === product.typeId)?.typeName || '-', [types, product.typeId]);
+  const typeName = useMemo(
+    () => types.find((t) => t.id === product.typeId)?.typeName || "-",
+    [types, product.typeId],
+  );
 
   /* ======================
      SUBMIT
   ====================== */
   const submit = async () => {
     if (!validityDays || !price || !quota) {
-      return toast.error('Semua field wajib diisi');
+      return toast.error("Semua field wajib diisi");
     }
 
     /**
@@ -59,20 +73,26 @@ export default function EditCardProductVoucherForm({ product, categories, types,
 
     setLoading(true);
     try {
+      // 1. Update Details
       await cardVoucherService.updateProduct(product.id, {
         categoryId: product.categoryId,
         typeId: product.typeId,
-        programType: 'VOUCHER',
+        programType: "VOUCHER",
         serialTemplate: serialPrefix, // ✅ 2 DIGIT ONLY
         totalQuota: Number(quota),
         masaBerlaku: Number(validityDays),
         price: parseRupiah(price),
       });
 
-      toast.success('Voucher berhasil diupdate');
+      // 2. Update Status (if changed)
+      if (isActive !== product.isActive) {
+        await cardVoucherService.toggleActiveStatus(product.id, isActive);
+      }
+
+      toast.success("Voucher berhasil diupdate");
       onSuccess();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal update voucher');
+      toast.error(err?.response?.data?.message || "Gagal update voucher");
     } finally {
       setLoading(false);
     }
@@ -82,7 +102,10 @@ export default function EditCardProductVoucherForm({ product, categories, types,
     <div className="space-y-6">
       {/* HEADER + BACK */}
       <div className="flex items-center gap-4 px-4 sm:px-6">
-        <button onClick={() => router.back()} className="rounded-lg border p-2 text-gray-600 hover:bg-gray-100">
+        <button
+          onClick={() => router.back()}
+          className="rounded-lg border p-2 text-gray-600 hover:bg-gray-100"
+        >
           <ArrowLeft size={18} />
         </button>
         <h2 className="text-lg font-semibold">Edit Voucher</h2>
@@ -93,41 +116,82 @@ export default function EditCardProductVoucherForm({ product, categories, types,
         {/* CATEGORY */}
         <div>
           <label className="text-sm font-medium">Category</label>
-          <input className="h-11 w-full rounded-lg border px-4 bg-gray-100" value={categoryName} disabled />
+          <input
+            className="h-11 w-full rounded-lg border px-4 bg-gray-100"
+            value={categoryName}
+            disabled
+          />
         </div>
 
         {/* TYPE */}
         <div>
           <label className="text-sm font-medium">Type</label>
-          <input className="h-11 w-full rounded-lg border px-4 bg-gray-100" value={typeName} disabled />
+          <input
+            className="h-11 w-full rounded-lg border px-4 bg-gray-100"
+            value={typeName}
+            disabled
+          />
         </div>
 
         {/* SERIAL (READ ONLY) */}
         <div>
           <label className="text-sm font-medium">Serial Template</label>
-          <input className="h-11 w-full rounded-lg border px-4 bg-gray-100 font-mono" value={product.serialTemplate} disabled />
+          <input
+            className="h-11 w-full rounded-lg border px-4 bg-gray-100 font-mono"
+            value={product.serialTemplate}
+            disabled
+          />
         </div>
 
         {/* MASA BERLAKU */}
         <div>
           <label className="text-sm font-medium">Masa Berlaku (Hari)</label>
-          <input className="h-11 w-full rounded-lg border px-4" value={validityDays} onChange={(e) => setValidityDays(e.target.value.replace(/\D/g, ''))} />
+          <input
+            className="h-11 w-full rounded-lg border px-4"
+            value={validityDays}
+            onChange={(e) => setValidityDays(e.target.value.replace(/\D/g, ""))}
+          />
         </div>
 
         {/* HARGA */}
         <div>
           <label className="text-sm font-medium">Harga</label>
-          <input className="h-11 w-full rounded-lg border px-4" value={price} onChange={(e) => setPrice(formatRupiah(e.target.value))} />
+          <input
+            className="h-11 w-full rounded-lg border px-4"
+            value={price}
+            onChange={(e) => setPrice(formatRupiah(e.target.value))}
+          />
         </div>
 
         {/* KUOTA */}
         <div>
           <label className="text-sm font-medium">Total Kuota</label>
-          <input className="h-11 w-full rounded-lg border px-4" value={quota} onChange={(e) => setQuota(e.target.value.replace(/\D/g, ''))} />
+          <input
+            className="h-11 w-full rounded-lg border px-4"
+            value={quota}
+            onChange={(e) => setQuota(e.target.value.replace(/\D/g, ""))}
+          />
+        </div>
+
+        {/* STATUS */}
+        <div className="flex items-center justify-between rounded-lg border p-4">
+          <div className="space-y-0.5">
+            <label className="text-sm font-medium">Status Voucher</label>
+            <div className="text-xs text-muted-foreground">
+              {isActive
+                ? "Aktif - Bisa diproduksi"
+                : "Nonaktif - Tidak muncul di list"}
+            </div>
+          </div>
+          <Switch checked={isActive} onCheckedChange={setIsActive} />
         </div>
 
         {/* ACTION */}
-        <button onClick={submit} disabled={loading} className="h-11 rounded-lg bg-[#8D1231] px-6 text-white disabled:opacity-60">
+        <button
+          onClick={submit}
+          disabled={loading}
+          className="h-11 rounded-lg bg-[#8D1231] px-6 text-white disabled:opacity-60"
+        >
           Simpan
         </button>
       </div>

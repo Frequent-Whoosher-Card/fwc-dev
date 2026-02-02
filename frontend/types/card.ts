@@ -14,6 +14,7 @@ export interface CardProduct {
   isActive: boolean;
   maxQuantity?: number;
   isDiscount?: boolean;
+  hasGeneratedCards?: boolean;
   createdAt: string;
 
   category?: {

@@ -25,10 +25,10 @@ export default function BaseStockOutAdd({ programType }: BaseStockOutAddProps) {
   } = useStockOutForm({ programType });
 
   const sopItems = [
-    "Pastikan fisik kartu sudah siap untuk dikirim sebelum membuat Stock Out.",
-    "Periksa kembali 'Stasiun Tujuan' agar tidak terjadi kesalahan pengiriman.",
-    "Serial Number yang dipilih harus berstatus 'IN_OFFICE' (tersedia di kantor).",
-    "Isi nomor Nota Dinas dan BAST dengan benar untuk keperluan administrasi.",
+    "Pastikan fisik kartu telah siap dikirim sebelum membuat data Stock Out.",
+    "Verifikasi kembali 'Stasiun Tujuan' untuk mencegah kesalahan distribusi.",
+    "Hanya kartu dengan status 'IN_OFFICE' (tersedia di kantor) yang dapat dipilih.",
+    "Lengkapi nomor Nota Dinas dan BAST secara akurat untuk keperluan administrasi.",
   ];
 
   if (loading) {
