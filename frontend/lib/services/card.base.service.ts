@@ -34,9 +34,20 @@ export const createCardService = (programType: ProgramType) => {
       });
     },
 
+    getInventorySummaryForCheck: async () => {
+      const res = await axios.get("/inventory/category-type-summary", {
+        params: { programType },
+      });
+      return res.data?.data || [];
+    },
+
     updateProduct: async (
       id: string,
       payload: {
+        categoryId?: string;
+        typeId?: string;
+        programType?: ProgramType;
+        serialTemplate?: string;
         totalQuota: number;
         masaBerlaku: number;
         price: number;
@@ -142,6 +153,13 @@ export const createCardService = (programType: ProgramType) => {
         params: { programType },
       });
       return res.data?.data?.recommendedCode;
+    },
+
+    toggleActiveStatus: async (id: string, isActive: boolean) => {
+      const res = await axios.patch(`/card/product/${id}/active-status`, {
+        isActive,
+      });
+      return res.data?.data;
     },
   };
 };

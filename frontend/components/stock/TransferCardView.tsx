@@ -44,10 +44,10 @@ export default function TransferCardView({
   const [note, setNote] = useState("");
 
   const sopItems = [
-    "Pastikan kartu yang akan ditransfer dalam kondisi baik.",
-    "Stasiun Asal dan Tujuan tidak boleh sama.",
-    "Transfer hanya dapat dilakukan untuk kartu yang saat ini berada di stasiun asal (status IN_STATION).",
-    "Gunakan fitur ini untuk memindahkan stok antar stasiun jika terjadi kekurangan/kelebihan stok.",
+    "Pastikan fisik kartu yang akan ditransfer dalam kondisi baik.",
+    "Stasiun Asal dan Stasiun Tujuan tidak boleh sama.",
+    "Transfer hanya dapat diproses untuk kartu yang berstatus 'IN_STATION' di stasiun asal.",
+    "Gunakan fitur ini untuk pemerataan stok antar stasiun (balancing).",
   ];
 
   const [loadingCards, setLoadingCards] = useState(false);
@@ -163,7 +163,7 @@ export default function TransferCardView({
       });
 
       toast.success("Transfer kartu berhasil dibuat");
-      router.push(`/dashboard/${role}/stock/${programType.toLowerCase()}/out`);
+      router.push(`/dashboard/${role}/stock/${programType.toLowerCase()}/all`);
     } catch (error: any) {
       console.error("Transfer failed", error);
       toast.error(error?.response?.data?.message || "Gagal membuat transfer");
