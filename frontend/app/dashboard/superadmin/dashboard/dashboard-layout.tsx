@@ -55,6 +55,7 @@ import {
   Globe,
   type LucideIcon,
   Circle,
+  ArrowLeftRight,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -126,7 +127,12 @@ const resolveIcon = (iconName: string | null): LucideIcon => {
     briefcase: Briefcase, // Stok Station
     arrowdowntoline: ArrowDownToLine, // Stok Masuk
     arrowupnarrowwide: ArrowUpNarrowWide, // Stok Keluar
-    idcard: IdCard, // New Product Card / Stok All
+    arrowleftright: ArrowLeftRight,
+    transfer: ArrowLeftRight,
+    idcard: IdCard,
+    newproduct: IdCard,
+    createnewproduct: IdCard,
+    buatprodukbaru: IdCard,
   };
 
   const normalized = iconName.toLowerCase().replace(/[^a-z0-9]/g, "");
