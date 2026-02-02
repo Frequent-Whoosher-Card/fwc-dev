@@ -358,6 +358,47 @@ export class CardProductService {
     };
   }
 
+  // Toggle Active Status
+  static async toggleActiveStatus(
+    id: string,
+    isActive: boolean,
+    userId: string,
+  ) {
+    const existingProduct = await db.cardProduct.findUnique({
+      where: { id },
+    });
+
+    if (!existingProduct) {
+      throw new ValidationError(
+        "Card Product Not Found",
+        "CARD_PRODUCT_NOT_FOUND",
+      );
+    }
+
+    const updatedProduct = await db.cardProduct.update({
+      where: {
+        id,
+      },
+      data: {
+        isActive,
+        updatedAt: new Date(),
+        updatedBy: userId,
+      },
+    });
+
+    await ActivityLogService.createActivityLog(
+      userId,
+      "UPDATE_CARD_PRODUCT_STATUS",
+      `Updated product status to ${isActive ? "Active" : "Inactive"} for ${updatedProduct.serialTemplate}`,
+    );
+
+    return {
+      ...updatedProduct,
+      price: updatedProduct.price.toString(),
+      isDiscount: updatedProduct.isDiscount ?? false,
+    };
+  }
+
   // Soft delete card product
   static async deleteCardProduct(id: string, userId: string) {
     const existingProduct = await db.cardProduct.findUnique({
