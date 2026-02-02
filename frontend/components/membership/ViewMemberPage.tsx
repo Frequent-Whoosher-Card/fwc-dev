@@ -115,6 +115,8 @@ export default function MembershipDetailPage() {
             typeof p.price === "number" ? p.price.toLocaleString("id-ID") : "-";
 
           const totalQuota = p.card?.cardProduct?.totalQuota ?? 0;
+          // remaining = sisa kuota di kartu (quotaTicket dari Card di DB)
+          const remainingQuota = p.card?.quotaTicket ?? 0;
 
           return {
             purchaseDate,
@@ -132,11 +134,11 @@ export default function MembershipDetailPage() {
 
             cardType: p.card?.cardProduct?.type?.typeName ?? "-",
 
-            // ✅ dari cardProduct
+            // total quota dari cardProduct (sesuai DB)
             quota: totalQuota,
 
-            // ⚠️ BE belum supply remaining → sementara
-            remaining: totalQuota,
+            // sisa kuota dari card.quotaTicket (sesuai DB)
+            remaining: remainingQuota,
 
             serialNumber: p.card?.serialNumber ?? "-",
 
