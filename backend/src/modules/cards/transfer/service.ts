@@ -107,9 +107,15 @@ export class TransferService {
       */
 
       // 6. Log Activity
+      const category = await tx.cardCategory.findUnique({
+        where: { id: categoryId },
+        select: { programType: true },
+      });
+      const programLabel = category?.programType || "FWC";
+
       await ActivityLogService.createActivityLog(
         userId,
-        "Creates Transfer",
+        `CREATE_TRANSFER_${programLabel}`,
         `Created transfer of ${quantity} cards to station ${toStationId} with note: ${
           note || "-"
         }`,
@@ -131,7 +137,10 @@ export class TransferService {
     const { page, limit } = params;
     const skip = (page - 1) * limit;
 
-    const where: any = { movementType: StockMovementType.TRANSFER };
+    const where: any = {
+      movementType: StockMovementType.TRANSFER,
+      deletedAt: null,
+    };
 
     if (params.programType) {
       where.category = {
@@ -259,8 +268,8 @@ export class TransferService {
   }
 
   static async getTransferById(id: string) {
-    const transfer = await db.cardStockMovement.findUnique({
-      where: { id },
+    const transfer = await db.cardStockMovement.findFirst({
+      where: { id, deletedAt: null },
       include: {
         category: true,
         type: true,
@@ -364,9 +373,15 @@ export class TransferService {
       });
 
       // 4. Log Activity
+      const movementWithCategory = await tx.cardStockMovement.findUnique({
+        where: { id: movementId },
+        include: { category: true },
+      });
+      const programLabel = movementWithCategory?.category.programType || "FWC";
+
       await ActivityLogService.createActivityLog(
         userId,
-        "Receives Transfer",
+        `RECEIVE_TRANSFER_${programLabel}`,
         `Received transfer ${movement.id} with ${movement.quantity} cards`,
       );
 
@@ -431,9 +446,18 @@ export class TransferService {
       });
 
       // 3. Log Activity
+      const deletedMovementWithCategory = await tx.cardStockMovement.findUnique(
+        {
+          where: { id },
+          include: { category: true },
+        },
+      );
+      const programLabel =
+        deletedMovementWithCategory?.category.programType || "FWC";
+
       await ActivityLogService.createActivityLog(
         userId,
-        "Deletes Transfer",
+        `DELETE_TRANSFER_${programLabel}`,
         `Deleted (Cancelled) transfer ${id}. Cards reverted to ${movement.stationId}.`,
       );
 
