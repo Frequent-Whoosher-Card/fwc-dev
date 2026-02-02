@@ -45,9 +45,9 @@ export default function ModalDetailInbox({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl flex flex-col max-h-[85vh]">
         {/* ===== Header ===== */}
-        <div className="flex items-center justify-between border-b px-6 py-4">
+        <div className="flex items-center justify-between border-b px-6 py-4 flex-none">
           <div className="flex items-center gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-full border text-lg font-bold">
               {avatarLetter}
@@ -72,7 +72,7 @@ export default function ModalDetailInbox({
         </div>
 
         {/* ===== Body ===== */}
-        <div className="space-y-4 px-6 py-6">
+        <div className="space-y-4 px-6 py-6 overflow-y-auto">
           <Row label="Subject:" value={data.message || "-"} />
           
           {/* Attempt to show payload data if available */}

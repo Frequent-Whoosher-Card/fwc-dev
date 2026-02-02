@@ -34,9 +34,37 @@ export const useCardBase = ({ programType }: UseCardBaseProps) => {
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await service.getProducts();
-      setProducts(data);
-      setPage(1); // Reset to page 1 on fetch
+      const [productsData, inventoryRes] = await Promise.all([
+        service.getProducts(),
+        service.getInventorySummaryForCheck(),
+      ]);
+
+      const inventoryMap = new Map();
+      if (inventoryRes && Array.isArray(inventoryRes)) {
+        inventoryRes.forEach((item: any) => {
+          const key = `${item.categoryId}-${item.typeId}`;
+          const totalStock =
+            Number(item.totalOffice || 0) +
+            Number(item.totalBeredar || 0) +
+            Number(item.totalAktif || 0) +
+            Number(item.totalNonAktif || 0) +
+            Number(item.totalBelumTerjual || 0) +
+            Number(item.totalInTransit || 0);
+          inventoryMap.set(key, totalStock);
+        });
+      }
+
+      const enrichedProducts = productsData.map((p: CardProduct) => {
+        const key = `${p.categoryId}-${p.typeId}`;
+        const totalStock = inventoryMap.get(key) || 0;
+        return {
+          ...p,
+          hasGeneratedCards: totalStock > 0,
+        };
+      });
+
+      setProducts(enrichedProducts);
+      setPage(1);
     } catch (err: any) {
       toast.error(err.message || "Gagal mengambil card products");
     } finally {

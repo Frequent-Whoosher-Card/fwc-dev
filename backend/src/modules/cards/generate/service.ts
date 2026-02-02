@@ -721,13 +721,15 @@ export class CardGenerateService {
         });
       });
 
-      return {
+      const response = {
         message: `Berhasil generate ${serialNumbers.length} kartu`,
         firstSerial: serialNumbers[0],
         lastSerial: serialNumbers[serialNumbers.length - 1],
         generatedFilesCount: generatedFiles.length,
         movementId: transactionResult.id,
       };
+
+      return response;
     } catch (error) {
       // --- CLEANUP ON ERROR ---
       // If DB fails, or generation fails midway, delete ALL generated files from this session
