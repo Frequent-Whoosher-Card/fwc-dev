@@ -61,6 +61,17 @@ export namespace TransferModel {
     programType: t.Optional(t.Union([t.Literal("FWC"), t.Literal("VOUCHER")])),
     sentSerialNumbers: t.Array(t.String()),
     receivedSerialNumbers: t.Array(t.String()),
+    createdByUser: t.Object({
+      id: t.String(),
+      fullName: t.String(),
+    }),
+    validatedByUser: t.Union([
+      t.Object({
+        id: t.String(),
+        fullName: t.String(),
+      }),
+      t.Null(),
+    ]),
   });
 
   // Responses
@@ -94,6 +105,12 @@ export namespace TransferModel {
     success: t.Boolean(),
     message: t.String(),
     data: t.Any(),
+  });
+
+  export const deleteTransferResponse = t.Object({
+    success: t.Boolean(),
+    message: t.String(),
+    data: t.Any(), // Simplification
   });
 
   // Error Response

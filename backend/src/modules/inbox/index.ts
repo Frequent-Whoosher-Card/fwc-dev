@@ -23,64 +23,66 @@ type AuthContextUser = {
 export const inbox = new Elysia({ prefix: "/inbox" })
   .use(authMiddleware)
   .group("", (app) =>
-    app.use(permissionMiddleware("inbox.view")).get(
-      "/",
-      async (context) => {
-        const { user, query, set } = context as typeof context & {
-          user: { id: string };
-          query: {
-            page?: string;
-            limit?: string;
-            isRead?: string;
-            startDate?: string;
-            endDate?: string;
-            type?: string;
-            programType?: string; // Added programType
-            search?: string; // Added search
+    app
+      .use(permissionMiddleware("inbox.view"))
+      .get(
+        "/",
+        async (context) => {
+          const { user, query, set } = context as typeof context & {
+            user: { id: string };
+            query: {
+              page?: string;
+              limit?: string;
+              isRead?: string;
+              startDate?: string;
+              endDate?: string;
+              type?: string;
+              programType?: string; // Added programType
+              search?: string; // Added search
+            };
           };
-        };
-        try {
-          const result = await InboxService.getUserInbox(user.id, {
-            page: query.page ? parseInt(query.page) : undefined,
-            limit: query.limit ? parseInt(query.limit) : undefined,
-            isRead:
-              query.isRead === "true"
-                ? true
-                : query.isRead === "false"
-                  ? false
-                  : undefined,
-            startDate: query.startDate,
-            endDate: query.endDate,
-            type: query.type,
-            programType: query.programType, // Pass programType
-            search: query.search, // Pass search
-          });
+          try {
+            const result = await InboxService.getUserInbox(user.id, {
+              page: query.page ? parseInt(query.page) : undefined,
+              limit: query.limit ? parseInt(query.limit) : undefined,
+              isRead:
+                query.isRead === "true"
+                  ? true
+                  : query.isRead === "false"
+                    ? false
+                    : undefined,
+              startDate: query.startDate,
+              endDate: query.endDate,
+              type: query.type,
+              programType: query.programType, // Pass programType
+              search: query.search, // Pass search
+            });
 
-          return {
-            success: true,
-            data: result,
-          };
-        } catch (error) {
-          set.status = 500;
-          return formatErrorResponse(error);
-        }
-      },
-      {
-        query: InboxModel.getInboxQuery, // Ensure this model is updated or use t.Optional for new fields if not strict
-        response: {
-          200: InboxModel.getInboxResponse,
-          400: InboxModel.errorResponse,
-          401: InboxModel.errorResponse,
-          403: InboxModel.errorResponse,
-          404: InboxModel.errorResponse,
-          409: InboxModel.errorResponse,
-          422: InboxModel.errorResponse,
-          500: InboxModel.errorResponse,
+            return {
+              success: true,
+              data: result,
+            };
+          } catch (error) {
+            set.status = 500;
+            return formatErrorResponse(error);
+          }
         },
-        detail: {
-          tags: ["Inbox"],
-          summary: "Get Admin Inbox",
-          description: `Mendapatkan daftar pesan/notifikasi untuk admin properti (Admin & Superadmin).
+        {
+          query: InboxModel.getInboxQuery, // Ensure this model is updated or use t.Optional for new fields if not strict
+          response: {
+            200: InboxModel.getInboxResponse,
+            400: InboxModel.errorResponse,
+            401: InboxModel.errorResponse,
+            403: InboxModel.errorResponse,
+            404: InboxModel.errorResponse,
+            409: InboxModel.errorResponse,
+            422: InboxModel.errorResponse,
+            500: InboxModel.errorResponse,
+          },
+          detail: {
+            tags: ["Inbox"],
+            summary: "Get Admin Inbox",
+            description: `Mendapatkan daftar pesan/notifikasi untuk admin properti (Admin & Superadmin).
 
 **Tipe Pesan yang Tersedia:**
 
@@ -98,137 +100,6 @@ export const inbox = new Elysia({ prefix: "/inbox" })
 3. **LOW_STOCK** (Hidden)
    - **Deskripsi**: Peringatan stok menipis (< Threshold).
    - **Catatan**: Secara default difilter keluar dari endpoint ini agar tidak spamming.`,
-        },
-      },
-    ),
-  )
-  .group("", (app) =>
-    app
-      .use(permissionMiddleware("inbox.approve"))
-      .post(
-        "/check-low-stock",
-        async (context) => {
-          const { user, set } = context as typeof context & AuthContextUser;
-          try {
-            const result = await InboxService.checkLowStockAndAlert(user.id);
-            return {
-              success: true,
-              message: "Pengecekan stok selesai",
-              data: result,
-            };
-          } catch (error) {
-            set.status = 500;
-            return formatErrorResponse(error);
-          }
-        },
-        {
-          detail: {
-            tags: ["Inbox"],
-            summary: "Trigger Low Stock Check",
-            description:
-              "Memicu pengecekan stok menipis dan mengirim notifikasi jika ada.",
-          },
-          response: {
-            200: InboxModel.lowStockResponse,
-            400: InboxModel.errorResponse,
-            401: InboxModel.errorResponse,
-            403: InboxModel.errorResponse,
-            404: InboxModel.errorResponse,
-            409: InboxModel.errorResponse,
-            422: InboxModel.errorResponse,
-            500: InboxModel.errorResponse,
-          },
-        },
-      )
-      .patch(
-        "/:id/read",
-        async (context) => {
-          const { user, params, set } = context as typeof context & {
-            user: { id: string };
-            params: { id: string };
-          };
-          try {
-            await InboxService.markAsRead(params.id, user.id);
-            return {
-              success: true,
-              message: "Pesan ditandai sudah dibaca",
-            };
-          } catch (error) {
-            set.status = 400;
-            return formatErrorResponse(error);
-          }
-        },
-        {
-          response: {
-            200: InboxModel.markReadResponse,
-            400: InboxModel.errorResponse,
-            401: InboxModel.errorResponse,
-            403: InboxModel.errorResponse,
-            404: InboxModel.errorResponse,
-            409: InboxModel.errorResponse,
-            422: InboxModel.errorResponse,
-            500: InboxModel.errorResponse,
-          },
-          detail: {
-            tags: ["Inbox"],
-            summary: "Mark Inbox as Read",
-          },
-        },
-      )
-      .post(
-        "/:id/approve-issue",
-        async (context) => {
-          const { user, params, body, set } = context as typeof context & {
-            user: { id: string };
-            params: { id: string };
-            body: { action: "APPROVE" | "REJECT" };
-          };
-          try {
-            const result = await InboxService.processStockIssueApproval(
-              params.id,
-              body.action,
-              user.id,
-            );
-            return {
-              success: true,
-              message: `Permintaan telah diproses: ${body.action}`,
-              data: result,
-            };
-          } catch (error) {
-            set.status = 400; // Or 422
-            return formatErrorResponse(error);
-          }
-        },
-        {
-          body: t.Object({
-            action: t.Union([t.Literal("APPROVE"), t.Literal("REJECT")]),
-          }),
-          response: {
-            // 200: InboxModel.processApprovalResponse (Create this if strict typing needed, or use generic success)
-            // For now using generic error response mapping
-            400: InboxModel.errorResponse,
-            401: InboxModel.errorResponse,
-            403: InboxModel.errorResponse,
-            404: InboxModel.errorResponse,
-            500: InboxModel.errorResponse,
-          },
-          detail: {
-            tags: ["Inbox"],
-            summary: "Approve/Reject Stock Issue",
-            description: `Memproses laporan kartu hilang/rusak (Tipe: STOCK_ISSUE_APPROVAL).
-
-**Prasyarat:**
-- User harus Admin/Superadmin.
-- Inbox ID harus valid dan bertipe \`STOCK_ISSUE_APPROVAL\`.
-- Belum pernah diproses sebelumnya.
-
-**Body Parameter:**
-- \`action\`:
-  - \`"APPROVE"\`: Menyetujui laporan. Kartu akan diupdate statusnya menjadi **LOST** atau **DAMAGED**.
-  - \`"REJECT"\`: Menolak laporan. Status kartu tidak berubah (akan tetap seperti status terakhir, misal \`IN_TRANSIT\` atau \`IN_STATION\`).
-
-**Hasil:**
-Setelah sukses, pesan inbox akan otomatis ditandai sebagai **Sudah Dibaca** dan tidak bisa diproses ulang.`,
           },
         },
       )
@@ -270,11 +141,7 @@ Setelah sukses, pesan inbox akan otomatis ditandai sebagai **Sudah Dibaca** dan 
               "Mendapatkan detail pesan inbox secara lengkap termasuk informasi pengirim (role) dan payload.",
           },
         },
-      ),
-  )
-  .group("", (app) =>
-    app
-      .use(permissionMiddleware("inbox.view"))
+      )
       .get(
         "/supervisor-noted-history",
         async (context) => {
@@ -352,4 +219,137 @@ Setelah sukses, pesan inbox akan otomatis ditandai sebagai **Sudah Dibaca** dan 
           },
         },
       ),
+  )
+  .group("", (app) =>
+    app.use(permissionMiddleware("inbox.approve")).post(
+      "/:id/approve-issue",
+      async (context) => {
+        const { user, params, body, set } = context as typeof context & {
+          user: { id: string };
+          params: { id: string };
+          body: { action: "APPROVE" | "REJECT" };
+        };
+        try {
+          const result = await InboxService.processStockIssueApproval(
+            params.id,
+            body.action,
+            user.id,
+          );
+          return {
+            success: true,
+            message: `Permintaan telah diproses: ${body.action}`,
+            data: result,
+          };
+        } catch (error) {
+          set.status = 400; // Or 422
+          return formatErrorResponse(error);
+        }
+      },
+      {
+        body: t.Object({
+          action: t.Union([t.Literal("APPROVE"), t.Literal("REJECT")]),
+        }),
+        response: {
+          // 200: InboxModel.processApprovalResponse (Create this if strict typing needed, or use generic success)
+          // For now using generic error response mapping
+          400: InboxModel.errorResponse,
+          401: InboxModel.errorResponse,
+          403: InboxModel.errorResponse,
+          404: InboxModel.errorResponse,
+          500: InboxModel.errorResponse,
+        },
+        detail: {
+          tags: ["Inbox"],
+          summary: "Approve/Reject Stock Issue",
+          description: `Memproses laporan kartu hilang/rusak (Tipe: STOCK_ISSUE_APPROVAL).
+
+**Prasyarat:**
+- User harus Admin/Superadmin.
+- Inbox ID harus valid dan bertipe \`STOCK_ISSUE_APPROVAL\`.
+- Belum pernah diproses sebelumnya.
+
+**Body Parameter:**
+- \`action\`:
+  - \`"APPROVE"\`: Menyetujui laporan. Kartu akan diupdate statusnya menjadi **LOST** atau **DAMAGED**.
+  - \`"REJECT"\`: Menolak laporan. Status kartu tidak berubah (akan tetap seperti status terakhir, misal \`IN_TRANSIT\` atau \`IN_STATION\`).
+
+**Hasil:**
+Setelah sukses, pesan inbox akan otomatis ditandai sebagai **Sudah Dibaca** dan tidak bisa diproses ulang.`,
+        },
+      },
+    ),
+  )
+  .group("", (app) =>
+    app.use(permissionMiddleware("inbox.notif")).post(
+      "/check-low-stock",
+      async (context) => {
+        const { user, set } = context as typeof context & AuthContextUser;
+        try {
+          const result = await InboxService.checkLowStockAndAlert(user.id);
+          return {
+            success: true,
+            message: "Pengecekan stok selesai",
+            data: result,
+          };
+        } catch (error) {
+          set.status = 500;
+          return formatErrorResponse(error);
+        }
+      },
+      {
+        detail: {
+          tags: ["Inbox"],
+          summary: "Trigger Low Stock Check",
+          description:
+            "Memicu pengecekan stok menipis dan mengirim notifikasi jika ada.",
+        },
+        response: {
+          200: InboxModel.lowStockResponse,
+          400: InboxModel.errorResponse,
+          401: InboxModel.errorResponse,
+          403: InboxModel.errorResponse,
+          404: InboxModel.errorResponse,
+          409: InboxModel.errorResponse,
+          422: InboxModel.errorResponse,
+          500: InboxModel.errorResponse,
+        },
+      },
+    ),
+  )
+  .group("", (app) =>
+    app.use(permissionMiddleware("inbox.edit")).patch(
+      "/:id/read",
+      async (context) => {
+        const { user, params, set } = context as typeof context & {
+          user: { id: string };
+          params: { id: string };
+        };
+        try {
+          await InboxService.markAsRead(params.id, user.id);
+          return {
+            success: true,
+            message: "Pesan ditandai sudah dibaca",
+          };
+        } catch (error) {
+          set.status = 400;
+          return formatErrorResponse(error);
+        }
+      },
+      {
+        response: {
+          200: InboxModel.markReadResponse,
+          400: InboxModel.errorResponse,
+          401: InboxModel.errorResponse,
+          403: InboxModel.errorResponse,
+          404: InboxModel.errorResponse,
+          409: InboxModel.errorResponse,
+          422: InboxModel.errorResponse,
+          500: InboxModel.errorResponse,
+        },
+        detail: {
+          tags: ["Inbox"],
+          summary: "Mark Inbox as Read",
+        },
+      },
+    ),
   );
