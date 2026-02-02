@@ -21,7 +21,7 @@ import React from 'react';
 import ExportRedeemModal from '@/components/redeem/ExportRedeemModal';
 import DeletedRedeemTable from '@/components/redeem/DeletedRedeemTable';
 import { getStations } from '@/lib/services/station.service';
-import { getCardCategories, getCardTypes } from '@/lib/services/cardcategory';
+import { apiFetch } from '@/lib/apiConfig';
 
 interface User {
   id: string;
@@ -120,8 +120,8 @@ export default function RedeemPage() {
       loadRedeems({
         page: 1,
         limit: 10,
-        startDate: new Date(startDate).toISOString(),
-        endDate: (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })(),
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
         category: category || undefined,
         cardType: cardType || undefined,
         stationId: stationId || undefined,
@@ -132,12 +132,23 @@ export default function RedeemPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product, startDate, endDate]);
 
-  const loadCategories = async () => {
+  const loadOptionsFromProducts = async (currentProduct: 'FWC' | 'VOUCHER') => {
     try {
-      const res = await getCardCategories();
-      setCategories(res?.data || []);
+      const res = await apiFetch(`/card/product?programType=${currentProduct}`);
+      const filteredProducts = res?.data || [];
+
+      // Extract unique categories
+      const uniqueCategories = Array.from(new Set(filteredProducts.map((p: any) => p.category?.categoryName))).filter(Boolean).sort();
+
+      // Extract unique types
+      const uniqueTypes = Array.from(new Set(filteredProducts.map((p: any) => p.type?.typeName))).filter(Boolean).sort();
+
+      setCategories(uniqueCategories);
+      setCardTypes(uniqueTypes);
     } catch (error) {
+      console.error('Failed to load product options', error);
       setCategories([]);
+      setCardTypes([]);
     }
   };
 
@@ -201,8 +212,8 @@ export default function RedeemPage() {
     loadRedeems({
       page: 1,
       limit: 10,
-      startDate: startDate ? new Date(startDate).toISOString() : undefined,
-      endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
       category: category || undefined,
       cardType: cardType || undefined,
       stationId: stationId || undefined,
@@ -212,8 +223,8 @@ export default function RedeemPage() {
     loadDeletedRedeems({
       page: 1,
       limit: 10,
-      startDate: startDate ? new Date(startDate).toISOString() : undefined,
-      endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
       category: category || undefined,
       cardType: cardType || undefined,
       stationId: stationId || undefined,
@@ -229,8 +240,8 @@ export default function RedeemPage() {
     loadDeletedRedeems({
       page: deletedPage,
       limit: 10,
-      startDate: startDate ? new Date(startDate).toISOString() : undefined,
-      endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
       category: category || undefined,
       cardType: cardType || undefined,
       stationId: stationId || undefined,
@@ -245,8 +256,8 @@ export default function RedeemPage() {
     loadRedeems({
       page: currentPage,
       limit: 10,
-      startDate: startDate ? new Date(startDate).toISOString() : undefined,
-      endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
       category: category || undefined,
       cardType: cardType || undefined,
       stationId: stationId || undefined,
@@ -268,33 +279,11 @@ export default function RedeemPage() {
   useEffect(() => {
     if (product === 'FWC' || product === 'VOUCHER') {
       loadStations();
-      loadCategories();
-      loadCardTypes();
-      loadRedeems({ page: 1, limit: 10 });
+      loadOptionsFromProducts(product);
     }
   }, [product]);
 
-  const loadCardTypes = async () => {
-    try {
-      const res = await getCardTypes();
-      const data = res?.data;
 
-      // Extract types from the response
-      let types: string[] = [];
-      if (Array.isArray(data)) {
-        types = data.map((t: any) => t.typeName || t.name).filter(Boolean);
-      } else if (data && typeof data === 'object') {
-        const items = data.items || data.types || [];
-        if (Array.isArray(items)) {
-          types = items.map((t: any) => t.typeName || t.name).filter(Boolean);
-        }
-      }
-      setCardTypes([...new Set(types)]); // Remove duplicates
-    } catch (error) {
-      console.error('Failed to load card types:', error);
-      setCardTypes([]);
-    }
-  };
 
 
   const handleToolbarSearch = (e: React.FormEvent) => {
@@ -511,6 +500,7 @@ export default function RedeemPage() {
                   isLoading={isLoadingRedeems}
                   noDataMessage={isProductSelected ? undefined : 'Pilih produk terlebih dulu'}
                   total={pagination.total}
+                  product={product as 'FWC' | 'VOUCHER'}
                 />
               </div>
 
@@ -563,6 +553,7 @@ export default function RedeemPage() {
                 totalPages={deletedPagination.totalPages}
                 totalCount={deletedPagination.total}
                 onPageChange={setDeletedPage}
+                product={product as 'FWC' | 'VOUCHER'}
               />
 
               {/* Modals */}
@@ -599,6 +590,15 @@ export default function RedeemPage() {
                 isOpen={exportModalOpen}
                 onClose={() => setExportModalOpen(false)}
                 product={product as 'FWC' | 'VOUCHER'}
+                currentFilters={{
+                  startDate: startDate || undefined,
+                  endDate: endDate || undefined,
+                  category: category || undefined,
+                  cardType: cardType || undefined,
+                  stationId: stationId || undefined,
+                  search: search || undefined,
+                }}
+                isSuperadmin={true}
               />
             </>
           )}

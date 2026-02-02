@@ -14,7 +14,7 @@ import DeleteRedeemDialog from '@/components/redeem/DeleteRedeemDialog';
 import ExportRedeemModal from '@/components/redeem/ExportRedeemModal';
 import { Plus, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getStations } from '@/lib/services/station.service';
-import { getCardCategories, getCardTypes } from '@/lib/services/cardcategory';
+import { apiFetch } from '@/lib/apiConfig';
 
 
 interface User {
@@ -64,17 +64,24 @@ export default function AdminRedeemPage() {
 
   useEffect(() => {
     loadStations();
-    loadCategories();
-    loadCardTypes();
   }, []);
+
+  useEffect(() => {
+    if (product) {
+      loadOptionsFromProducts(product);
+    } else {
+      setCategories([]);
+      setCardTypes([]);
+    }
+  }, [product]);
 
   useEffect(() => {
     if (isProductSelected) {
       loadRedeems({
         page: currentPage,
         limit: 10,
-        startDate: startDate ? new Date(startDate).toISOString() : undefined,
-        endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
         category: category || undefined,
         cardType: cardType || undefined,
         stationId: stationId || undefined,
@@ -114,20 +121,22 @@ export default function AdminRedeemPage() {
     }
   };
 
-  const loadCategories = async () => {
+  const loadOptionsFromProducts = async (currentProduct: 'FWC' | 'VOUCHER') => {
     try {
-      const res = await getCardCategories();
-      setCategories(res?.data || []);
-    } catch (error) {
-      setCategories([]);
-    }
-  };
+      const res = await apiFetch(`/card/product?programType=${currentProduct}`);
+      const filteredProducts = res?.data || [];
 
-  const loadCardTypes = async () => {
-    try {
-      const res = await getCardTypes();
-      setCardTypes(res?.data || []);
+      // Extract unique categories
+      const uniqueCategories = Array.from(new Set(filteredProducts.map((p: any) => p.category?.categoryName))).filter(Boolean).sort();
+
+      // Extract unique types
+      const uniqueTypes = Array.from(new Set(filteredProducts.map((p: any) => p.type?.typeName))).filter(Boolean).sort();
+
+      setCategories(uniqueCategories);
+      setCardTypes(uniqueTypes);
     } catch (error) {
+      console.error('Failed to load product options', error);
+      setCategories([]);
       setCardTypes([]);
     }
   };
@@ -236,6 +245,7 @@ export default function AdminRedeemPage() {
                   canDelete={canDelete}
                   isLoading={isLoadingRedeems}
                   noDataMessage={isProductSelected ? undefined : 'Pilih produk terlebih dulu'}
+                  product={product as 'FWC' | 'VOUCHER'}
                 />
               </div>
               {/* Pagination */}
@@ -283,8 +293,8 @@ export default function AdminRedeemPage() {
                 onSuccess={() => loadRedeems({
                   page: 1,
                   limit: 10,
-                  startDate: startDate ? new Date(startDate).toISOString() : undefined,
-                  endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
+                  startDate: startDate || undefined,
+                  endDate: endDate || undefined,
                   category: category || undefined,
                   cardType: cardType || undefined,
                   stationId: stationId || undefined,
@@ -306,8 +316,8 @@ export default function AdminRedeemPage() {
                 onSuccess={() => loadRedeems({
                   page: 1,
                   limit: 50,
-                  startDate: startDate ? new Date(startDate).toISOString() : undefined,
-                  endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
+                  startDate: startDate || undefined,
+                  endDate: endDate || undefined,
                   category: category || undefined,
                   cardType: cardType || undefined,
                   stationId: stationId || undefined,
@@ -322,8 +332,8 @@ export default function AdminRedeemPage() {
                 onSuccess={() => loadRedeems({
                   page: currentPage,
                   limit: 50,
-                  startDate: startDate ? new Date(startDate).toISOString() : undefined,
-                  endDate: endDate ? (() => { const end = new Date(endDate); end.setHours(23, 59, 59, 999); return end.toISOString(); })() : undefined,
+                  startDate: startDate || undefined,
+                  endDate: endDate || undefined,
                   category: category || undefined,
                   cardType: cardType || undefined,
                   stationId: stationId || undefined,
@@ -335,6 +345,15 @@ export default function AdminRedeemPage() {
                 isOpen={exportModalOpen}
                 onClose={() => setExportModalOpen(false)}
                 product={product as 'FWC' | 'VOUCHER'}
+                currentFilters={{
+                  startDate: startDate || undefined,
+                  endDate: endDate || undefined,
+                  category: category || undefined,
+                  cardType: cardType || undefined,
+                  stationId: stationId || undefined,
+                  search: search || undefined,
+                }}
+                isSuperadmin={false}
               />
             </>
           )}
