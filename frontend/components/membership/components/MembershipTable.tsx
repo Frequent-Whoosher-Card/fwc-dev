@@ -11,6 +11,7 @@ interface Membership {
   email?: string | null;
   phone?: string | null;
   address?: string | null;
+  company_name?: string | null;
   operator_name?: string | null;
   updated_at?: string | null;
   employee_type_name?: string | null;
@@ -39,7 +40,8 @@ interface MembershipTableProps {
 
 const formatNik = (nik?: string | null) => {
   if (!nik) return "-";
-  return `FWC${nik}`;
+  // NIK sudah memiliki prefix "FW" dari database, tampilkan saja langsung
+  return nik;
 };
 
 export default function MembershipTable({
@@ -127,6 +129,7 @@ export default function MembershipTable({
                 <td className="px-4 py-2 text-left">{item.email || "-"}</td>
                 <td className="px-4 py-2 text-center">{item.phone || "-"}</td>
                 <td className="px-4 py-2 text-left">{item.address || "-"}</td>
+                <td className="px-4 py-2 text-left">{item.company_name || "-"}</td>
                 <td className="px-4 py-2 text-center whitespace-nowrap">
                   {item.updated_at || "-"}
                 </td>

@@ -154,6 +154,14 @@ export default function TransactionPage({ role }: TransactionPageProps) {
   };
 
   /* =====================
+     RESET CATEGORY & TYPE WHEN TAB CHANGES (FWC vs Voucher punya list beda)
+  ===================== */
+  useEffect(() => {
+    setCardCategoryId(undefined);
+    setCardTypeId(undefined);
+  }, [activeTab]);
+
+  /* =====================
      EFFECT
   ===================== */
   useEffect(() => {

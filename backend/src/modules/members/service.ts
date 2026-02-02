@@ -35,6 +35,7 @@ export class MemberService {
         gender: data.gender || null,
         alamat: data.alamat || null,
         notes: data.notes || null,
+        companyName: data.companyName ?? null,
         employeeTypeId: data.employeeTypeId ?? null,
         createdBy: userId,
         updatedBy: userId,
@@ -121,6 +122,8 @@ export class MemberService {
         { phone: { contains: search, mode: "insensitive" } },
         // Address
         { alamat: { contains: search, mode: "insensitive" } },
+        // Company name
+        { companyName: { contains: search, mode: "insensitive" } },
       ];
 
       // Search by Gender (L or P)
@@ -231,6 +234,7 @@ export class MemberService {
       gender: item.gender,
       alamat: item.alamat,
       notes: item.notes,
+      companyName: item.companyName ?? null,
       employeeTypeId: item.employeeTypeId ?? null,
       employeeType: item.employeeType
         ? { id: item.employeeType.id, code: item.employeeType.code, name: item.employeeType.name }
@@ -296,6 +300,7 @@ export class MemberService {
       gender: member.gender,
       alamat: member.alamat,
       notes: member.notes,
+      companyName: member.companyName ?? null,
       employeeTypeId: member.employeeTypeId ?? null,
       employeeType: member.employeeType
         ? {
@@ -354,6 +359,9 @@ export class MemberService {
       updatedBy: userId,
       updatedAt: new Date(),
     };
+    if (data.companyName !== undefined) {
+      updateData.companyName = data.companyName;
+    }
     if (data.employeeTypeId !== undefined) {
       updateData.employeeTypeId = data.employeeTypeId;
     }

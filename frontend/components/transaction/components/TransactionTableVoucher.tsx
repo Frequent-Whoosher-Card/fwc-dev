@@ -40,6 +40,7 @@ interface VoucherTransaction {
   member: {
     name: string;
     identityNumber: string;
+    companyName?: string | null;
   } | null;
 
   operator: { fullName: string };
@@ -168,6 +169,7 @@ export default function TransactionTableVoucher({
               <th className="px-4 py-3 text-left w-12"></th>
               <th className="px-4 py-3 text-left">Customer Name</th>
               <th className="px-4 py-3 text-left">Identity Number</th>
+              <th className="px-4 py-3 text-left">Perusahaan</th>
               <th className="px-4 py-3 text-left">Voucher Category</th>
               <th className="px-4 py-3 text-left">Voucher Type</th>
               <th className="px-4 py-3 text-left">Serial Number / Quantity</th>
@@ -185,13 +187,13 @@ export default function TransactionTableVoucher({
           <tbody className="text-gray-700">
             {loading ? (
               <tr>
-                <td colSpan={14} className="py-10 text-center text-gray-400">
+                <td colSpan={15} className="py-10 text-center text-gray-400">
                   Loading...
                 </td>
               </tr>
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={14} className="py-10 text-center text-gray-400">
+                <td colSpan={15} className="py-10 text-center text-gray-400">
                   No data
                 </td>
               </tr>
@@ -233,6 +235,10 @@ export default function TransactionTableVoucher({
 
                       <td className="px-4 py-3 font-mono truncate">
                         {item.member?.identityNumber ?? "-"}
+                      </td>
+
+                      <td className="px-4 py-3 truncate">
+                        {item.member?.companyName ?? "-"}
                       </td>
 
                       <td className="px-4 py-3">
@@ -313,7 +319,7 @@ export default function TransactionTableVoucher({
                     {/* Expanded bulk purchase items */}
                     {isBulkPurchase && isExpanded && (
                       <tr key={`${item.id}-expanded`} className="bg-gray-50">
-                        <td colSpan={14} className="px-4 py-3">
+                        <td colSpan={15} className="px-4 py-3">
                           <div className="space-y-2">
                             <div className="text-xs font-semibold text-gray-600 mb-2">
                               Voucher Items ({quantity}):
