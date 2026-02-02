@@ -55,6 +55,7 @@ import {
   Globe,
   type LucideIcon,
   Circle,
+  ArrowLeftRight,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -126,7 +127,12 @@ const resolveIcon = (iconName: string | null): LucideIcon => {
     briefcase: Briefcase, // Stok Station
     arrowdowntoline: ArrowDownToLine, // Stok Masuk
     arrowupnarrowwide: ArrowUpNarrowWide, // Stok Keluar
-    idcard: IdCard, // New Product Card / Stok All
+    arrowleftright: ArrowLeftRight,
+    transfer: ArrowLeftRight,
+    idcard: IdCard,
+    newproduct: IdCard,
+    createnewproduct: IdCard,
+    buatprodukbaru: IdCard,
   };
 
   const normalized = iconName.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -144,6 +150,7 @@ type Role = "superadmin" | "admin" | "petugas" | "supervisor";
 export const UserContext = createContext<{
   userName: string;
   role: Role;
+  stationId?: string;
 } | null>(null);
 
 /* =========================
@@ -163,6 +170,7 @@ export default function DashboardLayout({
 
   const [role, setRole] = useState<Role | null>(null);
   const [userName, setUserName] = useState<string>("");
+  const [stationId, setStationId] = useState<string | undefined>(undefined);
 
   // Auth & Menu Loading State
   const [loading, setLoading] = useState(true);
@@ -217,6 +225,9 @@ export default function DashboardLayout({
 
         setUserName(user.fullName || user.username);
         setRole(mappedRole);
+        if (user.station?.id) {
+          setStationId(user.station.id);
+        }
 
         // 3. Redirect if not in correct dashboard
         const basePath = `/dashboard/${mappedRole}`;
@@ -522,7 +533,7 @@ export default function DashboardLayout({
         </header>
 
         {/* USER CONTEXT PROVIDER */}
-        <UserContext.Provider value={{ userName, role }}>
+        <UserContext.Provider value={{ userName, role, stationId }}>
           <main className="p-6">{children}</main>
         </UserContext.Provider>
       </div>

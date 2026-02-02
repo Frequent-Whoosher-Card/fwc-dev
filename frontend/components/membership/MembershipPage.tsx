@@ -24,6 +24,7 @@ interface Membership {
   email?: string | null;
   phone?: string | null;
   address?: string | null;
+  company_name?: string | null;
   operator_name?: string | null;
   updated_at?: string | null;
   employee_type_name?: string | null;
@@ -149,6 +150,7 @@ export default function MembershipPage({ role }: MembershipPageProps) {
         email: item.email,
         phone: item.phone,
         address: item.alamat,
+        company_name: item.companyName ?? null,
         operator_name: item.updatedByName ?? item.createdByName,
         updated_at: formatDate(item.updatedAt),
         employee_type_name: item.employeeType?.name ?? null,

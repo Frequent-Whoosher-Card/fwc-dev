@@ -16,6 +16,7 @@ export interface MemberListItem {
   nippKai?: string | null;
   gender?: string | null;
   alamat?: string | null;
+  companyName?: string | null;
   operatorName?: string | null;
   createdAt?: string | null;
   updatedAt?: string;
@@ -106,6 +107,7 @@ export const getMembers = async (params?: {
               nippKai: item.nippKai ?? null,
               gender: item.gender ?? null,
               alamat: item.alamat ?? null,
+              companyName: item.companyName ?? null,
               operatorName: item.createdByName ?? null,
               createdAt: item.createdAt ?? null,
               updatedAt: item.updatedAt ?? null,

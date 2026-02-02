@@ -4,7 +4,7 @@ import { StockModel } from "./model";
 import { StockService } from "./service";
 import { stockIn } from "./in";
 import { stockOut } from "./out";
-import { lowStock } from "./low-stock"; // Import new module
+// import { lowStock } from "./low-stock"; // Import new module
 import { authMiddleware } from "../../middleware/auth";
 
 // Combine everything into a single "stock" group
@@ -14,7 +14,7 @@ export const stock = new Elysia({ prefix: "/stock" })
   // Important: Mount sub-modules first so specific routes match before generic ones
   .use(stockIn)
   .use(stockOut)
-  .use(lowStock) // Mount new module
+  // .use(lowStock) // Mount new module
 
   // General Stock Analysis Routes
   .get(

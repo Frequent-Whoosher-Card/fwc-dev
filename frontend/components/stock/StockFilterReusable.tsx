@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Calendar, FileDown, Plus, Search, RefreshCcw } from "lucide-react";
+import {
+  Calendar,
+  FileDown,
+  Plus,
+  Search,
+  RefreshCcw,
+  ArrowLeftRight,
+} from "lucide-react";
 import axios from "@/lib/axios";
 import { ThemedSelect } from "@/components/ui/ThemedSelect";
 
@@ -281,7 +288,11 @@ export function StockFilterReusable({
               onClick={onAdd}
               className="flex flex-1 sm:flex-none items-center justify-center gap-2 rounded-md bg-[#8D1231] px-4 py-2 text-sm font-medium text-white hover:bg-[#a6153a] transition-colors"
             >
-              <Plus size={16} />
+              {addLabel.toLowerCase().includes("transfer") ? (
+                <ArrowLeftRight size={16} />
+              ) : (
+                <Plus size={16} />
+              )}
               {addLabel}
             </button>
           )}

@@ -151,9 +151,15 @@ export default function EditMemberPage() {
           }
         }
 
+        // Strip FW prefix if exists for display
+        let displayNik = item.identityNumber ?? "";
+        if (displayNik.startsWith("FW")) {
+          displayNik = displayNik.substring(2);
+        }
+
         setForm({
           name: item.name ?? "",
-          nik: item.identityNumber ?? "",
+          nik: displayNik,
           nippKai: item.nippKai ?? "",
           employeeTypeId: item.employeeTypeId ?? "",
           nationality,
@@ -253,7 +259,7 @@ export default function EditMemberPage() {
     try {
       await updateMember(id, {
         name: form.name,
-        identityNumber: form.nik,
+        identityNumber: "FW" + form.nik,
         nippKai: form.nationality === "KAI" ? form.nippKai : undefined,
         employeeTypeId: form.employeeTypeId || undefined,
         phone: getFullPhoneNumber(),
@@ -310,20 +316,33 @@ export default function EditMemberPage() {
 
             {/* NIK */}
             <Field label="NIK" required>
-              <input
-                name="nik"
-                value={form.nik}
-                onChange={(e) => {
-                  const val = e.target.value.replace(/[^0-9]/g, "");
-                  if (val.length <= 20) {
-                    setForm((prev) => ({ ...prev, nik: val }));
-                  }
-                }}
-                inputMode="numeric"
-                maxLength={20}
-                className={base}
-                required
-              />
+              <div className="flex">
+                {/* PREFIX FW */}
+                <div className="flex items-center rounded-l-md border border-r-0 border-gray-300 bg-gray-100 px-3 text-sm text-gray-600 min-w-[50px] justify-center font-medium">
+                  FW
+                </div>
+
+                {/* DIVIDER */}
+                <div className="flex items-center border-y border-gray-300 bg-gray-100 px-2 text-gray-400">
+                  |
+                </div>
+
+                {/* INPUT NIK */}
+                <input
+                  name="nik"
+                  value={form.nik}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, "");
+                    if (val.length <= 20) {
+                      setForm((prev) => ({ ...prev, nik: val }));
+                    }
+                  }}
+                  inputMode="numeric"
+                  maxLength={20}
+                  className="h-10 w-full rounded-r-md border border-l-0 border-gray-300 px-3 text-sm focus:outline-none focus:border-gray-400"
+                  required
+                />
+              </div>
             </Field>
 
             {/* EMPLOYEE TYPE */}

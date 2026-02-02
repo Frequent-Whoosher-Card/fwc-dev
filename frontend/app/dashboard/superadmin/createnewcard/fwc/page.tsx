@@ -9,6 +9,7 @@ import {
 } from "@/components/createnewcard";
 import ConfirmModal from "@/components/ConfirmModal";
 import { useCardBase } from "@/hooks/useCardBase";
+import StockSopCard from "@/components/stock/StockSopCard";
 
 export default function FWCPage() {
   const {
@@ -33,6 +34,12 @@ export default function FWCPage() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showTypeModal, setShowTypeModal] = useState(false);
 
+  const sopItems = [
+    "Tidak boleh menghapus produk jika sudah stok in (solusi jika sudah stok in tombol deletenya jadi terkunci).",
+    "Saat tambah produk baik type dan category sudah dipastikan nama tersebut sudah sesuai yang diinginkan, karena tidak bisa dihapus atau diedit.",
+    "Kesepakatan serial template dinamis atau tidak?",
+  ];
+
   return (
     <div className="px-6 space-y-8 max-w-full">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -45,7 +52,9 @@ export default function FWCPage() {
           onOpenType={() => setShowTypeModal(true)}
           service={service}
         />
-        <div />
+        <div className="h-full">
+          <StockSopCard title="SOP Card Produk" items={sopItems} />
+        </div>
       </div>
 
       <BaseCardProductTable
