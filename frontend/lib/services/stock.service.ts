@@ -103,13 +103,17 @@ export interface StockOutListResponse {
 
 const stockService = {
   // --- MASTER DATA ---
-  getCategories: async () => {
-    const res = await axios.get("/card/category");
+  getCategories: async (programType?: string) => {
+    const res = await axios.get("/card/category", {
+      params: { programType },
+    });
     return res.data?.data ?? [];
   },
 
-  getTypes: async () => {
-    const res = await axios.get("/card/types");
+  getTypes: async (programType?: string) => {
+    const res = await axios.get("/card/types", {
+      params: { programType },
+    });
     return res.data?.data ?? [];
   },
 
@@ -431,6 +435,39 @@ const stockService = {
 
   deleteStockOut: async (id: string, programType: string = "fwc") => {
     return axios.delete(`/stock/out/${programType.toLowerCase()}/${id}`);
+  },
+
+  // --- TRANSFERS ---
+  createTransfer: async (payload: {
+    stationId: string;
+    toStationId: string;
+    categoryId: string;
+    typeId: string;
+    cardIds: string[];
+    note: string;
+  }) => {
+    return axios.post("/transfers", payload);
+  },
+
+  getTransfers: async (params: {
+    stationId?: string;
+    status?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+    programType?: string;
+  }) => {
+    const res = await axios.get("/transfers", { params });
+    return res.data?.data ?? { items: [], pagination: {} };
+  },
+
+  getTransferById: async (id: string) => {
+    const res = await axios.get(`/transfers/${id}`);
+    return res.data?.data;
+  },
+
+  receiveTransfer: async (id: string) => {
+    return axios.post(`/transfers/${id}/receive`);
   },
 };
 

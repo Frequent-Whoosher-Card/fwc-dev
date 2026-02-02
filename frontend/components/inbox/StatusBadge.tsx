@@ -10,6 +10,7 @@ const LABELS: Record<string, string> = {
   REJECTED: "Ditolak",
   COMPLETED: "Selesai",
   PENDING: "Menunggu",
+  PENDING_APPROVAL: "Menunggu Approval",
   ALERT: "Peringatan",
 };
 
@@ -23,6 +24,7 @@ const STYLES: Record<string, string> = {
   REJECTED: "bg-red-100 text-red-700",
   COMPLETED: "bg-green-100 text-green-700",
   PENDING: "bg-yellow-100 text-yellow-700",
+  PENDING_APPROVAL: "bg-orange-100 text-orange-700",
   ALERT: "bg-red-100 text-red-700",
 };
 

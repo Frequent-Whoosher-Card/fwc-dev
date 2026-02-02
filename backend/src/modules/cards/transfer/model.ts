@@ -18,6 +18,7 @@ export namespace TransferModel {
     search: t.Optional(t.String()),
     page: t.Optional(t.String()), // Receive as string from query
     limit: t.Optional(t.String()), // Receive as string from query
+    programType: t.Optional(t.String()), // FWC or VOUCHER
   });
 
   // Path Params
@@ -39,7 +40,7 @@ export namespace TransferModel {
           stationName: t.String(),
         }),
         t.Null(),
-      ])
+      ]),
     ),
     toStation: t.Optional(
       t.Union([
@@ -47,7 +48,7 @@ export namespace TransferModel {
           stationName: t.String(),
         }),
         t.Null(),
-      ])
+      ]),
     ),
     category: t.Object({
       id: t.String({ format: "uuid" }),
@@ -57,6 +58,20 @@ export namespace TransferModel {
       id: t.String({ format: "uuid" }),
       typeName: t.String(),
     }),
+    programType: t.Optional(t.Union([t.Literal("FWC"), t.Literal("VOUCHER")])),
+    sentSerialNumbers: t.Array(t.String()),
+    receivedSerialNumbers: t.Array(t.String()),
+    createdByUser: t.Object({
+      id: t.String(),
+      fullName: t.String(),
+    }),
+    validatedByUser: t.Union([
+      t.Object({
+        id: t.String(),
+        fullName: t.String(),
+      }),
+      t.Null(),
+    ]),
   });
 
   // Responses
@@ -90,6 +105,12 @@ export namespace TransferModel {
     success: t.Boolean(),
     message: t.String(),
     data: t.Any(),
+  });
+
+  export const deleteTransferResponse = t.Object({
+    success: t.Boolean(),
+    message: t.String(),
+    data: t.Any(), // Simplification
   });
 
   // Error Response

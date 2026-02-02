@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Select from "react-select";
 import toast from "react-hot-toast";
 import axiosInstance from "@/lib/axios";
-import { ArrowLeft } from "lucide-react";
+import stockService from "@/lib/services/stock.service";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { useContext } from "react";
+import { UserContext } from "@/app/dashboard/superadmin/dashboard/dashboard-layout";
 
 interface TransferCardViewProps {
   programType: "FWC" | "VOUCHER";
@@ -20,63 +23,154 @@ export default function TransferCardView({
   programType,
 }: TransferCardViewProps) {
   const router = useRouter();
+  const userContext = useContext(UserContext);
+  const role = userContext?.role || "superadmin";
   const [loading, setLoading] = useState(true);
-  const [cards, setCards] = useState<Option[]>([]);
-  const [stations, setStations] = useState<Option[]>([]);
+  const [saving, setSaving] = useState(false);
 
-  const [selectedCards, setSelectedCards] = useState<readonly Option[]>([]);
+  // Master Data
+  const [stations, setStations] = useState<Option[]>([]);
+  const [categories, setCategories] = useState<Option[]>([]);
+  const [types, setTypes] = useState<Option[]>([]);
+  const [cards, setCards] = useState<Option[]>([]);
+
+  // Form State
   const [fromStation, setFromStation] = useState<Option | null>(null);
   const [toStation, setToStation] = useState<Option | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<Option | null>(null);
+  const [selectedType, setSelectedType] = useState<Option | null>(null);
+  const [selectedCards, setSelectedCards] = useState<readonly Option[]>([]);
+  const [note, setNote] = useState("");
 
+  const [loadingCards, setLoadingCards] = useState(false);
+
+  // Initial Data Fetch (Stations, Categories, Types)
   useEffect(() => {
-    const fetchResources = async () => {
+    const fetchMasterData = async () => {
       try {
         setLoading(true);
-        // Fetch All Cards (this might be heavy, but user requested "data semua kartu")
-        // In real world, this should be server-side searched or paginated
-        const cardsRes = await axiosInstance.get("/cards", {
-          params: { limit: 1000, programType }, // Limit 1000 for now to prevent crash
-        });
+        const [stationsRes, categoriesRes, typesRes] = await Promise.all([
+          stockService.getStations(),
+          stockService.getCategories(programType),
+          stockService.getTypes(programType),
+        ]);
 
-        // Fetch Stations
-        const stationsRes = await axiosInstance.get("/station", {
-          params: { limit: 100 },
-        });
-
-        const cardOptions = (cardsRes.data?.data?.items || []).map(
-          (c: any) => ({
-            value: c.id,
-            label: `${c.serialNumber} - ${c.status}`,
-          }),
-        );
-
-        const stationOptions = (stationsRes.data?.data?.items || []).map(
-          (s: any) => ({
+        setStations(
+          stationsRes.map((s: any) => ({
             value: s.id,
             label: s.stationName,
-          }),
+          })),
         );
 
-        setCards(cardOptions);
-        setStations(stationOptions);
+        setCategories(
+          categoriesRes.map((c: any) => ({
+            value: c.id,
+            label: c.categoryName,
+          })),
+        );
+
+        setTypes(
+          typesRes.map((t: any) => ({
+            value: t.id,
+            label: t.typeName,
+          })),
+        );
       } catch (error) {
-        console.error("Failed to fetch resources", error);
-        toast.error("Gagal memuat data kartu/stasiun");
+        console.error("Failed to fetch master data", error);
+        toast.error("Gagal memuat data master");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchResources();
+    fetchMasterData();
   }, [programType]);
 
-  const handleTransfer = () => {
-    if (selectedCards.length === 0 || !fromStation || !toStation) {
+  // Fetch Cards based on Category, Type, and Station
+  useEffect(() => {
+    const fetchFilteredCards = async () => {
+      if (!selectedCategory || !selectedType || !fromStation) {
+        setCards([]);
+        setSelectedCards([]);
+        return;
+      }
+
+      try {
+        setLoadingCards(true);
+        // Using common cards endpoint with filters
+        const res = await axiosInstance.get("/cards", {
+          params: {
+            categoryId: selectedCategory.value,
+            typeId: selectedType.value,
+            stationId: fromStation.value,
+            status: "IN_STATION", // Only transfer cards currently in office
+            programType,
+            limit: 1000,
+          },
+        });
+
+        const cardOptions = (res.data?.data?.items || []).map((c: any) => ({
+          value: c.id,
+          label: `${c.serialNumber}`,
+        }));
+
+        setCards(cardOptions);
+      } catch (error) {
+        console.error("Failed to fetch cards", error);
+        toast.error("Gagal memuat data kartu");
+      } finally {
+        setLoadingCards(false);
+      }
+    };
+
+    fetchFilteredCards();
+  }, [selectedCategory, selectedType, fromStation, programType]);
+
+  const handleTransfer = async () => {
+    if (
+      !fromStation ||
+      !toStation ||
+      !selectedCategory ||
+      !selectedType ||
+      selectedCards.length === 0
+    ) {
       toast.error("Mohon lengkapi semua data");
       return;
     }
-    toast.success("Coming soon");
+
+    if (fromStation.value === toStation.value) {
+      toast.error("Stasiun asal dan tujuan tidak boleh sama");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await stockService.createTransfer({
+        stationId: fromStation.value,
+        toStationId: toStation.value,
+        categoryId: selectedCategory.value,
+        typeId: selectedType.value,
+        cardIds: selectedCards.map((c) => c.value),
+        note,
+      });
+
+      toast.success("Transfer kartu berhasil dibuat");
+      router.push(`/dashboard/${role}/stock/${programType.toLowerCase()}/out`);
+    } catch (error: any) {
+      console.error("Transfer failed", error);
+      toast.error(error?.response?.data?.message || "Gagal membuat transfer");
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -92,65 +186,138 @@ export default function TransferCardView({
         </h2>
       </div>
 
-      <div className="max-w-2xl mx-auto bg-white p-6 rounded-xl border shadow-sm space-y-6">
-        {/* Card Selection */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">
-            Pilih Kartu ({selectedCards.length} dipilih)
-          </label>
-          <Select
-            isMulti
-            options={cards}
-            value={selectedCards}
-            onChange={(newValue) => setSelectedCards(newValue || [])}
-            isLoading={loading}
-            placeholder="Cari Serial Number..."
-            isClearable
-            className="text-sm"
-            closeMenuOnSelect={false}
-          />
-        </div>
-
+      <div className="max-w-3xl mx-auto bg-white p-6 rounded-xl border shadow-sm space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* From Station */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">
-              Dari Stasiun
+              Dari Stasiun <span className="text-red-500">*</span>
             </label>
             <Select
               options={stations}
               value={fromStation}
-              onChange={setFromStation}
-              isLoading={loading}
+              onChange={(val) => {
+                setFromStation(val);
+                setCards([]);
+                setSelectedCards([]);
+              }}
               placeholder="Pilih Stasiun Asal"
               className="text-sm"
+              isClearable
             />
           </div>
 
           {/* To Station */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">
-              Ke Stasiun
+              Ke Stasiun <span className="text-red-500">*</span>
             </label>
             <Select
               options={stations}
               value={toStation}
               onChange={setToStation}
-              isLoading={loading}
               placeholder="Pilih Stasiun Tujuan"
               className="text-sm"
+              isClearable
             />
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Category */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">
+              Kategori Kartu <span className="text-red-500">*</span>
+            </label>
+            <Select
+              options={categories}
+              value={selectedCategory}
+              onChange={(val) => {
+                setSelectedCategory(val);
+                setCards([]);
+                setSelectedCards([]);
+              }}
+              placeholder="Pilih Kategori"
+              className="text-sm"
+              isClearable
+            />
+          </div>
+
+          {/* Type */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">
+              Tipe Kartu <span className="text-red-500">*</span>
+            </label>
+            <Select
+              options={types}
+              value={selectedType}
+              onChange={(val) => {
+                setSelectedType(val);
+                setCards([]);
+                setSelectedCards([]);
+              }}
+              placeholder="Pilih Tipe"
+              className="text-sm"
+              isClearable
+            />
+          </div>
+        </div>
+
+        {/* Card Selection */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">
+            Pilih Kartu ({selectedCards.length} dipilih){" "}
+            <span className="text-red-500">*</span>
+          </label>
+          <Select
+            isMulti
+            options={cards}
+            value={selectedCards}
+            onChange={(newValue) => setSelectedCards(newValue || [])}
+            isLoading={loadingCards}
+            placeholder={
+              !fromStation || !selectedCategory || !selectedType
+                ? "Lengkapi data di atas terlebih dahulu"
+                : "Cari Serial Number Kartu..."
+            }
+            isDisabled={!fromStation || !selectedCategory || !selectedType}
+            isClearable
+            className="text-sm"
+            closeMenuOnSelect={false}
+          />
+          {fromStation &&
+            selectedCategory &&
+            selectedType &&
+            cards.length === 0 &&
+            !loadingCards && (
+              <p className="text-xs text-orange-600">
+                Tidak ada kartu yang tersedia di stasiun ini untuk kategori &
+                tipe terpilih.
+              </p>
+            )}
+        </div>
+
+        {/* Note */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Catatan</label>
+          <textarea
+            className="w-full rounded-lg border px-4 py-2 text-sm focus:ring-1 focus:ring-[#8D1231] outline-none"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={3}
+            placeholder="Tambahkan catatan transfer..."
+          />
         </div>
 
         {/* Transfer Button */}
         <div className="pt-4">
           <button
             onClick={handleTransfer}
-            disabled={loading}
-            className="w-full bg-[#8D1231] text-white py-2.5 rounded-lg font-medium hover:bg-[#a6153a] transition disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={saving || loadingCards}
+            className="w-full bg-[#8D1231] text-white py-2.5 rounded-lg font-medium hover:bg-[#a6153a] transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            Transfer
+            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+            {saving ? "Memproses..." : "Buat Transfer"}
           </button>
         </div>
       </div>

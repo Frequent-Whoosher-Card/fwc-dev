@@ -89,6 +89,14 @@ export default function ModalDetailInbox({
             <StatusBadge status={data.status} />
           </div>
 
+          {(data.payload as any)?.reporterName && (
+             <Row label="Dilaporkan Oleh:" value={(data.payload as any).reporterName} />
+          )}
+
+          {(data.payload as any)?.validationResult?.validatedByName && (
+             <Row label="Validasi Oleh:" value={(data.payload as any).validationResult.validatedByName} />
+          )}
+
           {/* Show Serials if available */}
           {(data.payload?.serials && (data.payload.serials.length > 0)) && (
             <div className="mt-4">
