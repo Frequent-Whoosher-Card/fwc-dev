@@ -11,6 +11,7 @@ interface RedeemTableProps {
   isLoading: boolean;
   noDataMessage?: string;
   total?: number;
+  product?: 'FWC' | 'VOUCHER';
 }
 
 export default function RedeemTable({
@@ -21,6 +22,7 @@ export default function RedeemTable({
   isLoading,
   noDataMessage,
   total,
+  product,
 }: RedeemTableProps) {
   // Debug jumlah data diterima
 
@@ -60,7 +62,9 @@ export default function RedeemTable({
               <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Serial Kartu</th>
               <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Kategori Kartu</th>
               <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Tipe Kartu</th>
-              <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Tipe Perjalanan</th>
+              {product !== 'VOUCHER' && (
+                <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Tipe Perjalanan</th>
+              )}
               <th className="px-2 md:px-4 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">Sisa Kuota</th>
               <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Operator</th>
               <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Stasiun</th>
@@ -71,7 +75,7 @@ export default function RedeemTable({
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={13} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={product !== 'VOUCHER' ? 13 : 12} className="px-4 py-8 text-center text-gray-500">
                   <div className="flex justify-center">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
                   </div>
@@ -79,7 +83,7 @@ export default function RedeemTable({
               </tr>
             ) : !data || data.length === 0 ? (
               <tr>
-                <td colSpan={13} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={product !== 'VOUCHER' ? 13 : 12} className="px-4 py-8 text-center text-gray-500">
                   {noDataMessage || 'Tidak ada data redeem'}
                 </td>
               </tr>
@@ -115,18 +119,20 @@ export default function RedeemTable({
                     <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
                       {item.card?.cardProduct?.type?.typeName || '-'}
                     </td>
-                    <td className="px-2 md:px-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 py-1 rounded text-xs font-medium ${item.redeemType === 'SINGLE'
-                          ? 'bg-orange-100 text-orange-800'
-                          : 'bg-purple-100 text-purple-800'
-                          }`}
-                      >
-                        {item.redeemType === 'SINGLE'
-                          ? 'Single Journey'
-                          : 'Roundtrip'}
-                      </span>
-                    </td>
+                    {product !== 'VOUCHER' && (
+                      <td className="px-2 md:px-4 whitespace-nowrap">
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-medium ${item.redeemType === 'SINGLE'
+                            ? 'bg-orange-100 text-orange-800'
+                            : 'bg-purple-100 text-purple-800'
+                            }`}
+                        >
+                          {item.redeemType === 'SINGLE'
+                            ? 'Single Journey'
+                            : 'Roundtrip'}
+                        </span>
+                      </td>
+                    )}
                     <td className="px-2 md:px-4 py-3 text-sm text-center whitespace-nowrap">
                       <span className={`${isQuotaEmpty ? 'text-red-600' : 'text-green-600'}`}>
                         {sisaKuota}

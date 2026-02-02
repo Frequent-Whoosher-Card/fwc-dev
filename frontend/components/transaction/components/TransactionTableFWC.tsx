@@ -174,12 +174,11 @@ export default function TransactionTable({
       {/* TABLE */}
       <div className="overflow-x-auto rounded-lg border bg-white">
         <table className="w-full text-xs border-collapse">
-          <thead className="bg-gray-100">
+          <thead className="bg- gray-100">
             <tr className="text-[11px] font-semibold text-gray-600">
               <th className="px-4 py-3 text-center w-16">No</th>
               <th className="px-4 py-3 text-left">Customer Name</th>
               <th className="px-4 py-3 text-left">Identity Number</th>
-              <th className="px-4 py-3 text-left">Perusahaan</th>
               <th className="px-4 py-3 text-left">Card Category</th>
               <th className="px-4 py-3 text-left">Card Type</th>
               <th className="px-4 py-3 text-left">Serial Number</th>
@@ -197,13 +196,13 @@ export default function TransactionTable({
           <tbody className="text-gray-700">
             {loading ? (
               <tr>
-                <td colSpan={15} className="py-10 text-center text-gray-400">
+                <td colSpan={14} className="py-10 text-center text-gray-400">
                   Loading...
                 </td>
               </tr>
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={15} className="py-10 text-center text-gray-400">
+                <td colSpan={14} className="py-10 text-center text-gray-400">
                   No data
                 </td>
               </tr>
@@ -213,7 +212,6 @@ export default function TransactionTable({
                   key={item.id}
                   className="border-t hover:bg-gray-50 transition"
                 >
-                  {" "}
                   <td className="px-4 py-3 text-center font-medium text-gray-500">
                     {(pagination.page - 1) * pagination.limit + index + 1}
                   </td>
@@ -222,9 +220,6 @@ export default function TransactionTable({
                   </td>
                   <td className="px-4 py-3 font-mono truncate">
                     {formatNIK(item.member?.identityNumber)}
-                  </td>
-                  <td className="px-4 py-3 truncate">
-                    {item.member?.companyName ?? "-"}
                   </td>
                   <td className="px-4 py-3">
                     {item.card?.cardProduct?.category?.categoryName ?? "-"}
