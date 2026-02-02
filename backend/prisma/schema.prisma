@@ -142,10 +142,28 @@ model User {
   sentInboxes         Inbox[]              @relation("SentInboxes")
   receivedInboxes     Inbox[]              @relation("ReceivedInboxes")
   passwordResetTokens PasswordResetToken[]
+  shifts              Shift[]
   role                Role                 @relation(fields: [roleId], references: [id])
   station             Station?             @relation(fields: [stationId], references: [id])
 
   @@map("users")
+}
+
+model Shift {
+  id        String   @id @default(uuid()) @map("shift_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  startDate DateTime @map("start_date")
+  endDate   DateTime @map("end_date")
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String?  @map("created_by") @db.Uuid
+  updatedAt DateTime @default(now()) @map("updated_at")
+  updatedBy String?  @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at")
+  deletedBy String?  @map("deleted_by") @db.Uuid
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("shifts")
 }
 
 model CardCategory {
@@ -535,8 +553,26 @@ model Redeem {
   operator          User              @relation(fields: [operatorId], references: [id])
   station           Station           @relation(fields: [stationId], references: [id])
   usageLogs         CardUsageLog[]
+  passengers        PassengerInfo[]
 
   @@map("card_redeem")
+}
+
+model PassengerInfo {
+  id            String   @id @default(uuid()) @map("passenger_info_id") @db.Uuid
+  passengerName String   @map("nama_passanger")
+  nik           String   @map("nik")
+  redeemId      String   @map("card_redeem_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+  createdBy     String?  @map("created_by") @db.Uuid
+  updatedAt     DateTime @default(now()) @map("updated_at")
+  updatedBy     String?  @map("updated_by") @db.Uuid
+  deletedAt     DateTime? @map("deleted_at")
+  deletedBy     String?  @map("deleted_by") @db.Uuid
+
+  redeem Redeem @relation(fields: [redeemId], references: [id])
+
+  @@map("passenger_info")
 }
 
 model CardUsageLog {

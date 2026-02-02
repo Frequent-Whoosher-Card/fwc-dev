@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useStockInForm } from "@/hooks/useStockInForm";
+import StockSopCard from "./StockSopCard";
 
 interface BaseStockInAddProps {
   programType: "FWC" | "VOUCHER";
@@ -21,6 +22,11 @@ export default function BaseStockInAdd({ programType }: BaseStockInAddProps) {
     maxAvailableSerial,
   } = useStockInForm({ programType });
 
+  const sopItems = [
+    "Saat proses stock in tidak dapat menambahkan serial number baru manual saat serial number lama yang di generate belum habis.",
+    "Jika di dalam satu batch generate kartu ada beberapa kartu yang rusak, itu tetap harus dimasukin ke stok in dulu dan harus diubah statusnya menjadi damage di stok in.",
+  ];
+
   return (
     <div className="space-y-8">
       {/* HEADER */}
@@ -34,9 +40,10 @@ export default function BaseStockInAdd({ programType }: BaseStockInAddProps) {
         <h2 className="text-lg font-semibold">Add Stock-In ({programType})</h2>
       </div>
 
-      {/* FORM */}
-      <div className="px-6">
-        <div className="rounded-xl border bg-white p-6 space-y-6">
+      {/* CONTENT GRID */}
+      <div className="px-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* FORM */}
+        <div className="lg:col-span-2 rounded-xl border bg-white p-6 space-y-6">
           {/* DATE */}
           <div>
             <label className="text-sm font-medium">Date</label>
@@ -132,6 +139,11 @@ export default function BaseStockInAdd({ programType }: BaseStockInAddProps) {
               {saving ? "Loading..." : "Add Stock"}
             </button>
           </div>
+        </div>
+
+        {/* SOP SIDEBAR */}
+        <div className="lg:col-span-1">
+          <StockSopCard items={sopItems} title="SOP Stock In" />
         </div>
       </div>
     </div>

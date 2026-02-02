@@ -29,7 +29,7 @@ export function StockSummary({ programType }: { programType?: string }) {
   };
 
   const items = [
-    { label: "All Card", value: summary.totalCards },
+    { label: "All Stock", value: summary.totalCards },
     { label: "Stock In", value: summary.totalIn },
     { label: "Stock Out", value: summary.totalOut },
   ];

@@ -69,6 +69,7 @@ export default function RedeemFilters({
                 if (endDate && e.target.value > endDate) return;
                 onStartDateChange(e.target.value);
               }}
+              onClick={(e) => e.currentTarget.showPicker()}
               className={`h-10 w-full rounded-md border px-3 pr-8 text-sm appearance-none font-medium cursor-pointer transition-colors
                   [&::-webkit-calendar-picker-indicator]:hidden
                   ${startDate ? 'border-[#8D1231] bg-red-50 text-[#8D1231]' : 'border-gray-200 hover:border-gray-300'}`}
@@ -100,6 +101,7 @@ export default function RedeemFilters({
                 if (startDate && e.target.value < startDate) return;
                 onEndDateChange(e.target.value);
               }}
+              onClick={(e) => e.currentTarget.showPicker()}
               className={`h-10 w-full rounded-md border px-3 pr-8 text-sm appearance-none font-medium cursor-pointer transition-colors
                   [&::-webkit-calendar-picker-indicator]:hidden
                   ${endDate ? 'border-[#8D1231] bg-red-50 text-[#8D1231]' : 'border-gray-200 hover:border-gray-300'}`}
