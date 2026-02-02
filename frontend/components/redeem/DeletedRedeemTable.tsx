@@ -11,6 +11,7 @@ interface DeletedRedeemTableProps {
     totalPages: number;
     totalCount: number;
     onPageChange: (page: number) => void;
+    product?: 'FWC' | 'VOUCHER';
 }
 
 export default function DeletedRedeemTable({
@@ -21,6 +22,7 @@ export default function DeletedRedeemTable({
     totalPages,
     totalCount,
     onPageChange,
+    product,
 }: DeletedRedeemTableProps) {
     const [openNotesId, setOpenNotesId] = useState<string | null>(null);
     const [notesContent, setNotesContent] = useState<string | null>(null);
@@ -70,7 +72,9 @@ export default function DeletedRedeemTable({
                             <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Serial Kartu</th>
                             <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Kategori Kartu</th>
                             <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Tipe Kartu</th>
-                            <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Tipe Perjalanan</th>
+                            {product !== 'VOUCHER' && (
+                                <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Tipe Perjalanan</th>
+                            )}
                             <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Operator</th>
                             <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Stasiun</th>
                             <th className="px-2 md:px-4 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">Alasan Hapus</th>
@@ -79,7 +83,7 @@ export default function DeletedRedeemTable({
                     <tbody>
                         {isLoading ? (
                             <tr>
-                                <td colSpan={11} className="px-4 py-8 text-center text-gray-500">
+                                <td colSpan={product !== 'VOUCHER' ? 11 : 10} className="px-4 py-8 text-center text-gray-500">
                                     <div className="flex justify-center">
                                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-red-600"></div>
                                     </div>
@@ -87,7 +91,7 @@ export default function DeletedRedeemTable({
                             </tr>
                         ) : !data || data.length === 0 ? (
                             <tr>
-                                <td colSpan={11} className="px-4 py-8 text-center text-gray-500">
+                                <td colSpan={product !== 'VOUCHER' ? 11 : 10} className="px-4 py-8 text-center text-gray-500">
                                     {noDataMessage || 'Tidak ada data yang dihapus'}
                                 </td>
                             </tr>
@@ -121,18 +125,20 @@ export default function DeletedRedeemTable({
                                     <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
                                         {item.card?.cardProduct?.type?.typeName || '-'}
                                     </td>
-                                    <td className="px-2 md:px-4 whitespace-nowrap">
-                                        <span
-                                            className={`px-2 py-1 rounded text-xs font-medium ${item.redeemType === 'SINGLE'
-                                                ? 'bg-orange-50 text-orange-800'
-                                                : 'bg-purple-50 text-purple-800'
-                                                }`}
-                                        >
-                                            {item.redeemType === 'SINGLE'
-                                                ? 'Single Journey'
-                                                : 'Roundtrip'}
-                                        </span>
-                                    </td>
+                                    {product !== 'VOUCHER' && (
+                                        <td className="px-2 md:px-4 whitespace-nowrap">
+                                            <span
+                                                className={`px-2 py-1 rounded text-xs font-medium ${item.redeemType === 'SINGLE'
+                                                    ? 'bg-orange-50 text-orange-800'
+                                                    : 'bg-purple-50 text-purple-800'
+                                                    }`}
+                                            >
+                                                {item.redeemType === 'SINGLE'
+                                                    ? 'Single Journey'
+                                                    : 'Roundtrip'}
+                                            </span>
+                                        </td>
+                                    )}
                                     <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
                                         {item.operator?.fullName || '-'}
                                     </td>
