@@ -39,6 +39,7 @@ export const inbox = new Elysia({ prefix: "/inbox" })
               type?: string;
               programType?: string; // Added programType
               search?: string; // Added search
+              status?: string; // Added status
             };
           };
           try {
@@ -56,6 +57,7 @@ export const inbox = new Elysia({ prefix: "/inbox" })
               type: query.type,
               programType: query.programType, // Pass programType
               search: query.search, // Pass search
+              status: query.status, // Pass status
             });
 
             return {

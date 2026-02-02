@@ -38,6 +38,7 @@ export namespace InboxModel {
     type: t.Optional(t.String()),
     programType: t.Optional(t.String()), // Added programType FILTER
     search: t.Optional(t.String()), // Added search
+    status: t.Optional(t.String()), // Added status
   });
 
   export const getSupervisorInboxQuery = t.Object({

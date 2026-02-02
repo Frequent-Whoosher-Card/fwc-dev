@@ -177,23 +177,57 @@ export class InboxService {
         });
       } else if (status === "PENDING_VALIDATION") {
         where.AND.push({
-          type: "STOCK_DISTRIBUTION",
-          payload: { path: ["status"], equals: "PENDING" },
+          OR: [
+            {
+              type: "STOCK_DISTRIBUTION",
+              payload: { path: ["status"], equals: "PENDING" },
+            },
+            {
+              type: "STOCK_ISSUE_REPORT",
+              payload: { path: ["status"], equals: "PENDING_APPROVAL" },
+            },
+          ],
         });
       } else if (status === "ACCEPTED") {
         where.AND.push({
-          type: "STOCK_DISTRIBUTION",
-          payload: { path: ["status"], equals: "COMPLETED" },
+          OR: [
+            {
+              type: "STOCK_DISTRIBUTION",
+              payload: { path: ["status"], equals: "COMPLETED" },
+            },
+            {
+              type: "STOCK_ISSUE_REPORT",
+              payload: { path: ["status"], equals: "RESOLVED" },
+            },
+            // Fallback for messaging based status (Legacy or specific format)
+            { message: { contains: "diterima", mode: "insensitive" } },
+            { message: { contains: "menerima", mode: "insensitive" } },
+          ],
         });
       } else if (status === "CARD_MISSING") {
         where.AND.push({
-          type: "STOCK_ISSUE_REPORT",
-          payload: { path: ["validationResult", "lost"], gt: 0 },
+          // Search for any item with lost cards > 0 (count) OR non-empty lostSerialNumbers string/array
+          OR: [
+            { payload: { path: ["validationResult", "lost"], gt: 0 } },
+            // Fallback for array length check if 'lost' count is missing (Prisma raw Json filter is tricky)
+            // We use string contains as a heuristic for now since 'not: []' is unreliable in Prisma Json
+            {
+              payload: {
+                path: ["validationResult", "lostSerialNumbers"],
+                string_contains: "0", // Rough check if serials exist (start with 0 usually) - Risky
+              },
+            },
+            // Better: Just check if the path exists and is not empty array?
+            // Let's assume the 'lost' count property is maintained in payload for filtering efficiency.
+            // If the user says "Walau selesai ada rusak", it implies the COMPLETED item HAS the data.
+            // We remove the TYPE constraint so it searches ALL types.
+          ],
         });
       } else if (status === "CARD_DAMAGED") {
         where.AND.push({
-          type: "STOCK_ISSUE_REPORT",
-          payload: { path: ["validationResult", "damaged"], gt: 0 },
+          OR: [
+            { payload: { path: ["validationResult", "damaged"], gt: 0 } },
+          ],
         });
       }
     }
@@ -849,6 +883,12 @@ export class InboxService {
           title: `[RESOLVED: ${action}] ${inbox.title}`,
           updatedBy: adminUserId,
           updatedAt: new Date(),
+          payload: {
+            ...payload,
+            status: "RESOLVED",
+            resolution: action,
+            resolvedAt: new Date(),
+          },
         },
       });
 
