@@ -20,11 +20,13 @@ export default function BaseStockInAdd({ programType }: BaseStockInAddProps) {
     fetchAvailableSerial,
     handleSubmit,
     maxAvailableSerial,
+    handleQuantityChange,
+    handleEndSerialChange,
   } = useStockInForm({ programType });
 
   const sopItems = [
-    "Saat proses stock in tidak dapat menambahkan serial number baru manual saat serial number lama yang di generate belum habis.",
-    "Jika di dalam satu batch generate kartu ada beberapa kartu yang rusak, itu tetap harus dimasukin ke stok in dulu dan harus diubah statusnya menjadi damage di stok in.",
+    "Penambahan Serial Number manual tidak dapat dilakukan jika stok dari hasil generate sebelumnya belum habis digunakan.",
+    "Jika terdapat kartu rusak dalam satu batch generate, kartu tersebut wajib tetap di-input ke Stock In, kemudian ubah statusnya menjadi 'Damaged'.",
   ];
 
   return (
@@ -92,7 +94,7 @@ export default function BaseStockInAdd({ programType }: BaseStockInAddProps) {
             </select>
           </div>
 
-          {/* SERIAL */}
+          {/* SERIAL & QUANTITY */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium">Initial Serial</label>
@@ -107,16 +109,25 @@ export default function BaseStockInAdd({ programType }: BaseStockInAddProps) {
             </div>
 
             <div>
+              <label className="text-sm font-medium">Jumlah (Qty)</label>
+              <input
+                type="number"
+                className="w-full rounded-lg border px-4 py-2"
+                value={form.quantity}
+                onChange={(e) => handleQuantityChange(e.target.value)}
+                placeholder="Masukkan jumlah kartu"
+                disabled={!form.productId}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
               <label className="text-sm font-medium">Last Serial</label>
               <input
                 className="w-full rounded-lg border px-4 py-2"
                 value={form.lastSerial}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    lastSerial: e.target.value,
-                  }))
-                }
+                onChange={(e) => handleEndSerialChange(e.target.value)}
                 disabled={!form.productId}
                 placeholder="Masukkan full serial atau suffix"
               />
@@ -130,7 +141,7 @@ export default function BaseStockInAdd({ programType }: BaseStockInAddProps) {
           </div>
 
           {/* SUBMIT */}
-          <div className="flex justify-end">
+          <div className="flex justify-end pt-4">
             <button
               onClick={handleSubmit}
               disabled={saving}

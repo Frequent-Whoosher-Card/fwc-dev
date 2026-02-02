@@ -121,14 +121,25 @@ export default function BaseCardProductTable({
                       <div className="flex items-center justify-center gap-3">
                         <button
                           onClick={() => handleEdit(item.id)}
-                          className="rounded border border-blue-600 px-3 py-1 text-xs font-medium text-blue-600 hover:bg-blue-600 hover:text-white transition-colors duration-200"
+                          title="Edit"
+                          className="rounded border border-blue-600 px-3 py-1 text-xs font-medium text-blue-600 transition-colors duration-200 hover:bg-blue-600 hover:text-white"
                         >
                           Edit
                         </button>
                         {onDelete && (
                           <button
                             onClick={() => onDelete(item.id)}
-                            className="rounded border border-red-600 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-600 hover:text-white transition-colors duration-200"
+                            disabled={item.hasGeneratedCards}
+                            title={
+                              item.hasGeneratedCards
+                                ? "Sudah di-generate number"
+                                : "Delete"
+                            }
+                            className={`rounded border px-3 py-1 text-xs font-medium transition-colors duration-200 ${
+                              item.hasGeneratedCards
+                                ? "border-gray-300 text-gray-400 cursor-not-allowed bg-gray-50"
+                                : "border-red-600 text-red-600 hover:bg-red-600 hover:text-white"
+                            }`}
                           >
                             Delete
                           </button>
