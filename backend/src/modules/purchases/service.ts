@@ -471,31 +471,16 @@ export class PurchaseService {
       where.stationId = stationId;
     }
 
-    // Card Category and Type filter
-    // FWC: card is set; VOUCHER: cards are in bulkPurchaseItems[].card
+    // Card Category and Type filter (nested in card.cardProduct)
     if (categoryId || typeId) {
-      const categoryTypeFilter: any = {};
+      where.card = {
+        cardProduct: {},
+      };
       if (categoryId) {
-        categoryTypeFilter.categoryId = categoryId;
+        where.card.cardProduct.categoryId = categoryId;
       }
       if (typeId) {
-        categoryTypeFilter.typeId = typeId;
-      }
-
-      if (transactionType === "voucher") {
-        // Voucher: filter by bulk purchase items' cards
-        where.bulkPurchaseItems = {
-          some: {
-            card: {
-              cardProduct: categoryTypeFilter,
-            },
-          },
-        };
-      } else {
-        // FWC (or no transactionType): filter by direct card relation
-        where.card = {
-          cardProduct: categoryTypeFilter,
-        };
+        where.card.cardProduct.typeId = typeId;
       }
     }
 

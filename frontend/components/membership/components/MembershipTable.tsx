@@ -99,6 +99,9 @@ export default function MembershipTable({
               <th className="px-4 py-3 text-left whitespace-nowrap min-w-[220px]">
                 Address
               </th>
+              <th className="px-4 py-3 text-left whitespace-nowrap min-w-[160px]">
+                Perusahaan
+              </th>
               <th className="px-4 py-3 text-center whitespace-nowrap w-[120px]">
                 Last Updated
               </th>
@@ -118,18 +121,28 @@ export default function MembershipTable({
                 </td>
                 <td className="px-4 py-2 text-left">{item.name || "-"}</td>
                 <td className="px-4 py-2 text-left">{item.nip || "-"}</td>
-                <td className="px-4 py-2 text-left">{formatNik(item.nik)}</td>
-                <td className="px-4 py-2 text-left">
+                <td className="px-4 py-2 text-left font-mono break-all">
+                  {formatNik(item.nik)}
+                </td>
+                <td className="px-4 py-2 text-left break-words">
                   {item.nationality || "-"}
                 </td>
                 <td className="px-4 py-2 text-center">{item.gender || "-"}</td>
                 <td className="px-4 py-2 text-left">
                   {item.employee_type_name || "-"}
                 </td>
-                <td className="px-4 py-2 text-left">{item.email || "-"}</td>
-                <td className="px-4 py-2 text-center">{item.phone || "-"}</td>
-                <td className="px-4 py-2 text-left">{item.address || "-"}</td>
-                <td className="px-4 py-2 text-left">{item.company_name || "-"}</td>
+                <td className="px-4 py-2 text-left break-words">
+                  {item.email || "-"}
+                </td>
+                <td className="px-4 py-2 text-center break-words">
+                  {item.phone || "-"}
+                </td>
+                <td className="px-4 py-2 text-left break-words">
+                  {item.address || "-"}
+                </td>
+                <td className="px-4 py-2 text-left break-words">
+                  {item.company_name || "-"}
+                </td>
                 <td className="px-4 py-2 text-center whitespace-nowrap">
                   {item.updated_at || "-"}
                 </td>
