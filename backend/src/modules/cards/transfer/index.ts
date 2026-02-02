@@ -9,65 +9,60 @@ export const transfers = new Elysia({ prefix: "/transfers" })
   .use(authMiddleware)
   // Create Transfer
   .group("", (app) =>
+    app.use(permissionMiddleware("transfer.create")).post(
+      "/",
+      async (context) => {
+        const { body, user, set } = context as any; // Allow permission middleware to enhance context if needed
+        try {
+          const { stationId, toStationId, categoryId, typeId, cardIds, note } =
+            body;
+          const userId = user.id;
+
+          const movement = await TransferService.createTransfer({
+            stationId,
+            toStationId,
+            categoryId,
+            typeId,
+            cardIds,
+            note,
+            userId,
+          });
+
+          return {
+            success: true,
+            message: "Transfer created successfully",
+            data: movement,
+          };
+        } catch (error) {
+          set.status =
+            error instanceof Error && "statusCode" in error
+              ? (error as any).statusCode
+              : 500;
+          return formatErrorResponse(error);
+        }
+      },
+      {
+        body: TransferModel.createTransferBody,
+        response: {
+          200: TransferModel.createTransferResponse,
+          400: TransferModel.errorResponse,
+          401: TransferModel.errorResponse,
+          403: TransferModel.errorResponse,
+          422: TransferModel.errorResponse,
+          500: TransferModel.errorResponse,
+        },
+        detail: {
+          tags: ["Transfer"],
+          summary: "Create Card Transfer",
+          description:
+            "Initiate a transfer of cards from one station to another.",
+        },
+      },
+    ),
+  )
+  .group("", (app) =>
     app
-      .use(permissionMiddleware("transfer.create"))
-      .post(
-        "/",
-        async (context) => {
-          const { body, user, set } = context as any; // Allow permission middleware to enhance context if needed
-          try {
-            const {
-              stationId,
-              toStationId,
-              categoryId,
-              typeId,
-              cardIds,
-              note,
-            } = body;
-            const userId = user.id;
-
-            const movement = await TransferService.createTransfer({
-              stationId,
-              toStationId,
-              categoryId,
-              typeId,
-              cardIds,
-              note,
-              userId,
-            });
-
-            return {
-              success: true,
-              message: "Transfer created successfully",
-              data: movement,
-            };
-          } catch (error) {
-            set.status =
-              error instanceof Error && "statusCode" in error
-                ? (error as any).statusCode
-                : 500;
-            return formatErrorResponse(error);
-          }
-        },
-        {
-          body: TransferModel.createTransferBody,
-          response: {
-            200: TransferModel.createTransferResponse,
-            400: TransferModel.errorResponse,
-            401: TransferModel.errorResponse,
-            403: TransferModel.errorResponse,
-            422: TransferModel.errorResponse,
-            500: TransferModel.errorResponse,
-          },
-          detail: {
-            tags: ["Transfer"],
-            summary: "Create Card Transfer",
-            description:
-              "Initiate a transfer of cards from one station to another.",
-          },
-        },
-      )
-
+      .use(permissionMiddleware("transfer.view"))
       // Get Transfers
       .get(
         "/",
@@ -167,8 +162,11 @@ export const transfers = new Elysia({ prefix: "/transfers" })
             description: "Get detailed information about a specific transfer.",
           },
         },
-      )
-
+      ),
+  )
+  .group("", (app) =>
+    app
+      .use(permissionMiddleware("transfer.receive"))
       // Receive Transfer
       .post(
         "/:id/receive",
@@ -205,6 +203,49 @@ export const transfers = new Elysia({ prefix: "/transfers" })
             summary: "Receive Transfer",
             description:
               "Accept and finalize an incoming card transfer at the destination station.",
+          },
+        },
+      ),
+  )
+  .group("", (app) =>
+    app
+      .use(permissionMiddleware("transfer.delete"))
+      // Delete Transfer (Cancel PENDING)
+      .delete(
+        "/:id",
+        async (context) => {
+          const { params, user, set } = context;
+          try {
+            const { id } = params;
+            const userId = user.id;
+            const result = await TransferService.deleteTransfer(id, userId);
+            return {
+              success: true,
+              message: "Transfer deleted successfully",
+              data: result,
+            };
+          } catch (error) {
+            set.status =
+              error instanceof Error && "statusCode" in error
+                ? (error as any).statusCode
+                : 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          params: TransferModel.transferParams,
+          response: {
+            200: TransferModel.deleteTransferResponse,
+            400: TransferModel.errorResponse,
+            401: TransferModel.errorResponse,
+            404: TransferModel.errorResponse,
+            500: TransferModel.errorResponse,
+          },
+          detail: {
+            tags: ["Transfer"],
+            summary: "Delete Transfer",
+            description:
+              "Cancel and delete a pending card transfer. Reverts cards to source station.",
           },
         },
       ),

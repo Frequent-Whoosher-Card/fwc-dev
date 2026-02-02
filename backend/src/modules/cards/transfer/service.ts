@@ -195,6 +195,20 @@ export class TransferService {
       db.cardStockMovement.count({ where }),
     ]);
 
+    // Manual fetch for users (since relations are not defined in schema)
+    const userIds = new Set<string>();
+    items.forEach((item) => {
+      if (item.createdBy) userIds.add(item.createdBy);
+      if (item.validatedBy) userIds.add(item.validatedBy);
+    });
+
+    const users = await db.user.findMany({
+      where: { id: { in: Array.from(userIds) } },
+      select: { id: true, fullName: true },
+    });
+
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
     const formattedItems = items.map((item) => ({
       id: item.id,
       movementAt: item.movementAt.toISOString(),
@@ -217,6 +231,20 @@ export class TransferService {
       programType: item.category.programType,
       sentSerialNumbers: item.sentSerialNumbers,
       receivedSerialNumbers: item.receivedSerialNumbers,
+      createdByUser:
+        item.createdBy && userMap.has(item.createdBy)
+          ? {
+              id: item.createdBy,
+              fullName: userMap.get(item.createdBy)!.fullName,
+            }
+          : { id: "", fullName: "Unknown" },
+      validatedByUser:
+        item.validatedBy && userMap.has(item.validatedBy)
+          ? {
+              id: item.validatedBy,
+              fullName: userMap.get(item.validatedBy)!.fullName,
+            }
+          : null,
     }));
 
     return {
@@ -243,6 +271,17 @@ export class TransferService {
 
     if (!transfer) return null;
 
+    // Manual fetch users
+    const userIds = new Set<string>();
+    if (transfer.createdBy) userIds.add(transfer.createdBy);
+    if (transfer.validatedBy) userIds.add(transfer.validatedBy);
+
+    const users = await db.user.findMany({
+      where: { id: { in: Array.from(userIds) } },
+      select: { id: true, fullName: true },
+    });
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
     return {
       id: transfer.id,
       movementAt: transfer.movementAt.toISOString(),
@@ -267,6 +306,20 @@ export class TransferService {
       programType: transfer.category.programType,
       sentSerialNumbers: transfer.sentSerialNumbers,
       receivedSerialNumbers: transfer.receivedSerialNumbers,
+      createdByUser:
+        transfer.createdBy && userMap.has(transfer.createdBy)
+          ? {
+              id: transfer.createdBy,
+              fullName: userMap.get(transfer.createdBy)!.fullName,
+            }
+          : { id: "", fullName: "Unknown" },
+      validatedByUser:
+        transfer.validatedBy && userMap.has(transfer.validatedBy)
+          ? {
+              id: transfer.validatedBy,
+              fullName: userMap.get(transfer.validatedBy)!.fullName,
+            }
+          : null,
     };
   }
 
@@ -310,12 +363,6 @@ export class TransferService {
         },
       });
 
-      // 3. Update Inventory (Destination Station): REMOVED (Deprecated)
-      /*
-      const existingInv = await tx.cardInventory.findUnique(...)
-      if (existingInv) ... else ...
-      */
-
       // 4. Log Activity
       await ActivityLogService.createActivityLog(
         userId,
@@ -324,6 +371,73 @@ export class TransferService {
       );
 
       return updatedMovement;
+    });
+  }
+
+  // 4. Delete Transfer (Cancel PENDING Transfer)
+  static async deleteTransfer(id: string, userId: string) {
+    return await db.$transaction(async (tx) => {
+      const movement = await tx.cardStockMovement.findUnique({
+        where: { id },
+      });
+
+      if (!movement) throw new AppError("Transfer not found", 404);
+      if (movement.status !== StockMovementStatus.PENDING) {
+        throw new AppError(
+          "Cannot delete transfer. Only PENDING transfers can be deleted.",
+          400,
+        );
+      }
+
+      // 1. Revert Cards -> IN_STATION at Source Station
+      // movement.stationId is the Source Station
+      if (!movement.stationId) {
+        throw new AppError("Transfer source station is missing", 500);
+      }
+
+      await tx.card.updateMany({
+        where: {
+          serialNumber: { in: movement.sentSerialNumbers },
+        },
+        data: {
+          status: CardStatus.IN_STATION,
+          stationId: movement.stationId, // Revert to source
+          // previousStationId: Keep history or revert?
+          // Decision: Keep history (previousStationId) as is, or maybe set to null?
+          // Logic: If it was never transferred, maybe revert previousStationId?
+          // But previousStationId tracks where it came from BEFORE this transfer potentially.
+          // Better to leave previousStationId alone, it tracks the station BEFORE the current stationId.
+          // Since we are reverting stationId to source, previousStationId should functionally reflect where it was before source.
+          // Current logic: Create Transfer sets previousStationId = source.
+          // Revert: We want card to be back at source.
+          // Check createTransfer logic:
+          // stationId: toStationId
+          // previousStationId: stationId (source)
+          // So if we revert, stationId = source.
+          // What about previousStationId? If we don't change it, it says "Previous: Source".
+          // If Card is at Source, Previous: Source is weird but harmless.
+          updatedBy: userId,
+          updatedAt: new Date(),
+        },
+      });
+
+      // 2. Soft Delete Movement
+      const deletedMovement = await tx.cardStockMovement.update({
+        where: { id },
+        data: {
+          deletedAt: new Date(),
+          deletedBy: userId,
+        },
+      });
+
+      // 3. Log Activity
+      await ActivityLogService.createActivityLog(
+        userId,
+        "Deletes Transfer",
+        `Deleted (Cancelled) transfer ${id}. Cards reverted to ${movement.stationId}.`,
+      );
+
+      return deletedMovement;
     });
   }
 }

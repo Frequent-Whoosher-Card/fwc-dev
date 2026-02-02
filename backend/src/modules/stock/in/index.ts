@@ -121,7 +121,7 @@ const stockInFwc = new Elysia({ prefix: "/fwc" })
             deprecated: true,
           },
         },
-      )
+      ),
   )
   .group("", (app) =>
     app
@@ -242,7 +242,7 @@ const stockInFwc = new Elysia({ prefix: "/fwc" })
             description: "Melihat detail transaksi stock in.",
           },
         },
-      )
+      ),
   )
   .group("", (app) =>
     app
@@ -329,94 +329,90 @@ const stockInFwc = new Elysia({ prefix: "/fwc" })
               "Mengubah status kartu (DAMAGED/LOST) dalam batch produksi ini. Mengupdate inventory office secara otomatis.",
           },
         },
-      )
+      ),
   )
   .group("", (app) =>
-    app
-      .use(permissionMiddleware("stock.in.delete"))
-      .delete(
-        "/:id",
-        async (context) => {
-          const { params, set, user } = context as typeof context &
-            AuthContextUser;
-          try {
-            const result = await StockInFwcService.delete(params.id, user.id);
-            return result;
-          } catch (error) {
-            set.status =
-              error instanceof Error && "statusCode" in error
-                ? (error as any).statusCode
-                : 500;
-            return formatErrorResponse(error);
-          }
+    app.use(permissionMiddleware("stock.in.delete")).delete(
+      "/:id",
+      async (context) => {
+        const { params, set, user } = context as typeof context &
+          AuthContextUser;
+        try {
+          const result = await StockInFwcService.delete(params.id, user.id);
+          return result;
+        } catch (error) {
+          set.status =
+            error instanceof Error && "statusCode" in error
+              ? (error as any).statusCode
+              : 500;
+          return formatErrorResponse(error);
+        }
+      },
+      {
+        response: {
+          200: t.Object({
+            success: t.Boolean(),
+            message: t.String(),
+          }),
+          400: StockInFwcModel.errorResponse,
+          401: StockInFwcModel.errorResponse,
+          403: StockInFwcModel.errorResponse,
+          404: StockInFwcModel.errorResponse,
+          409: StockInFwcModel.errorResponse,
+          422: StockInFwcModel.errorResponse,
+          500: StockInFwcModel.errorResponse,
         },
-        {
-          response: {
-            200: t.Object({
-              success: t.Boolean(),
-              message: t.String(),
-            }),
-            400: StockInFwcModel.errorResponse,
-            401: StockInFwcModel.errorResponse,
-            403: StockInFwcModel.errorResponse,
-            404: StockInFwcModel.errorResponse,
-            409: StockInFwcModel.errorResponse,
-            422: StockInFwcModel.errorResponse,
-            500: StockInFwcModel.errorResponse,
-          },
-          detail: {
-            tags: ["Stock In FWC"],
-            summary: "Delete Stock In (Undo/Cancel)",
-            description:
-              "Membatalkan stock in. SYARAT MUTLAK: Semua kartu dari batch ini harus masih berstatus 'IN_OFFICE'. Jika ada 1 saja yang tidak di office, batal.",
-          },
+        detail: {
+          tags: ["Stock In FWC"],
+          summary: "Delete Stock In (Undo/Cancel)",
+          description:
+            "Membatalkan stock in. SYARAT MUTLAK: Semua kartu dari batch ini harus masih berstatus 'IN_OFFICE'. Jika ada 1 saja yang tidak di office, batal.",
         },
-      ),
+      },
+    ),
   );
 
 const stockInVoucher = new Elysia({ prefix: "/voucher" })
   .use(authMiddleware)
   .group("", (app) =>
-    app
-      .use(permissionMiddleware("stock.in.create"))
-      .post(
-        "/",
-        async (context) => {
-          const { body, user, set } = context as typeof context & AuthContextUser;
-          try {
-            const result = await StockInVoucherService.createStockInVoucher(
-              new Date(body.movementAt),
-              body.cardProductId,
-              body.startSerial,
-              body.endSerial,
-              user.id,
-              body.serialDate,
-              body.note,
-            );
-            return {
-              success: true,
-              message: "Stock In Voucher berhasil",
-              data: result,
-            };
-          } catch (error) {
-            set.status = 400; // Or dynamic
-            return formatErrorResponse(error);
-          }
+    app.use(permissionMiddleware("stock.in.create")).post(
+      "/",
+      async (context) => {
+        const { body, user, set } = context as typeof context & AuthContextUser;
+        try {
+          const result = await StockInVoucherService.createStockInVoucher(
+            new Date(body.movementAt),
+            body.cardProductId,
+            body.startSerial,
+            body.endSerial,
+            user.id,
+            body.serialDate,
+            body.note,
+          );
+          return {
+            success: true,
+            message: "Stock In Voucher berhasil",
+            data: result,
+          };
+        } catch (error) {
+          set.status = 400; // Or dynamic
+          return formatErrorResponse(error);
+        }
+      },
+      {
+        body: StockInVoucherModel.createStockInVoucherBody,
+        response: {
+          200: StockInVoucherModel.stockInVoucherResponse,
+          400: StockInVoucherModel.errorResponse,
+          422: StockInVoucherModel.errorResponse,
+          500: StockInVoucherModel.errorResponse,
         },
-        {
-          body: StockInVoucherModel.createStockInVoucherBody,
-          response: {
-            200: StockInVoucherModel.stockInVoucherResponse,
-            400: StockInVoucherModel.errorResponse,
-            422: StockInVoucherModel.errorResponse,
-            500: StockInVoucherModel.errorResponse,
-          },
-          detail: {
-            tags: ["Stock In Voucher"],
-            summary: "Create Stock In Voucher",
-          },
+        detail: {
+          tags: ["Stock In Voucher"],
+          summary: "Create Stock In Voucher",
         },
-      )
+      },
+    ),
   )
   .group("", (app) =>
     app
@@ -470,7 +466,9 @@ const stockInVoucher = new Elysia({ prefix: "/voucher" })
             const result = await StockInVoucherService.getHistory({
               page: query.page ? parseInt(query.page) : undefined,
               limit: query.limit ? parseInt(query.limit) : undefined,
-              startDate: query.startDate ? new Date(query.startDate) : undefined,
+              startDate: query.startDate
+                ? new Date(query.startDate)
+                : undefined,
               endDate: query.endDate ? new Date(query.endDate) : undefined,
               categoryId: query.categoryId,
               typeId: query.typeId,
@@ -519,7 +517,7 @@ const stockInVoucher = new Elysia({ prefix: "/voucher" })
           },
           detail: { tags: ["Stock In Voucher"], summary: "Get Voucher Detail" },
         },
-      )
+      ),
   )
   .group("", (app) =>
     app
@@ -600,34 +598,33 @@ const stockInVoucher = new Elysia({ prefix: "/voucher" })
             summary: "Update Voucher Batch Cards Status (QC)",
           },
         },
-      )
+      ),
   )
   .group("", (app) =>
-    app
-      .use(permissionMiddleware("stock.in.delete"))
-      .delete(
-        "/:id",
-        async (context) => {
-          const { params, user, set } = context as typeof context & AuthContextUser;
-          try {
-            const result = await StockInVoucherService.delete(params.id, user.id);
-            return result;
-          } catch (error) {
-            set.status = 500;
-            return formatErrorResponse(error);
-          }
+    app.use(permissionMiddleware("stock.in.delete")).delete(
+      "/:id",
+      async (context) => {
+        const { params, user, set } = context as typeof context &
+          AuthContextUser;
+        try {
+          const result = await StockInVoucherService.delete(params.id, user.id);
+          return result;
+        } catch (error) {
+          set.status = 500;
+          return formatErrorResponse(error);
+        }
+      },
+      {
+        response: {
+          400: StockInVoucherModel.errorResponse,
+          500: StockInVoucherModel.errorResponse,
         },
-        {
-          response: {
-            400: StockInVoucherModel.errorResponse,
-            500: StockInVoucherModel.errorResponse,
-          },
-          detail: {
-            tags: ["Stock In Voucher"],
-            summary: "Delete (Revert) Stock In Voucher",
-          },
+        detail: {
+          tags: ["Stock In Voucher"],
+          summary: "Delete (Revert) Stock In Voucher",
         },
-      )
+      },
+    ),
   );
 
 export const stockIn = new Elysia({ prefix: "/in" })
