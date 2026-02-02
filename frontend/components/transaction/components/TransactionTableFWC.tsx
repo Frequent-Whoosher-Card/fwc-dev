@@ -83,7 +83,8 @@ const formatCurrency = (amount: number) =>
 
 const formatNIK = (nik?: string | null) => {
   if (!nik) return "-";
-  return `FWC${nik}`;
+  // NIK sudah memiliki prefix "FW" dari database, tampilkan saja langsung
+  return nik;
 };
 
 const formatEDC = (edc?: string | null) => {

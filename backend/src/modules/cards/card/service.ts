@@ -351,9 +351,17 @@ export class CardService {
       throw new ValidationError("Card not found");
     }
 
-    // Convert Date objects to ISO strings
+    // Convert Date objects to ISO strings; ensure cardProduct.price is number (Prisma Decimal)
+    const cardProduct = card.cardProduct
+      ? {
+          ...card.cardProduct,
+          price: Number(card.cardProduct.price),
+        }
+      : null;
+
     return {
       ...card,
+      cardProduct,
       status: getFriendlyStatus(card.status),
       createdAt: card.createdAt.toISOString(),
       updatedAt: card.updatedAt.toISOString(),

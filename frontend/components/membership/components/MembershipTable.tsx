@@ -39,7 +39,8 @@ interface MembershipTableProps {
 
 const formatNik = (nik?: string | null) => {
   if (!nik) return "-";
-  return `FWC${nik}`;
+  // NIK sudah memiliki prefix "FW" dari database, tampilkan saja langsung
+  return nik;
 };
 
 export default function MembershipTable({
