@@ -61,7 +61,7 @@ export class CardService {
         },
         {
           station: { stationCode: { contains: search, mode: "insensitive" } },
-        }
+        },
       );
     }
 
@@ -130,9 +130,7 @@ export class CardService {
         where,
         skip,
         take: limit,
-        orderBy: {
-          createdAt: "desc",
-        },
+        orderBy: [{ createdAt: "desc" }, { serialNumber: "asc" }],
         select: {
           id: true,
           serialNumber: true,

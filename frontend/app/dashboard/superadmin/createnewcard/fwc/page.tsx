@@ -35,9 +35,8 @@ export default function FWCPage() {
   const [showTypeModal, setShowTypeModal] = useState(false);
 
   const sopItems = [
-    "Tidak boleh menghapus produk jika sudah stok in (solusi jika sudah stok in tombol deletenya jadi terkunci).",
-    "Saat tambah produk baik type dan category sudah dipastikan nama tersebut sudah sesuai yang diinginkan, karena tidak bisa dihapus atau diedit.",
-    "Kesepakatan serial template dinamis atau tidak?",
+    "Pastikan Kategori dan Tipe Produk sudah sesuai sebelum disimpan, karena data tidak dapat dihapus atau diedit setelah generate number.",
+    "Pastikan format Template Serial Number telah ditentukan dengan benar (dinamis/statis) sesuai kebutuhan.",
   ];
 
   return (
