@@ -217,4 +217,3 @@ function deriveCardCondition(message: string): string {
   
   return "UNKNOWN";
 }
-
