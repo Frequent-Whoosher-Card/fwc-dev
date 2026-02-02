@@ -7,6 +7,8 @@ import InboxList from "@/components/inbox/InboxList";
 import StockValidationModal from "@/components/inbox/StockValidationModal";
 import ModalDetailInbox from "@/components/inbox/modalDetailInbox";
 import { API_BASE_URL } from "@/lib/apiConfig";
+import Pagination from "@/components/ui/pagination";
+
 import FormNoted from "./formnoted/page";
 import SwitchTab from "@/components/SwitchTab";
 
@@ -22,11 +24,15 @@ export default function InboxPage() {
   const [activeTab, setActiveTab] = useState("FWC");
   const [currentFilters, setCurrentFilters] = useState<InboxFilters>({});
 
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
   // =========================
   // FETCH INBOX DATA
   // =========================
   const fetchInbox = useCallback(
-    async (filters: InboxFilters = {}) => {
+    async (pageIndex: number, filters: InboxFilters = {}) => {
       setLoading(true);
       try {
         const token = localStorage.getItem("fwc_token");
@@ -44,19 +50,34 @@ export default function InboxPage() {
          * Lebih aman & rapi dibanding string concat manual
          */
         const params = new URLSearchParams({ 
+          page: String(pageIndex),
           limit: "10",
           programType: activeTab 
         });
 
-        if (filters.status) params.append("status", filters.status);
-        if (filters.search) params.append("search", filters.search);
+        let searchParam = filters.search || "";
+
+        if (filters.status) {
+           switch (filters.status) {
+             case "CARD_MISSING":
+               searchParam = (searchParam + " hilang").trim();
+               break;
+             case "CARD_DAMAGED":
+               searchParam = (searchParam + " rusak").trim();
+               break;
+             default:
+               params.append("status", filters.status);
+           }
+        }
+
+        if (searchParam) params.append("search", searchParam);
         if (filters.startDate) params.append("startDate", filters.startDate);
         if (filters.endDate) params.append("endDate", filters.endDate);
 
         const url = `${API_BASE_URL}/inbox/?${params.toString()}`;
 
         // Request ke backend
-        const res = await fetch(`${API_BASE_URL}/inbox/?${params.toString()}`, {
+        const res = await fetch(url, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -76,6 +97,11 @@ export default function InboxPage() {
         // MAP DATA FROM BACKEND TO FRONTEND FORMAT
 
         if (result.success) {
+          // Set Pagination Data
+          if (result.data.pagination) {
+             setTotalPages(result.data.pagination.totalPages);
+          }
+
           let mappedItems = result.data.items.map((item: any) => {
             const sentDate = new Date(item.sentAt);
 
@@ -106,8 +132,10 @@ export default function InboxPage() {
 
               status: (() => {
                 const pStatus = item.payload?.status;
-                if (pStatus === "COMPLETED") return "ACCEPTED";
+                if (pStatus === "COMPLETED" || pStatus === "RESOLVED") return "ACCEPTED";
+                if (pStatus === "PENDING_APPROVAL") return "PENDING_APPROVAL";
                 if (pStatus === "PENDING") return "PENDING_VALIDATION";
+                if (pStatus === "REJECTED") return "REJECTED";
                 return deriveCardCondition(item.message);
               })(),
             };
@@ -129,11 +157,18 @@ export default function InboxPage() {
   
   // INITIAL FETCH
   useEffect(() => {
-    fetchInbox(currentFilters);
-  }, [fetchInbox, activeTab, currentFilters]);
+    fetchInbox(page, currentFilters);
+  }, [fetchInbox, page, currentFilters]);
+
+  // Handle Tab Change (Reset Page)
+  const handleTabChange = (val: string) => {
+      setActiveTab(val);
+      setPage(1); // Reset to page 1
+  };
 
   const handleFilter = (newFilters: InboxFilters) => {
     setCurrentFilters(newFilters);
+    setPage(1); // Reset to page 1 on filter
   };
 
   const handleAddNote = () => {
@@ -149,19 +184,19 @@ export default function InboxPage() {
   }
 
   const handleValidationSuccess = () => {
-      fetchInbox(); // Refresh list after validation
+      fetchInbox(page, currentFilters); // Refresh list
       // Optionally show toast success
   };
 
   return (
-    <div className="space-y-6 h-full">
+    <div className="space-y-6 h-full flex flex-col">
       {/* HEADER */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-none">
         <h1 className="text-xl font-semibold text-gray-900">Noted History</h1>
 
         <SwitchTab 
           activeValue={activeTab} 
-          onValueChange={setActiveTab}
+          onValueChange={handleTabChange}
           items={[
             { label: "FWC", value: "FWC" },
             { label: "Voucher", value: "VOUCHER" }
@@ -170,18 +205,26 @@ export default function InboxPage() {
       </div>
 
       {/* FILTER */}
-      <div className="rounded-xl border bg-white px-4 py-3 shadow-sm">
-        <InboxFilter onFilter={handleFilter} onAddNote={handleAddNote} onRefresh={() => fetchInbox(currentFilters)} />
+      <div className="rounded-xl border bg-white px-4 py-3 shadow-sm flex-none">
+        <InboxFilter onFilter={handleFilter} onAddNote={handleAddNote} onRefresh={() => fetchInbox(page, currentFilters)} />
       </div>
 
       {/* LIST */}
-      <div className="rounded-xl border bg-white shadow-sm h-[65vh] overflow-hidden">
-        <div className="h-full overflow-y-auto">
+      <div className="rounded-xl border bg-white shadow-sm flex-1 flex flex-col min-h-0">
+        <div className="flex-1 overflow-y-auto">
           <InboxList
             items={items}
             loading={loading}
             onClickItem={handleOpenDetail}
           />
+        </div>
+        
+        <div className="border-t">
+            <Pagination 
+                currentPage={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+            />
         </div>
       </div>
       
