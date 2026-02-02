@@ -471,16 +471,31 @@ export class PurchaseService {
       where.stationId = stationId;
     }
 
-    // Card Category and Type filter (nested in card.cardProduct)
+    // Card Category and Type filter
+    // FWC: card is set; VOUCHER: cards are in bulkPurchaseItems[].card
     if (categoryId || typeId) {
-      where.card = {
-        cardProduct: {},
-      };
+      const categoryTypeFilter: any = {};
       if (categoryId) {
-        where.card.cardProduct.categoryId = categoryId;
+        categoryTypeFilter.categoryId = categoryId;
       }
       if (typeId) {
-        where.card.cardProduct.typeId = typeId;
+        categoryTypeFilter.typeId = typeId;
+      }
+
+      if (transactionType === "voucher") {
+        // Voucher: filter by bulk purchase items' cards
+        where.bulkPurchaseItems = {
+          some: {
+            card: {
+              cardProduct: categoryTypeFilter,
+            },
+          },
+        };
+      } else {
+        // FWC (or no transactionType): filter by direct card relation
+        where.card = {
+          cardProduct: categoryTypeFilter,
+        };
       }
     }
 
@@ -624,6 +639,7 @@ export class PurchaseService {
               id: true,
               name: true,
               identityNumber: true,
+              companyName: true,
               employeeTypeId: true,
               employeeType: {
                 select: {
@@ -813,6 +829,7 @@ export class PurchaseService {
             name: true,
             identityNumber: true,
             email: true,
+            companyName: true,
             employeeTypeId: true,
             employeeType: {
               select: {

@@ -97,14 +97,22 @@ export default function TransactionFilter({
   const [employeeTypes, setEmployeeTypes] = useState<EmployeeTypeItem[]>([]);
 
   /* ======================
-     FETCH FILTER DATA
+     FETCH FILTER DATA (category & type by program: FWC vs Voucher)
   ====================== */
   useEffect(() => {
+    if (activeTab !== "fwc" && activeTab !== "voucher") {
+      setCategories([]);
+      setTypes([]);
+      return;
+    }
+
+    const programType = activeTab === "voucher" ? "VOUCHER" : "FWC";
+
     const fetchFilters = async () => {
       try {
         const [typeRes, categoryRes, stationRes, employeeTypesRes] = await Promise.all([
-          axios.get("/card/types/"),
-          axios.get("/card/category/"),
+          axios.get("/card/types/", { params: { programType } }),
+          axios.get("/card/category/", { params: { programType } }),
           axios.get("/station/?page=&limit=&search="),
           getEmployeeTypes({ limit: 200 }),
         ]);
@@ -119,7 +127,7 @@ export default function TransactionFilter({
     };
 
     fetchFilters();
-  }, []);
+  }, [activeTab]);
 
   /* ======================
      CLOSE STATION DROPDOWN

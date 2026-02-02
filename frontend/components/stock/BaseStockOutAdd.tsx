@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useStockOutForm } from "@/hooks/useStockOutForm";
+import StockSopCard from "./StockSopCard";
 
 interface BaseStockOutAddProps {
   programType: "FWC" | "VOUCHER";
@@ -22,6 +23,13 @@ export default function BaseStockOutAdd({ programType }: BaseStockOutAddProps) {
     handleQuantityChange,
     handleEndSerialChange,
   } = useStockOutForm({ programType });
+
+  const sopItems = [
+    "Pastikan fisik kartu sudah siap untuk dikirim sebelum membuat Stock Out.",
+    "Periksa kembali 'Stasiun Tujuan' agar tidak terjadi kesalahan pengiriman.",
+    "Serial Number yang dipilih harus berstatus 'IN_OFFICE' (tersedia di kantor).",
+    "Isi nomor Nota Dinas dan BAST dengan benar untuk keperluan administrasi.",
+  ];
 
   if (loading) {
     return (
@@ -45,8 +53,8 @@ export default function BaseStockOutAdd({ programType }: BaseStockOutAddProps) {
         </h2>
       </div>
 
-      <div className="px-6">
-        <div className="rounded-xl border bg-white p-6 space-y-4">
+      <div className="px-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 rounded-xl border bg-white p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium">Tanggal</label>
@@ -184,6 +192,11 @@ export default function BaseStockOutAdd({ programType }: BaseStockOutAddProps) {
               {saving ? "Menyimpan..." : "Simpan Stock Out"}
             </button>
           </div>
+        </div>
+
+        {/* SOP */}
+        <div>
+          <StockSopCard items={sopItems} title="SOP Stock Out" />
         </div>
       </div>
     </div>
