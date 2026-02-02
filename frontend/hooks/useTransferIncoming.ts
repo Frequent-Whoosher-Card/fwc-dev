@@ -29,7 +29,7 @@ export const useTransferIncoming = ({
     totalPages: 0,
   });
 
-  const [status, setStatus] = useState<string>("PENDING");
+  const [status, setStatus] = useState<string>("all");
   const [search, setSearch] = useState("");
 
   const fetchTransfers = useCallback(async () => {

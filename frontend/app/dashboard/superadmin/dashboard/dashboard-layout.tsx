@@ -150,6 +150,7 @@ type Role = "superadmin" | "admin" | "petugas" | "supervisor";
 export const UserContext = createContext<{
   userName: string;
   role: Role;
+  stationId?: string;
 } | null>(null);
 
 /* =========================
@@ -169,6 +170,7 @@ export default function DashboardLayout({
 
   const [role, setRole] = useState<Role | null>(null);
   const [userName, setUserName] = useState<string>("");
+  const [stationId, setStationId] = useState<string | undefined>(undefined);
 
   // Auth & Menu Loading State
   const [loading, setLoading] = useState(true);
@@ -223,6 +225,9 @@ export default function DashboardLayout({
 
         setUserName(user.fullName || user.username);
         setRole(mappedRole);
+        if (user.station?.id) {
+          setStationId(user.station.id);
+        }
 
         // 3. Redirect if not in correct dashboard
         const basePath = `/dashboard/${mappedRole}`;
@@ -528,7 +533,7 @@ export default function DashboardLayout({
         </header>
 
         {/* USER CONTEXT PROVIDER */}
-        <UserContext.Provider value={{ userName, role }}>
+        <UserContext.Provider value={{ userName, role, stationId }}>
           <main className="p-6">{children}</main>
         </UserContext.Provider>
       </div>

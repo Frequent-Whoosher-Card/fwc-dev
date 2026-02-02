@@ -19,6 +19,7 @@ export default function TransferIncomingView({
   const router = useRouter();
   const userContext = useContext(UserContext);
   const role = userContext?.role || "superadmin";
+  const stationId = userContext?.stationId;
 
   const tabs: SwitchTabItem[] = [
     { label: "FWC", path: `/dashboard/${role}/stock/fwc/transfer` },
@@ -26,7 +27,10 @@ export default function TransferIncomingView({
   ];
 
   const { data, loading, pagination, setPagination, filters } =
-    useTransferIncoming({ programType });
+    useTransferIncoming({
+      programType,
+      stationId: role === "supervisor" ? stationId : undefined,
+    });
 
   const { status, setStatus, search, setSearch } = filters;
 
@@ -35,12 +39,6 @@ export default function TransferIncomingView({
       <div className="flex flex-col gap-4 px-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.back()}
-              className="p-2 border rounded-md hover:bg-gray-100 transition"
-            >
-              <ArrowLeft size={20} />
-            </button>
             <h2 className="text-xl font-semibold">
               Transfer Masuk ({programType})
             </h2>
