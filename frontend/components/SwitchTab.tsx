@@ -10,7 +10,8 @@ export interface SwitchTabItem {
    * Optional custom matcher
    * contoh: /\/fwc/
    */
-  match?: RegExp;
+   match?: RegExp;
+  count?: number;
 }
 
 interface Props {
@@ -28,7 +29,7 @@ export default function SwitchTab({
   const router = useRouter();
 
   const baseBtn =
-    "px-4 py-2 text-sm font-medium transition-colors focus:outline-none";
+    "px-4 py-2 text-sm font-medium transition-colors focus:outline-none flex items-center gap-2";
 
   return (
     <div className="flex w-fit overflow-hidden rounded-lg border shadow-sm">
@@ -70,6 +71,17 @@ export default function SwitchTab({
               .join(" ")}
           >
             {item.label}
+            {item.count !== undefined && item.count > 0 && (
+              <span
+                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${
+                  isActive
+                    ? "bg-white text-[#8D1231] border-white"
+                    : "bg-[#8D1231] text-white border-[#8D1231]"
+                }`}
+              >
+                {item.count}
+              </span>
+            )}
           </button>
         );
       })}

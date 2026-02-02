@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/apiConfig";
+import { useInbox } from "@/context/InboxContext";
 import Pagination from "@/components/ui/pagination";
 
 import InboxFilter, { InboxFilters } from "@/components/inbox/InboxFilter";
@@ -24,6 +25,10 @@ export default function InboxPage() {
   // STATE DATA & LOADING
   // =========================
   const router = useRouter();
+  const { unreadCounts, decrementUnread } = useInbox();
+  
+  // Track previous unread counts to detect INCREASES (New Messages)
+  const prevUnreadRef = useRef(unreadCounts);
 
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,6 +38,8 @@ export default function InboxPage() {
   // Pagination State
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  
+  // Badge State (Handled by Context)
 
   // =========================
   // FETCH INBOX DATA
@@ -163,7 +170,22 @@ export default function InboxPage() {
   // INITIAL FETCH & ON PAGE CHANGE
   useEffect(() => {
     fetchInbox(page, currentFilters);
-  }, [fetchInbox, page, currentFilters]); // Added page dependency
+  }, [fetchInbox, page, currentFilters]);
+
+  // SMART AUTO-REFRESH: Detect if Unread Count INCREASES (New Message)
+  useEffect(() => {
+    const key = activeTab.toLowerCase() as keyof typeof unreadCounts;
+    const currentCount = unreadCounts[key as "fwc" | "voucher"] || 0;
+    const prevCount = prevUnreadRef.current[key as "fwc" | "voucher"] || 0;
+    
+    // Only refresh if count INCREASED (New Message) and we are on Page 1
+    if (currentCount > prevCount && page === 1) {
+        console.log(`[InboxPage] New ${activeTab} message detected! Refreshing list...`);
+        fetchInbox(1, currentFilters);
+    }
+    
+    prevUnreadRef.current = unreadCounts;
+  }, [unreadCounts, activeTab, fetchInbox, page, currentFilters]);
 
   // Handle Tab Change (Reset Page)
   const handleTabChange = (val: string) => {
@@ -176,15 +198,37 @@ export default function InboxPage() {
     setPage(1); // Reset to page 1 on filter change
   };
 
-
   const [selectedIssue, setSelectedIssue] = useState<any | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<any | null>(null);
 
-  const handleItemClick = (item: any) => {
+  const handleItemClick = async (item: any) => {
+      // Optimistic Update & API Call if Unread
+      if (!item.isRead) {
+          // 1. Optimistic UI Update
+          setItems(prev => prev.map(i => i.id === item.id ? { ...i, isRead: true } : i));
+          
+          // Context Update (Global)
+          decrementUnread(item.programType as "FWC" | "VOUCHER");
+
+          // 2. API Call (Silent)
+          try {
+             const token = localStorage.getItem("fwc_token");
+             if (token) {
+                 await fetch(`${API_BASE_URL}/inbox/${item.id}/read`, {
+                     method: "PATCH",
+                     headers: { Authorization: `Bearer ${token}` }
+                 });
+             }
+          } catch (err) {
+             console.error("Failed to mark as read", err);
+          }
+      }
+
+      // Open Modal
       if (item.type === 'STOCK_ISSUE_REPORT') {
-          setSelectedIssue(item);
+          setSelectedIssue({ ...item, isRead: true });
       } else {
-          setSelectedDetail(item);
+          setSelectedDetail({ ...item, isRead: true });
       }
   };
 
@@ -198,8 +242,8 @@ export default function InboxPage() {
           activeValue={activeTab} 
           onValueChange={handleTabChange}
           items={[
-            { label: "FWC", value: "FWC" },
-            { label: "Voucher", value: "VOUCHER" }
+            { label: "FWC", value: "FWC", count: unreadCounts.fwc },
+            { label: "Voucher", value: "VOUCHER", count: unreadCounts.voucher }
           ]}
         />
       </div>
