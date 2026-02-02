@@ -26,6 +26,7 @@ interface Purchase {
   member: {
     name: string;
     identityNumber: string;
+    companyName?: string | null;
   } | null;
   operator: { fullName: string };
   station: { stationName: string };
@@ -83,7 +84,8 @@ const formatCurrency = (amount: number) =>
 
 const formatNIK = (nik?: string | null) => {
   if (!nik) return "-";
-  return `FWC${nik}`;
+  // NIK sudah memiliki prefix "FW" dari database, tampilkan saja langsung
+  return nik;
 };
 
 const formatEDC = (edc?: string | null) => {
@@ -172,7 +174,7 @@ export default function TransactionTable({
       {/* TABLE */}
       <div className="overflow-x-auto rounded-lg border bg-white">
         <table className="w-full text-xs border-collapse">
-          <thead className="bg-gray-100">
+          <thead className="bg- gray-100">
             <tr className="text-[11px] font-semibold text-gray-600">
               <th className="px-4 py-3 text-center w-16">No</th>
               <th className="px-4 py-3 text-left">Customer Name</th>
@@ -210,7 +212,6 @@ export default function TransactionTable({
                   key={item.id}
                   className="border-t hover:bg-gray-50 transition"
                 >
-                  {" "}
                   <td className="px-4 py-3 text-center font-medium text-gray-500">
                     {(pagination.page - 1) * pagination.limit + index + 1}
                   </td>

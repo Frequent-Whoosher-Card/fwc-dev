@@ -13,6 +13,7 @@ export namespace MemberModel {
     gender: t.Union([t.Literal("L"), t.Literal("P"), t.Null()]),
     alamat: t.Union([t.String(), t.Null()]),
     notes: t.Union([t.String(), t.Null()]),
+    companyName: t.Union([t.String(), t.Null()]),
     employeeTypeId: t.Union([t.String({ format: "uuid" }), t.Null()]),
     employeeType: t.Union([
       t.Object({
@@ -85,6 +86,12 @@ export namespace MemberModel {
         description: "Notes or additional information",
       })
     ),
+    companyName: t.Optional(
+      t.String({
+        maxLength: 200,
+        description: "Company name (e.g. for voucher membership)",
+      })
+    ),
     employeeTypeId: t.Optional(
       t.Union([
         t.String({ format: "uuid", description: "Employee type ID" }),
@@ -153,6 +160,12 @@ export namespace MemberModel {
       t.String({
         maxLength: 1000,
         description: "Notes or additional information",
+      })
+    ),
+    companyName: t.Optional(
+      t.String({
+        maxLength: 200,
+        description: "Company name. Pass null to clear.",
       })
     ),
     employeeTypeId: t.Optional(

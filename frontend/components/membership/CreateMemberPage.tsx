@@ -199,10 +199,17 @@ export default function AddMemberPage({ programType: programTypeProp }: CreateMe
   const [isExtractingOCR, setIsExtractingOCR] = useState(false);
   const [ktpSessionId, setKtpSessionId] = useState<string>("");
 
-  // Input mode state
+  // Input mode state — FWC: default "manual" (Serial Number) agar input langsung tampil
   const [inputMode, setInputMode] = useState<"" | "manual" | "recommendation" | "range">(
-    "",
+    programType === "FWC" ? "manual" : "",
   );
+
+  // Pengecekan serial number manual (FWC) via API GET /cards/serial/{serialNumber}
+  const [manualSerialChecking, setManualSerialChecking] = useState(false);
+  const [manualSerialResult, setManualSerialResult] = useState<null | "available" | "unavailable" | "not_found">(null);
+  const [manualSerialMessage, setManualSerialMessage] = useState("");
+  const [manualFwcPrice, setManualFwcPrice] = useState<number>(0);
+  const manualSerialDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const countryOptions = useMemo(() => {
     return Object.entries(countries).map(([code, c]) => ({
@@ -233,7 +240,9 @@ export default function AddMemberPage({ programType: programTypeProp }: CreateMe
     cardTypeId,
     cards,
     cardId,
+    setCardId,
     price,
+    setPrice,
     serialNumber,
     setSerialNumber,
     searchResults,
@@ -324,6 +333,7 @@ export default function AddMemberPage({ programType: programTypeProp }: CreateMe
     gender: "",
     email: "",
     address: "",
+    companyName: "",
     membershipDate: "",
     expiredDate: "",
     purchasedDate: "",
@@ -334,6 +344,14 @@ export default function AddMemberPage({ programType: programTypeProp }: CreateMe
     serialNumber: "",
     edcReferenceNumber: "",
   });
+
+  // Harga FWC yang ditampilkan: manual mode pakai manualFwcPrice dari API, selain itu dari hook
+  const displayFwcPrice =
+    programType === "FWC" &&
+    inputMode === "manual" &&
+    manualSerialResult === "available"
+      ? manualFwcPrice
+      : price;
 
   // ======================
   // PHONE HELPER (WAJIB DI SINI)
@@ -518,6 +536,91 @@ export default function AddMemberPage({ programType: programTypeProp }: CreateMe
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [programType, inputMode, selectedVoucherTypeId, selectedVoucherCategoryId, voucherProducts]);
+
+  // Pengecekan serial number manual (FWC) via GET /cards/serial/{serialNumber}
+  useEffect(() => {
+    if (programType !== "FWC" || inputMode !== "manual") {
+      setManualSerialResult(null);
+      setManualSerialMessage("");
+      return;
+    }
+
+    const sn = serialNumber.trim();
+    if (!sn) {
+      setCardId("");
+      setPrice(0);
+      setManualFwcPrice(0);
+      setManualSerialResult(null);
+      setManualSerialMessage("");
+      return;
+    }
+
+    if (manualSerialDebounceRef.current) {
+      clearTimeout(manualSerialDebounceRef.current);
+    }
+
+    manualSerialDebounceRef.current = setTimeout(async () => {
+      setManualSerialResult(null);
+      setManualSerialMessage("");
+      setManualSerialChecking(true);
+      try {
+        const response = await axios.get(
+          `/cards/serial/${encodeURIComponent(sn)}`
+        );
+        const data = response.data?.data;
+        if (!data) {
+          setCardId("");
+          setPrice(0);
+          setManualFwcPrice(0);
+          setManualSerialResult("not_found");
+          setManualSerialMessage("Serial number tidak ditemukan");
+          return;
+        }
+        // Backend mengembalikan status friendly: "Stasiun" = IN_STATION (tersedia untuk dibeli)
+        if (data.status === "Stasiun") {
+          handleCardSelect({
+            id: data.id,
+            serialNumber: data.serialNumber,
+          } as any);
+          // Set FWC price dari harga kartu (cardProduct.price) — backend mengembalikan number
+          const rawPrice = data.cardProduct?.price;
+          const cardPrice =
+            rawPrice != null && rawPrice !== ""
+              ? Number(rawPrice)
+              : 0;
+          setPrice(cardPrice);
+          setManualFwcPrice(cardPrice);
+          setManualSerialResult("available");
+          setManualSerialMessage("Kartu tersedia untuk dibeli");
+        } else {
+          setCardId("");
+          setPrice(0);
+          setManualFwcPrice(0);
+          setManualSerialResult("unavailable");
+          setManualSerialMessage(
+            `Kartu tidak tersedia (status: ${data.status || "unknown"})`
+          );
+        }
+      } catch (err: any) {
+        setCardId("");
+        setPrice(0);
+        setManualFwcPrice(0);
+        setManualSerialResult("not_found");
+        setManualSerialMessage(
+          err?.response?.data?.error?.message ||
+            "Serial number tidak ditemukan"
+        );
+      } finally {
+        setManualSerialChecking(false);
+      }
+    }, 400);
+
+    return () => {
+      if (manualSerialDebounceRef.current) {
+        clearTimeout(manualSerialDebounceRef.current);
+      }
+    };
+  }, [programType, inputMode, serialNumber]);
 
   // DEPRECATED: Old useEffect and handlers (kept for reference, will be removed)
   // Load available cards when card product is selected
@@ -1106,18 +1209,26 @@ export default function AddMemberPage({ programType: programTypeProp }: CreateMe
         const data = result.data;
 
         // Auto-fill form dengan data dari OCR (NIK, Nama, Jenis Kelamin, dan Alamat)
-        setForm((prev) => ({
-          ...prev,
-          nik: data.identityNumber || prev.nik,
-          name: data.name || prev.name,
-          gender:
-            data.gender === "Laki-laki" || data.gender === "L"
-              ? "L"
-              : data.gender === "Perempuan" || data.gender === "P"
-                ? "P"
-                : prev.gender,
-          address: data.alamat || prev.address,
-        }));
+        setForm((prev) => {
+          // Strip FW prefix if exists from OCR result
+          let nikValue = data.identityNumber || prev.nik;
+          if (nikValue && nikValue.startsWith("FW")) {
+            nikValue = nikValue.substring(2);
+          }
+
+          return {
+            ...prev,
+            nik: nikValue,
+            name: data.name || prev.name,
+            gender:
+              data.gender === "Laki-laki" || data.gender === "L"
+                ? "L"
+                : data.gender === "Perempuan" || data.gender === "P"
+                  ? "P"
+                  : prev.gender,
+            address: data.alamat || prev.address,
+          };
+        });
 
         toast.success("Data KTP berhasil diekstrak!");
       } else {
@@ -1307,7 +1418,7 @@ export default function AddMemberPage({ programType: programTypeProp }: CreateMe
       return;
     }
 
-    if (programType === "FWC" && !price) {
+    if (programType === "FWC" && !displayFwcPrice) {
       toast.error("FWC Price belum terisi");
       return;
     }
@@ -1394,18 +1505,21 @@ export default function AddMemberPage({ programType: programTypeProp }: CreateMe
       // 4. CREATE MEMBER
       const memberPayload: any = {
         name: form.name,
-        identityNumber: form.nik,
+        identityNumber: "FW" + form.nik,
         nationality: form.nationality || undefined,
         email: form.email || undefined,
-        phone: getFullPhoneNumber() || undefined, // ✅ FIX DI SINI
+        phone: getFullPhoneNumber() || undefined,
         gender: form.gender || undefined,
         alamat: form.address || undefined,
         employeeTypeId: form.employeeTypeId || undefined,
       };
 
-      // ✅ HANYA KIRIM nippKai JIKA ADA ISINYA
       if (form.nippKai && form.nippKai.trim()) {
         memberPayload.nippKai = form.nippKai;
+      }
+      // Perusahaan hanya untuk voucher
+      if (programType === "VOUCHER" && form.companyName?.trim()) {
+        memberPayload.companyName = form.companyName.trim();
       }
 
       const memberRes = await createMember(memberPayload);
@@ -1516,40 +1630,53 @@ export default function AddMemberPage({ programType: programTypeProp }: CreateMe
             {/* NIK & Nationality */}
             <Field label="NIK / Passport" required>
               <div className="relative">
-                <input
-                  name="nik"
-                  value={form.nik}
-                  onChange={(e) => {
-                    const value = e.target.value;
+                <div className="flex">
+                  {/* PREFIX FW */}
+                  <div className="flex items-center rounded-l-md border border-r-0 border-gray-300 bg-gray-100 px-3 text-sm text-gray-600 min-w-[50px] justify-center font-medium">
+                    FW
+                  </div>
 
-                    setForm((prev) => ({ ...prev, nik: value }));
+                  {/* DIVIDER */}
+                  <div className="flex items-center border-y border-gray-300 bg-gray-100 px-2 text-gray-400">
+                    |
+                  </div>
 
-                    if (value.length > 0 && value.length > 20) {
-                      setFieldError((p) => ({
-                        ...p,
-                        nik: "Identity Number maksimal 20 karakter",
-                      }));
-                    } else {
-                      setFieldError((p) => ({ ...p, nik: undefined }));
-                    }
-                  }}
-                  onInput={(e) => {
-                    e.currentTarget.value = e.currentTarget.value
-                      .replace(/[^a-zA-Z0-9]/g, "")
-                      .toUpperCase()
-                      .slice(0, 20);
-                  }}
-                  onBlur={() => {
-                    if (form.nik.length >= 6) {
-                      checkUniqueField("nik", form.nik);
-                    }
-                  }}
-                  placeholder="NIK / Passport (max 20 karakter)"
-                  className={`${base} pr-32 ${
-                    fieldError.nik ? "border-red-500" : ""
-                  }`}
-                  required
-                />
+                  {/* INPUT NIK */}
+                  <input
+                    name="nik"
+                    value={form.nik}
+                    onChange={(e) => {
+                      const value = e.target.value;
+
+                      setForm((prev) => ({ ...prev, nik: value }));
+
+                      if (value.length > 0 && value.length > 20) {
+                        setFieldError((p) => ({
+                          ...p,
+                          nik: "Identity Number maksimal 20 karakter",
+                        }));
+                      } else {
+                        setFieldError((p) => ({ ...p, nik: undefined }));
+                      }
+                    }}
+                    onInput={(e) => {
+                      e.currentTarget.value = e.currentTarget.value
+                        .replace(/[^a-zA-Z0-9]/g, "")
+                        .toUpperCase()
+                        .slice(0, 20);
+                    }}
+                    onBlur={() => {
+                      if (form.nik.length >= 6) {
+                        checkUniqueField("nik", "FW" + form.nik);
+                      }
+                    }}
+                    placeholder="NIK / Passport (max 20 karakter)"
+                    className={`h-10 w-full rounded-r-md border border-l-0 px-3 text-sm focus:outline-none ${
+                      fieldError.nik ? "border-red-500" : "border-gray-300 focus:border-gray-400"
+                    }`}
+                    required
+                  />
+                </div>
 
                 {/* ERROR */}
                 {fieldError.nik && (
@@ -1746,6 +1873,19 @@ export default function AddMemberPage({ programType: programTypeProp }: CreateMe
               </div>
             </Field>
 
+            {/* Perusahaan - hanya untuk voucher */}
+            {programType === "VOUCHER" && (
+              <Field label="Perusahaan">
+                <input
+                  name="companyName"
+                  value={form.companyName}
+                  onChange={handleChange}
+                  placeholder="Masukkan nama perusahaan (opsional)"
+                  className={base}
+                />
+              </Field>
+            )}
+
             {/* Card Information */}
             <SectionCard title={programType === "VOUCHER" ? "Select Vouchers (Bulk)" : "Card Information"}>
               {programType === "FWC" ? (
@@ -1768,9 +1908,11 @@ export default function AddMemberPage({ programType: programTypeProp }: CreateMe
                       <option value="manual">Input Manual / Scan Barcode</option>
                       <option value="recommendation">Rekomendasi</option>
                     </select>
-                    <p className="mt-1 text-xs text-gray-500">
-                      Pilih mode input serial number terlebih dahulu
-                    </p>
+                    {inputMode === "" && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        Pilih mode input serial number terlebih dahulu
+                      </p>
+                    )}
                   </Field>
 
                   {inputMode === "manual" && (
@@ -1783,6 +1925,23 @@ export default function AddMemberPage({ programType: programTypeProp }: CreateMe
                         placeholder="Masukkan atau scan serial number lengkap..."
                         autoComplete="off"
                       />
+                      {manualSerialChecking && (
+                        <p className="mt-1 text-xs text-gray-500 flex items-center gap-1">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" size={14} />
+                          Mengecek ketersediaan kartu...
+                        </p>
+                      )}
+                      {!manualSerialChecking && manualSerialResult === "available" && (
+                        <p className="mt-1 text-xs text-green-600 flex items-center gap-1">
+                          <CheckCircle size={14} />
+                          {manualSerialMessage}
+                        </p>
+                      )}
+                      {!manualSerialChecking && (manualSerialResult === "unavailable" || manualSerialResult === "not_found") && (
+                        <p className="mt-1 text-xs text-red-600">
+                          {manualSerialMessage}
+                        </p>
+                      )}
                     </Field>
                   )}
 
@@ -2393,7 +2552,7 @@ export default function AddMemberPage({ programType: programTypeProp }: CreateMe
                     </div>
                   </Field>
 
-                  {/* FWC Price - READ ONLY */}
+                  {/* FWC Price - READ ONLY (manual: dari API; recommendation: dari hook) */}
                   <Field label="FWC Price" required>
                     <div className="relative">
                       <DollarSign
@@ -2402,7 +2561,7 @@ export default function AddMemberPage({ programType: programTypeProp }: CreateMe
                       />
                       <input
                         name="price"
-                        value={price || ""}
+                        value={displayFwcPrice || ""}
                         readOnly
                         placeholder="FWC Price"
                         className={`${base} pr-10 bg-gray-50 cursor-not-allowed`}
@@ -2657,8 +2816,8 @@ export default function AddMemberPage({ programType: programTypeProp }: CreateMe
           "Purchased Date": form.purchasedDate,
           ...(programType === "FWC"
             ? {
-                "FWC Price": price
-                  ? `Rp ${Number(price).toLocaleString("id-ID")}`
+                "FWC Price": displayFwcPrice
+                  ? `Rp ${Number(displayFwcPrice).toLocaleString("id-ID")}`
                   : "-",
                 "Total Quota (Trips)":
                   cardProducts.find((p) => p.typeId === cardTypeId)

@@ -6,9 +6,8 @@ export const purchaseFormSchema = z.object({
   identityNumber: z
     .string()
     .min(1, "Identity Number wajib diisi")
-    .regex(/^\d+$/, "Identity Number harus berupa angka")
-    .min(6, "Identity Number minimal 6 digit")
-    .max(20, "Identity Number maksimal 20 digit"),
+    .min(6, "Identity Number minimal 6 karakter")
+    .max(20, "Identity Number maksimal 20 karakter"),
 
   cardCategory: z
     .enum(["GOLD", "SILVER", "KAI"], {

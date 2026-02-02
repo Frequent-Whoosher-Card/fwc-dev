@@ -624,6 +624,7 @@ export class PurchaseService {
               id: true,
               name: true,
               identityNumber: true,
+              companyName: true,
               employeeTypeId: true,
               employeeType: {
                 select: {
@@ -813,6 +814,7 @@ export class PurchaseService {
             name: true,
             identityNumber: true,
             email: true,
+            companyName: true,
             employeeTypeId: true,
             employeeType: {
               select: {

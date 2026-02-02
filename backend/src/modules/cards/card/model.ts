@@ -136,6 +136,7 @@ export namespace CardModel {
       updatedAt: t.String({ format: "date-time" }),
       cardProduct: t.Object({
         id: t.String({ format: "uuid" }),
+        price: t.Number({ description: "Card product price" }),
         category: t.Object({
           id: t.String({ format: "uuid" }),
           categoryName: t.String(),
