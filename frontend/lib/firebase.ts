@@ -1,3 +1,4 @@
+import { getMessaging, getToken as getFcmTokenInternal, onMessage } from 'firebase/messaging';
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { initializeAppCheck, ReCaptchaV3Provider, getToken, AppCheck } from 'firebase/app-check';
 
@@ -6,11 +7,13 @@ let appCheck: AppCheck | null = null;
 
 // Firebase configuration from environment variables
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!, 
 };
+
 
 /**
  * Initialize Firebase App
@@ -131,3 +134,41 @@ export function isAppCheckEnabled(): boolean {
   );
 }
 
+/**
+ * Get Firebase Cloud Messaging token (Web Push)
+ */
+export async function getFcmToken(): Promise<string | null> {
+  const firebaseApp = initializeFirebase();
+  if (!firebaseApp) return null;
+
+  // Request browser notification permission
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') {
+    console.warn('[FCM] Notification permission not granted');
+    return null;
+  }
+
+  const messaging = getMessaging(firebaseApp);
+
+  try {
+    const token = await getFcmTokenInternal(messaging, {
+      vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+    });
+
+    return token;
+  } catch (error) {
+    console.error('[FCM] Failed to get token:', error);
+    return null;
+  }
+}
+
+/**
+ * Listen foreground FCM messages
+ */
+export function onForegroundMessage(callback: (payload: any) => void) {
+  const firebaseApp = initializeFirebase();
+  if (!firebaseApp) return;
+
+  const messaging = getMessaging(firebaseApp);
+  onMessage(messaging, callback);
+}
