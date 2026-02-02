@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useStockInView } from "@/hooks/useStockInView";
+import StatusBadge from "@/components/ui/status-badge";
 
 interface BaseStockInViewProps {
   programType?: "FWC" | "VOUCHER";
@@ -87,18 +88,8 @@ export default function BaseStockInView({
           </div>
 
           <div>
-            <p className="text-sm text-gray-500">Status</p>
-            <span
-              className={`rounded-full px-3 py-1 text-xs font-medium ${
-                data.status === "APPROVED"
-                  ? "bg-green-100 text-green-700"
-                  : data.status === "PENDING"
-                    ? "bg-yellow-100 text-yellow-700"
-                    : "bg-gray-100 text-gray-600"
-              }`}
-            >
-              {data.status || "-"}
-            </span>
+            <p className="text-sm text-gray-500 mb-1">Status</p>
+            <StatusBadge status={data.status} />
           </div>
         </div>
       </div>
@@ -128,11 +119,17 @@ export default function BaseStockInView({
 
         <div className="rounded-xl border bg-white overflow-hidden overflow-x-auto">
           <table className="w-full min-w-[500px] text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-[#8D1231] text-white">
               <tr>
-                <th className="px-4 py-3 text-center w-16">No</th>
-                <th className="px-4 py-3 text-left">Serial Number</th>
-                <th className="px-4 py-3 text-left">Status</th>
+                <th className="px-4 py-3 text-center w-16 text-xs uppercase tracking-wider font-bold">
+                  No
+                </th>
+                <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-bold">
+                  Serial Number
+                </th>
+                <th className="px-4 py-3 text-center text-xs uppercase tracking-wider font-bold">
+                  Status
+                </th>
               </tr>
             </thead>
 
@@ -184,12 +181,8 @@ export default function BaseStockInView({
                         {item.serialNumber}
                       </td>
 
-                      <td className="px-4 py-2">
-                        <span
-                          className={`rounded px-2 py-0.5 text-xs font-medium ${badgeColor}`}
-                        >
-                          {item.status.replace("_", " ")}
-                        </span>
+                      <td className="px-4 py-2 text-center">
+                        <StatusBadge status={item.status} />
                       </td>
                     </tr>
                   );

@@ -3,6 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useStockOutView } from "@/hooks/useStockOutView";
+import StatusBadge from "@/components/ui/status-badge";
 
 export default function BaseStockOutView() {
   const params = useParams();
@@ -72,12 +73,8 @@ export default function BaseStockOutView() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-gray-500">Status:</span>
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-medium ${data.status === "APPROVED" ? "bg-green-100 text-green-700" : data.status === "PENDING" ? "bg-yellow-100 text-yellow-700" : data.status === "REJECTED" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600"}`}
-              >
-                {data.status}
-              </span>
+              <span className="text-gray-500 text-sm">Status:</span>
+              <StatusBadge status={data.status} />
             </div>
           </div>
           <div>
@@ -105,7 +102,7 @@ export default function BaseStockOutView() {
           </div>
           <div className="max-h-[400px] overflow-y-auto">
             <table className="w-full min-w-[600px] text-sm">
-              <thead className="bg-gray-100 border-b sticky top-0 z-10">
+              <thead className="bg-[#8D1231] text-white">
                 <tr>
                   <th className="px-4 py-2 text-center w-16">No</th>
                   <th className="px-4 py-2 text-left w-1/2 whitespace-nowrap">
@@ -123,17 +120,20 @@ export default function BaseStockOutView() {
 
                     if (data.status === "PENDING") {
                       statusLabel = "IN_TRANSIT";
-                      statusColor = "bg-blue-100 text-blue-700";
+                      statusColor =
+                        "bg-purple-100 text-purple-800 border-purple-300";
                     } else if (data.status === "APPROVED") {
                       if (data.receivedSerialNumbers?.includes(serial)) {
                         statusLabel = "IN_STATION";
-                        statusColor = "bg-green-100 text-green-700";
+                        statusColor =
+                          "bg-indigo-100 text-indigo-800 border-indigo-300";
                       } else if (data.lostSerialNumbers?.includes(serial)) {
                         statusLabel = "LOST";
-                        statusColor = "bg-red-100 text-red-700";
+                        statusColor = "bg-red-100 text-red-800 border-red-300";
                       } else if (data.damagedSerialNumbers?.includes(serial)) {
                         statusLabel = "DAMAGED";
-                        statusColor = "bg-red-100 text-red-700";
+                        statusColor =
+                          "bg-orange-100 text-orange-800 border-orange-300";
                       }
                     }
 
@@ -147,7 +147,7 @@ export default function BaseStockOutView() {
                         </td>
                         <td className="px-4 py-2 text-center">
                           <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] uppercase font-bold ${statusColor}`}
+                            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] uppercase font-bold whitespace-nowrap ${statusColor}`}
                           >
                             {statusLabel.replace("_", " ")}
                           </span>

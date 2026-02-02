@@ -82,6 +82,7 @@ export namespace PurchaseModel {
         id: t.String({ format: "uuid" }),
         name: t.String(),
         identityNumber: t.String(),
+        companyName: t.Union([t.String(), t.Null()]),
       }),
       t.Null(),
     ]),

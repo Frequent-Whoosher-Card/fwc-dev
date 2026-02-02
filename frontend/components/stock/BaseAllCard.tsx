@@ -6,6 +6,8 @@ import { StockFilterReusable } from "./StockFilterReusable";
 import { StockPagination } from "./StockPagination";
 import SwitchTab, { SwitchTabItem } from "@/components/SwitchTab";
 import { useAllCards } from "@/hooks/useAllCards";
+import { useContext } from "react";
+import { UserContext } from "@/app/dashboard/superadmin/dashboard/dashboard-layout";
 
 interface BaseAllCardProps {
   programType: "FWC" | "VOUCHER";
@@ -13,10 +15,12 @@ interface BaseAllCardProps {
 
 export default function BaseAllCard({ programType }: BaseAllCardProps) {
   const router = useRouter();
+  const userContext = useContext(UserContext);
+  const role = userContext?.role || "superadmin";
 
   const tabs: SwitchTabItem[] = [
-    { label: "FWC", path: "/dashboard/superadmin/stock/fwc/all" },
-    { label: "Voucher", path: "/dashboard/superadmin/stock/voucher/all" },
+    { label: "FWC", path: `/dashboard/${role}/stock/fwc/all` },
+    { label: "Voucher", path: `/dashboard/${role}/stock/voucher/all` },
   ];
 
   const {
@@ -97,7 +101,7 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
           onExportPDF={handleExportPDF}
           onAdd={() =>
             router.push(
-              `/dashboard/superadmin/stock/${programType.toLowerCase()}/all/transfer`,
+              `/dashboard/${role}/stock/${programType.toLowerCase()}/all/transfer`,
             )
           }
           showFields={{
@@ -208,7 +212,7 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
                         <button
                           onClick={() =>
                             router.push(
-                              `/dashboard/superadmin/stock/${programType.toLowerCase()}/all/${row.id}/edit`,
+                              `/dashboard/${role}/stock/${programType.toLowerCase()}/all/${row.id}/edit`,
                             )
                           }
                           className="h-8 px-3 rounded-md border text-xs font-medium border-blue-500 text-blue-600 hover:bg-blue-500 hover:text-white transition-colors duration-200 flex items-center justify-center"

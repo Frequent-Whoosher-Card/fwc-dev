@@ -194,11 +194,7 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
                         : "-"}
                     </td>
                     <td className="px-3 py-2 text-center">
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-medium ${row.status === "APPROVED" ? "bg-green-100 text-green-700" : row.status === "PENDING" ? "bg-yellow-100 text-yellow-700" : row.status === "REJECTED" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600"}`}
-                      >
-                        {row.status}
-                      </span>
+                      <StatusBadge status={row.status} />
                     </td>
                     <td className="px-3 py-2 text-center max-w-[200px] truncate">
                       {row.note || "-"}

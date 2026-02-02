@@ -113,6 +113,8 @@ export default function InboxPage() {
                 derivedStatus = "COMPLETED";
             } else if (payloadStatus === "PENDING") {
                 derivedStatus = "PENDING";
+            } else if (payloadStatus === "PENDING_APPROVAL") {
+                derivedStatus = "PENDING_APPROVAL";
             } else if (item.type === 'LOW_STOCK_ALERT') {
                 derivedStatus = "ALERT";
             } else {
@@ -208,7 +210,7 @@ export default function InboxPage() {
 
       {/* FILTER */}
       <div className="rounded-xl border bg-white px-4 py-3 shadow-sm">
-        <InboxFilter onFilter={handleFilter} />
+        <InboxFilter onFilter={handleFilter} onRefresh={() => fetchInbox(currentFilters)} />
       </div>
 
       {/* LIST */}

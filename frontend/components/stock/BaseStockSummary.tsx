@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { StockSummary } from "./StockSummary";
 import { StockTable } from "./StockTable";
 import { StockStation } from "./StockStation";
 import { StockFilterReusable } from "./StockFilterReusable";
 import SwitchTab, { SwitchTabItem } from "@/components/SwitchTab";
+import { useContext } from "react";
+import { UserContext } from "@/app/dashboard/superadmin/dashboard/dashboard-layout";
 
 type StockMode = "all" | "station";
 
@@ -16,11 +19,14 @@ interface BaseStockSummaryProps {
 export default function BaseStockSummary({
   programType,
 }: BaseStockSummaryProps) {
+  const router = useRouter();
+  const userContext = useContext(UserContext);
+  const role = userContext?.role || "superadmin";
   const [mode, setMode] = useState<StockMode>("all");
 
   const tabs: SwitchTabItem[] = [
-    { label: "FWC", path: "/dashboard/superadmin/stock/fwc" },
-    { label: "Voucher", path: "/dashboard/superadmin/stock/voucher" },
+    { label: "FWC", path: `/dashboard/${role}/stock/fwc` },
+    { label: "Voucher", path: `/dashboard/${role}/stock/voucher` },
   ];
 
   const [filters, setFilters] = useState({
