@@ -27,6 +27,8 @@ export namespace MemberModel {
     updatedAt: t.String({ format: "date-time" }),
     createdByName: t.Union([t.String(), t.Null()]),
     updatedByName: t.Union([t.String(), t.Null()]),
+    deletedAt: t.Optional(t.Union([t.String({ format: "date-time" }), t.Null()])),
+    deletedByName: t.Optional(t.Union([t.String(), t.Null()])),
   });
 
   // --- Requests ---
@@ -217,6 +219,19 @@ export namespace MemberModel {
         description: "Filter by employee type UUID (tipe karyawan)",
       })
     ),
+    isDeleted: t.Optional(
+      t.Union([t.Literal("true"), t.Literal("false")], {
+        description: "When 'true', return only soft-deleted members (riwayat penghapusan)",
+      })
+    ),
+  });
+
+  /** Body for DELETE /members/:id - alasan penghapusan wajib */
+  export const deleteMemberBody = t.Object({
+    notes: t.String({
+      minLength: 1,
+      description: "Alasan penghapusan (wajib)",
+    }),
   });
 
   // --- Responses ---

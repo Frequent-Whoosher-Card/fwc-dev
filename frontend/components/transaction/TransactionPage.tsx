@@ -7,6 +7,9 @@ import TransactionToolbar from "./components/TransactionToolbar";
 import TransactionFilter from "./components/TransactionFilter";
 import TransactionTableFWC from "./components/TransactionTableFWC";
 import TransactionTableVoucher from "./components/TransactionTableVoucher";
+import DeletedPurchaseTable, {
+  type DeletedPurchaseItem,
+} from "./components/DeletedPurchaseTable";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
@@ -93,6 +96,22 @@ export default function TransactionPage({ role }: TransactionPageProps) {
   const [exportFormat, setExportFormat] = useState<"pdf" | "excel" | "csv" | "image">("pdf");
   const [exportItems, setExportItems] = useState<any[]>([]);
 
+  /* Laporan Transaksi export modal */
+  const [showTransactionExportModal, setShowTransactionExportModal] = useState(false);
+  const [transactionExportFormat, setTransactionExportFormat] = useState<"pdf" | "excel" | "csv" | "image">("pdf");
+  const [transactionExportItems, setTransactionExportItems] = useState<any[]>([]);
+
+  /* Riwayat Penghapusan (deleted purchases) */
+  const [deletedPurchases, setDeletedPurchases] = useState<DeletedPurchaseItem[]>([]);
+  const [isLoadingDeleted, setIsLoadingDeleted] = useState(false);
+  const [deletedPage, setDeletedPage] = useState(1);
+  const [deletedPagination, setDeletedPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 1,
+  });
+
   /* =====================
      RESET FILTER
   ===================== */
@@ -153,6 +172,44 @@ export default function TransactionPage({ role }: TransactionPageProps) {
     }
   };
 
+  /** Load riwayat penghapusan (deleted purchases) - filter by active tab (FWC/Voucher) */
+  const loadDeletedPurchases = async () => {
+    if (!activeTab || (activeTab !== "fwc" && activeTab !== "voucher")) return;
+    setIsLoadingDeleted(true);
+    try {
+      const res = await getPurchases({
+        page: deletedPage,
+        limit: 10,
+        search,
+        stationId,
+        startDate: purchasedDate,
+        endDate: shiftDate,
+        categoryId: cardCategoryId,
+        typeId: cardTypeId,
+        employeeTypeId,
+        transactionType: activeTab,
+        isDeleted: true,
+      });
+      if (res.success && res.data) {
+        setDeletedPurchases((res.data.items as DeletedPurchaseItem[]) || []);
+        setDeletedPagination(res.data.pagination || {
+          page: 1,
+          limit: 10,
+          total: 0,
+          totalPages: 1,
+        });
+      } else {
+        setDeletedPurchases([]);
+        setDeletedPagination({ page: 1, limit: 10, total: 0, totalPages: 1 });
+      }
+    } catch {
+      setDeletedPurchases([]);
+      setDeletedPagination({ page: 1, limit: 10, total: 0, totalPages: 1 });
+    } finally {
+      setIsLoadingDeleted(false);
+    }
+  };
+
   /* =====================
      RESET CATEGORY & TYPE WHEN TAB CHANGES (FWC vs Voucher punya list beda)
   ===================== */
@@ -180,6 +237,38 @@ export default function TransactionPage({ role }: TransactionPageProps) {
     searchParams.get("refresh"),
   ]);
 
+  /* Reset deleted list page when tab/filters change */
+  useEffect(() => {
+    if (!activeTab || (activeTab !== "fwc" && activeTab !== "voucher")) return;
+    setDeletedPage(1);
+  }, [
+    activeTab,
+    search,
+    stationId,
+    purchasedDate,
+    shiftDate,
+    cardCategoryId,
+    cardTypeId,
+    employeeTypeId,
+  ]);
+
+  /* Load riwayat penghapusan when tab, deletedPage, or filters change */
+  useEffect(() => {
+    if (!activeTab || (activeTab !== "fwc" && activeTab !== "voucher")) return;
+    loadDeletedPurchases();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    activeTab,
+    deletedPage,
+    search,
+    stationId,
+    purchasedDate,
+    shiftDate,
+    cardCategoryId,
+    cardTypeId,
+    employeeTypeId,
+  ]);
+
   /* =====================
      HANDLERS
   ===================== */
@@ -196,12 +285,8 @@ export default function TransactionPage({ role }: TransactionPageProps) {
     router.push(`${basePath}/membership/create?programType=${programType}`);
   };
 
-  const handleExportPDF = async () => {
-    if (activeTab === "voucher") {
-      alert("Export voucher belum tersedia");
-      return;
-    }
-
+  /** Open Laporan Transaksi export modal (fetch data first) - data sesuai tab: FWC atau Voucher */
+  const openTransactionExportModal = async () => {
     const res = await getPurchases({
       search,
       stationId,
@@ -209,6 +294,8 @@ export default function TransactionPage({ role }: TransactionPageProps) {
       endDate: shiftDate,
       categoryId: cardCategoryId,
       typeId: cardTypeId,
+      employeeTypeId,
+      transactionType: activeTab === "voucher" ? "voucher" : "fwc",
       limit: 1000,
     });
 
@@ -217,8 +304,12 @@ export default function TransactionPage({ role }: TransactionPageProps) {
       return;
     }
 
-    const items = res.data.items;
+    setTransactionExportItems(res.data.items);
+    setShowTransactionExportModal(true);
+  };
 
+  /** Generate Laporan Transaksi PDF from items */
+  const generateTransactionPDF = (items: any[]) => {
     const doc = new jsPDF({
       orientation: "landscape",
       unit: "mm",
@@ -236,15 +327,15 @@ export default function TransactionPage({ role }: TransactionPageProps) {
       idx + 1,
       item.member?.name || "-",
       item.member?.identityNumber ? `FWC${item.member.identityNumber}` : "-",
-      item.card.cardProduct.category.categoryName,
-      item.card.cardProduct.type.typeName,
-      item.card.serialNumber,
+      item.card?.cardProduct?.category?.categoryName ?? "-",
+      item.card?.cardProduct?.type?.typeName ?? "-",
+      item.card?.serialNumber ?? "-",
       item.edcReferenceNumber ? `EDC${item.edcReferenceNumber}` : "-",
-      `Rp ${Number(item.price).toLocaleString("id-ID")}`,
+      `Rp ${Number(item.price || 0).toLocaleString("id-ID")}`,
       formatDateID(item.purchaseDate),
       formatDateID(item.shiftDate ?? item.purchaseDate),
-      item.operator.fullName,
-      item.station.stationName,
+      item.operator?.fullName ?? "-",
+      item.station?.stationName ?? "-",
     ]);
 
     autoTable(doc, {
@@ -287,13 +378,244 @@ export default function TransactionPage({ role }: TransactionPageProps) {
     doc.save(`Transaction_Report_FWC_${dateStr}.pdf`);
   };
 
+  /** Generate Laporan Transaksi Excel from items */
+  const generateTransactionExcel = (items: any[]) => {
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "FWC System";
+    workbook.created = new Date();
+
+    const worksheet = workbook.addWorksheet("Laporan Transaksi");
+
+    const headers = [
+      "No",
+      "Customer Name",
+      "Identity Number",
+      "Card Category",
+      "Card Type",
+      "Serial Number",
+      "Reference EDC",
+      "FWC Price",
+      "Purchase Date",
+      "Shift Date",
+      "Operator Name",
+      "Station",
+    ];
+    const headerRow = worksheet.getRow(1);
+    headerRow.values = headers;
+    headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    headerRow.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF8D1231" },
+    };
+    headerRow.alignment = { horizontal: "center", vertical: "middle" };
+    headerRow.height = 20;
+
+    items.forEach((item: any, idx: number) => {
+      const row = worksheet.getRow(idx + 2);
+      row.values = [
+        idx + 1,
+        item.member?.name || "-",
+        item.member?.identityNumber ? `FWC${item.member.identityNumber}` : "-",
+        item.card?.cardProduct?.category?.categoryName ?? "-",
+        item.card?.cardProduct?.type?.typeName ?? "-",
+        item.card?.serialNumber ?? "-",
+        item.edcReferenceNumber ? `EDC${item.edcReferenceNumber}` : "-",
+        Number(item.price || 0),
+        formatDateID(item.purchaseDate),
+        formatDateID(item.shiftDate ?? item.purchaseDate),
+        item.operator?.fullName ?? "-",
+        item.station?.stationName ?? "-",
+      ];
+      row.alignment = { horizontal: "left", vertical: "middle" };
+    });
+
+    worksheet.columns = [
+      { width: 6 },
+      { width: 22 },
+      { width: 18 },
+      { width: 18 },
+      { width: 18 },
+      { width: 18 },
+      { width: 16 },
+      { width: 14 },
+      { width: 14 },
+      { width: 12 },
+      { width: 18 },
+      { width: 18 },
+    ];
+
+    workbook.xlsx.writeBuffer().then((buffer) => {
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const dateStr = new Date().toISOString().split("T")[0].replace(/-/g, "");
+      link.download = `Transaction_Report_FWC_${dateStr}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
+    });
+  };
+
+  /** Generate Laporan Transaksi CSV from items */
+  const generateTransactionCSV = (items: any[]) => {
+    const headers = [
+      "No",
+      "Customer Name",
+      "Identity Number",
+      "Card Category",
+      "Card Type",
+      "Serial Number",
+      "Reference EDC",
+      "FWC Price",
+      "Purchase Date",
+      "Shift Date",
+      "Operator Name",
+      "Station",
+    ];
+    const escapeCsv = (v: string | number) => {
+      const s = String(v ?? "");
+      if (/[,"\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    };
+    let csv = headers.map(escapeCsv).join(",") + "\n";
+    items.forEach((item: any, idx: number) => {
+      const row = [
+        idx + 1,
+        item.member?.name || "-",
+        item.member?.identityNumber ? `FWC${item.member.identityNumber}` : "-",
+        item.card?.cardProduct?.category?.categoryName ?? "-",
+        item.card?.cardProduct?.type?.typeName ?? "-",
+        item.card?.serialNumber ?? "-",
+        item.edcReferenceNumber ? `EDC${item.edcReferenceNumber}` : "-",
+        Number(item.price || 0),
+        formatDateID(item.purchaseDate),
+        formatDateID(item.shiftDate ?? item.purchaseDate),
+        item.operator?.fullName ?? "-",
+        item.station?.stationName ?? "-",
+      ];
+      csv += row.map(escapeCsv).join(",") + "\n";
+    });
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    const dateStr = new Date().toISOString().split("T")[0].replace(/-/g, "");
+    link.download = `Transaction_Report_FWC_${dateStr}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  /** Generate Laporan Transaksi Image from items - render in iframe to avoid lab() color from main page */
+  const generateTransactionImage = async (items: any[]) => {
+    const escapeHtml = (text: string) => {
+      const div = document.createElement("div");
+      div.textContent = text;
+      return div.innerHTML;
+    };
+
+    let rowsHtml = "";
+    items.forEach((item: any, idx: number) => {
+      rowsHtml += `
+        <tr>
+          <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; text-align: center; color: rgb(0, 0, 0);">${idx + 1}</td>
+          <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.member?.name || "-")}</td>
+          <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.member?.identityNumber ? `FWC${item.member.identityNumber}` : "-")}</td>
+          <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.card?.cardProduct?.category?.categoryName ?? "-")}</td>
+          <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.card?.cardProduct?.type?.typeName ?? "-")}</td>
+          <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.card?.serialNumber ?? "-")}</td>
+          <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.edcReferenceNumber ? `EDC${item.edcReferenceNumber}` : "-")}</td>
+          <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">Rp ${Number(item.price || 0).toLocaleString("id-ID")}</td>
+          <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${formatDateID(item.purchaseDate)}</td>
+          <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${formatDateID(item.shiftDate ?? item.purchaseDate)}</td>
+          <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.operator?.fullName ?? "-")}</td>
+          <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.station?.stationName ?? "-")}</td>
+        </tr>
+      `;
+    });
+
+    const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:40px;background-color:rgb(255,255,255);color:rgb(0,0,0);font-family:Arial,sans-serif;font-size:14px;">
+      <h2 style="text-align:center;margin:0 0 20px 0;font-size:24px;color:rgb(141,18,49);">Laporan Transaksi</h2>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background-color:rgb(141,18,49);color:rgb(255,255,255);">
+            <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">No</th>
+            <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Customer Name</th>
+            <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Identity Number</th>
+            <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Card Category</th>
+            <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Card Type</th>
+            <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Serial Number</th>
+            <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Reference EDC</th>
+            <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">FWC Price</th>
+            <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Purchase Date</th>
+            <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Shift Date</th>
+            <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Operator</th>
+            <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Station</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </body></html>`;
+
+    const iframe = document.createElement("iframe");
+    iframe.setAttribute("style", "position:fixed;left:-99999px;top:0;width:1200px;height:800px;border:0;visibility:hidden;");
+    document.body.appendChild(iframe);
+
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!iframeDoc) {
+      document.body.removeChild(iframe);
+      alert("Gagal menghasilkan gambar");
+      return;
+    }
+
+    iframeDoc.open();
+    iframeDoc.write(fullHtml);
+    iframeDoc.close();
+
+    const iframeBody = iframeDoc.body;
+    await new Promise((r) => setTimeout(r, 150));
+
+    try {
+      const canvas = await html2canvas(iframeBody, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        logging: false,
+        useCORS: true,
+        allowTaint: true,
+        foreignObjectRendering: false,
+        width: 1200,
+        height: Math.max(iframeBody.scrollHeight, 400),
+        windowWidth: 1200,
+        windowHeight: Math.max(iframeBody.scrollHeight, 400),
+      });
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          const dateStr = new Date().toISOString().split("T")[0].replace(/-/g, "");
+          link.download = `Transaction_Report_FWC_${dateStr}.png`;
+          link.click();
+          URL.revokeObjectURL(url);
+        }
+      }, "image/png");
+    } catch (err) {
+      console.error("Error generating transaction image:", err);
+      alert("Gagal menghasilkan gambar");
+    } finally {
+      document.body.removeChild(iframe);
+    }
+  };
+
   const handleExportShiftPDF = async () => {
     if (activeTab === "voucher") {
       alert("Export voucher belum tersedia");
       return;
     }
 
-    // Fetch data first
+    // Fetch data first - hanya data FWC
     const token = localStorage.getItem("fwc_token");
     if (!token) {
       alert("Session expired. Silakan login kembali.");
@@ -307,6 +629,8 @@ export default function TransactionPage({ role }: TransactionPageProps) {
       endDate: shiftDate,
       categoryId: cardCategoryId,
       typeId: cardTypeId,
+      employeeTypeId,
+      transactionType: "fwc",
       limit: 1000,
     });
 
@@ -381,6 +705,8 @@ export default function TransactionPage({ role }: TransactionPageProps) {
       endDate: shiftDate,
       categoryId: cardCategoryId,
       typeId: cardTypeId,
+      employeeTypeId,
+      transactionType: "fwc",
       limit: 1000,
     });
 
@@ -1340,7 +1666,7 @@ export default function TransactionPage({ role }: TransactionPageProps) {
               setPagination((p) => ({ ...p, page: 1 }));
             }}
             onReset={resetFilter}
-            onExportPDF={handleExportPDF}
+            onExportPDF={openTransactionExportModal}
             onExportShiftPDF={handleExportShiftPDF}
           />
 
@@ -1353,7 +1679,10 @@ export default function TransactionPage({ role }: TransactionPageProps) {
               onEdit={(id) =>
                 router.push(`${basePath}/${transactionPath}/edit/${id}`)
               }
-              onDelete={() => fetchData()}
+              onDelete={() => {
+                fetchData();
+                loadDeletedPurchases();
+              }}
               canEdit
               canDelete={true}
             />
@@ -1363,14 +1692,91 @@ export default function TransactionPage({ role }: TransactionPageProps) {
               loading={loading}
               pagination={pagination}
               onPageChange={(page) => setPagination((p) => ({ ...p, page }))}
-              onDelete={() => fetchData()}
+              onDelete={() => {
+                fetchData();
+                loadDeletedPurchases();
+              }}
               canDelete={true}
             />
           )}
+
+          {/* Riwayat Penghapusan - sama seperti di Redeem */}
+          {activeTab === "fwc" || activeTab === "voucher" ? (
+            <DeletedPurchaseTable
+              data={deletedPurchases}
+              isLoading={isLoadingDeleted}
+              noDataMessage="Tidak ada data yang dihapus"
+              currentPage={deletedPagination.page}
+              totalPages={deletedPagination.totalPages}
+              totalCount={deletedPagination.total}
+              onPageChange={setDeletedPage}
+            />
+          ) : null}
         </>
       )}
 
-      {/* Export Modal */}
+      {/* Laporan Transaksi Export Modal */}
+      {showTransactionExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Laporan Transaksi</h3>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Format Export
+              </label>
+              <select
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
+                value={transactionExportFormat}
+                onChange={(e) =>
+                  setTransactionExportFormat(e.target.value as "pdf" | "excel" | "csv" | "image")
+                }
+              >
+                <option value="pdf">PDF</option>
+                <option value="excel">Excel (.xlsx)</option>
+                <option value="csv">CSV</option>
+                <option value="image">Image (.png)</option>
+              </select>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowTransactionExportModal(false)}
+                className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const items = transactionExportItems;
+                  setShowTransactionExportModal(false);
+                  switch (transactionExportFormat) {
+                    case "pdf":
+                      generateTransactionPDF(items);
+                      break;
+                    case "excel":
+                      generateTransactionExcel(items);
+                      break;
+                    case "csv":
+                      generateTransactionCSV(items);
+                      break;
+                    case "image":
+                      await generateTransactionImage(items);
+                      break;
+                  }
+                }}
+                className="px-4 py-2 text-sm bg-[#8D1231] text-white hover:bg-[#73122E] rounded-md"
+              >
+                Export {transactionExportFormat.toUpperCase()}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Export Modal (Laporan Shift) */}
       {showExportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
