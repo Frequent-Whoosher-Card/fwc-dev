@@ -3,7 +3,7 @@ import { authMiddleware } from "../../../middleware/auth";
 import { CardProductService } from "./service";
 import { formatErrorResponse, NotFoundError } from "../../../utils/errors";
 import { CardProductModel } from "./model";
-import { rbacMiddleware } from "../../../middleware/rbac";
+import { permissionMiddleware } from "../../../middleware/permission";
 
 type AuthContextUser = {
   user: {
@@ -21,26 +21,24 @@ type AuthContextUser = {
 
 const baseRoutes = new Elysia()
   .use(authMiddleware)
-  .use(rbacMiddleware(["petugas", "supervisor", "admin", "superadmin"]))
+  .use(permissionMiddleware("card.product.view"))
   .get(
     "/",
     async (context) => {
       const { query, set } = context as typeof context;
 
-      // PATCH: Validasi programType hanya jika ada dan harus FWC/VOUCHER
-      if (
-        query?.programType &&
-        query.programType !== "FWC" &&
-        query.programType !== "VOUCHER"
-      ) {
-        // Abaikan programType tidak valid, treat as no filter
-        query.programType = undefined;
+      // Validate and filter programType
+      let validProgramType: "FWC" | "VOUCHER" | undefined = undefined;
+      if (query?.programType) {
+        if (query.programType === "FWC" || query.programType === "VOUCHER") {
+          validProgramType = query.programType as "FWC" | "VOUCHER";
+        }
       }
 
       try {
         const cardProducts = await CardProductService.getCardProducts(
           query?.search,
-          query?.programType,
+          validProgramType,
         );
 
         return {
@@ -122,7 +120,7 @@ const baseRoutes = new Elysia()
 
 const adminRoutes = new Elysia()
   .use(authMiddleware)
-  .use(rbacMiddleware(["admin", "superadmin"]))
+  .use(permissionMiddleware("card.product.manage"))
   .post(
     "/",
     async (context) => {
@@ -225,7 +223,7 @@ const adminRoutes = new Elysia()
 
 const superadminRoutes = new Elysia()
   .use(authMiddleware)
-  .use(rbacMiddleware(["superadmin"]))
+  .use(permissionMiddleware("card.product.delete"))
   .delete(
     "/:id",
     async (context) => {

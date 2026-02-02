@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { rbacMiddleware } from "../../../middleware/rbac";
+import { permissionMiddleware } from "../../../middleware/permission";
 import { formatErrorResponse } from "../../../utils/errors";
 import { CardGenerateService } from "./service";
 import { CardGenerateModel } from "./model";
@@ -19,7 +19,7 @@ type AuthContextUser = {
 };
 
 export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
-  .use(rbacMiddleware(["superadmin", "admin"])) // Asumsi hanya admin/superadmin yang boleh generate
+  .use(permissionMiddleware("card.generate")) // Asumsi hanya admin/superadmin yang boleh generate
   .post(
     "/",
     async (context) => {
@@ -154,7 +154,15 @@ export const cardGenerateRoutes = new Elysia({ prefix: "/cards/generate" })
     async (context) => {
       const { query, set } = context as typeof context;
       try {
-        const result = await CardGenerateService.getHistory(query);
+        const result = await CardGenerateService.getHistory({
+          page: query.page ? parseInt(query.page) : undefined,
+          limit: query.limit ? parseInt(query.limit) : undefined,
+          startDate: query.startDate ? new Date(query.startDate) : undefined,
+          endDate: query.endDate ? new Date(query.endDate) : undefined,
+          categoryId: query.categoryId,
+          typeId: query.typeId,
+          programType: query.programType,
+        });
         return {
           success: true,
           message: "History retrieved successfully",

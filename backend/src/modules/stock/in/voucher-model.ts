@@ -55,12 +55,14 @@ export namespace StockInVoucherModel {
           status: t.String(),
           batchId: t.Union([t.String(), t.Null()]),
           note: t.Union([t.String(), t.Null()]),
-          createdByName: t.Union([t.String(), t.Null()]),
+          createdByName: t.Union([t.String(), t.Null(), t.Undefined()]),
           cardCategory: t.Object({
             id: t.String(),
             name: t.String(),
             code: t.String(),
-            programType: t.Union([t.String(), t.Null()]),
+            programType: t.Nullable(
+              t.Union([t.Literal("FWC"), t.Literal("VOUCHER")]),
+            ),
           }),
           cardType: t.Object({
             id: t.String(),
@@ -85,7 +87,6 @@ export namespace StockInVoucherModel {
 
   export const stockInVoucherResponse = t.Object({
     success: t.Boolean(),
-    message: t.String(),
     data: t.Object({
       movement: t.Object({
         id: t.String(),
@@ -96,12 +97,14 @@ export namespace StockInVoucherModel {
         batchId: t.Union([t.String(), t.Null()]),
         note: t.Union([t.String(), t.Null()]),
         createdAt: t.String(),
-        createdByName: t.Union([t.String(), t.Null()]),
+        createdByName: t.Union([t.String(), t.Null(), t.Undefined()]),
         cardCategory: t.Object({
           id: t.String(),
           name: t.String(),
           code: t.String(),
-          programType: t.Union([t.String(), t.Null()]),
+          programType: t.Nullable(
+            t.Union([t.Literal("FWC"), t.Literal("VOUCHER")]),
+          ),
         }),
         cardType: t.Object({
           id: t.String(),

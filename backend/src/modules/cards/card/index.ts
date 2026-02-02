@@ -1,6 +1,6 @@
 import { Elysia, t } from "elysia";
 import { authMiddleware } from "../../../middleware/auth";
-import { rbacMiddleware } from "../../../middleware/rbac";
+import { permissionMiddleware } from "../../../middleware/permission";
 import { formatErrorResponse } from "../../../utils/errors";
 import { CardService } from "./service";
 import { CardModel } from "./model";
@@ -23,7 +23,7 @@ const baseRoutes = new Elysia()
   .use(authMiddleware)
   .group("", (app) =>
     app
-      .use(rbacMiddleware(["petugas", "supervisor", "admin", "superadmin"]))
+      .use(permissionMiddleware("card.view"))
       // Get All Cards
       .get(
         "/",
@@ -204,7 +204,7 @@ const baseRoutes = new Elysia()
   .group("", (app) =>
     app
       // Update Card
-      .use(rbacMiddleware(["supervisor", "admin", "superadmin"]))
+      .use(permissionMiddleware("card.update"))
       .patch(
         "/:id",
         async (context) => {

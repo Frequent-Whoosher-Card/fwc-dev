@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 'use client';
 
 import Image from 'next/image';
@@ -345,3 +346,4 @@ export default function LoginPage() {
     </div>
   );
 }
+>>>>>>> 70d39d18dd0a5bc957fcbdb98fcaa81359d38291

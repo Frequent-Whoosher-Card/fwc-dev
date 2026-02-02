@@ -11,27 +11,50 @@ import toast from "react-hot-toast";
 import ClientOnly from "@/components/ui/client-only";
 
 import {
-  LayoutDashboard,
-  CreditCard,
-  UserPlus,
-  Receipt,
-  Users,
   Menu,
   X,
   User,
   LogOut,
-  IdCard,
-  ArrowDownToLine,
-  ArrowUpNarrowWide,
   ChevronDown,
+  LayoutDashboard,
+  CreditCard,
+  FilePlus,
+  Receipt,
+  ShoppingCart,
+  Users,
+  Gift,
+  UserCog,
+  Inbox,
+  ClipboardList,
+  Shield,
   FolderKanban,
   UserCircle,
-  UserPlus2,
-  UserRoundPlus,
-  FilePlus,
-  Inbox,
   PercentCircle,
   Briefcase,
+  ArrowDownToLine,
+  ArrowUpNarrowWide,
+  IdCard,
+  Home,
+  Settings,
+  Database,
+  Package,
+  Truck,
+  FileText,
+  Layout,
+  List,
+  Plus,
+  Search,
+  History,
+  LogIn,
+  Wallet,
+  BarChart3,
+  Activity,
+  BadgePercent,
+  TicketCheck,
+  Warehouse,
+  Globe,
+  type LucideIcon,
+  Circle,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -47,6 +70,68 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { API_BASE_URL } from "@/lib/apiConfig";
+import { MenuService, MenuItem } from "@/lib/services/menuService";
+import { useLanguage } from "@/hooks/useLanguage";
+
+/* =========================
+   ICON MAPPING HELPER
+========================= */
+const resolveIcon = (iconName: string | null): LucideIcon => {
+  if (!iconName) return Circle;
+
+  const map: Record<string, LucideIcon> = {
+    // Standard Layout & UI
+    layoutdashboard: LayoutDashboard,
+    menu: Menu,
+    x: X,
+    user: User,
+    logout: LogOut,
+    chevrondown: ChevronDown,
+    circle: Circle,
+    shield: Shield,
+    home: Home,
+    settings: Settings,
+    layout: Layout,
+    list: List,
+    plus: Plus,
+    search: Search,
+
+    // Feature Icons
+    creditcard: CreditCard,
+    fileplus: FilePlus,
+    receipt: Receipt,
+    shoppingcart: ShoppingCart,
+    users: Users,
+    gift: Gift,
+    usercog: UserCog,
+    inbox: Inbox,
+    clipboardlist: ClipboardList,
+    database: Database,
+    package: Package,
+    truck: Truck,
+    filetext: FileText,
+    history: History,
+    login: LogIn,
+    wallet: Wallet,
+    barchart3: BarChart3,
+    activity: Activity,
+    badgepercent: BadgePercent,
+    ticketcheck: TicketCheck,
+    warehouse: Warehouse,
+
+    // RBAC / New Icons
+    folderkanban: FolderKanban, // Stok
+    usercircle: UserCircle, // User Management
+    percentcircle: PercentCircle, // Redeem
+    briefcase: Briefcase, // Stok Station
+    arrowdowntoline: ArrowDownToLine, // Stok Masuk
+    arrowupnarrowwide: ArrowUpNarrowWide, // Stok Keluar
+    idcard: IdCard, // New Product Card / Stok All
+  };
+
+  const normalized = iconName.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return map[normalized] || Circle;
+};
 
 /* =========================
    ROLE TYPE
@@ -62,133 +147,6 @@ export const UserContext = createContext<{
 } | null>(null);
 
 /* =========================
-   MENU CONFIG
-========================= */
-
-/* SUPERADMIN */
-const superadminMenuItems = [
-  {
-    title: "Dashboard",
-    icon: LayoutDashboard,
-    href: "/dashboard/superadmin/dashboard",
-  },
-  { title: "Redeem Kuota", icon: IdCard, href: "/dashboard/superadmin/redeem" },
-  {
-    title: "Stock",
-    icon: CreditCard,
-    href: "/dashboard/superadmin/stock/fwc",
-    children: [
-      {
-        title: "Stock In",
-        href: "/dashboard/superadmin/stock/fwc/in",
-        icon: ArrowDownToLine,
-      },
-      {
-        title: "Stock Out",
-        href: "/dashboard/superadmin/stock/fwc/out",
-        icon: ArrowUpNarrowWide,
-      },
-      {
-        title: "Stock All",
-        href: "/dashboard/superadmin/stock/fwc/all",
-        icon: UserCircle,
-      },
-    ],
-  },
-  {
-    title: "Generate Number",
-    icon: FilePlus,
-    href: "/dashboard/superadmin/generatenumber",
-  },
-  {
-    title: "Create New Card",
-    icon: FolderKanban,
-    href: "/dashboard/superadmin/createnewcard/fwc",
-  },
-  { title: "Inbox", icon: Inbox, href: "/dashboard/superadmin/inbox" },
-  {
-    title: "Membership",
-    icon: UserPlus,
-    href: "/dashboard/superadmin/membership",
-  },
-  {
-    title: "Manage Diskon",
-    icon: PercentCircle,
-    href: "/dashboard/superadmin/managediskon",
-  },
-  {
-    title: "Transaksi",
-    icon: Receipt,
-    href: "/dashboard/superadmin/transaksi",
-  },
-  { title: "User", icon: Users, href: "/dashboard/superadmin/user" },
-  {
-    title: "Employee Type",
-    icon: Briefcase,
-    href: "/dashboard/superadmin/employee-types",
-  },
-];
-
-/* ADMIN */
-const adminMenuItems = [
-  { title: "Dashboard", icon: LayoutDashboard, href: "/dashboard/admin" },
-  {
-    title: "Stock Kartu",
-    icon: CreditCard,
-    href: "/dashboard/admin/stock",
-    children: [
-      {
-        title: "Stock In",
-        href: "/dashboard/admin/stock/in",
-        icon: ArrowDownToLine,
-      },
-      {
-        title: "Stock Out",
-        href: "/dashboard/admin/stock/out",
-        icon: ArrowUpNarrowWide,
-      },
-    ],
-  },
-  { title: "Membership", icon: UserPlus, href: "/dashboard/admin/membership" },
-  { title: "Transaksi", icon: Receipt, href: "/dashboard/admin/transaksi" },
-];
-
-/* PETUGAS */
-const petugasMenuItems = [
-  {
-    title: "Membership",
-    icon: UserPlus,
-    href: "/dashboard/petugas/membership",
-  },
-  { title: "Stock", icon: CreditCard, href: "/dashboard/petugas/stock" },
-  { title: "Redeem Kuota", icon: IdCard, href: "/dashboard/petugas/redeem" },
-  { title: "Transaksi", icon: Receipt, href: "/dashboard/petugas/transaksi" },
-];
-
-/* SUPERVISOR */
-const supervisorMenuItems = [
-  {
-    title: "Membership",
-    icon: UserPlus,
-    href: "/dashboard/supervisor/membership",
-  },
-  { title: "Redeem Kuota", icon: IdCard, href: "/dashboard/supervisor/redeem" },
-  {
-    title: "Transaksi",
-    icon: Receipt,
-    href: "/dashboard/supervisor/transaksi",
-  },
-  { title: "Noted", icon: Inbox, href: "/dashboard/supervisor/noted" },
-];
-
-const menuByRole: Record<Role, any[]> = {
-  superadmin: superadminMenuItems,
-  admin: adminMenuItems,
-  petugas: petugasMenuItems,
-  supervisor: supervisorMenuItems,
-};
-
-/* =========================
    DASHBOARD LAYOUT
 ========================= */
 export default function DashboardLayout({
@@ -198,17 +156,23 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { lang, setLang, t } = useLanguage();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   const [role, setRole] = useState<Role | null>(null);
-  const [userName, setUserName] = useState("User");
+  const [userName, setUserName] = useState<string>("");
+
+  // Auth & Menu Loading State
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
 
+  // Dynamic Menu State
+  const [menuItems, setMenuItems] = useState<any[]>([]);
+
   /* =========================
-     AUTH VIA TOKEN + /auth/me
+     AUTH VIA TOKEN + /auth/me + FETCH MENU
   ========================= */
   useEffect(() => {
     const token = localStorage.getItem("fwc_token");
@@ -218,8 +182,9 @@ export default function DashboardLayout({
       return;
     }
 
-    const loadMe = async () => {
+    const loadData = async () => {
       try {
+        // 1. Fetch User Data
         const res = await fetch(`${API_BASE_URL}/auth/me`, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -233,8 +198,8 @@ export default function DashboardLayout({
         const json = await res.json();
         const user = json.data;
 
+        // 2. Map Role
         const rawRole = (user.role.roleCode || "").toUpperCase();
-
         const roleMap: Record<string, Role> = {
           SUPERADMIN: "superadmin",
           ADMIN: "admin",
@@ -253,9 +218,52 @@ export default function DashboardLayout({
         setUserName(user.fullName || user.username);
         setRole(mappedRole);
 
+        // 3. Redirect if not in correct dashboard
         const basePath = `/dashboard/${mappedRole}`;
         if (!pathname.startsWith(basePath)) {
+          console.warn(
+            `[DashboardLayout] Redirecting from ${pathname} to ${basePath}`,
+          );
           router.replace(basePath);
+        }
+
+        // 4. Fetch Dynamic Menu
+        try {
+          const menuData = await MenuService.getUserMenu();
+          console.log("[DashboardLayout] Raw Menu Data:", menuData);
+
+          // Transform API menu to UI menu structure
+          const transformMenu = (items: MenuItem[]): any[] => {
+            return items.map((item) => {
+              let href = item.route || "#";
+              // Replace dynamic :role placeholder
+              if (href.includes(":role")) {
+                href = href.replace(":role", mappedRole);
+              }
+
+              console.log(
+                `[DashboardLayout] Transforming: ${item.label} -> ${href} (Role: ${mappedRole})`,
+              );
+
+              return {
+                title: item.label,
+                href: href,
+                icon: resolveIcon(item.icon),
+                children: item.children
+                  ? transformMenu(item.children)
+                  : undefined,
+              };
+            });
+          };
+
+          const transformed = transformMenu(menuData);
+          console.log("[DashboardLayout] Final Menu Items:", transformed);
+          setMenuItems(transformed);
+        } catch (menuErr) {
+          console.error("Failed to load menu", menuErr);
+          // Fallback or empty menu?
+          setMenuItems([]);
+          toast.error("Gagal memuat menu");
         }
       } catch (err: any) {
         console.error("auth/me error:", err);
@@ -267,7 +275,7 @@ export default function DashboardLayout({
       }
     };
 
-    loadMe();
+    loadData();
   }, [router, pathname]);
 
   if (loading) {
@@ -275,7 +283,7 @@ export default function DashboardLayout({
       <div
         style={{ padding: 32, color: "#b91c1c", fontWeight: 600, fontSize: 18 }}
       >
-        Loading auth...
+        Loading application...
       </div>
     );
   }
@@ -287,8 +295,11 @@ export default function DashboardLayout({
         AUTH ERROR: {authError}
         <br />
         <span style={{ fontWeight: 400, fontSize: 14 }}>
-          Cek token, response /auth/me, dan mapping role di backend.
+          Silakan login kembali.
         </span>
+        <Button onClick={() => router.replace("/")} className="ml-4">
+          Login
+        </Button>
       </div>
     );
   }
@@ -298,13 +309,9 @@ export default function DashboardLayout({
         style={{ padding: 32, color: "#b91c1c", fontWeight: 600, fontSize: 18 }}
       >
         Tidak ada role terdeteksi.
-        <br />
-        Cek response /auth/me dan mapping role.
       </div>
     );
   }
-
-  const menuItems = menuByRole[role] ?? [];
 
   /* =========================
      LOGOUT
@@ -348,15 +355,17 @@ export default function DashboardLayout({
             </Button>
           </div>
 
-          <nav className="flex-1 space-y-1 p-4">
+          <nav className="flex-1 space-y-1 p-4 overflow-y-auto">
             {menuItems.map((item) => {
-              const hasChildren = !!item.children;
+              const hasChildren = !!item.children && item.children.length > 0;
               const isParentActive =
                 pathname === item.href ||
                 item.children?.some((child: any) =>
                   pathname.startsWith(child.href),
                 );
 
+              // Auto-open if active
+              // Note: We might want initial state to respect this
               const isOpen =
                 openMenu === item.title ||
                 item.children?.some((child: any) =>
@@ -367,15 +376,22 @@ export default function DashboardLayout({
                 <div key={item.title}>
                   <div
                     className={cn(
-                      "flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium",
+                      "flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                       isParentActive
                         ? "bg-white/20 text-white"
                         : "text-white hover:bg-white/10",
                     )}
                   >
                     <Link
-                      href={item.href}
-                      onClick={() => setSidebarOpen(false)}
+                      href={hasChildren ? "#" : item.href}
+                      onClick={(e) => {
+                        if (hasChildren) {
+                          e.preventDefault();
+                          setOpenMenu(isOpen ? null : item.title);
+                        } else {
+                          setSidebarOpen(false);
+                        }
+                      }}
                       className="flex items-center gap-3 flex-1"
                     >
                       <item.icon className="h-5 w-5" />
@@ -412,7 +428,7 @@ export default function DashboardLayout({
                             href={child.href}
                             onClick={() => setSidebarOpen(false)}
                             className={cn(
-                              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm",
+                              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
                               isActive
                                 ? "bg-white/20 text-white"
                                 : "text-white/80 hover:bg-white/10",
@@ -445,30 +461,63 @@ export default function DashboardLayout({
           </Button>
 
           <h1 className="flex-1 text-sm sm:text-base md:text-lg font-semibold truncate pr-2 whitespace-nowrap">
-            Frequent Whoosher Card
+            {t("app_title")}
           </h1>
 
           <ClientOnly>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  <span className="text-sm font-medium">{userName}</span>
-                </Button>
-              </DropdownMenuTrigger>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setLang(lang === "id" ? "en" : "id")}
+                className="flex items-center gap-2 px-2 h-9"
+                title={
+                  lang === "id"
+                    ? "Switch to English"
+                    : "Ganti ke Bahasa Indonesia"
+                }
+              >
+                <Globe className="h-4 w-4" />
+                <span className="text-xs font-bold w-5">
+                  {lang.toUpperCase()}
+                </span>
+              </Button>
 
-              <DropdownMenuContent align="end" className="w-40">
-                <DropdownMenuLabel>Akun</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={handleLogout}
-                  className="text-red-600 cursor-pointer"
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Logout
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="flex items-center gap-2 h-9"
+                  >
+                    <User className="h-5 w-5" />
+                    <span className="hidden sm:inline text-sm font-medium">
+                      {userName}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel>{t("account")}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() =>
+                      router.push("/dashboard/superadmin/change-password")
+                    }
+                    className="cursor-pointer"
+                  >
+                    <User className="mr-2 h-4 w-4" />
+                    {t("change_password")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="text-red-600 cursor-pointer"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    {t("logout")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </ClientOnly>
         </header>
 

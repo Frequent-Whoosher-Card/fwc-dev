@@ -7,6 +7,7 @@ import SwitchTab, { SwitchTabItem } from "@/components/SwitchTab";
 import { StockFilterReusable } from "./StockFilterReusable";
 import { StockPagination } from "./StockPagination";
 import { useStockIn } from "@/hooks/useStockIn";
+import { useLanguage } from "@/hooks/useLanguage";
 
 interface BaseStockInProps {
   programType: "FWC" | "VOUCHER";
@@ -14,6 +15,7 @@ interface BaseStockInProps {
 
 export default function BaseStockIn({ programType }: BaseStockInProps) {
   const router = useRouter();
+  const { t } = useLanguage();
 
   const tabs: SwitchTabItem[] = [
     { label: "FWC", path: "/dashboard/superadmin/stock/fwc/in" },
@@ -55,7 +57,7 @@ export default function BaseStockIn({ programType }: BaseStockInProps) {
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h2 className="text-lg font-semibold whitespace-nowrap">
-            Stock In (Vendor → Office)
+            {t("stock_in")} (Vendor → Office)
           </h2>
           <SwitchTab items={tabs} />
         </div>
@@ -97,41 +99,41 @@ export default function BaseStockIn({ programType }: BaseStockInProps) {
             exportPDF: true,
             add: true,
           }}
-          addLabel="Tambah"
+          addLabel={t("tambah")}
         />
       </div>
 
       <div className="rounded-lg border bg-white overflow-hidden">
         <div className="flex items-center justify-end px-4 py-3 border-b bg-gray-50">
           <span className="inline-flex items-center gap-2 rounded-lg border border-[#8D1231]/20 bg-[#8D1231]/5 px-3 py-1 text-sm font-medium text-[#8D1231]">
-            Total Data: <b>{pagination.total || 0}</b>
+            {t("total_data")}: <b>{pagination.total || 0}</b>
           </span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1000px] text-sm">
             <thead className="bg-[#8D1231] text-white">
               <tr>
-                <th className="p-3">No</th>
-                <th className="p-3">Tanggal</th>
-                <th className="p-3">Category</th>
-                <th className="p-3">Type</th>
-                <th className="p-3">Stock</th>
-                <th className="p-3">Serial Number</th>
+                <th className="p-3">{t("no")}</th>
+                <th className="p-3">{t("date")}</th>
+                <th className="p-3">{t("category")}</th>
+                <th className="p-3">{t("type")}</th>
+                <th className="p-3">{t("quantity")}</th>
+                <th className="p-3">{t("serial_number")}</th>
                 <th className="p-3">View</th>
-                <th className="p-3">Aksi</th>
+                <th className="p-3">{t("action")}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
                   <td colSpan={8} className="p-6 text-center">
-                    Loading...
+                    {t("loading")}
                   </td>
                 </tr>
               ) : data.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="p-6 text-center">
-                    Tidak ada data
+                    {t("no_data")}
                   </td>
                 </tr>
               ) : (
@@ -195,7 +197,7 @@ export default function BaseStockIn({ programType }: BaseStockInProps) {
                         }}
                         className="rounded-md border border-[#8D1231] px-3 py-1 text-xs font-medium text-[#8D1231] hover:bg-[#8D1231] hover:text-white transition-colors"
                       >
-                        Hapus
+                        {t("hapus")}
                       </button>
                     </td>
                   </tr>

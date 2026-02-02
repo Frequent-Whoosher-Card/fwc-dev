@@ -33,8 +33,8 @@ export namespace StockInFwcModel {
     message: t.String(),
     data: t.Object({
       movementId: t.String(),
-      startSerial: t.Integer(),
-      endSerial: t.Integer(),
+      startSerial: t.String(),
+      endSerial: t.String(),
       quantity: t.Integer(),
       // contoh serial full (template + suffix)
       startSerialNumber: t.String(),
@@ -67,7 +67,7 @@ export namespace StockInFwcModel {
           status: t.String(),
           batchId: t.Union([t.String(), t.Null()]),
           note: t.Union([t.String(), t.Null()]),
-          createdByName: t.Union([t.String(), t.Null()]),
+          createdByName: t.Union([t.String(), t.Null(), t.Undefined()]),
           cardCategory: t.Object({
             id: t.String(),
             name: t.String(),
@@ -103,7 +103,7 @@ export namespace StockInFwcModel {
         batchId: t.Union([t.String(), t.Null()]),
         note: t.Union([t.String(), t.Null()]),
         createdAt: t.String(),
-        createdByName: t.Union([t.String(), t.Null()]),
+        createdByName: t.Union([t.String(), t.Null(), t.Undefined()]),
         cardCategory: t.Object({
           id: t.String(),
           name: t.String(),
