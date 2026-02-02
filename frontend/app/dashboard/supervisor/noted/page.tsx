@@ -30,8 +30,10 @@ export default function InboxPage() {
   const [currentFilters, setCurrentFilters] = useState<InboxFilters>({});
 
   // Pagination State
+  // Pagination State
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
   // Badge State (Context)
 
@@ -107,6 +109,7 @@ export default function InboxPage() {
           // Set Pagination Data
           if (result.data.pagination) {
              setTotalPages(result.data.pagination.totalPages);
+             setTotalItems(result.data.pagination.total || 0);
           }
 
           let mappedItems = result.data.items.map((item: any) => {
@@ -253,6 +256,17 @@ export default function InboxPage() {
 
       {/* LIST */}
       <div className="rounded-xl border bg-white shadow-sm flex-1 flex flex-col min-h-0">
+         {/* Table Toolbar / Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b">
+           <h3 className="text-sm font-semibold text-gray-700">Messages List</h3>
+           <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">Total Data:</span>
+              <span className="px-2.5 py-0.5 rounded-md bg-[#8D1231]/10 text-[#8D1231] text-xs font-medium border border-[#8D1231]/20">
+                {totalItems}
+              </span>
+           </div>
+        </div>
+
         <div className="flex-1 overflow-y-auto">
           <InboxList
             items={items}
