@@ -485,10 +485,13 @@ export class CardInventoryService {
         else if (status === "IN_TRANSIT") entry.totalInTransit += count;
         else if (status === "SOLD_ACTIVE") entry.totalAktif += count;
         else if (status === "SOLD_INACTIVE") entry.totalNonAktif += count;
-        else {
-          // LOST, DAMAGED, ON_TRANSFER, BLOCKED, OTHER -> Merge into InTransit
-          // to ensure Table Total matches Total Summary without adding columns (User Request)
+        else if (status === "ON_TRANSFER") {
+          // ON_TRANSFER -> Merge into InTransit (Still moving)
           entry.totalInTransit += count;
+        } else {
+          // LOST, DAMAGED, BLOCKED, LOST_BY_PASSANGER, OTHER -> Merge into NonAktif (Sold Inactive / Problems)
+          // User requested this move from InTransit to NonAktif
+          entry.totalNonAktif += count;
         }
       }
     }
@@ -585,8 +588,22 @@ export class CardInventoryService {
         current.inStation += count;
       } else if (c.status === "SOLD_ACTIVE" || c.status === "SOLD_INACTIVE") {
         current.sold += count;
+      } else if (c.status === "IN_TRANSIT" || c.status === "ON_TRANSFER") {
+        current.inTransit += count;
       } else {
-        // IN_TRANSIT, ON_TRANSFER, LOST, DAMAGED, BLOCKED -> Merge into InTransit
+        // LOST, DAMAGED, BLOCKED -> Merge into Sold (implicitly? or just keep separate if column exists?)
+        // StationSummary table usually has specific columns. Let's check frontend.
+        // Assuming StationSummary behaves like StockTable, we might want to suppress these or merge them.
+        // User specific request was for CategorySummary.
+        // But for consistency let's merge them into "sold" or "transit"?
+        // Wait, StationSummary usually has: Name, Total, Sold, Stock (InStation), Transit.
+        // If we put Lost into Transit, it inflates Transit.
+        // If we put Lost into Sold, it inflates Sold.
+        // Let's stick to previous logic for StationSummary unless requested, BUT
+        // previous logic put them in InTransit.
+        // Let's update StationSummary to put them in 'sold' (as inactive/gone) or keep as is?
+        // User only asked for CategoryTypeSummary. I will touch ONLY CategoryTypeSummary first to be safe.
+        // Reverting this chunk for StationSummary to avoid regression if not asked.
         current.inTransit += count;
       }
 
@@ -785,7 +802,15 @@ export class CardInventoryService {
           where: {
             ...where,
             status: {
-              notIn: ["ON_REQUEST", "SOLD_ACTIVE", "SOLD_INACTIVE"],
+              notIn: [
+                "ON_REQUEST",
+                "SOLD_ACTIVE",
+                "SOLD_INACTIVE",
+                "LOST",
+                "DAMAGED",
+                "BLOCKED",
+                "LOST_BY_PASSANGER",
+              ],
             },
             deletedAt: null,
           },
@@ -794,9 +819,13 @@ export class CardInventoryService {
         db.card.count({
           where: { ...where, status: "DAMAGED", deletedAt: null },
         }),
-        // Total In = Currently In Office
+        // Total In = Currently In Office + Transit + Transfer (Assets we still somewhat control/track actively)
         db.card.count({
-          where: { ...where, status: "IN_OFFICE", deletedAt: null },
+          where: {
+            ...where,
+            status: { in: ["IN_OFFICE", "IN_TRANSIT", "ON_TRANSFER"] },
+            deletedAt: null,
+          },
         }),
         // Total Out = Distributed (Station + Transit + Sold + Transfer)
         db.card.count({
@@ -805,12 +834,12 @@ export class CardInventoryService {
             status: {
               in: [
                 "IN_STATION",
-                "IN_TRANSIT",
-                "ON_TRANSFER",
-                "LOST",
-                "DAMAGED",
-                "BLOCKED",
-                "LOST_BY_PASSANGER",
+                // "IN_TRANSIT", // Moved to Total In
+                // "ON_TRANSFER", // Moved to Total In
+                // "LOST", // Excluded from Total Out & Total Cards
+                // "DAMAGED", // Excluded from Total Out & Total Cards
+                // "BLOCKED", // Excluded from Total Out & Total Cards
+                // "LOST_BY_PASSANGER", // Excluded from Total Out & Total Cards
               ],
             },
             deletedAt: null,
@@ -876,6 +905,7 @@ export class CardInventoryService {
           "LOST_BY_PASSANGER",
         ],
       },
+      deletedAt: null,
     };
 
     if (stationId) cardWhere.stationId = stationId;
@@ -963,12 +993,13 @@ export class CardInventoryService {
       if (item.status === "IN_STATION") entry.cardBelumTerjual += count;
       else if (item.status === "SOLD_ACTIVE") entry.aktif += count;
       else if (item.status === "SOLD_INACTIVE") entry.nonAktif += count;
-      else if (item.status === "IN_TRANSIT" || item.status === "ON_TRANSFER")
+      else if (item.status === "IN_TRANSIT" || item.status === "ON_TRANSFER") {
         entry.inTransit += count;
-      else if (item.status === "LOST" || item.status === "LOST_BY_PASSANGER")
-        entry.lost += count;
-      else if (item.status === "DAMAGED") entry.damaged += count;
-      else entry.other += count;
+      } else {
+        // LOST, DAMAGED, BLOCKED, LOST_BY_PASSANGER, OTHER -> Merge into NonAktif
+        // as per user request to move them out of Transit and treat as non-active sold/out.
+        entry.nonAktif += count;
+      }
     }
 
     // Enrich
@@ -1012,8 +1043,7 @@ export class CardInventoryService {
         // total = aktif + nonAktif; (from previous code)
         // cardBeredar = cardBeredar (from CardInventory, which was sum of all 3)
         // cardBelumTerjual
-        const cardBeredar =
-          inv.cardBelumTerjual + inv.inTransit + inv.aktif + inv.nonAktif;
+        const cardBeredar = inv.cardBelumTerjual + inv.aktif + inv.nonAktif;
 
         return {
           stationName: stationName,
