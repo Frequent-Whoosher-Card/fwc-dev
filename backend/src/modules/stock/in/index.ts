@@ -31,7 +31,7 @@ const stockInFwc = new Elysia({ prefix: "/fwc" })
           const { body, set, user } = context as typeof context &
             AuthContextUser;
           try {
-            const stockIn = await StockInFwcService.createStockIn(
+            const result = await StockInFwcService.createStockIn(
               new Date(body.movementAt),
               body.cardProductId,
               body.startSerial,
@@ -40,11 +40,7 @@ const stockInFwc = new Elysia({ prefix: "/fwc" })
               body.note,
             );
 
-            return {
-              success: true,
-              message: "Stock masuk (produksi batch) berhasil dicatat",
-              data: stockIn,
-            };
+            return result;
           } catch (error) {
             set.status =
               error instanceof Error && "statusCode" in error
@@ -389,11 +385,7 @@ const stockInVoucher = new Elysia({ prefix: "/voucher" })
             body.serialDate,
             body.note,
           );
-          return {
-            success: true,
-            message: "Stock In Voucher berhasil",
-            data: result,
-          };
+          return result;
         } catch (error) {
           set.status = 400; // Or dynamic
           return formatErrorResponse(error);
@@ -512,7 +504,7 @@ const stockInVoucher = new Elysia({ prefix: "/voucher" })
         },
         {
           response: {
-            200: StockInVoucherModel.stockInVoucherResponse,
+            200: StockInVoucherModel.getDetailResponse,
             500: StockInVoucherModel.errorResponse,
           },
           detail: { tags: ["Stock In Voucher"], summary: "Get Voucher Detail" },
@@ -549,11 +541,7 @@ const stockInVoucher = new Elysia({ prefix: "/voucher" })
         {
           body: StockInVoucherModel.updateStockInBody,
           response: {
-            200: t.Object({
-              success: t.Boolean(),
-              message: t.String(),
-              data: t.Any(),
-            }),
+            200: StockInVoucherModel.updateStockInResponse,
             400: StockInVoucherModel.errorResponse,
             500: StockInVoucherModel.errorResponse,
           },
@@ -566,8 +554,7 @@ const stockInVoucher = new Elysia({ prefix: "/voucher" })
       .put(
         "/:id/status-batch",
         async (context) => {
-          const { params, body, set, user } = context as typeof context &
-            AuthContextUser;
+          const { params, body, set, user } = context as any;
           try {
             const result = await StockInVoucherService.updateBatchCardStatus(
               params.id,

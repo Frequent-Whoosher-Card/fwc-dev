@@ -109,6 +109,7 @@ export class CardInventoryService {
         "SOLD_ACTIVE",
         "SOLD_INACTIVE",
       ],
+      deletedAt: null, // Exclude soft-deleted
     };
 
     // 2. Aggregate from Cards
@@ -259,6 +260,7 @@ export class CardInventoryService {
           "SOLD_ACTIVE",
           "SOLD_INACTIVE",
         ],
+        deletedAt: null,
       },
       cardProduct: {
         categoryId: inventoryMeta.categoryId,
@@ -391,6 +393,7 @@ export class CardInventoryService {
           "LOST_BY_PASSANGER",
         ] as any[],
       },
+      deletedAt: null, // Exclude soft-deleted
     };
 
     if (stationId) {
@@ -542,6 +545,7 @@ export class CardInventoryService {
           "LOST_BY_PASSANGER",
         ],
       },
+      deletedAt: null,
     };
 
     if (programType) {
@@ -614,7 +618,9 @@ export class CardInventoryService {
     });
 
     // Add Office Stats
-    const officeCount = await db.card.count({ where: { status: "IN_OFFICE" } });
+    const officeCount = await db.card.count({
+      where: { status: "IN_OFFICE", deletedAt: null },
+    });
     if (officeCount > 0) {
       result.unshift({
         stationId: null as any,
@@ -652,6 +658,7 @@ export class CardInventoryService {
 
     const cardWhere: any = {
       status: "IN_OFFICE",
+      deletedAt: null,
       // stationId: null, // Usually IN_OFFICE implies stationId null, but explicit check is good.
     };
 
@@ -778,14 +785,19 @@ export class CardInventoryService {
           where: {
             ...where,
             status: {
-              not: "ON_REQUEST",
+              notIn: ["ON_REQUEST", "SOLD_ACTIVE", "SOLD_INACTIVE"],
             },
+            deletedAt: null,
           },
         }),
-        db.card.count({ where: { ...where, status: "LOST" } }),
-        db.card.count({ where: { ...where, status: "DAMAGED" } }),
+        db.card.count({ where: { ...where, status: "LOST", deletedAt: null } }),
+        db.card.count({
+          where: { ...where, status: "DAMAGED", deletedAt: null },
+        }),
         // Total In = Currently In Office
-        db.card.count({ where: { ...where, status: "IN_OFFICE" } }),
+        db.card.count({
+          where: { ...where, status: "IN_OFFICE", deletedAt: null },
+        }),
         // Total Out = Distributed (Station + Transit + Sold + Transfer)
         db.card.count({
           where: {
@@ -795,14 +807,13 @@ export class CardInventoryService {
                 "IN_STATION",
                 "IN_TRANSIT",
                 "ON_TRANSFER",
-                "SOLD_ACTIVE",
-                "SOLD_INACTIVE",
                 "LOST",
                 "DAMAGED",
                 "BLOCKED",
                 "LOST_BY_PASSANGER",
               ],
             },
+            deletedAt: null,
           },
         }),
         // Remaining statuses for verification/accounting (should be 0 if we covered everything)
