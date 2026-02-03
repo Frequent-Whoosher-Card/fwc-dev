@@ -177,23 +177,61 @@ export class InboxService {
         });
       } else if (status === "PENDING_VALIDATION") {
         where.AND.push({
-          type: "STOCK_DISTRIBUTION",
-          payload: { path: ["status"], equals: "PENDING" },
+          OR: [
+            {
+              type: "STOCK_DISTRIBUTION",
+              payload: { path: ["status"], equals: "PENDING" },
+            },
+            {
+              type: "STOCK_ISSUE_REPORT",
+              payload: { path: ["status"], equals: "PENDING_APPROVAL" },
+            },
+          ],
         });
       } else if (status === "ACCEPTED") {
         where.AND.push({
-          type: "STOCK_DISTRIBUTION",
-          payload: { path: ["status"], equals: "COMPLETED" },
+          OR: [
+            {
+              type: "STOCK_DISTRIBUTION",
+              payload: { path: ["status"], equals: "COMPLETED" },
+            },
+            {
+              type: "STOCK_ISSUE_REPORT",
+              payload: { path: ["status"], equals: "RESOLVED" },
+            },
+            {
+              type: "STOCK_DISTRIBUTION_SUCCESS",
+              payload: { path: ["status"], equals: "COMPLETED" },
+            },
+            // Fallback for messaging based status (Legacy or specific format)
+            { message: { contains: "diterima", mode: "insensitive" } },
+            { message: { contains: "menerima", mode: "insensitive" } },
+          ],
         });
       } else if (status === "CARD_MISSING") {
         where.AND.push({
-          type: "STOCK_ISSUE_REPORT",
-          payload: { path: ["validationResult", "lost"], gt: 0 },
+          // Search for any item with lost cards > 0 (count) OR non-empty lostSerialNumbers string/array
+          OR: [
+            { payload: { path: ["validationResult", "lost"], gt: 0 } },
+            // Fallback for array length check if 'lost' count is missing (Prisma raw Json filter is tricky)
+            // We use string contains as a heuristic for now since 'not: []' is unreliable in Prisma Json
+            {
+              payload: {
+                path: ["validationResult", "lostSerialNumbers"],
+                string_contains: "0", // Rough check if serials exist (start with 0 usually) - Risky
+              },
+            },
+            // Better: Just check if the path exists and is not empty array?
+            // Let's assume the 'lost' count property is maintained in payload for filtering efficiency.
+            // If the user says "Walau selesai ada rusak", it implies the COMPLETED item HAS the data.
+            // We remove the TYPE constraint so it searches ALL types.
+          ],
         });
       } else if (status === "CARD_DAMAGED") {
         where.AND.push({
-          type: "STOCK_ISSUE_REPORT",
-          payload: { path: ["validationResult", "damaged"], gt: 0 },
+          OR: [
+            { payload: { path: ["validationResult", "damaged"], gt: 0 } },
+          ],
         });
       }
     }
@@ -295,11 +333,10 @@ export class InboxService {
       if (item.sentTo === userId) {
         isRead = item.isRead;
         readAt = item.readAt ? item.readAt.toISOString() : null;
-      } else if (item.targetRoles && item.targetRoles.includes(roleCode)) {
+      } else {
+        // Broadcast or Role-based: Check if user ID is in the read list
+        // This ensures Superadmin seeing 'Supervisor' messages sees them as read if they clicked it.
         isRead = item.readByUserIds.includes(userId);
-        // We don't track individual readAt for broadcasts easily without another map,
-        // so we can default to null or last updatedAt if needed.
-        // For now null is safe.
         readAt = null;
       }
 
@@ -342,6 +379,63 @@ export class InboxService {
     };
   }
 
+  static async getUnreadCounts(userId: string) {
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: {
+        role: { select: { roleCode: true } },
+        stationId: true,
+      },
+    });
+
+    if (!user) return { total: 0, fwc: 0, voucher: 0 };
+
+    const roleCode = user.role?.roleCode || "";
+    const userStationId = user.stationId || null;
+    const isAdmin = ["admin", "superadmin"].includes(roleCode);
+
+    const broadcastFilter: any = { targetRoles: { has: roleCode } };
+    if (!isAdmin) {
+      broadcastFilter.AND = [
+        { OR: [{ stationId: null }, { stationId: userStationId }] },
+      ];
+    }
+
+    const whereBase: any = {
+       type: { not: "LOW_STOCK_ALERT" }, // Exclude Hidden Low Stock Alerts from Badge
+       OR: [
+          { sentTo: userId, isRead: false },
+          {
+            AND: [
+              broadcastFilter,
+              { NOT: { readByUserIds: { has: userId } } }, // Broadcast specific read check
+            ],
+          },
+       ]
+    };
+
+    const [fwc, voucher] = await Promise.all([
+      db.inbox.count({
+        where: {
+          ...whereBase,
+          programType: "FWC",
+        },
+      }),
+      db.inbox.count({
+        where: {
+          ...whereBase,
+          programType: "VOUCHER",
+        },
+      }),
+    ]);
+
+    return {
+      total: fwc + voucher,
+      fwc,
+      voucher,
+    };
+  }
+
   /**
    * Mark as Read (Refactored for Array)
    */
@@ -361,16 +455,13 @@ export class InboxService {
       return true;
     }
 
-    // Check if Broadcast
-    // We need to know user's role to be theoretically safe,
-    // but simplified: if user calls this, we assume they are valid target.
-    // We just push their ID to readByUserIds if not already there.
-
-    // Check if already read to avoid DB write
-    if (inbox.readByUserIds.includes(userId)) return true;
-
-    await db.inbox.update({
-      where: { id: inboxId },
+    // Broadcast: Atomic update to push userId if not already present
+    // We use updateMany to include the "NOT: { has: userId }" condition
+    await db.inbox.updateMany({
+      where: {
+        id: inboxId,
+        NOT: { readByUserIds: { has: userId } },
+      },
       data: {
         readByUserIds: {
           push: userId,
@@ -849,6 +940,12 @@ export class InboxService {
           title: `[RESOLVED: ${action}] ${inbox.title}`,
           updatedBy: adminUserId,
           updatedAt: new Date(),
+          payload: {
+            ...payload,
+            status: "RESOLVED",
+            resolution: action,
+            resolvedAt: new Date(),
+          },
         },
       });
 

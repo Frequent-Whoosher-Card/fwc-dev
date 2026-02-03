@@ -39,6 +39,7 @@ export const inbox = new Elysia({ prefix: "/inbox" })
               type?: string;
               programType?: string; // Added programType
               search?: string; // Added search
+              status?: string; // Added status
             };
           };
           try {
@@ -56,6 +57,7 @@ export const inbox = new Elysia({ prefix: "/inbox" })
               type: query.type,
               programType: query.programType, // Pass programType
               search: query.search, // Pass search
+              status: query.status, // Pass status
             });
 
             return {
@@ -100,6 +102,31 @@ export const inbox = new Elysia({ prefix: "/inbox" })
 3. **LOW_STOCK** (Hidden)
    - **Deskripsi**: Peringatan stok menipis (< Threshold).
    - **Catatan**: Secara default difilter keluar dari endpoint ini agar tidak spamming.`,
+          },
+        },
+      )
+      .get(
+        "/counts",
+        async (context) => {
+          const { user, set } = context as typeof context & {
+            user: { id: string };
+          };
+          try {
+            const result = await InboxService.getUnreadCounts(user.id);
+            return {
+              success: true,
+              data: result,
+            };
+          } catch (error) {
+            set.status = 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          detail: {
+            tags: ["Inbox"],
+            summary: "Get Unread Counts",
+            description: "Mendapatkan jumlah pesan belum dibaca (Total, FWC, Voucher).",
           },
         },
       )
@@ -317,7 +344,7 @@ Setelah sukses, pesan inbox akan otomatis ditandai sebagai **Sudah Dibaca** dan 
     ),
   )
   .group("", (app) =>
-    app.use(permissionMiddleware("inbox.edit")).patch(
+    app.patch(
       "/:id/read",
       async (context) => {
         const { user, params, set } = context as typeof context & {

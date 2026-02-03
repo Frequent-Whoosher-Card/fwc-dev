@@ -6,6 +6,9 @@ import { getMembers, deleteMember } from "@/lib/services/membership.service";
 import MembershipToolbar from "./components/MembershipToolbar";
 import MembershipFilter from "./components/MembershipFilter";
 import MembershipTable from "./components/MembershipTable";
+import DeletedMemberTable, {
+  type DeletedMemberItem,
+} from "./components/DeletedMemberTable";
 import ConfirmDeleteModal from "./components/ui/ConfirmDeleteModal";
 import SuccessModal from "./components/ui/SuccessModal";
 import toast from "react-hot-toast";
@@ -97,6 +100,17 @@ export default function MembershipPage({ role }: MembershipPageProps) {
     nik?: string | null;
   } | null>(null);
 
+  /* Riwayat Penghapusan (deleted members) */
+  const [deletedMembers, setDeletedMembers] = useState<DeletedMemberItem[]>([]);
+  const [isLoadingDeleted, setIsLoadingDeleted] = useState(false);
+  const [deletedPage, setDeletedPage] = useState(1);
+  const [deletedPagination, setDeletedPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 1,
+  });
+
   /* =====================
      DEBOUNCE SEARCH
   ===================== */
@@ -166,6 +180,41 @@ export default function MembershipPage({ role }: MembershipPageProps) {
     }
   };
 
+  /** Load riwayat penghapusan (deleted members) */
+  const loadDeletedMembers = async () => {
+    setIsLoadingDeleted(true);
+    try {
+      const res = await getMembers({
+        page: deletedPage,
+        limit: 10,
+        search: debouncedSearch || undefined,
+        gender: gender !== "all" ? gender : undefined,
+        employeeTypeId: employeeTypeId || undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        hasNippKai: cardCategory === "NIPKAI" ? true : undefined,
+        isDeleted: true,
+      });
+      if (res?.data?.items) {
+        setDeletedMembers((res.data.items as DeletedMemberItem[]) || []);
+        setDeletedPagination(res.data.pagination || {
+          page: 1,
+          limit: 10,
+          total: 0,
+          totalPages: 1,
+        });
+      } else {
+        setDeletedMembers([]);
+        setDeletedPagination({ page: 1, limit: 10, total: 0, totalPages: 1 });
+      }
+    } catch {
+      setDeletedMembers([]);
+      setDeletedPagination({ page: 1, limit: 10, total: 0, totalPages: 1 });
+    } finally {
+      setIsLoadingDeleted(false);
+    }
+  };
+
   /* =====================
      EFFECTS
   ===================== */
@@ -183,6 +232,25 @@ export default function MembershipPage({ role }: MembershipPageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.page, searchParams.get("refresh")]);
 
+  /* Reset deleted page when filters change */
+  useEffect(() => {
+    setDeletedPage(1);
+  }, [debouncedSearch, cardCategory, gender, employeeTypeId, startDate, endDate]);
+
+  /* Load riwayat penghapusan when page or filters change */
+  useEffect(() => {
+    loadDeletedMembers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    deletedPage,
+    debouncedSearch,
+    cardCategory,
+    gender,
+    employeeTypeId,
+    startDate,
+    endDate,
+  ]);
+
   /* =====================
      HANDLERS
   ===================== */
@@ -194,15 +262,16 @@ export default function MembershipPage({ role }: MembershipPageProps) {
     router.push(`${basePath}/membership/edit/${id}`);
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (notes: string) => {
     if (!selectedMember) return;
 
     try {
-      await deleteMember(selectedMember.id);
+      await deleteMember(selectedMember.id, notes);
       setShowDeleteModal(false);
       setSelectedMember(null);
       setShowSuccessModal(true);
       fetchMembers(pagination.page);
+      loadDeletedMembers();
     } catch (err: any) {
       toast.error(err?.message || "Tidak dapat menghapus member");
     }
@@ -257,6 +326,17 @@ export default function MembershipPage({ role }: MembershipPageProps) {
           setSelectedMember(member);
           setShowDeleteModal(true);
         }}
+      />
+
+      {/* Riwayat Penghapusan - sama seperti di Transaksi & Redeem */}
+      <DeletedMemberTable
+        data={deletedMembers}
+        isLoading={isLoadingDeleted}
+        noDataMessage="Tidak ada data yang dihapus"
+        currentPage={deletedPagination.page}
+        totalPages={deletedPagination.totalPages ?? 1}
+        totalCount={deletedPagination.total ?? 0}
+        onPageChange={setDeletedPage}
       />
 
       {/* Delete Confirmation Modal */}

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2, CheckCircle } from "lucide-react";
+import axios from "@/lib/axios";
 
 import SuccessModal from "../../app/dashboard/superadmin/membership/components/ui/SuccessModal";
 import { SectionCard } from "@/components/ui/section-card";
@@ -34,10 +35,19 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
   const router = useRouter();
   const { categories, loading: loadingCategories } = useCategories();
 
-  // Input mode state
+  // Input mode state — default "manual" seperti membership/create (FWC)
   const [inputMode, setInputMode] = useState<"" | "manual" | "recommendation">(
-    "",
+    "manual",
   );
+
+  // Validasi serial manual (GET /cards/serial/{serialNumber}) — sama seperti membership/create
+  const [manualSerialChecking, setManualSerialChecking] = useState(false);
+  const [manualSerialResult, setManualSerialResult] = useState<
+    null | "available" | "unavailable" | "not_found"
+  >(null);
+  const [manualSerialMessage, setManualSerialMessage] = useState("");
+  const [manualFwcPrice, setManualFwcPrice] = useState<number>(0);
+  const manualSerialDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
     form,
@@ -65,8 +75,10 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
     cards,
     cardId,
     price,
+    setPrice,
     serialNumber,
     setSerialNumber,
+    setCardId,
     searchResults,
     isSearching,
     loadingTypes,
@@ -78,7 +90,11 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
     handleCardSelect,
   } = useCardSelection();
 
-  console.log(cardTypes);
+  // FWC price: manual mode pakai manualFwcPrice dari API, selain itu dari hook
+  const displayFwcPrice =
+    inputMode === "manual" && manualSerialResult === "available"
+      ? manualFwcPrice
+      : price;
 
   useEffect(() => {
     if (cardCategory) {
@@ -114,6 +130,87 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
       form.setValue("identityNumber", "");
     }
   }, [selectedMember, form]);
+
+  // Validasi serial manual via GET /cards/serial/{serialNumber} (sama seperti membership/create)
+  useEffect(() => {
+    if (inputMode !== "manual") {
+      setManualSerialResult(null);
+      setManualSerialMessage("");
+      return;
+    }
+
+    const sn = serialNumber.trim();
+    if (!sn) {
+      setCardId("");
+      setPrice(0);
+      setManualFwcPrice(0);
+      setManualSerialResult(null);
+      setManualSerialMessage("");
+      return;
+    }
+
+    if (manualSerialDebounceRef.current) {
+      clearTimeout(manualSerialDebounceRef.current);
+    }
+
+    manualSerialDebounceRef.current = setTimeout(async () => {
+      setManualSerialResult(null);
+      setManualSerialMessage("");
+      setManualSerialChecking(true);
+      try {
+        const response = await axios.get(
+          `/cards/serial/${encodeURIComponent(sn)}`
+        );
+        const data = response.data?.data;
+        if (!data) {
+          setCardId("");
+          setPrice(0);
+          setManualFwcPrice(0);
+          setManualSerialResult("not_found");
+          setManualSerialMessage("Serial number tidak ditemukan");
+          return;
+        }
+        if (data.status === "Stasiun") {
+          // Hanya set cardId & price — jangan setSerialNumber agar effect tidak re-run (request terus)
+          setCardId(data.id);
+          const rawPrice = data.cardProduct?.price;
+          const cardPrice =
+            rawPrice != null && rawPrice !== ""
+              ? Number(rawPrice)
+              : 0;
+          setPrice(cardPrice);
+          setManualFwcPrice(cardPrice);
+          setManualSerialResult("available");
+          setManualSerialMessage("Kartu tersedia untuk dibeli");
+        } else {
+          setCardId("");
+          setPrice(0);
+          setManualFwcPrice(0);
+          setManualSerialResult("unavailable");
+          setManualSerialMessage(
+            `Kartu tidak tersedia (status: ${data.status || "unknown"})`
+          );
+        }
+      } catch (err: any) {
+        setCardId("");
+        setPrice(0);
+        setManualFwcPrice(0);
+        setManualSerialResult("not_found");
+        setManualSerialMessage(
+          err?.response?.data?.error?.message ||
+            "Serial number tidak ditemukan"
+        );
+      } finally {
+        setManualSerialChecking(false);
+      }
+    }, 400);
+
+    return () => {
+      if (manualSerialDebounceRef.current) {
+        clearTimeout(manualSerialDebounceRef.current);
+      }
+    };
+  }, [inputMode, serialNumber]);
 
   const {
     register,
@@ -190,17 +287,21 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
                       | "manual"
                       | "recommendation";
                     setInputMode(mode);
-                    // Reset serial number and card states
                     setSerialNumber("");
+                    setManualSerialResult(null);
+                    setManualSerialMessage("");
+                    setManualFwcPrice(0);
                   }}
                 >
                   <option value="">Pilih Mode Input</option>
                   <option value="manual">Input Manual / Scan Barcode</option>
                   <option value="recommendation">Rekomendasi</option>
                 </select>
-                <p className="mt-1 text-xs text-gray-500">
-                  Pilih mode input serial number terlebih dahulu
-                </p>
+                {inputMode === "" && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Pilih mode input serial number terlebih dahulu
+                  </p>
+                )}
               </FieldContent>
             </Field>
 
@@ -219,6 +320,24 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
                     placeholder="Masukkan atau scan serial number lengkap..."
                     autoComplete="off"
                   />
+                  {manualSerialChecking && (
+                    <p className="mt-1 flex items-center gap-1 text-xs text-gray-500">
+                      <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" size={14} />
+                      Mengecek ketersediaan kartu...
+                    </p>
+                  )}
+                  {!manualSerialChecking && manualSerialResult === "available" && (
+                    <p className="mt-1 flex items-center gap-1 text-xs text-green-600">
+                      <CheckCircle size={14} />
+                      {manualSerialMessage}
+                    </p>
+                  )}
+                  {!manualSerialChecking &&
+                    (manualSerialResult === "unavailable" || manualSerialResult === "not_found") && (
+                      <p className="mt-1 text-xs text-red-600">
+                        {manualSerialMessage}
+                      </p>
+                    )}
                   <FieldError
                     errors={errors.cardId ? [errors.cardId] : undefined}
                   />
@@ -370,7 +489,7 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
                 <Input
                   className={`${baseInputClass} bg-gray-50`}
                   readOnly
-                  value={price}
+                  value={displayFwcPrice}
                 />
               </FieldContent>
             </Field>

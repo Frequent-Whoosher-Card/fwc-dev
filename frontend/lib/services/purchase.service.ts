@@ -205,6 +205,7 @@ export interface GetPurchasesParams {
   stationId?: string;
   transactionType?: TransactionType;
   employeeTypeId?: string;
+  isDeleted?: boolean;
 }
 
 export const updatePurchase = (id: string | number, payload: any) => {
@@ -214,9 +215,10 @@ export const updatePurchase = (id: string | number, payload: any) => {
   });
 };
 
-export const deletePurchase = (id: string | number) => {
+export const deletePurchase = (id: string | number, notes: string) => {
   return apiFetch(`/purchases/${id}`, {
     method: "DELETE",
+    body: JSON.stringify({ notes: notes.trim() }),
   });
 };
 
@@ -235,6 +237,7 @@ export const getPurchases = async (params?: GetPurchasesParams) => {
     query.append("transactionType", params.transactionType);
   }
   if (params?.employeeTypeId) query.append("employeeTypeId", params.employeeTypeId);
+  if (params?.isDeleted === true) query.append("isDeleted", "true");
 
   const response = await apiFetch(`/purchases?${query.toString()}`, {
     method: "GET",
