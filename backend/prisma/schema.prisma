@@ -29,6 +29,7 @@ enum CardStatus {
   DELETED
   SOLD_ACTIVE
   SOLD_INACTIVE
+  LOST_BY_PASSANGER
 }
 
 enum TransactionStatus {
@@ -95,17 +96,17 @@ enum ProgramType {
 // Model
 
 model Role {
-  id          String    @id @default(uuid()) @map("role_id") @db.Uuid
-  roleCode    String    @unique @map("role_code")
-  roleName    String    @map("role_name")
+  id          String           @id @default(uuid()) @map("role_id") @db.Uuid
+  roleCode    String           @unique @map("role_code")
+  roleName    String           @map("role_name")
   description String?
-  isActive    Boolean   @map("is_active")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  createdBy   String?   @map("created_by") @db.Uuid
-  updatedAt   DateTime  @default(now()) @map("updated_at")
-  updatedBy   String?   @map("updated_by") @db.Uuid
-  deletedAt   DateTime? @map("deleted_at")
-  deletedBy   String?   @map("deleted_by") @db.Uuid
+  isActive    Boolean          @map("is_active")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  createdBy   String?          @map("created_by") @db.Uuid
+  updatedAt   DateTime         @default(now()) @map("updated_at")
+  updatedBy   String?          @map("updated_by") @db.Uuid
+  deletedAt   DateTime?        @map("deleted_at")
+  deletedBy   String?          @map("deleted_by") @db.Uuid
   users       User[]
   permissions RolePermission[]
 
@@ -150,16 +151,16 @@ model User {
 }
 
 model Shift {
-  id        String   @id @default(uuid()) @map("shift_id") @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  startDate DateTime @map("start_date")
-  endDate   DateTime @map("end_date")
-  createdAt DateTime @default(now()) @map("created_at")
-  createdBy String?  @map("created_by") @db.Uuid
-  updatedAt DateTime @default(now()) @map("updated_at")
-  updatedBy String?  @map("updated_by") @db.Uuid
+  id        String    @id @default(uuid()) @map("shift_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  startDate DateTime  @map("start_date")
+  endDate   DateTime  @map("end_date")
+  createdAt DateTime  @default(now()) @map("created_at")
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedAt DateTime  @default(now()) @map("updated_at")
+  updatedBy String?   @map("updated_by") @db.Uuid
   deletedAt DateTime? @map("deleted_at")
-  deletedBy String?  @map("deleted_by") @db.Uuid
+  deletedBy String?   @map("deleted_by") @db.Uuid
 
   user User @relation(fields: [userId], references: [id])
 
@@ -340,48 +341,50 @@ model FileObject {
   deletedBy      String?     @map("deleted_by") @db.Uuid
 
   // Relation
-  redeems        Redeem[]
-  cards          Card[]
-  stockMovements CardStockMovement[]
+  redeems       Redeem[]
+  cards         Card[]
+  generateFile  CardStockMovement[] @relation("generateFile")
+  notaDinasFile CardStockMovement[] @relation("notaDinasFile")
+  bastFile      CardStockMovement[] @relation("bastFile")
 
   @@map("file_object")
 }
 
 model Card {
-  id                   String            @id @default(uuid()) @map("card_id") @db.Uuid
-  serialNumber         String            @unique @map("serial_number")
-  memberId             String?           @map("member_id") @db.Uuid
-  cardProductId        String            @map("card_product_id") @db.Uuid
-  quotaTicket          Int               @map("quota_ticket")
-  purchaseDate         DateTime?         @map("purchase_date")
-  expiredDate          DateTime?         @map("expired_date")
-  status               CardStatus        @map("status_card")
-  createdAt            DateTime          @default(now()) @map("created_at")
-  createdBy            String?           @map("created_by") @db.Uuid
-  updatedAt            DateTime          @default(now()) @map("updated_at")
-  updatedBy            String?           @map("updated_by") @db.Uuid
-  deletedAt            DateTime?         @map("deleted_at")
-  deletedBy            String?           @map("deleted_by") @db.Uuid
-  userId               String?           @map("user_id") @db.Uuid
-  fileObjectId         String?           @map("file_object_id") @db.Uuid
-  stationId            String?           @map("station_id") @db.Uuid
+  id                   String             @id @default(uuid()) @map("card_id") @db.Uuid
+  serialNumber         String             @unique @map("serial_number")
+  memberId             String?            @map("member_id") @db.Uuid
+  cardProductId        String             @map("card_product_id") @db.Uuid
+  quotaTicket          Int                @map("quota_ticket")
+  purchaseDate         DateTime?          @map("purchase_date")
+  expiredDate          DateTime?          @map("expired_date")
+  status               CardStatus         @map("status_card")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  createdBy            String?            @map("created_by") @db.Uuid
+  updatedAt            DateTime           @default(now()) @map("updated_at")
+  updatedBy            String?            @map("updated_by") @db.Uuid
+  deletedAt            DateTime?          @map("deleted_at")
+  deletedBy            String?            @map("deleted_by") @db.Uuid
+  userId               String?            @map("user_id") @db.Uuid
+  fileObjectId         String?            @map("file_object_id") @db.Uuid
+  stationId            String?            @map("station_id") @db.Uuid
   notes                String?
-  previousStationId    String?           @map("previous_station_id") @db.Uuid
+  previousStationId    String?            @map("previous_station_id") @db.Uuid
   assignedSerialNumber String?
-  programType          ProgramType?      @map("program_type")
+  programType          ProgramType?       @map("program_type")
   purchases            CardPurchase[]
   bulkPurchaseItems    BulkPurchaseItem[]
   redeems              Redeem[]
   cardSwapRequests     CardSwapRequest[]
-  originalSwaps        CardSwapRequest[] @relation("OriginalCard")
-  replacementSwaps     CardSwapRequest[] @relation("ReplacementCard")
+  originalSwaps        CardSwapRequest[]  @relation("OriginalCard")
+  replacementSwaps     CardSwapRequest[]  @relation("ReplacementCard")
   cardUsageLogs        CardUsageLog[]
-  cardProduct          CardProduct       @relation(fields: [cardProductId], references: [id])
-  fileObject           FileObject?       @relation(fields: [fileObjectId], references: [id])
-  member               Member?           @relation(fields: [memberId], references: [id], onDelete: Restrict)
-  previousStation      Station?          @relation("CardPreviousStation", fields: [previousStationId], references: [id])
-  station              Station?          @relation(fields: [stationId], references: [id])
-  user                 User?             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  cardProduct          CardProduct        @relation(fields: [cardProductId], references: [id])
+  fileObject           FileObject?        @relation(fields: [fileObjectId], references: [id])
+  member               Member?            @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  previousStation      Station?           @relation("CardPreviousStation", fields: [previousStationId], references: [id])
+  station              Station?           @relation(fields: [stationId], references: [id])
+  user                 User?              @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@map("cards")
 }
@@ -421,9 +424,12 @@ model CardStockMovement {
   stationId             String?             @map("station_id") @db.Uuid
   toStationId           String?             @map("to_station_id") @db.Uuid
   batchId               String?             @map("batch_id")
+  // Untuk upload dokumen setelah generate
   fileObjectId          String?             @map("file_object_id") @db.Uuid
   notaDinas             String?             @map("nota_dinas")
+  notaDinasFileId       String?             @map("nota_dinas_file_id") @db.Uuid
   bast                  String?             @map("bast")
+  bastFileId            String?             @map("bast_file_id") @db.Uuid
   quantity              Int                 @map("quantity")
   note                  String?             @map("note")
   createdAt             DateTime            @default(now()) @map("created_at")
@@ -439,11 +445,13 @@ model CardStockMovement {
   deletedAt             DateTime?           @map("deleted_at")
   deletedBy             String?             @map("deleted_by")
 
-  category   CardCategory @relation(fields: [categoryId], references: [id])
-  type       CardType     @relation(fields: [typeId], references: [id])
-  station    Station?     @relation(fields: [stationId], references: [id])
-  toStation  Station?     @relation("ToStation", fields: [toStationId], references: [id])
-  fileObject FileObject?  @relation(fields: [fileObjectId], references: [id])
+  category      CardCategory @relation(fields: [categoryId], references: [id])
+  type          CardType     @relation(fields: [typeId], references: [id])
+  station       Station?     @relation(fields: [stationId], references: [id])
+  toStation     Station?     @relation("ToStation", fields: [toStationId], references: [id])
+  fileObject    FileObject?  @relation("generateFile", fields: [fileObjectId], references: [id])
+  notaDinasFile FileObject?  @relation("notaDinasFile", fields: [notaDinasFileId], references: [id])
+  bastFile      FileObject?  @relation("bastFile", fields: [bastFileId], references: [id])
 
   @@map("card_stock_movements")
 }
@@ -479,16 +487,16 @@ model Inbox {
 }
 
 model BulkPurchaseItem {
-  id              String       @id @default(uuid()) @map("item_id") @db.Uuid
-  purchaseId      String       @map("purchase_id") @db.Uuid
-  cardId          String       @map("card_id") @db.Uuid
-  price           Decimal      @map("price")
-  createdAt       DateTime     @default(now()) @map("created_at")
-  updatedAt       DateTime     @default(now()) @map("updated_at")
+  id         String   @id @default(uuid()) @map("item_id") @db.Uuid
+  purchaseId String   @map("purchase_id") @db.Uuid
+  cardId     String   @map("card_id") @db.Uuid
+  price      Decimal  @map("price")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @map("updated_at")
 
   // Relations
-  purchase        CardPurchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  card            Card         @relation(fields: [cardId], references: [id])
+  purchase CardPurchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  card     Card         @relation(fields: [cardId], references: [id])
 
   @@unique([purchaseId, cardId], name: "unique_purchase_card")
   @@index([purchaseId])
@@ -516,13 +524,13 @@ model CardPurchase {
   deletedBy          String?      @map("deleted_by")
 
   // Relation
-  card                Card?              @relation(fields: [cardId], references: [id])
-  member              Member?            @relation(fields: [memberId], references: [id], onDelete: Restrict)
-  operator            User               @relation("PurchaseOperator", fields: [operatorId], references: [id])
-  station             Station            @relation(fields: [stationId], references: [id])
-  bulkDiscount        BulkDiscount?      @relation(fields: [bulkDiscountId], references: [id])
-  bulkPurchaseItems   BulkPurchaseItem[]
-  cardSwapRequests    CardSwapRequest[]
+  card              Card?              @relation(fields: [cardId], references: [id])
+  member            Member?            @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  operator          User               @relation("PurchaseOperator", fields: [operatorId], references: [id])
+  station           Station            @relation(fields: [stationId], references: [id])
+  bulkDiscount      BulkDiscount?      @relation(fields: [bulkDiscountId], references: [id])
+  bulkPurchaseItems BulkPurchaseItem[]
+  cardSwapRequests  CardSwapRequest[]
 
   @@index([purchaseDate])
   @@index([stationId, purchaseDate])
@@ -559,16 +567,16 @@ model Redeem {
 }
 
 model PassengerInfo {
-  id            String   @id @default(uuid()) @map("passenger_info_id") @db.Uuid
-  passengerName String   @map("nama_passanger")
-  nik           String   @map("nik")
-  redeemId      String   @map("card_redeem_id") @db.Uuid
-  createdAt     DateTime @default(now()) @map("created_at")
-  createdBy     String?  @map("created_by") @db.Uuid
-  updatedAt     DateTime @default(now()) @map("updated_at")
-  updatedBy     String?  @map("updated_by") @db.Uuid
+  id            String    @id @default(uuid()) @map("passenger_info_id") @db.Uuid
+  passengerName String    @map("nama_passanger")
+  nik           String    @map("nik")
+  redeemId      String    @map("card_redeem_id") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at")
+  createdBy     String?   @map("created_by") @db.Uuid
+  updatedAt     DateTime  @default(now()) @map("updated_at")
+  updatedBy     String?   @map("updated_by") @db.Uuid
   deletedAt     DateTime? @map("deleted_at")
-  deletedBy     String?  @map("deleted_by") @db.Uuid
+  deletedBy     String?   @map("deleted_by") @db.Uuid
 
   redeem Redeem @relation(fields: [redeemId], references: [id])
 
@@ -729,14 +737,14 @@ model temp_fwc_reconciliation {
 }
 
 model MenuAccess {
-  id          String       @id @default(uuid()) @map("menu_access_id") @db.Uuid
-  label       String       @map("label") // e.g. "Stock Kartu"
-  route       String?      @map("route") // e.g. "/dashboard/stock" (nullable for parent menus)
-  icon        String?      @map("icon")
-  ordering    Int          @default(0)
-  parentId    String?      @map("parent_id") @db.Uuid
-  description String?      @map("description")
-  
+  id          String  @id @default(uuid()) @map("menu_access_id") @db.Uuid
+  label       String  @map("label") // e.g. "Stock Kartu"
+  route       String? @map("route") // e.g. "/dashboard/stock" (nullable for parent menus)
+  icon        String? @map("icon")
+  ordering    Int     @default(0)
+  parentId    String? @map("parent_id") @db.Uuid
+  description String? @map("description")
+
   // Relations
   parent      MenuAccess?  @relation("MenuHierarchy", fields: [parentId], references: [id])
   children    MenuAccess[] @relation("MenuHierarchy")
@@ -746,26 +754,26 @@ model MenuAccess {
 }
 
 model Permission {
-  id           String           @id @default(uuid()) @map("permission_id") @db.Uuid
-  menuAccessId String?          @map("menu_access_id") @db.Uuid // Nullable for global permissions
-  actionCode   String           @unique @map("action_code") // e.g. "stock.view"
-  actionName   String           @map("action_name") // e.g. "View Stock Data"
-  
+  id           String  @id @default(uuid()) @map("permission_id") @db.Uuid
+  menuAccessId String? @map("menu_access_id") @db.Uuid // Nullable for global permissions
+  actionCode   String  @unique @map("action_code") // e.g. "stock.view"
+  actionName   String  @map("action_name") // e.g. "View Stock Data"
+
   // Relations
-  menuAccess   MenuAccess?      @relation(fields: [menuAccessId], references: [id])
-  roles        RolePermission[]
+  menuAccess MenuAccess?      @relation(fields: [menuAccessId], references: [id])
+  roles      RolePermission[]
 
   @@map("permissions")
 }
 
 model RolePermission {
-  id           String     @id @default(uuid()) @map("role_permission_id") @db.Uuid
-  roleId       String     @map("role_id") @db.Uuid
-  permissionId String     @map("permission_id") @db.Uuid
-  
+  id           String @id @default(uuid()) @map("role_permission_id") @db.Uuid
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+
   // Relations
-  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@unique([roleId, permissionId])
   @@map("role_permissions")
