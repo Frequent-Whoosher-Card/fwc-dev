@@ -32,7 +32,6 @@ interface StockFilterReusableProps {
   values: StockFilterValues;
   onFilterChange: (newValues: Partial<StockFilterValues>) => void;
   onReset?: () => void;
-  onExportPDF?: () => void;
   onAdd?: () => void;
   showFields?: {
     status?: boolean;
@@ -41,7 +40,6 @@ interface StockFilterReusableProps {
     station?: boolean;
     search?: boolean;
     dateRange?: boolean;
-    exportPDF?: boolean;
     add?: boolean;
   };
   statusOptions?: string[];
@@ -53,7 +51,6 @@ export function StockFilterReusable({
   values,
   onFilterChange,
   onReset,
-  onExportPDF,
   onAdd,
   showFields = {
     category: true,
@@ -271,17 +268,6 @@ export function StockFilterReusable({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {/* EXPORT */}
-          {showFields.exportPDF && onExportPDF && (
-            <button
-              onClick={onExportPDF}
-              className="flex flex-1 sm:flex-none items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium hover:bg-gray-50 transition-colors"
-            >
-              <FileDown size={16} />
-              PDF
-            </button>
-          )}
-
           {/* ADD */}
           {showFields.add && onAdd && (
             <button

@@ -159,7 +159,7 @@ export default function EditCardProductForm({
 
         {/* HARGA */}
         <div>
-          <label className="text-sm font-medium">Harga</label>
+          <label className="text-sm font-medium">Harga FWC</label>
           <input
             className="h-11 w-full rounded-lg border px-4"
             value={price}

@@ -23,15 +23,8 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
     { label: "Voucher", path: `/dashboard/${role}/stock/voucher/all` },
   ];
 
-  const {
-    data,
-    loading,
-    pagination,
-    setPagination,
-    statusOptions,
-    filters,
-    handleExportPDF,
-  } = useAllCards({ programType });
+  const { data, loading, pagination, setPagination, statusOptions, filters } =
+    useAllCards({ programType });
 
   const {
     status,
@@ -98,7 +91,6 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
             setEndDate("");
             setPagination((p) => ({ ...p, page: 1 }));
           }}
-          onExportPDF={handleExportPDF}
           onAdd={() =>
             router.push(
               `/dashboard/${role}/stock/${programType.toLowerCase()}/all/transfer`,
@@ -111,7 +103,6 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
             station: true,
             search: true,
             dateRange: true,
-            exportPDF: true,
             add: true,
           }}
           statusOptions={statusOptions}
