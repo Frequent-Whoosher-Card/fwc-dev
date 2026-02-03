@@ -8,7 +8,7 @@
     "db:update": "bunx prisma migrate deploy && bunx prisma generate",
     "db:backup:server": "bash scripts/backup-database-server.sh",
     "build": "tsc",
-    "start": "bun src/index.ts"
+    "start": "node dist/index.js"
   },
   "dependencies": {
     "@elysiajs/cookie": "^0.8.0",
