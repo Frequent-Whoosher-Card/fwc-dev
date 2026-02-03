@@ -60,6 +60,7 @@ const baseRoutes = new Elysia()
           search: cleanParam(query.search),
           transactionType: cleanParam(query.transactionType) as "fwc" | "voucher" | undefined,
           employeeTypeId: cleanParam(query.employeeTypeId),
+          isDeleted: query.isDeleted === "true",
           // Pass user context for role-based filtering
           userRole: user.role.roleCode,
           userId: user.id,
@@ -418,18 +419,25 @@ const deleteRoutes = new Elysia()
   .delete(
     "/:id",
     async (context) => {
-      const { params, set, user } = context as typeof context & AuthContextUser;
+      const { params, set, user, body } = context as typeof context & AuthContextUser & { body: { notes: string } };
       try {
-        const result = await PurchaseService.deletePurchase(params.id, user.id);
+        const result = await PurchaseService.deletePurchase(params.id, user.id, body.notes);
         return result;
       } catch (error) {
         set.status = error instanceof Error && error.name === "NotFoundError" ? 404 : 500;
+        if (error instanceof Error && error.name === "ValidationError") set.status = 400;
         return formatErrorResponse(error);
       }
     },
     {
       params: t.Object({
         id: t.String(),
+      }),
+      body: t.Object({
+        notes: t.String({
+          minLength: 1,
+          description: "Alasan penghapusan (wajib)",
+        }),
       }),
       response: {
         200: t.Object({

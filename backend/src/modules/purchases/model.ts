@@ -50,6 +50,8 @@ export namespace PurchaseModel {
     updatedAt: t.String({ format: "date-time" }),
     createdByName: t.Union([t.String(), t.Null()]),
     updatedByName: t.Union([t.String(), t.Null()]),
+    deletedAt: t.Optional(t.Union([t.String({ format: "date-time" }), t.Null()])),
+    deletedByName: t.Optional(t.Union([t.String(), t.Null()])),
     // Relations
     card: t.Union([
       t.Object({
@@ -312,6 +314,11 @@ export namespace PurchaseModel {
         format: "uuid",
         description: "Filter by employee type UUID (tipe karyawan)",
         examples: ["123e4567-e89b-12d3-a456-426614174000"],
+      }),
+    ),
+    isDeleted: t.Optional(
+      t.Union([t.Literal("true"), t.Literal("false")], {
+        description: "When 'true', return only soft-deleted purchases (riwayat penghapusan)",
       }),
     ),
   });

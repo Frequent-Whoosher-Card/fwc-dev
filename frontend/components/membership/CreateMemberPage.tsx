@@ -2718,20 +2718,6 @@ export default function AddMemberPage({ programType: programTypeProp }: CreateMe
               </div>
             </Field>
 
-            {/* Notes - Only for Voucher */}
-            {programType === "VOUCHER" && (
-              <Field label="Notes (Optional)">
-                <div className="relative md:col-span-2">
-                  <textarea
-                    {...voucherForm.register("notes")}
-                    className={`${base} min-h-[80px]`}
-                    maxLength={500}
-                    placeholder="Tambahkan catatan jika perlu..."
-                  />
-                </div>
-              </Field>
-            )}
-
             {/* Operator Name - Full Width, Read-only */}
             <div className="md:col-span-2">
               <input
@@ -2834,11 +2820,6 @@ export default function AddMemberPage({ programType: programTypeProp }: CreateMe
             programType === "FWC"
               ? form.edcReferenceNumber
               : voucherForm.getValues("edcReferenceNumber") || "-",
-          ...(programType === "VOUCHER"
-            ? {
-                Notes: voucherForm.getValues("notes") || "-",
-              }
-            : {}),
         }}
         onClose={() => setShowSuccess(false)}
         onConfirm={handleConfirmSubmit}

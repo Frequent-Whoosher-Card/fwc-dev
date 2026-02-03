@@ -36,16 +36,16 @@ export class PurchaseService {
     }
 
     if (isBulkPurchase && data.cardId) {
-      throw new ValidationError(
+        throw new ValidationError(
         "cardId harus null untuk pembelian voucher bulk. Gunakan cards[] array.",
       );
     }
 
     if (isBulkPurchase && (!data.cards || data.cards.length === 0)) {
-      throw new ValidationError(
+        throw new ValidationError(
         "cards[] array wajib diisi dengan minimal 1 card untuk pembelian voucher bulk.",
-      );
-    }
+        );
+      }
 
     // Use database transaction to ensure atomicity
     const result = await db.$transaction(async (tx) => {
@@ -328,49 +328,49 @@ export class PurchaseService {
         }
 
         // Calculate expired date based on masaBerlaku
-        const masaBerlaku = card.cardProduct.masaBerlaku;
-        const expiredDate = new Date(purchaseDate);
-        expiredDate.setDate(expiredDate.getDate() + masaBerlaku);
+      const masaBerlaku = card.cardProduct.masaBerlaku;
+      const expiredDate = new Date(purchaseDate);
+      expiredDate.setDate(expiredDate.getDate() + masaBerlaku);
 
         // Determine final price: use input price or default to cardProduct.price
         finalPrice =
-          data.price !== undefined && data.price !== null
-            ? data.price
-            : Number(card.cardProduct.price);
+        data.price !== undefined && data.price !== null
+          ? data.price
+          : Number(card.cardProduct.price);
 
         purchaseCardId = data.cardId;
 
         // Create purchase record
-        const purchase = await tx.cardPurchase.create({
-          data: {
+      const purchase = await tx.cardPurchase.create({
+        data: {
             cardId: purchaseCardId,
-            memberId: data.memberId,
-            operatorId: operatorId,
-            stationId: stationId,
-            edcReferenceNumber: edcReferenceNumber,
-            purchaseDate: purchaseDate,
-            price: finalPrice,
-            notes: data.notes || null,
+          memberId: data.memberId,
+          operatorId: operatorId,
+          stationId: stationId,
+          edcReferenceNumber: edcReferenceNumber,
+          purchaseDate: purchaseDate,
+          price: finalPrice,
+          notes: data.notes || null,
             programType: programType,
-            createdBy: userId,
-            updatedBy: userId,
-          },
-        });
+          createdBy: userId,
+          updatedBy: userId,
+        },
+      });
 
         // Update card: set status to SOLD_ACTIVE
-        await tx.card.update({
-          where: { id: data.cardId },
-          data: {
-            status: "SOLD_ACTIVE",
-            purchaseDate: purchaseDate,
-            memberId: data.memberId,
-            expiredDate: expiredDate,
-            quotaTicket: card.cardProduct.totalQuota, // Initialize quota from product
-            updatedBy: userId,
-          },
-        });
+      await tx.card.update({
+        where: { id: data.cardId },
+        data: {
+          status: "SOLD_ACTIVE",
+          purchaseDate: purchaseDate,
+          memberId: data.memberId,
+          expiredDate: expiredDate,
+          quotaTicket: card.cardProduct.totalQuota, // Initialize quota from product
+          updatedBy: userId,
+        },
+      });
 
-        return purchase;
+      return purchase;
       }
     });
 
@@ -406,6 +406,7 @@ export class PurchaseService {
     search?: string;
     transactionType?: "fwc" | "voucher";
     employeeTypeId?: string;
+    isDeleted?: boolean;
     userRole?: string;
     userId?: string;
     userStationId?: string | null;
@@ -422,6 +423,7 @@ export class PurchaseService {
       search,
       transactionType,
       employeeTypeId,
+      isDeleted = false,
       userRole,
       userId,
       userStationId,
@@ -429,7 +431,7 @@ export class PurchaseService {
     const skip = (page - 1) * limit;
 
     const where: any = {
-      deletedAt: null, // Soft delete filter
+      deletedAt: isDeleted ? { not: null } : null,
     };
 
     // Role-based automatic filtering
@@ -654,11 +656,12 @@ export class PurchaseService {
       db.cardPurchase.count({ where }),
     ]);
 
-    // Fetch user names for createdBy/updatedBy
+    // Fetch user names for createdBy/updatedBy/deletedBy
     const userIds = new Set<string>();
     items.forEach((i) => {
       if (i.createdBy) userIds.add(i.createdBy);
       if (i.updatedBy) userIds.add(i.updatedBy);
+      if (i.deletedBy) userIds.add(i.deletedBy);
     });
 
     const users = await db.user.findMany({
@@ -680,6 +683,10 @@ export class PurchaseService {
       programType: item.programType,
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
+      ...(item.deletedAt && {
+        deletedAt: item.deletedAt.toISOString(),
+        deletedByName: item.deletedBy ? userMap.get(item.deletedBy) || null : null,
+      }),
       createdByName: item.createdBy
         ? userMap.get(item.createdBy) || null
         : null,
@@ -688,15 +695,15 @@ export class PurchaseService {
         : null,
       card: item.card
         ? {
-          ...item.card,
-          expiredDate: item.card.expiredDate
-            ? item.card.expiredDate.toISOString()
-            : null,
-          cardProduct: {
-            ...item.card.cardProduct,
-            totalQuota: item.card.cardProduct.totalQuota,
-            masaBerlaku: item.card.cardProduct.masaBerlaku,
-          },
+        ...item.card,
+        expiredDate: item.card.expiredDate
+          ? item.card.expiredDate.toISOString()
+          : null,
+        cardProduct: {
+          ...item.card.cardProduct,
+          totalQuota: item.card.cardProduct.totalQuota,
+          masaBerlaku: item.card.cardProduct.masaBerlaku,
+        },
         }
         : null,
       bulkPurchaseItems: item.bulkPurchaseItems.map((bulkItem: any) => ({
@@ -849,15 +856,15 @@ export class PurchaseService {
     const [creator, updater] = await Promise.all([
       purchase.createdBy
         ? db.user.findUnique({
-          where: { id: purchase.createdBy },
-          select: { fullName: true },
-        })
+            where: { id: purchase.createdBy },
+            select: { fullName: true },
+          })
         : null,
       purchase.updatedBy
         ? db.user.findUnique({
-          where: { id: purchase.updatedBy },
-          select: { fullName: true },
-        })
+            where: { id: purchase.updatedBy },
+            select: { fullName: true },
+          })
         : null,
     ]);
 
@@ -879,15 +886,15 @@ export class PurchaseService {
       updatedByName: updater?.fullName || null,
       card: purchase.card
         ? {
-          ...purchase.card,
-          expiredDate: purchase.card.expiredDate
-            ? purchase.card.expiredDate.toISOString()
-            : null,
-          cardProduct: {
-            ...purchase.card.cardProduct,
-            totalQuota: purchase.card.cardProduct.totalQuota,
-            masaBerlaku: purchase.card.cardProduct.masaBerlaku,
-          },
+        ...purchase.card,
+        expiredDate: purchase.card.expiredDate
+          ? purchase.card.expiredDate.toISOString()
+          : null,
+        cardProduct: {
+          ...purchase.card.cardProduct,
+          totalQuota: purchase.card.cardProduct.totalQuota,
+          masaBerlaku: purchase.card.cardProduct.masaBerlaku,
+        },
         }
         : null,
       bulkPurchaseItems: purchase.bulkPurchaseItems.map((bulkItem: any) => ({
@@ -937,8 +944,8 @@ export class PurchaseService {
         include: {
           card: true,
           bulkPurchaseItems: {
-            include: {
-              card: true,
+        include: {
+          card: true,
             },
           },
         },
@@ -1062,9 +1069,9 @@ export class PurchaseService {
       const [creator, updater] = await Promise.all([
         updatedPurchase.createdBy
           ? tx.user.findUnique({
-            where: { id: updatedPurchase.createdBy },
-            select: { fullName: true },
-          })
+              where: { id: updatedPurchase.createdBy },
+              select: { fullName: true },
+            })
           : null,
         tx.user.findUnique({
           where: { id: userId },
@@ -1091,15 +1098,15 @@ export class PurchaseService {
         updatedByName: updater?.fullName || null,
         card: updatedPurchase.card
           ? {
-            ...updatedPurchase.card,
-            expiredDate: updatedPurchase.card.expiredDate
-              ? updatedPurchase.card.expiredDate.toISOString()
-              : null,
-            cardProduct: {
-              ...updatedPurchase.card.cardProduct,
-              totalQuota: updatedPurchase.card.cardProduct.totalQuota,
-              masaBerlaku: updatedPurchase.card.cardProduct.masaBerlaku,
-            },
+          ...updatedPurchase.card,
+          expiredDate: updatedPurchase.card.expiredDate
+            ? updatedPurchase.card.expiredDate.toISOString()
+            : null,
+          cardProduct: {
+            ...updatedPurchase.card.cardProduct,
+            totalQuota: updatedPurchase.card.cardProduct.totalQuota,
+            masaBerlaku: updatedPurchase.card.cardProduct.masaBerlaku,
+          },
           }
           : null,
         bulkPurchaseItems: updatedPurchase.bulkPurchaseItems.map((bulkItem: any) => ({
@@ -1309,9 +1316,9 @@ export class PurchaseService {
 
       const creator = updatedPurchase.createdBy
         ? await tx.user.findUnique({
-          where: { id: updatedPurchase.createdBy },
-          select: { fullName: true },
-        })
+            where: { id: updatedPurchase.createdBy },
+            select: { fullName: true },
+          })
         : null;
 
       // 10. Return formatted response
@@ -1341,7 +1348,7 @@ export class PurchaseService {
             price: Number(bulkItem.price),
             createdAt: bulkItem.createdAt.toISOString(),
             updatedAt: bulkItem.updatedAt.toISOString(),
-            card: {
+        card: {
               ...bulkItem.card,
               expiredDate: bulkItem.card.expiredDate
                 ? bulkItem.card.expiredDate.toISOString()
@@ -1356,15 +1363,15 @@ export class PurchaseService {
           : [],
         card: updatedPurchase.card
           ? {
-            ...updatedPurchase.card,
-            expiredDate: updatedPurchase.card.expiredDate
-              ? updatedPurchase.card.expiredDate.toISOString()
-              : null,
-            cardProduct: {
-              ...updatedPurchase.card.cardProduct,
-              totalQuota: updatedPurchase.card.cardProduct.totalQuota,
-              masaBerlaku: updatedPurchase.card.cardProduct.masaBerlaku,
-            },
+          ...updatedPurchase.card,
+          expiredDate: updatedPurchase.card.expiredDate
+            ? updatedPurchase.card.expiredDate.toISOString()
+            : null,
+          cardProduct: {
+            ...updatedPurchase.card.cardProduct,
+            totalQuota: updatedPurchase.card.cardProduct.totalQuota,
+            masaBerlaku: updatedPurchase.card.cardProduct.masaBerlaku,
+          },
           }
           : null,
         member: updatedPurchase.member,
@@ -1376,8 +1383,13 @@ export class PurchaseService {
   /**
    * Soft delete purchase transaction
    * Supports both FWC (single card) and VOUCHER (bulk purchase)
+   * @param notes - Alasan penghapusan (wajib)
    */
-  static async deletePurchase(id: string, userId: string) {
+  static async deletePurchase(id: string, userId: string, notes: string) {
+    if (!notes || typeof notes !== "string" || notes.trim().length === 0) {
+      throw new ValidationError("Alasan penghapusan wajib diisi");
+    }
+
     return await db.$transaction(async (tx) => {
       // 1. Validate purchase exists and not already deleted
       const purchase = await tx.cardPurchase.findUnique({
@@ -1385,8 +1397,8 @@ export class PurchaseService {
         include: {
           card: true,
           bulkPurchaseItems: {
-            include: {
-              card: true,
+        include: {
+          card: true,
             },
           },
         },
@@ -1396,28 +1408,29 @@ export class PurchaseService {
         throw new NotFoundError("Transaksi tidak ditemukan");
       }
 
-      // 2. Soft delete purchase
+      // 2. Soft delete purchase (simpan alasan ke notes)
       const deletedPurchase = await tx.cardPurchase.update({
         where: { id },
         data: {
           deletedAt: new Date(),
           deletedBy: userId,
+          notes: notes.trim(),
         },
       });
 
       // 3. Update card(s) status back to IN_STATION
       if (purchase.cardId) {
         // FWC: Single card purchase
-        await tx.card.update({
-          where: { id: purchase.cardId },
-          data: {
-            status: "IN_STATION",
+      await tx.card.update({
+        where: { id: purchase.cardId },
+        data: {
+          status: "IN_STATION",
             purchaseDate: null,
             expiredDate: null,
             memberId: null,
             updatedBy: userId,
-          },
-        });
+        },
+      });
       } else if (purchase.bulkPurchaseItems && purchase.bulkPurchaseItems.length > 0) {
         // VOUCHER: Bulk purchase - update all cards
         const cardIds = purchase.bulkPurchaseItems.map((item: any) => item.cardId);
@@ -1469,10 +1482,10 @@ export class PurchaseService {
 
     const expiredDate = purchaseData.card.expiredDate
       ? new Date(purchaseData.card.expiredDate).toLocaleDateString("id-ID", {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-      })
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+        })
       : "N/A";
 
     await EmailService.sendPurchaseConfirmation({

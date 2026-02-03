@@ -115,9 +115,11 @@ export default function TransactionTableVoucher({
   const [selectedTransaction, setSelectedTransaction] = useState<VoucherTransaction | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [deleteReason, setDeleteReason] = useState("");
 
   const handleOpenDelete = (transaction: VoucherTransaction) => {
     setSelectedTransaction(transaction);
+    setDeleteReason("");
     setOpenDelete(true);
   };
 
@@ -125,20 +127,29 @@ export default function TransactionTableVoucher({
     if (deleteLoading) return;
     setOpenDelete(false);
     setSelectedTransaction(null);
+    setDeleteReason("");
   };
 
   const handleConfirmDelete = async () => {
     if (!selectedTransaction) return;
+
+    const trimmed = deleteReason.trim();
+    if (!trimmed || trimmed.length < 15) {
+      alert("Alasan penghapusan wajib diisi minimal 15 karakter");
+      return;
+    }
+
     try {
       setDeleteLoading(true);
-      await deletePurchase(selectedTransaction.id);
+      await deletePurchase(selectedTransaction.id, trimmed);
       setOpenDelete(false);
       setSelectedTransaction(null);
+      setDeleteReason("");
       setShowSuccessModal(true);
       if (onDelete) onDelete();
     } catch (error) {
       console.error("Delete failed:", error);
-      alert("Gagal menghapus transaksi voucher");
+      alert(error instanceof Error ? error.message : "Gagal menghapus transaksi voucher");
     } finally {
       setDeleteLoading(false);
     }
@@ -403,6 +414,25 @@ export default function TransactionTableVoucher({
             <p className="mt-1 text-center text-sm text-gray-600">
               Yakin ingin menghapus transaksi voucher ini? Kartu akan dikembalikan ke status IN_STATION.
             </p>
+
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Alasan penghapusan <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="Minimal 15 karakter (wajib diisi)"
+                rows={3}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#8D1231] focus:outline-none focus:ring-1 focus:ring-[#8D1231]"
+              />
+              {deleteReason.trim().length > 0 && deleteReason.trim().length < 15 && (
+                <p className="mt-1 text-xs text-amber-600">
+                  Minimal 15 karakter
+                </p>
+              )}
+            </div>
+
             <div className="mt-4 rounded-lg bg-gray-50 px-4 py-3 text-sm">
               <div className="flex justify-between gap-3">
                 <span className="text-gray-500">Customer Name</span>
@@ -435,7 +465,7 @@ export default function TransactionTableVoucher({
               <button
                 type="button"
                 onClick={handleConfirmDelete}
-                disabled={deleteLoading}
+                disabled={deleteLoading || deleteReason.trim().length < 15}
                 className="rounded-md bg-[#8D1231] px-5 py-2 text-sm text-white transition hover:bg-[#73122E] active:scale-95 disabled:opacity-50"
               >
                 {deleteLoading ? "Menghapus..." : "Hapus"}
