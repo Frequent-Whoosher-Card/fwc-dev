@@ -35,8 +35,9 @@ export namespace StockInFwcModel {
       movementId: t.String(),
       startSerial: t.String(),
       endSerial: t.String(),
-      quantity: t.Integer(),
-      // contoh serial full (template + suffix)
+      quantityRequested: t.Number(),
+      processedCount: t.Number(),
+      skippedCount: t.Number(),
       startSerialNumber: t.String(),
       endSerialNumber: t.String(),
     }),

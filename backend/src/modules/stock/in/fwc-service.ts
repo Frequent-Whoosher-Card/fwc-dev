@@ -2,6 +2,7 @@ import db from "../../../config/db";
 import { ValidationError } from "../../../utils/errors";
 import { parseSmartSerial } from "../../../utils/serialHelper";
 import { ActivityLogService } from "../../activity-log/service";
+import { LowStockService } from "../../../services/lowStockService";
 
 export class StockInFwcService {
   /**
@@ -74,9 +75,9 @@ export class StockInFwcService {
         );
       }
 
-      const quantity = endNum - startNum + 1;
+      const quantityRequested = endNum - startNum + 1;
 
-      if (quantity > 10000) {
+      if (quantityRequested > 10000) {
         throw new ValidationError("Maksimal produksi 10.000 kartu per batch");
       }
 
@@ -84,7 +85,7 @@ export class StockInFwcService {
       const endSerialFormatted = String(endNum).padStart(width, "0");
 
       // 2) Generate suffix serial berurutan
-      const suffixSerials = Array.from({ length: quantity }, (_, i) =>
+      const suffixSerials = Array.from({ length: quantityRequested }, (_, i) =>
         String(startNum + i).padStart(width, "0"),
       );
 
@@ -93,8 +94,12 @@ export class StockInFwcService {
         (sfx) => `${product.serialTemplate}${yearSuffix}${sfx}`,
       );
 
-      // 4) Validasi Kartu SUDAH DI-GENERATE (Status: ON_REQUEST)
-      // Logikanya berubah: Dulu cek existing -> error. Sekarang cek existing -> harus ada & status ON_REQUEST.
+      // 4) Validasi Kartu SUDAH DI-GENERATE & Filter Status
+      // Logic:
+      // - ON_REQUEST -> Process (Stock In)
+      // - IN_OFFICE -> Skip (Already Safe)
+      // - Others -> Error
+      // - Missing -> Error
       const existingCards = await tx.card.findMany({
         where: {
           serialNumber: { in: serialNumbers },
@@ -103,83 +108,126 @@ export class StockInFwcService {
         select: { id: true, serialNumber: true, status: true },
       });
 
-      // a. Cek jumlah
+      // 4a. Cek Kelengkapan Data
+      const foundSerials = new Set(existingCards.map((c) => c.serialNumber));
       if (existingCards.length !== serialNumbers.length) {
-        const foundSerials = new Set(existingCards.map((c) => c.serialNumber));
         const missing = serialNumbers.filter((s) => !foundSerials.has(s));
         throw new ValidationError(
-          `Nomor serial tersebut belum digenerate: ${missing
+          `Nomor serial berikut belum digenerate (tidak ada di database): ${missing
             .slice(0, 3)
             .join(", ")}${missing.length > 3 ? "..." : ""}`,
         );
       }
 
-      // b. Cek status (Harus ON_REQUEST atau mungkin boleh IN_OFFICE jika re-stock?
-      // Asumsi strict flow: Generate -> StockIn. Jika sudah IN_OFFICE berarti duplikat stock in?)
-      // Kita anggap hanya boleh ON_REQUEST.
-      const invalidStatus = existingCards.filter(
-        (c) => c.status !== "ON_REQUEST",
-      );
-      if (invalidStatus.length > 0) {
-        throw new ValidationError(
-          `Beberapa kartu memiliki status tidak valid (bukan ON_REQUEST): ${invalidStatus[0].serialNumber} (${invalidStatus[0].status}).`,
-        );
+      // 4b. Kategorisasi
+      const toProcess: string[] = []; // ID cards
+      const toProcessSerials: string[] = [];
+      const skippedSerials: string[] = [];
+
+      for (const card of existingCards) {
+        if (card.status === "ON_REQUEST") {
+          toProcess.push(card.id);
+          toProcessSerials.push(card.serialNumber);
+        } else if (card.status === "IN_OFFICE") {
+          skippedSerials.push(card.serialNumber);
+        } else {
+          // Status lain = Error (Conflict)
+          throw new ValidationError(
+            `Gagal! Serial ${card.serialNumber} memiliki status tidak valid: ${card.status} (bukan ON_REQUEST atau IN_OFFICE).`,
+          );
+        }
       }
 
-      // 5) Update Status Kartu menjadi IN_OFFICE
-      // Karena kita sudah validasi semua cards ada dan status ok, kita bisa updateMany by serialNumbers
-      await tx.card.updateMany({
-        where: {
-          cardProductId: product.id,
-          serialNumber: { in: serialNumbers },
-        },
-        data: {
-          status: "IN_OFFICE",
-          updatedBy: userId,
-          updatedAt: new Date(),
-        },
-      });
+      // Jika tidak ada yang baru (semua skipped), boleh lanjut?
+      // Boleh, tapi quantity movement jadi 0? Atau throw info?
+      // User expect "Success". So we verify and return success even if 0 processed.
+      // But we need at least a dummy movement or just return info?
+      // For consistency, create movement only if toProcess > 0.
+      // IF toProcess === 0, it means "All already in office".
+      let movementId = null;
 
-      // 6) Catat stock movement IN
-      const formattedStartSerial = String(startNum).padStart(width, "0");
-      const movement = await tx.cardStockMovement.create({
-        data: {
-          movementAt: new Date(movementAt),
-          movementType: "IN",
-          status: "APPROVED",
+      if (toProcess.length > 0) {
+        // 5) Update Status Kartu menjadi IN_OFFICE
+        await tx.card.updateMany({
+          where: {
+            id: { in: toProcess },
+          },
+          data: {
+            status: "IN_OFFICE",
+            updatedBy: userId,
+            updatedAt: new Date(),
+          },
+        });
+
+        // 6) Catat stock movement IN (Only for processed cards)
+        const formattedStartSerial = String(startNum).padStart(width, "0");
+        const movement = await tx.cardStockMovement.create({
+          data: {
+            movementAt: new Date(movementAt),
+            movementType: "IN",
+            status: "APPROVED",
+            categoryId,
+            typeId,
+            stationId: null,
+            quantity: toProcess.length, // Only new ones
+            sentSerialNumbers: toProcessSerials,
+            receivedSerialNumbers: [],
+            lostSerialNumbers: [],
+            note:
+              note ??
+              `Batch ${product.serialTemplate}${yearSuffix}${formattedStartSerial} - ${product.serialTemplate}${yearSuffix}${endSerialFormatted} (Partial/Full)`,
+            createdAt: new Date(),
+            createdBy: userId,
+            updatedAt: new Date(),
+            updatedBy: userId,
+          },
+        });
+        movementId = movement.id;
+
+        // 7. Activity Log
+        await ActivityLogService.createActivityLog(
+          userId,
+          "CREATE_STOCK_IN_FWC",
+          `Stock In FWC: ${toProcess.length} pcs (Req: ${quantityRequested}, Skip: ${skippedSerials.length})`,
+        );
+
+        // --- LOW STOCK TRIGGER ---
+        const currentStock = await tx.card.count({
+          where: {
+            status: "IN_OFFICE",
+            cardProductId: product.id,
+          },
+        });
+
+        await LowStockService.checkStock(
           categoryId,
           typeId,
-          stationId: null,
-          quantity,
-          sentSerialNumbers: serialNumbers, // Consistency: IN uses sent (per user request)
-          receivedSerialNumbers: [],
-          lostSerialNumbers: [],
-          note:
-            note ??
-            `Batch ${product.serialTemplate}${yearSuffix}${formattedStartSerial} - ${product.serialTemplate}${yearSuffix}${endSerialFormatted}`,
-          createdAt: new Date(),
-          createdBy: userId,
-          updatedAt: new Date(),
-          updatedBy: userId,
-        },
-      });
+          null, // Office Scope
+          currentStock,
+          tx,
+        );
+        // -------------------------
+      }
 
-      /* REMOVED: CardInventory update (Deprecated) */
+      // Construct Custom Message
+      // "Stock In Berhasil. Total kartu tersedia: [Total]. (Baru masuk: [New], Sudah ada sebelumnya: [Skipped])"
+      const message = `Stock In Berhasil. Total kartu tersedia: ${quantityRequested}. (Baru masuk: ${toProcess.length}, Sudah ada sebelumnya: ${skippedSerials.length})`;
 
-      // 7. Activity Log
-      await ActivityLogService.createActivityLog(
-        userId,
-        "CREATE_STOCK_IN_FWC",
-        `Stock In FWC Batch: ${quantity} pcs for serial ${product.serialTemplate}${yearSuffix}${formattedStartSerial} - ${endSerialFormatted}`,
-      );
+      const formattedStartSerial = String(startNum).padStart(width, "0");
 
       return {
-        movementId: movement.id,
-        startSerial: formattedStartSerial,
-        endSerial: endSerialFormatted,
-        quantity,
-        startSerialNumber: `${product.serialTemplate}${yearSuffix}${formattedStartSerial}`,
-        endSerialNumber: `${product.serialTemplate}${yearSuffix}${endSerialFormatted}`,
+        success: true,
+        message,
+        data: {
+          movementId,
+          startSerial: formattedStartSerial,
+          endSerial: endSerialFormatted,
+          quantityRequested,
+          processedCount: toProcess.length,
+          skippedCount: skippedSerials.length,
+          startSerialNumber: `${product.serialTemplate}${yearSuffix}${formattedStartSerial}`,
+          endSerialNumber: `${product.serialTemplate}${yearSuffix}${endSerialFormatted}`,
+        },
       };
     });
 

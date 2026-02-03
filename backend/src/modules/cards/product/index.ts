@@ -187,6 +187,7 @@ const adminRoutes = new Elysia()
           user.id,
           body.maxQuantity,
           body.isDiscount,
+          body.isActive,
         );
 
         return {
@@ -217,49 +218,6 @@ const adminRoutes = new Elysia()
         summary: "Update card product",
         description:
           "This endpoint is used to update card product (superadmin and admin)",
-      },
-    },
-  )
-  .patch(
-    "/:id/active-status",
-    async (context) => {
-      const { params, body, set, user } = context as typeof context &
-        AuthContextUser;
-      try {
-        const cardProduct = await CardProductService.toggleActiveStatus(
-          params.id,
-          body.isActive,
-          user.id,
-        );
-
-        return {
-          success: true,
-          message: "Card product status updated successfully",
-          data: cardProduct,
-        };
-      } catch (error) {
-        set.status =
-          error instanceof Error && "statusCode" in error
-            ? (error as any).statusCode
-            : 500;
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      params: t.Object({ id: t.String() }),
-      body: CardProductModel.toggleActiveStatusRequest,
-      response: {
-        200: CardProductModel.toggleActiveStatusResponse,
-        400: CardProductModel.errorResponse,
-        401: CardProductModel.errorResponse,
-        403: CardProductModel.errorResponse,
-        500: CardProductModel.errorResponse,
-      },
-      detail: {
-        tags: ["Card Product"],
-        summary: "Toggle active status",
-        description:
-          "This endpoint is used to toggle active status of card product (superadmin and admin)",
       },
     },
   );

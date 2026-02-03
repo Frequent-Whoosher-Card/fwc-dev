@@ -120,6 +120,7 @@ export class StockOutFwcService {
     // The strict check (cards.length !== sent.length) is removed to support this.
 
     const sentCount = cards.length;
+    const skippedCount = count - sentCount;
 
     // Prepare Notification Data Outside Transaction
     const stationObj = await db.station.findUnique({
@@ -132,11 +133,6 @@ export class StockOutFwcService {
     // Increase timeout slightly for bulk updates
     const transaction = await db.$transaction(
       async (tx) => {
-        // 3) Atomic Inventory Update: REMOVED (Deprecated)
-        /* 
-        const updateInvResult = await tx.cardInventory.updateMany(...)
-        */
-
         // 4) Atomic Card Status Update
         const updateCardResult = await tx.card.updateMany({
           where: {
@@ -166,8 +162,6 @@ export class StockOutFwcService {
         );
 
         // 6) Create movement OUT PENDING
-        // 6) Create movement OUT PENDING
-
         // Use ACTUAL processed/found cards, not the requested full range
         const finalSerials = cards.map((c) => c.serialNumber);
 
@@ -192,7 +186,6 @@ export class StockOutFwcService {
           },
         });
 
-        // --- NOTIFICATION TO SUPERVISOR ---
         // --- NOTIFICATION TO SUPERVISOR (Scoped Broadcast) ---
         const productName = `${cardProduct.category.categoryName} - ${cardProduct.type.typeName}`;
 
@@ -219,12 +212,20 @@ export class StockOutFwcService {
           },
         });
         // ----------------------------------
-        // ----------------------------------
+
+        // Construct Custom Message
+        const message = `Stock Out Berhasil. Permintaan: ${count}. (Terproses: ${sentCount}, Dilewati/Tidak Tersedia: ${skippedCount})`;
 
         return {
-          movementId: movement.id,
-          status: movement.status,
-          sentCount,
+          success: true,
+          message,
+          data: {
+            movementId: movement.id,
+            status: movement.status,
+            requestedCount: count,
+            sentCount,
+            skippedCount,
+          },
         };
       },
       {
@@ -236,8 +237,25 @@ export class StockOutFwcService {
     await ActivityLogService.createActivityLog(
       userId,
       "CREATE_STOCK_OUT_FWC",
-      `Stock Out Distribution created: ${sentCount} cards to ${stationName}.`,
+      `Stock Out Distribution created: ${sentCount} cards to ${stationName}. (Req: ${count}, Skip: ${skippedCount})`,
     );
+
+    // --- POST-TRANSACTION TRIGGER ---
+    // Check Office Stock (Real-time Alert)
+    const currentStock = await db.card.count({
+      where: {
+        status: "IN_OFFICE",
+        cardProductId: cardProductId,
+      },
+    });
+
+    await LowStockService.checkStock(
+      cardProduct.categoryId,
+      cardProduct.typeId,
+      null, // Office Scope
+      currentStock,
+    );
+    // --------------------------------
 
     return transaction;
   }

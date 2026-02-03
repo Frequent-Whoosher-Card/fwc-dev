@@ -22,7 +22,9 @@ export namespace StockOutFwcModel {
     data: t.Object({
       movementId: t.String(),
       status: t.String(),
+      requestedCount: t.Number(),
       sentCount: t.Number(),
+      skippedCount: t.Number(),
     }),
   });
 

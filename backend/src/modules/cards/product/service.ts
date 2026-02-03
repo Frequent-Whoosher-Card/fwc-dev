@@ -69,6 +69,7 @@ export class CardProductService {
       ...product,
       price: product.price.toString(),
       isDiscount: product.isDiscount ?? false,
+      isActive: product.isActive,
       type: product.type
         ? {
             id: product.type.id,
@@ -93,6 +94,7 @@ export class CardProductService {
       ...cardProduct,
       price: cardProduct.price.toString(),
       isDiscount: cardProduct.isDiscount ?? false,
+      isActive: cardProduct.isActive,
     };
   }
 
@@ -216,6 +218,7 @@ export class CardProductService {
         ...restoredProduct,
         price: restoredProduct.price.toString(),
         isDiscount: restoredProduct.isDiscount ?? false,
+        isActive: restoredProduct.isActive,
       };
     }
 
@@ -248,6 +251,7 @@ export class CardProductService {
       ...createCardProduct,
       price: createCardProduct.price.toString(),
       isDiscount: createCardProduct.isDiscount ?? false,
+      isActive: createCardProduct.isActive,
     };
   }
 
@@ -264,6 +268,7 @@ export class CardProductService {
     userId: string,
     maxQuantity?: number,
     isDiscount?: boolean,
+    isActive?: boolean,
   ) {
     const [cardCategory, cardType] = await Promise.all([
       db.cardCategory.findUnique({
@@ -325,29 +330,35 @@ export class CardProductService {
       );
     }
 
+    const updateData: any = {
+      categoryId,
+      typeId,
+      totalQuota,
+      masaBerlaku,
+      price,
+      serialTemplate: generatedSerialTemplate.toString(),
+      programType,
+      maxQuantity,
+      isDiscount: isDiscount !== undefined ? isDiscount : undefined,
+      updatedAt: new Date(),
+      updatedBy: userId,
+    };
+
+    if (isActive !== undefined) {
+      updateData.isActive = isActive;
+    }
+
     const updateCardProduct = await db.cardProduct.update({
       where: {
         id,
       },
-      data: {
-        categoryId,
-        typeId,
-        totalQuota,
-        masaBerlaku,
-        price,
-        serialTemplate: generatedSerialTemplate.toString(),
-        programType: programType,
-        maxQuantity,
-        isDiscount: isDiscount !== undefined ? isDiscount : undefined,
-        updatedAt: new Date(),
-        updatedBy: userId,
-      },
+      data: updateData,
     });
 
     await ActivityLogService.createActivityLog(
       userId,
       "UPDATE_CARD_PRODUCT",
-      `Updated product ${updateCardProduct.serialTemplate} (Category: ${cardCategory.categoryName}, Type: ${cardType.typeName})`,
+      `Updated product ${updateCardProduct.serialTemplate} (Category: ${cardCategory.categoryName}, Type: ${cardType.typeName})${isActive !== undefined ? `, Active Status: ${isActive}` : ""}`,
     );
 
     return {
@@ -355,47 +366,7 @@ export class CardProductService {
       price: updateCardProduct.price.toString(),
       serialTemplate: updateCardProduct.serialTemplate.toString(),
       isDiscount: updateCardProduct.isDiscount ?? false,
-    };
-  }
-
-  // Toggle Active Status
-  static async toggleActiveStatus(
-    id: string,
-    isActive: boolean,
-    userId: string,
-  ) {
-    const existingProduct = await db.cardProduct.findUnique({
-      where: { id },
-    });
-
-    if (!existingProduct) {
-      throw new ValidationError(
-        "Card Product Not Found",
-        "CARD_PRODUCT_NOT_FOUND",
-      );
-    }
-
-    const updatedProduct = await db.cardProduct.update({
-      where: {
-        id,
-      },
-      data: {
-        isActive,
-        updatedAt: new Date(),
-        updatedBy: userId,
-      },
-    });
-
-    await ActivityLogService.createActivityLog(
-      userId,
-      "UPDATE_CARD_PRODUCT_STATUS",
-      `Updated product status to ${isActive ? "Active" : "Inactive"} for ${updatedProduct.serialTemplate}`,
-    );
-
-    return {
-      ...updatedProduct,
-      price: updatedProduct.price.toString(),
-      isDiscount: updatedProduct.isDiscount ?? false,
+      isActive: updateCardProduct.isActive,
     };
   }
 
@@ -448,6 +419,7 @@ export class CardProductService {
       ...deleteCardProduct,
       price: deleteCardProduct.price.toString(),
       isDiscount: deleteCardProduct.isDiscount ?? false,
+      isActive: deleteCardProduct.isActive,
     };
   }
 }
