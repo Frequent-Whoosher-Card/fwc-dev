@@ -1,5 +1,6 @@
 import db from "../config/db";
 import { Inbox } from "@prisma/client";
+import { TelegramService } from "./telegramService";
 
 export class LowStockService {
   private static readonly THRESHOLD_GOLD_JABAN = 100;
@@ -25,12 +26,10 @@ export class LowStockService {
   static async checkStock(
     categoryId: string,
     typeId: string,
-    stationId: string,
+    stationId: string | null,
     currentStock: number,
     tx: any = db,
   ) {
-    if (!stationId) return; // Enforce stationId
-
     // 1. Get Details
     const category = await tx.cardCategory.findUnique({
       where: { id: categoryId },
@@ -40,18 +39,34 @@ export class LowStockService {
       where: { id: typeId },
       select: { typeName: true },
     });
-    const station = await tx.station.findUnique({
-      where: { id: stationId },
-      select: { stationName: true },
-    });
 
-    if (!category || !type || !station) return;
+    let stationName = "Head Office";
+    let configSuffix = "HO";
+
+    if (stationId) {
+      const station = await tx.station.findUnique({
+        where: { id: stationId },
+        select: { stationName: true, stationCode: true },
+      });
+      if (!station) return;
+      stationName = station.stationName;
+      configSuffix = station.stationCode.toUpperCase();
+    } else {
+      stationName = "Head Office";
+      configSuffix = "HO";
+    }
+
+    if (!category || !type) return;
 
     const threshold = this.getThreshold(category.categoryName, type.typeName);
     const productName = `${category.categoryName} - ${type.typeName}`;
-    const stationName = station.stationName;
+
+    console.log(
+      `[LowStock] Check: ${stationName} | Stock: ${currentStock} | Threshold: ${threshold}`,
+    );
 
     if (currentStock < threshold) {
+      console.log(`[LowStock] Below threshold! Checking existing alerts...`);
       // --- LOW STOCK CONDITION ---
 
       // Check for EXISTING alert for this Station + Product
@@ -59,7 +74,7 @@ export class LowStockService {
         where: {
           type: "LOW_STOCK_ALERT",
           isRead: false,
-          stationId: stationId,
+          stationId: stationId, // Can be null
         },
         select: { id: true, payload: true },
       });
@@ -95,6 +110,32 @@ export class LowStockService {
             createdAt: new Date(),
           },
         });
+
+        // --- TELEGRAM DISPATCH ---
+        // --- TELEGRAM DISPATCH ---
+
+        // Use Generic Station Config
+        const token = process.env[`TELEGRAM_TOKEN_${configSuffix}`];
+        const chatId = process.env[`TELEGRAM_CHAT_ID_${configSuffix}`];
+
+        if (token && chatId) {
+          const telegramMsg =
+            `⚠️ *PERINGATAN STOK MENIPIS*\n\n` +
+            `📍 Stasiun: *${stationName}*\n` +
+            `📦 Produk: *${productName}*\n\n` +
+            `� Status Stok:\n` +
+            `• Sisa: *${currentStock}*\n` +
+            `• Minimum: *${threshold}*\n\n` +
+            `_Mohon segera lakukan pengisian stok._`;
+
+          TelegramService.sendMessage(token, chatId, telegramMsg).catch((err) =>
+            console.error(
+              `[LowStock] Telegram alert failed for ${stationName}:`,
+              err,
+            ),
+          );
+        }
+        // ------------------------
       }
     } else {
       // --- SUFFICIENT STOCK CONDITION ---

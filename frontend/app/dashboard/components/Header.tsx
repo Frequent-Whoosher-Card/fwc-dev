@@ -12,7 +12,7 @@ export default function Header() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const auth = useAuthClient();
-  const { lang, setLang, t } = useLanguage();
+  const { t } = useLanguage();
 
   const handleLogout = async () => {
     try {
@@ -40,32 +40,6 @@ export default function Header() {
 
       {/* RIGHT SECTION */}
       <div className="flex items-center gap-6">
-        {/* LANGUAGE SWITCHER */}
-        <ClientOnly>
-          <div className="flex items-center bg-gray-100 rounded-full p-1 h-9">
-            <button
-              onClick={() => setLang("id")}
-              className={`px-3 py-1 text-xs font-semibold rounded-full transition-all ${
-                lang === "id"
-                  ? "bg-white text-[#8D1231] shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              ID
-            </button>
-            <button
-              onClick={() => setLang("en")}
-              className={`px-3 py-1 text-xs font-semibold rounded-full transition-all ${
-                lang === "en"
-                  ? "bg-white text-[#8D1231] shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              EN
-            </button>
-          </div>
-        </ClientOnly>
-
         {/* USER DROPDOWN */}
         <div className="relative">
           <button

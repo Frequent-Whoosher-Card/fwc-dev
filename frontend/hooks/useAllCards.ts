@@ -140,10 +140,6 @@ export const useAllCards = ({ programType }: UseAllCardsProps) => {
       .catch(() => {});
   }, [programType]);
 
-  const handleExportPDF = () => {
-    toast("Export PDF (coming soon)");
-  };
-
   return {
     data,
     loading,
@@ -166,7 +162,6 @@ export const useAllCards = ({ programType }: UseAllCardsProps) => {
       endDate,
       setEndDate,
     },
-    handleExportPDF,
     refresh: fetchAllCard,
   };
 };

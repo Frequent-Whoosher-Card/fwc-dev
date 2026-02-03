@@ -104,6 +104,7 @@ export class StockOutVoucherService {
     // Proceed with whatever is IN_OFFICE.
 
     const sentCount = cards.length;
+    const skippedCount = count - sentCount;
 
     // Station Info
     const station = await db.station.findUnique({
@@ -192,10 +193,19 @@ export class StockOutVoucherService {
           },
         });
 
+        // Construct Custom Message
+        const message = `Stock Out Berhasil. Permintaan: ${count}. (Terproses: ${sentCount}, Dilewati/Tidak Tersedia: ${skippedCount})`;
+
         return {
-          movementId: movement.id,
-          status: movement.status,
-          sentCount,
+          success: true,
+          message,
+          data: {
+            movementId: movement.id,
+            status: movement.status,
+            requestedCount: count,
+            sentCount,
+            skippedCount,
+          },
         };
       },
       { maxWait: 5000, timeout: 10000 },
@@ -205,8 +215,24 @@ export class StockOutVoucherService {
     await ActivityLogService.createActivityLog(
       userId,
       "CREATE_STOCK_OUT_VOUCHER",
-      `Stock Out Voucher created: ${sentCount} vouchers to ${stationName}.`,
+      `Stock Out Voucher created: ${sentCount} vouchers to ${stationName}. (Req: ${count}, Skip: ${skippedCount})`,
     );
+
+    // --- POST-TRANSACTION TRIGGER ---
+    const currentStock = await db.card.count({
+      where: {
+        status: "IN_OFFICE",
+        cardProductId: cardProductId,
+      },
+    });
+
+    await LowStockService.checkStock(
+      cardProduct.categoryId,
+      cardProduct.typeId,
+      null, // Office Scope
+      currentStock,
+    );
+    // --------------------------------
 
     return transaction;
   }

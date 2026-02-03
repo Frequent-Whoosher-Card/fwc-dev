@@ -164,7 +164,7 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { lang, setLang, t } = useLanguage();
+  const { t } = useLanguage();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -489,23 +489,6 @@ export default function DashboardLayout({
 
           <ClientOnly>
             <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setLang(lang === "id" ? "en" : "id")}
-                className="flex items-center gap-2 px-2 h-9"
-                title={
-                  lang === "id"
-                    ? "Switch to English"
-                    : "Ganti ke Bahasa Indonesia"
-                }
-              >
-                <Globe className="h-4 w-4" />
-                <span className="text-xs font-bold w-5">
-                  {lang.toUpperCase()}
-                </span>
-              </Button>
-
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
