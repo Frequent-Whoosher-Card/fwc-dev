@@ -107,166 +107,153 @@ const stockOutFwc = new Elysia({ prefix: "/fwc" })
           },
           detail: { tags: ["Stock Out FWC"], summary: "Get Available Serials" },
         },
-      )
-  )
-  .group("", (app) =>
-    app
-      .use(permissionMiddleware("stock.out.create"))
-      .post(
-        "/",
-        async (context) => {
-          const { body, set, user } = context as typeof context &
-            AuthContextUser;
-          try {
-            const result = await StockOutFwcService.stockOutDistribution(
-              new Date(body.movementAt),
-              body.cardProductId,
-              body.stationId,
-              body.startSerial,
-              body.endSerial,
-              user.id,
-              body.note,
-              body.notaDinas,
-              body.bast,
-            );
-            return {
-              success: true,
-              message: "Distribusi stok berhasil dibuat (PENDING)",
-              data: result,
-            };
-          } catch (error) {
-            set.status =
-              error instanceof Error && "statusCode" in error
-                ? (error as any).statusCode
-                : 500;
-            return formatErrorResponse(error);
-          }
-        },
-        {
-          body: StockOutFwcModel.stockOutRequest,
-          response: {
-            200: StockOutFwcModel.stockOutResponse,
-            400: StockOutFwcModel.errorResponse,
-            500: StockOutFwcModel.errorResponse,
-          },
-          detail: { tags: ["Stock Out FWC"], summary: "Create Stock Out" },
-        },
-      )
-  )
-  .group("", (app) =>
-    app
-      .use(permissionMiddleware("stock.out.update"))
-      .patch(
-        "/:id",
-        async (context) => {
-          const { params, body, set, user } = context as typeof context &
-            AuthContextUser;
-          try {
-            const result = await StockOutFwcService.update(
-              params.id,
-              body,
-              user.id,
-            );
-            return {
-              success: true,
-              message: "Data stock out berhasil diperbarui",
-              data: result,
-            };
-          } catch (error) {
-            set.status =
-              error instanceof Error && "statusCode" in error
-                ? (error as any).statusCode
-                : 500;
-            return formatErrorResponse(error);
-          }
-        },
-        {
-          body: StockOutFwcModel.updateStockOutBody,
-          response: {
-            200: StockOutFwcModel.updateStockOutResponse,
-            400: StockOutFwcModel.errorResponse,
-            500: StockOutFwcModel.errorResponse,
-          },
-          detail: { tags: ["Stock Out FWC"], summary: "Update Stock Out" },
-        },
-      )
-  )
-  .group("", (app) =>
-    app
-      .use(permissionMiddleware("stock.out.validate"))
-      .post(
-        "/:movementId/validate",
-        async (context) => {
-          const { params, body, set, user } = context as typeof context &
-            AuthContextUser;
-          if (!user.stationId) {
-            set.status = 400;
-            return formatErrorResponse(
-              new ValidationError("Petugas tidak memiliki ID stasiun"),
-            );
-          }
-          try {
-            const result = await StockOutFwcService.validateStockOutReceipe(
-              params.movementId,
-              body.receivedSerialNumbers || [],
-              body.lostSerialNumbers,
-              body.damagedSerialNumbers,
-              user.id,
-              user.stationId,
-              body.note,
-            );
-            return {
-              success: true,
-              message: "Validasi stok berhasil",
-              data: result,
-            };
-          } catch (error) {
-            set.status =
-              error instanceof Error && "statusCode" in error
-                ? (error as any).statusCode
-                : 500;
-            return formatErrorResponse(error);
-          }
-        },
-        {
-          body: StockOutFwcModel.stockOutValidateRequest,
-          response: {
-            200: StockOutFwcModel.stockOutValidateResponse,
-            400: StockOutFwcModel.errorResponse,
-            500: StockOutFwcModel.errorResponse,
-          },
-          detail: { tags: ["Stock Out FWC"], summary: "Validate Stock Out" },
-        },
-      )
-  )
-  .group("", (app) =>
-    app
-      .use(permissionMiddleware("stock.out.delete"))
-      .delete(
-        "/:id",
-        async (context) => {
-          const { params, set, user } = context as typeof context &
-            AuthContextUser;
-          try {
-            const result = await StockOutFwcService.delete(params.id, user.id);
-            return { success: true, message: result.message };
-          } catch (error) {
-            set.status =
-              error instanceof Error && "statusCode" in error
-                ? (error as any).statusCode
-                : 500;
-            return formatErrorResponse(error);
-          }
-        },
-        {
-          response: {
-            200: StockOutFwcModel.deleteStockOutResponse,
-            400: StockOutFwcModel.errorResponse,
-            500: StockOutFwcModel.errorResponse,
-          },
-          detail: { tags: ["Stock Out FWC"], summary: "Delete Stock Out" },
-        },
       ),
+  )
+  .group("", (app) =>
+    app.use(permissionMiddleware("stock.out.create")).post(
+      "/",
+      async (context) => {
+        const { body, set, user } = context as typeof context & AuthContextUser;
+        try {
+          const result = await StockOutFwcService.stockOutDistribution(
+            new Date(body.movementAt),
+            body.cardProductId,
+            body.stationId,
+            body.startSerial,
+            body.endSerial,
+            user.id,
+            body.note,
+            body.notaDinas,
+            body.bast,
+          );
+          return result;
+        } catch (error) {
+          set.status =
+            error instanceof Error && "statusCode" in error
+              ? (error as any).statusCode
+              : 500;
+          return formatErrorResponse(error);
+        }
+      },
+      {
+        body: StockOutFwcModel.stockOutRequest,
+        response: {
+          200: StockOutFwcModel.stockOutResponse,
+          400: StockOutFwcModel.errorResponse,
+          500: StockOutFwcModel.errorResponse,
+        },
+        detail: { tags: ["Stock Out FWC"], summary: "Create Stock Out" },
+      },
+    ),
+  )
+  .group("", (app) =>
+    app.use(permissionMiddleware("stock.out.update")).patch(
+      "/:id",
+      async (context) => {
+        const { params, body, set, user } = context as typeof context &
+          AuthContextUser;
+        try {
+          const result = await StockOutFwcService.update(
+            params.id,
+            body,
+            user.id,
+          );
+          return {
+            success: true,
+            message: "Data stock out berhasil diperbarui",
+            data: result,
+          };
+        } catch (error) {
+          set.status =
+            error instanceof Error && "statusCode" in error
+              ? (error as any).statusCode
+              : 500;
+          return formatErrorResponse(error);
+        }
+      },
+      {
+        body: StockOutFwcModel.updateStockOutBody,
+        response: {
+          200: StockOutFwcModel.updateStockOutResponse,
+          400: StockOutFwcModel.errorResponse,
+          500: StockOutFwcModel.errorResponse,
+        },
+        detail: { tags: ["Stock Out FWC"], summary: "Update Stock Out" },
+      },
+    ),
+  )
+  .group("", (app) =>
+    app.use(permissionMiddleware("stock.out.validate")).post(
+      "/:movementId/validate",
+      async (context) => {
+        const { params, body, set, user } = context as typeof context &
+          AuthContextUser;
+        if (!user.stationId) {
+          set.status = 400;
+          return formatErrorResponse(
+            new ValidationError("Petugas tidak memiliki ID stasiun"),
+          );
+        }
+        try {
+          const result = await StockOutFwcService.validateStockOutReceipe(
+            params.movementId,
+            body.receivedSerialNumbers || [],
+            body.lostSerialNumbers,
+            body.damagedSerialNumbers,
+            user.id,
+            user.stationId,
+            body.note,
+          );
+          return {
+            success: true,
+            message: "Validasi stok berhasil",
+            data: result,
+          };
+        } catch (error) {
+          set.status =
+            error instanceof Error && "statusCode" in error
+              ? (error as any).statusCode
+              : 500;
+          return formatErrorResponse(error);
+        }
+      },
+      {
+        body: StockOutFwcModel.stockOutValidateRequest,
+        response: {
+          200: StockOutFwcModel.stockOutValidateResponse,
+          400: StockOutFwcModel.errorResponse,
+          500: StockOutFwcModel.errorResponse,
+        },
+        detail: { tags: ["Stock Out FWC"], summary: "Validate Stock Out" },
+      },
+    ),
+  )
+  .group("", (app) =>
+    app.use(permissionMiddleware("stock.out.delete")).delete(
+      "/:id",
+      async (context) => {
+        const { params, set, user } = context as typeof context &
+          AuthContextUser;
+        try {
+          const result = await StockOutFwcService.delete(params.id, user.id);
+          return { success: true, message: result.message };
+        } catch (error) {
+          set.status =
+            error instanceof Error && "statusCode" in error
+              ? (error as any).statusCode
+              : 500;
+          return formatErrorResponse(error);
+        }
+      },
+      {
+        response: {
+          200: StockOutFwcModel.deleteStockOutResponse,
+          400: StockOutFwcModel.errorResponse,
+          500: StockOutFwcModel.errorResponse,
+        },
+        detail: { tags: ["Stock Out FWC"], summary: "Delete Stock Out" },
+      },
+    ),
   );
 
 const stockOutVoucher = new Elysia({ prefix: "/voucher" })
@@ -425,11 +412,7 @@ const stockOutVoucher = new Elysia({ prefix: "/voucher" })
               body.notaDinas,
               body.bast,
             );
-            return {
-              success: true,
-              message: "Distribusi voucher berhasil dibuat (PENDING)",
-              data: result,
-            };
+            return result;
           } catch (error) {
             set.status =
               error instanceof Error && "statusCode" in error
@@ -516,146 +499,140 @@ export const stockOut = new Elysia({ prefix: "/out" })
   .use(stockOutFwc)
   .use(stockOutVoucher)
   .group("", (app) =>
-    app
-      .use(permissionMiddleware("stock.out.validate"))
-      .post(
-        "/validate/:movementId",
-        async (context) => {
-          const { params, body, set, user } = context as typeof context &
-            AuthContextUser;
-          if (!user.stationId) {
-            set.status = 400;
-            return formatErrorResponse(
-              new ValidationError("Petugas tidak memiliki ID stasiun"),
-            );
+    app.use(permissionMiddleware("stock.out.validate")).post(
+      "/validate/:movementId",
+      async (context) => {
+        const { params, body, set, user } = context as typeof context &
+          AuthContextUser;
+        if (!user.stationId) {
+          set.status = 400;
+          return formatErrorResponse(
+            new ValidationError("Petugas tidak memiliki ID stasiun"),
+          );
+        }
+
+        try {
+          // 1. Get Movement to determine Type
+          const movement = await db.cardStockMovement.findUnique({
+            where: { id: params.movementId },
+            include: { category: true },
+          });
+
+          if (!movement) {
+            throw new ValidationError("Data movement tidak ditemukan");
           }
 
-          try {
-            // 1. Get Movement to determine Type
-            const movement = await db.cardStockMovement.findUnique({
-              where: { id: params.movementId },
-              include: { category: true },
-            });
+          const programType = movement.category.programType;
+          let result;
 
-            if (!movement) {
-              throw new ValidationError("Data movement tidak ditemukan");
-            }
-
-            const programType = movement.category.programType;
-            let result;
-
-            // 2. Delegate based on Program Type
-            if (programType === "FWC") {
-              result = await StockOutFwcService.validateStockOutReceipe(
-                params.movementId,
-                body.receivedSerialNumbers || [],
-                body.lostSerialNumbers,
-                body.damagedSerialNumbers,
-                user.id,
-                user.stationId,
-                body.note,
-              );
-            } else if (programType === "VOUCHER") {
-              result = await StockOutVoucherService.validateStockOutReceipe(
-                params.movementId,
-                body.receivedSerialNumbers || [],
-                body.lostSerialNumbers,
-                body.damagedSerialNumbers,
-                user.id,
-                user.stationId,
-                body.note,
-              );
-            } else {
-              throw new ValidationError("Tipe program tidak dikenali");
-            }
-
-            return {
-              success: true,
-              message: `Validasi stok ${programType} berhasil`,
-              data: result,
-            };
-          } catch (error) {
-            set.status =
-              error instanceof Error && "statusCode" in error
-                ? (error as any).statusCode
-                : 500;
-            return formatErrorResponse(error);
-          }
-        },
-        {
-          body: StockOutFwcModel.stockOutValidateRequest, // Reuse same schema
-          response: {
-            200: StockOutFwcModel.stockOutValidateResponse, // Reuse same schema structure
-            400: StockOutFwcModel.errorResponse,
-            500: StockOutFwcModel.errorResponse,
-          },
-          detail: {
-            tags: ["Stock Out Unified"],
-            summary: "Validate Stock Out (Unified)",
-          },
-        },
-      )
-  )
-  .group("", (app) =>
-    app
-      .use(permissionMiddleware("stock.issue.view"))
-      .get(
-        "/issue/:movementId",
-        async (context) => {
-          const { params, set } = context;
-          try {
-            const result = await StockIssueService.getIssueDetail(
+          // 2. Delegate based on Program Type
+          if (programType === "FWC") {
+            result = await StockOutFwcService.validateStockOutReceipe(
               params.movementId,
+              body.receivedSerialNumbers || [],
+              body.lostSerialNumbers,
+              body.damagedSerialNumbers,
+              user.id,
+              user.stationId,
+              body.note,
             );
-            return { success: true, data: result };
-          } catch (error) {
-            set.status = 500;
-            return formatErrorResponse(error);
+          } else if (programType === "VOUCHER") {
+            result = await StockOutVoucherService.validateStockOutReceipe(
+              params.movementId,
+              body.receivedSerialNumbers || [],
+              body.lostSerialNumbers,
+              body.damagedSerialNumbers,
+              user.id,
+              user.stationId,
+              body.note,
+            );
+          } else {
+            throw new ValidationError("Tipe program tidak dikenali");
           }
+
+          return {
+            success: true,
+            message: `Validasi stok ${programType} berhasil`,
+            data: result,
+          };
+        } catch (error) {
+          set.status =
+            error instanceof Error && "statusCode" in error
+              ? (error as any).statusCode
+              : 500;
+          return formatErrorResponse(error);
+        }
+      },
+      {
+        body: StockOutFwcModel.stockOutValidateRequest, // Reuse same schema
+        response: {
+          200: StockOutFwcModel.stockOutValidateResponse, // Reuse same schema structure
+          400: StockOutFwcModel.errorResponse,
+          500: StockOutFwcModel.errorResponse,
         },
-        {
-          detail: {
-            tags: ["Stock Out Unified"],
-            summary: "Get Stock Issue Detail",
-          },
+        detail: {
+          tags: ["Stock Out Unified"],
+          summary: "Validate Stock Out (Unified)",
         },
-      )
+      },
+    ),
   )
   .group("", (app) =>
-    app
-      .use(permissionMiddleware("stock.issue.resolve"))
-      .post(
-        "/issue/:movementId/resolve",
-        async (context) => {
-          const { params, body, set, user } = context as any;
-          const { movementId } = params;
-          const { action, note } = body;
+    app.use(permissionMiddleware("stock.issue.view")).get(
+      "/issue/:movementId",
+      async (context) => {
+        const { params, set } = context;
+        try {
+          const result = await StockIssueService.getIssueDetail(
+            params.movementId,
+          );
+          return { success: true, data: result };
+        } catch (error) {
+          set.status = 500;
+          return formatErrorResponse(error);
+        }
+      },
+      {
+        detail: {
+          tags: ["Stock Out Unified"],
+          summary: "Get Stock Issue Detail",
+        },
+      },
+    ),
+  )
+  .group("", (app) =>
+    app.use(permissionMiddleware("stock.issue.resolve")).post(
+      "/issue/:movementId/resolve",
+      async (context) => {
+        const { params, body, set, user } = context as any;
+        const { movementId } = params;
+        const { action, note } = body;
 
-          try {
-            // Note: Service expects (movementId, adminId, decision, note)
-            const result = await StockIssueService.resolveIssue(
-              movementId,
-              user.id,
-              action,
-              note,
-            );
-            return { success: true, data: result };
-          } catch (error) {
-            set.status = 500;
-            return formatErrorResponse(error);
-          }
+        try {
+          // Note: Service expects (movementId, adminId, decision, note)
+          const result = await StockIssueService.resolveIssue(
+            movementId,
+            user.id,
+            action,
+            note,
+          );
+          return { success: true, data: result };
+        } catch (error) {
+          set.status = 500;
+          return formatErrorResponse(error);
+        }
+      },
+      {
+        body: t.Object({
+          action: t.Union([t.Literal("APPROVE"), t.Literal("REJECT")]),
+          note: t.Optional(t.String()),
+        }),
+        detail: {
+          tags: ["Stock Out Unified"],
+          summary: "Resolve Stock Issue (Admin Approval)",
+          description:
+            "Approve or Reject 'Lost/Damaged' reports from Supervisors.",
         },
-        {
-          body: t.Object({
-            action: t.Union([t.Literal("APPROVE"), t.Literal("REJECT")]),
-            note: t.Optional(t.String()),
-          }),
-          detail: {
-            tags: ["Stock Out Unified"],
-            summary: "Resolve Stock Issue (Admin Approval)",
-            description:
-              "Approve or Reject 'Lost/Damaged' reports from Supervisors.",
-          },
-        },
-      )
+      },
+    ),
   );

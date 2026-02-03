@@ -1,6 +1,7 @@
 import db from "../../../config/db";
 import { ValidationError } from "../../../utils/errors";
 import { ActivityLogService } from "../../activity-log/service";
+import { LowStockService } from "../../../services/lowStockService";
 
 export class StockInVoucherService {
   /**
@@ -31,8 +32,8 @@ export class StockInVoucherService {
       );
     }
 
-    const quantity = endNum - startNum + 1;
-    if (quantity > 1000) {
+    const quantityRequested = endNum - startNum + 1;
+    if (quantityRequested > 1000) {
       throw new ValidationError("Maksimal 1000 voucher per transaksi.");
     }
 
@@ -73,13 +74,18 @@ export class StockInVoucherService {
       const serialNumbers: string[] = [];
       const width = 5; // Fixed 5 digit suffix
 
-      for (let i = 0; i < quantity; i++) {
+      for (let i = 0; i < quantityRequested; i++) {
         const currentSuffix = (startNum + i).toString().padStart(width, "0");
         serialNumbers.push(`${prefix}${currentSuffix}`);
       }
 
-      // 4. Verify Cards Exist and are ON_REQUEST
-      const cards = await tx.card.findMany({
+      // 4. Verify Cards Exist and Filter Status
+      // Logic:
+      // - Status ON_REQUEST -> Process
+      // - Status IN_OFFICE -> Skip
+      // - Others -> Error
+      // - Missing -> Error (Must be generated first)
+      const existingCards = await tx.card.findMany({
         where: {
           serialNumber: { in: serialNumbers },
           cardProductId: product.id,
@@ -87,97 +93,120 @@ export class StockInVoucherService {
         select: { id: true, serialNumber: true, status: true },
       });
 
-      if (cards.length !== quantity) {
-        // Find missing
-        const foundSerials = new Set(cards.map((c) => c.serialNumber));
+      const foundSerials = new Set(existingCards.map((c) => c.serialNumber));
+      if (existingCards.length !== serialNumbers.length) {
         const missing = serialNumbers.filter((s) => !foundSerials.has(s));
         throw new ValidationError(
           `Beberapa serial number tidak ditemukan (Mungkin tanggal salah?): ${missing.slice(0, 3).join(", ")}...`,
         );
       }
 
-      const invalidCards = cards.filter((c) => c.status !== "ON_REQUEST");
-      if (invalidCards.length > 0) {
-        throw new ValidationError(
-          `Beberapa kartu tidak dalam status ON_REQUEST (Sudah di-stock in?): ${invalidCards[0].serialNumber}`,
-        );
+      const toProcess: string[] = [];
+      const toProcessSerials: string[] = [];
+      const skippedSerials: string[] = [];
+
+      for (const card of existingCards) {
+        if (card.status === "ON_REQUEST") {
+          toProcess.push(card.id);
+          toProcessSerials.push(card.serialNumber);
+        } else if (card.status === "IN_OFFICE") {
+          skippedSerials.push(card.serialNumber);
+        } else {
+          // Collision / Invalid state
+          throw new ValidationError(
+            `Beberapa kartu memiliki status tidak valid (bukan ON_REQUEST atau IN_OFFICE): ${card.serialNumber} (${card.status}).`,
+          );
+        }
       }
 
-      // 5. Update Cards Status -> IN_OFFICE
-      await tx.card.updateMany({
-        where: { id: { in: cards.map((c) => c.id) } },
-        data: {
-          status: "IN_OFFICE",
-          updatedAt: new Date(),
-        },
-      });
+      let movementId = null;
 
-      // 6. Create Movement
-      const movement = await tx.cardStockMovement.create({
-        data: {
-          movementAt: new Date(movementAt),
-          movementType: "IN",
-          categoryId: product.categoryId,
-          typeId: product.typeId,
-          quantity: quantity,
-          receivedSerialNumbers: [],
-          sentSerialNumbers: serialNumbers, // Prisma supports String[]
-          createdBy: userId,
-          note: note,
-          status: "APPROVED", // "APPROVED" is the correct enum for valid/completed stock-in
-        },
-        include: {
-          category: {
-            select: {
-              id: true,
-              categoryName: true,
-              categoryCode: true,
-              programType: true,
-            },
+      if (toProcess.length > 0) {
+        // 5. Update Cards Status -> IN_OFFICE
+        await tx.card.updateMany({
+          where: { id: { in: toProcess } },
+          data: {
+            status: "IN_OFFICE",
+            updatedAt: new Date(),
           },
-          type: { select: { id: true, typeName: true, typeCode: true } },
-        },
-      });
+        });
 
-      // 7. Activity Log
-      await ActivityLogService.createActivityLog(
-        userId,
-        "CREATE_STOCK_IN_VOUCHER",
-        `Stock In Voucher: ${quantity} pcs for ${product.category.categoryName} - ${product.type.typeName} (Date: ${dateBase.toISOString().split("T")[0]})`,
-      );
+        // 6. Create Movement
+        const movement = await tx.cardStockMovement.create({
+          data: {
+            movementAt: new Date(movementAt),
+            movementType: "IN",
+            categoryId: product.categoryId,
+            typeId: product.typeId,
+            quantity: toProcess.length, // actual processed
+            receivedSerialNumbers: [],
+            sentSerialNumbers: toProcessSerials, // Prisma supports String[]
+            createdBy: userId,
+            note: note,
+            status: "APPROVED", // "APPROVED" is the correct enum for valid/completed stock-in
+          },
+          include: {
+            category: {
+              select: {
+                id: true,
+                categoryName: true,
+                categoryCode: true,
+                programType: true,
+              },
+            },
+            type: { select: { id: true, typeName: true, typeCode: true } },
+          },
+        });
+        movementId = movement.id;
+
+        // 7. Activity Log
+        await ActivityLogService.createActivityLog(
+          userId,
+          "CREATE_STOCK_IN_VOUCHER",
+          `Stock In Voucher: ${toProcess.length} pcs for ${product.category.categoryName} - ${product.type.typeName} (Date: ${dateBase.toISOString().split("T")[0]})`,
+        );
+
+        // --- LOW STOCK TRIGGER ---
+        const currentStock = await tx.card.count({
+          where: {
+            status: "IN_OFFICE",
+            cardProductId: product.id,
+          },
+        });
+
+        await LowStockService.checkStock(
+          product.categoryId,
+          product.typeId,
+          null, // Office Scope
+          currentStock,
+          tx,
+        );
+        // -------------------------
+      }
+
+      // Construct Custom Message
+      // "Stock In Berhasil. Total kartu tersedia: [Total]. (Baru masuk: [New], Sudah ada sebelumnya: [Skipped])"
+      const message = `Stock In Berhasil. Total kartu tersedia: ${quantityRequested}. (Baru masuk: ${toProcess.length}, Sudah ada sebelumnya: ${skippedSerials.length})`;
 
       return {
-        movement: {
-          id: movement.id,
-          movementAt: movement.movementAt.toISOString(),
-          movementType: "IN",
-          quantity: movement.quantity,
-          status: movement.status,
-          batchId: movement.batchId,
-          note: movement.note,
-          createdAt: movement.createdAt.toISOString(),
-          createdByName: null, // Can fetch if needed or return ID in different field
-          cardCategory: {
-            id: movement.category.id,
-            name: movement.category.categoryName,
-            code: movement.category.categoryCode, // Need to fetch or ensure it's in include
-            programType: movement.category.programType,
-          },
-          cardType: {
-            id: movement.type.id,
-            name: movement.type.typeName,
-            code: movement.type.typeCode, // Need to fetch or ensure it's in include
-          },
-          product: {
-            id: product.id,
-            name: `${product.category.categoryName} - ${product.type.typeName}`,
-          },
-          sentSerialNumbers: serialNumbers,
-          receivedSerialNumbers: [],
-          items: serialNumbers.map((sn) => ({
-            serialNumber: sn,
-            status: "IN_OFFICE",
-          })),
+        success: true,
+        message,
+        data: {
+          movementId,
+          quantityRequested,
+          processedCount: toProcess.length,
+          skippedCount: skippedSerials.length,
+          movement: movementId
+            ? {
+                // Construct partial movement object for FE if needed, or just ID
+                id: movementId,
+                movementAt: new Date(movementAt).toISOString(),
+                movementType: "IN",
+                quantity: toProcess.length,
+                status: "APPROVED",
+                // ... other fields simplified
+              }
+            : null,
         },
       };
     });

@@ -87,6 +87,21 @@ export namespace StockInVoucherModel {
 
   export const stockInVoucherResponse = t.Object({
     success: t.Boolean(),
+    message: t.String(),
+    data: t.Object({
+      movementId: t.String(),
+      cardProductId: t.String(),
+      quantityRequested: t.Number(),
+      processedCount: t.Number(),
+      skippedCount: t.Number(),
+      startSerial: t.String(),
+      endSerial: t.String(),
+      serialDate: t.String(),
+    }),
+  });
+
+  export const getDetailResponse = t.Object({
+    success: t.Boolean(),
     data: t.Object({
       movement: t.Object({
         id: t.String(),
@@ -125,6 +140,18 @@ export namespace StockInVoucherModel {
         ),
       }),
     }),
+  });
+
+  // Update Response
+  export const updateStockInResponse = t.Object({
+    success: t.Boolean(),
+    message: t.String(),
+    data: t.Optional(
+      t.Object({
+        id: t.String(),
+        updatedAt: t.String(),
+      }),
+    ),
   });
 
   export const errorResponse = t.Object({

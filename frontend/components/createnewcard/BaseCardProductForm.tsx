@@ -272,7 +272,9 @@ export default function BaseCardProductForm({
 
         {/* HARGA */}
         <div className="col-span-6">
-          <label className="mb-1 block text-sm font-medium">Harga</label>
+          <label className="mb-1 block text-sm font-medium">
+            Harga {programType === "VOUCHER" ? "Voucher" : "FWC"}
+          </label>
           <input
             className="h-11 w-full rounded-lg border px-4"
             value={price}

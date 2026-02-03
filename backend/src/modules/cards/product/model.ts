@@ -181,6 +181,7 @@ export namespace CardProductModel {
     isDiscount: t.Optional(
       t.Boolean({ description: "Apakah produk ini diskon bulk?" }),
     ),
+    isActive: t.Optional(t.Boolean({ description: "Set Active Status" })),
   });
 
   // Update Card Product Response
@@ -200,36 +201,6 @@ export namespace CardProductModel {
       programType: t.Nullable(
         t.Union([t.Literal("FWC"), t.Literal("VOUCHER")]),
       ),
-      isActive: t.Boolean(),
-      createdAt: t.Nullable(t.Date()),
-      createdBy: t.Nullable(t.String()),
-      updatedAt: t.Nullable(t.Date()),
-      updatedBy: t.Nullable(t.String()),
-      deletedAt: t.Nullable(t.Date()),
-      deletedBy: t.Nullable(t.String()),
-    }),
-  });
-
-  // Toggle Active Status Request
-  export const toggleActiveStatusRequest = t.Object({
-    isActive: t.Boolean({
-      description: "Set Active Status",
-    }),
-  });
-
-  // Toggle Active Status Response
-  export const toggleActiveStatusResponse = t.Object({
-    success: t.Boolean(),
-    message: t.String(),
-    data: t.Object({
-      id: t.String(),
-      categoryId: t.String(),
-      typeId: t.String(),
-      totalQuota: t.Number(),
-      masaBerlaku: t.Number(),
-      maxQuantity: t.Nullable(t.Number()),
-      price: t.String(),
-      isDiscount: t.Boolean(),
       isActive: t.Boolean(),
       createdAt: t.Nullable(t.Date()),
       createdBy: t.Nullable(t.String()),

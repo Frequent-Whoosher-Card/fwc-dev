@@ -6,6 +6,7 @@ import {
 } from "@prisma/client";
 import { AppError } from "../../../utils/errors";
 import { ActivityLogService } from "../../activity-log/service";
+import { LowStockService } from "../../../services/lowStockService";
 
 export class TransferService {
   // 1. Create Transfer (Send Cards)
@@ -28,7 +29,7 @@ export class TransferService {
       userId,
     } = payload;
 
-    return await db.$transaction(async (tx) => {
+    const result = await db.$transaction(async (tx) => {
       const quantity = cardIds.length;
 
       // 1. Validate Source Inventory exists
@@ -123,6 +124,30 @@ export class TransferService {
 
       return movement;
     });
+    // End Transaction
+
+    // --- POST-TRANSACTION TRIGGER ---
+    // Check Source Station Stock
+    const currentStock = await db.card.count({
+      where: {
+        stationId: stationId,
+        status: CardStatus.IN_STATION,
+        cardProduct: {
+          categoryId: categoryId,
+          typeId: typeId,
+        },
+      },
+    });
+
+    await LowStockService.checkStock(
+      categoryId,
+      typeId,
+      stationId,
+      currentStock,
+    );
+    // --------------------------------
+
+    return result;
   }
 
   // 2. See Pending Transfers (Incoming/Outgoing)
