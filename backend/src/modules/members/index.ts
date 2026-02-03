@@ -2,7 +2,7 @@ import { Elysia, t } from "elysia";
 import { MemberModel } from "./model";
 import { MemberService } from "./service";
 import { permissionMiddleware } from "../../middleware/permission";
-import { formatErrorResponse } from "../../utils/errors";
+import { formatErrorResponse, ValidationError } from "../../utils/errors";
 
 type AuthContextUser = {
   user: {
@@ -57,6 +57,7 @@ const baseRoutes = new Elysia()
           gender,
           hasNippKai,
           employeeTypeId: employeeTypeId || undefined,
+          isDeleted: query.isDeleted === "true",
         });
         return {
           success: true,
@@ -212,15 +213,16 @@ const deleteRoutes = new Elysia()
   .delete(
     "/:id",
     async (context) => {
-      const { params, set, user } = context as typeof context & AuthContextUser;
+      const { params, set, user, body } = context as typeof context & AuthContextUser & { body: { notes: string } };
       try {
-        const result = await MemberService.delete(params.id, user.id);
+        const result = await MemberService.delete(params.id, user.id, body.notes);
         return result;
       } catch (error) {
         set.status =
           error instanceof Error && "statusCode" in error
             ? (error as any).statusCode
             : 500;
+        if (error instanceof ValidationError) set.status = 400;
         return formatErrorResponse(error);
       }
     },
@@ -228,6 +230,7 @@ const deleteRoutes = new Elysia()
       params: t.Object({
         id: t.String(),
       }),
+      body: MemberModel.deleteMemberBody,
       response: {
         200: MemberModel.genericResponse,
         400: MemberModel.errorResponse,
@@ -239,7 +242,7 @@ const deleteRoutes = new Elysia()
       detail: {
         tags: ["Members"],
         summary: "Delete member (Soft Delete)",
-        description: "Soft delete a member (admin, superadmin only)",
+        description: "Soft delete a member. Alasan penghapusan wajib diisi (admin, superadmin only)",
       },
     }
   );

@@ -57,12 +57,13 @@ export class MemberService {
     gender?: string;
     hasNippKai?: string;
     employeeTypeId?: string;
+    isDeleted?: boolean;
   }) {
-    const { page, limit, search, startDate, endDate, gender, hasNippKai, employeeTypeId } = params;
+    const { page, limit, search, startDate, endDate, gender, hasNippKai, employeeTypeId, isDeleted = false } = params;
     const skip = page && limit ? (page - 1) * limit : undefined;
 
     const where: any = {
-      deletedAt: null, // Soft delete filter
+      deletedAt: isDeleted ? { not: null } : null,
     };
 
     // Filter by NIPKAI - only members that have NIPKAI
@@ -210,11 +211,12 @@ export class MemberService {
       db.member.count({ where }),
     ]);
 
-    // Fetch user names for createdBy/updatedBy
+    // Fetch user names for createdBy/updatedBy/deletedBy
     const userIds = new Set<string>();
     items.forEach((i) => {
       if (i.createdBy) userIds.add(i.createdBy);
       if (i.updatedBy) userIds.add(i.updatedBy);
+      if (i.deletedBy) userIds.add(i.deletedBy);
     });
 
     const users = await db.user.findMany({
@@ -241,6 +243,10 @@ export class MemberService {
         : null,
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
+      ...(item.deletedAt && {
+        deletedAt: item.deletedAt.toISOString(),
+        deletedByName: item.deletedBy ? userMap.get(item.deletedBy) || null : null,
+      }),
       createdByName: item.createdBy
         ? userMap.get(item.createdBy) || null
         : null,
@@ -375,11 +381,17 @@ export class MemberService {
 
   /**
    * Delete Member (Soft Delete)
+   * @param notes - Alasan penghapusan (wajib, disimpan di member.notes)
    */
-  static async delete(id: string, userId: string) {
+  static async delete(id: string, userId: string, notes: string) {
     const member = await db.member.findUnique({ where: { id } });
     if (!member || member.deletedAt) {
       throw new NotFoundError("Member tidak ditemukan");
+    }
+
+    const trimmedNotes = notes?.trim() ?? "";
+    if (!trimmedNotes) {
+      throw new ValidationError("Alasan penghapusan wajib diisi");
     }
 
     // Check if member has active cards
@@ -404,6 +416,7 @@ export class MemberService {
       data: {
         deletedAt: new Date(),
         deletedBy: userId,
+        notes: trimmedNotes,
       },
     });
 

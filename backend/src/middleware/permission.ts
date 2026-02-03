@@ -23,6 +23,11 @@ export const permissionMiddleware =
         throw new AuthorizationError("Forbidden: user role not defined");
       }
 
+      // Bypass for Superadmin
+      if (user.role.roleCode === "superadmin") {
+        return {};
+      }
+
       const permissions = Array.isArray(requiredPermissions)
         ? requiredPermissions
         : [requiredPermissions];

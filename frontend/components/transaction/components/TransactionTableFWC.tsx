@@ -113,6 +113,7 @@ export default function TransactionTable({
   const [selectedTransaction, setSelectedTransaction] = useState<Purchase | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [deleteReason, setDeleteReason] = useState("");
 
   const pageNumbers = Array.from(
     { length: pagination.totalPages },
@@ -131,39 +132,50 @@ export default function TransactionTable({
     if (deleteLoading) return;
     setOpenDelete(false);
     setSelectedTransaction(null);
+    setDeleteReason("");
   };
 
   const handleConfirmDelete = async () => {
     if (!selectedTransaction) return;
+
+    const trimmed = deleteReason.trim();
+    if (!trimmed || trimmed.length < 15) {
+      alert("Alasan penghapusan wajib diisi minimal 15 karakter");
+      return;
+    }
 
     try {
       setDeleteLoading(true);
 
       const token = localStorage.getItem("fwc_token");
       const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      
+
       const response = await fetch(`${API_URL}/purchases/${selectedTransaction.id}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({ notes: trimmed }),
       });
 
       if (!response.ok) {
-        throw new Error("Gagal menghapus transaksi");
+        const errData = await response.json().catch(() => ({}));
+        const msg = errData?.error?.message || errData?.message || "Gagal menghapus transaksi";
+        throw new Error(msg);
       }
 
       setOpenDelete(false);
       setSelectedTransaction(null);
+      setDeleteReason("");
       setShowSuccessModal(true);
 
-      // refresh data
       if (onDelete) {
         onDelete();
       }
     } catch (error) {
       console.error("Delete failed:", error);
-      alert("Gagal menghapus transaksi");
+      alert(error instanceof Error ? error.message : "Gagal menghapus transaksi");
     } finally {
       setDeleteLoading(false);
     }
@@ -332,6 +344,25 @@ export default function TransactionTable({
               Are you sure you want to delete this transaction?
             </p>
 
+            {/* ALASAN PENGHAPUSAN (wajib) */}
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Alasan penghapusan <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="Minimal 15 karakter (wajib diisi)"
+                rows={3}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#8D1231] focus:outline-none focus:ring-1 focus:ring-[#8D1231]"
+              />
+              {deleteReason.trim().length > 0 && deleteReason.trim().length < 15 && (
+                <p className="mt-1 text-xs text-amber-600">
+                  Minimal 15 karakter
+                </p>
+              )}
+            </div>
+
             {/* INFO BOX */}
             <div className="mt-4 rounded-lg bg-gray-50 px-4 py-3 text-sm">
               <div className="flex justify-between gap-3">
@@ -368,7 +399,7 @@ export default function TransactionTable({
 
               <button
                 onClick={handleConfirmDelete}
-                disabled={deleteLoading}
+                disabled={deleteLoading || deleteReason.trim().length < 15}
                 className="rounded-md bg-[#8D1231] px-5 py-2 text-sm text-white transition hover:bg-[#73122E] active:scale-95 disabled:opacity-50"
               >
                 {deleteLoading ? "Deleting..." : "Delete"}

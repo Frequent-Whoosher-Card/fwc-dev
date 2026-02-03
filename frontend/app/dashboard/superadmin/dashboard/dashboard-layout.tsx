@@ -73,6 +73,7 @@ import {
 import { API_BASE_URL } from "@/lib/apiConfig";
 import { MenuService, MenuItem } from "@/lib/services/menuService";
 import { useLanguage } from "@/hooks/useLanguage";
+import { useInbox } from "@/context/InboxContext";
 
 /* =========================
    ICON MAPPING HELPER
@@ -177,7 +178,11 @@ export default function DashboardLayout({
   const [authError, setAuthError] = useState<string | null>(null);
 
   // Dynamic Menu State
+  // Dynamic Menu State
   const [menuItems, setMenuItems] = useState<any[]>([]);
+  
+  // Badge State (Global Context)
+  const { unreadCounts } = useInbox();
 
   /* =========================
      AUTH VIA TOKEN + /auth/me + FETCH MENU
@@ -228,6 +233,8 @@ export default function DashboardLayout({
         if (user.station?.id) {
           setStationId(user.station.id);
         }
+
+        // Unread Counts handled by InboxContext
 
         // 3. Redirect if not in correct dashboard
         const basePath = `/dashboard/${mappedRole}`;
@@ -407,6 +414,11 @@ export default function DashboardLayout({
                     >
                       <item.icon className="h-5 w-5" />
                       {item.title}
+                      {(item.href.includes("/inbox") || item.href.includes("/noted")) && unreadCounts.total > 0 && (
+                        <span className="ml-auto bg-white text-[#8D1231] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                          {unreadCounts.total}
+                        </span>
+                      )}
                     </Link>
 
                     {hasChildren && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import InboxFilter, { InboxFilters } from "@/components/inbox/InboxFilter";
 import InboxList from "@/components/inbox/InboxList";
@@ -11,12 +11,17 @@ import Pagination from "@/components/ui/pagination";
 
 import FormNoted from "./formnoted/page";
 import SwitchTab from "@/components/SwitchTab";
+import { useInbox } from "@/context/InboxContext";
 
 export default function InboxPage() {
   // =========================
   // STATE DATA & LOADING
   // =========================
   const router = useRouter();
+  const { unreadCounts, decrementUnread } = useInbox();
+  
+  // Track previous unread counts to detect INCREASES (New Messages)
+  const prevUnreadRef = useRef(unreadCounts);
 
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,8 +30,12 @@ export default function InboxPage() {
   const [currentFilters, setCurrentFilters] = useState<InboxFilters>({});
 
   // Pagination State
+  // Pagination State
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+
+  // Badge State (Context)
 
   // =========================
   // FETCH INBOX DATA
@@ -100,6 +109,7 @@ export default function InboxPage() {
           // Set Pagination Data
           if (result.data.pagination) {
              setTotalPages(result.data.pagination.totalPages);
+             setTotalItems(result.data.pagination.total || 0);
           }
 
           let mappedItems = result.data.items.map((item: any) => {
@@ -155,10 +165,27 @@ export default function InboxPage() {
     [router, activeTab]
   );
   
-  // INITIAL FETCH
+
+
+  // INITIAL FETCH & ON PAGE CHANGE
   useEffect(() => {
     fetchInbox(page, currentFilters);
   }, [fetchInbox, page, currentFilters]);
+
+  // SMART AUTO-REFRESH: Detect if Unread Count INCREASES (New Message)
+  useEffect(() => {
+    const key = activeTab.toLowerCase() as keyof typeof unreadCounts;
+    const currentCount = unreadCounts[key as "fwc" | "voucher"] || 0;
+    const prevCount = prevUnreadRef.current[key as "fwc" | "voucher"] || 0;
+    
+    // Only refresh if count INCREASED (New Message) and we are on Page 1
+    if (currentCount > prevCount && page === 1) {
+        console.log(`[SupervisorPage] New ${activeTab} message detected! Refreshing list...`);
+        fetchInbox(1, currentFilters);
+    }
+    
+    prevUnreadRef.current = unreadCounts;
+  }, [unreadCounts, activeTab, fetchInbox, page, currentFilters]);
 
   // Handle Tab Change (Reset Page)
   const handleTabChange = (val: string) => {
@@ -175,8 +202,26 @@ export default function InboxPage() {
     router.push("/dashboard/supervisor/noted/formnoted");
   };
 
-  const handleOpenDetail = (item: any) => {
-    setActiveItem(item);
+  const handleOpenDetail = async (item: any) => {
+    // Optimistic Update & API Call if Unread
+    if (!item.isRead) {
+        setItems(prev => prev.map(i => i.id === item.id ? { ...i, isRead: true } : i));
+        
+        decrementUnread(item.programType as "FWC" | "VOUCHER");
+
+        try {
+           const token = localStorage.getItem("fwc_token");
+           if (token) {
+               await fetch(`${API_BASE_URL}/inbox/${item.id}/read`, {
+                   method: "PATCH",
+                   headers: { Authorization: `Bearer ${token}` }
+               });
+           }
+        } catch (err) {
+           console.error("Failed to mark as read", err);
+        }
+    }
+    setActiveItem({ ...item, isRead: true });
   };
   
   const handleCloseDetail = () => {
@@ -198,8 +243,8 @@ export default function InboxPage() {
           activeValue={activeTab} 
           onValueChange={handleTabChange}
           items={[
-            { label: "FWC", value: "FWC" },
-            { label: "Voucher", value: "VOUCHER" }
+            { label: "FWC", value: "FWC", count: unreadCounts.fwc },
+            { label: "Voucher", value: "VOUCHER", count: unreadCounts.voucher }
           ]}
         />
       </div>
@@ -211,6 +256,17 @@ export default function InboxPage() {
 
       {/* LIST */}
       <div className="rounded-xl border bg-white shadow-sm flex-1 flex flex-col min-h-0">
+         {/* Table Toolbar / Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b">
+           <h3 className="text-sm font-semibold text-gray-700">Messages List</h3>
+           <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">Total Data:</span>
+              <span className="px-2.5 py-0.5 rounded-md bg-[#8D1231]/10 text-[#8D1231] text-xs font-medium border border-[#8D1231]/20">
+                {totalItems}
+              </span>
+           </div>
+        </div>
+
         <div className="flex-1 overflow-y-auto">
           <InboxList
             items={items}

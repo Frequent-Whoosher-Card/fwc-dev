@@ -382,8 +382,13 @@ export class CardInventoryService {
           "IN_OFFICE",
           "IN_STATION",
           "IN_TRANSIT",
+          "ON_TRANSFER",
           "SOLD_ACTIVE",
           "SOLD_INACTIVE",
+          "LOST",
+          "DAMAGED",
+          "BLOCKED",
+          "LOST_BY_PASSANGER",
         ] as any[],
       },
     };
@@ -433,6 +438,9 @@ export class CardInventoryService {
         totalAktif: number;
         totalNonAktif: number;
         totalInTransit: number;
+        totalLost: number;
+        totalDamaged: number;
+        totalOther: number;
       }
     >();
 
@@ -451,6 +459,9 @@ export class CardInventoryService {
           totalAktif: 0,
           totalNonAktif: 0,
           totalInTransit: 0,
+          totalLost: 0,
+          totalDamaged: 0,
+          totalOther: 0,
         });
       }
     }
@@ -471,17 +482,19 @@ export class CardInventoryService {
         else if (status === "IN_TRANSIT") entry.totalInTransit += count;
         else if (status === "SOLD_ACTIVE") entry.totalAktif += count;
         else if (status === "SOLD_INACTIVE") entry.totalNonAktif += count;
+        else {
+          // LOST, DAMAGED, ON_TRANSFER, BLOCKED, OTHER -> Merge into InTransit
+          // to ensure Table Total matches Total Summary without adding columns (User Request)
+          entry.totalInTransit += count;
+        }
       }
     }
 
     // 5. Transform to Final Output
     return Array.from(resultMap.values()).map((item) => {
       const totalBeredar =
-        item.totalBelumTerjual +
-        item.totalInTransit +
-        item.totalAktif +
-        item.totalNonAktif;
-      const totalStock = item.totalOffice + totalBeredar;
+        item.totalBelumTerjual + item.totalAktif + item.totalNonAktif;
+      const totalStock = item.totalOffice + totalBeredar + item.totalInTransit; // item.totalInTransit now includes Lost/Damaged/Other
 
       return {
         categoryId: item.categoryId,
@@ -495,6 +508,9 @@ export class CardInventoryService {
         totalNonAktif: item.totalNonAktif,
         totalBelumTerjual: item.totalBelumTerjual,
         totalInTransit: item.totalInTransit,
+        totalLost: item.totalLost,
+        totalDamaged: item.totalDamaged,
+        totalOther: item.totalOther,
       };
     });
   }
@@ -513,7 +529,19 @@ export class CardInventoryService {
 
     // 2. Aggregate inventory berdasarkan stationId (Realtime Count)
     const cardWhere: any = {
-      status: "IN_STATION",
+      status: {
+        in: [
+          "IN_STATION",
+          "IN_TRANSIT",
+          "ON_TRANSFER",
+          "SOLD_ACTIVE",
+          "SOLD_INACTIVE",
+          "LOST",
+          "DAMAGED",
+          "BLOCKED",
+          "LOST_BY_PASSANGER",
+        ],
+      },
     };
 
     if (programType) {
@@ -527,18 +555,37 @@ export class CardInventoryService {
     // Note: cardBelumTerjual = IN_STATION.
 
     // Group by Station
-    const summaryMap = new Map<string, { total: number; inTransit: number }>();
+    const summaryMap = new Map<
+      string,
+      {
+        total: number;
+        inTransit: number;
+        sold: number;
+        lostDamaged: number;
+        inStation: number;
+      }
+    >();
     cardCounts.forEach((c) => {
       if (!c.stationId) return;
       const current = summaryMap.get(c.stationId) || {
         total: 0,
         inTransit: 0,
+        sold: 0,
+        lostDamaged: 0,
+        inStation: 0,
       };
       const count = c._count._all;
       current.total += count;
-      if (c.status === "IN_TRANSIT") {
+
+      if (c.status === "IN_STATION") {
+        current.inStation += count;
+      } else if (c.status === "SOLD_ACTIVE" || c.status === "SOLD_INACTIVE") {
+        current.sold += count;
+      } else {
+        // IN_TRANSIT, ON_TRANSFER, LOST, DAMAGED, BLOCKED -> Merge into InTransit
         current.inTransit += count;
       }
+
       summaryMap.set(c.stationId, current);
     });
 
@@ -547,17 +594,19 @@ export class CardInventoryService {
       const stats = summaryMap.get(station.id) || {
         total: 0,
         inTransit: 0,
+        sold: 0,
+        lostDamaged: 0,
+        inStation: 0,
       };
 
       return {
         stationId: station.id,
         stationName: station.stationName,
         stationCode: station.stationCode,
-        // Properti lain (cardBeredar, dll) sebelumnya ada di CardInventory.
-        cardBeredar: stats.total, // Asumsi Beredar = yang ada di station (belum terjual) + intransit matches logic?
-        cardAktif: 0, // Tidak dihitung di summary level ini
-        cardNonAktif: 0,
-        cardBelumTerjual: stats.total, // Including transit
+        cardBeredar: stats.total - stats.sold, // Beredar = yang belum terjual (Station + Transit + Lost/Damaged)
+        cardAktif: stats.sold,
+        cardNonAktif: 0, // Not separated here
+        cardBelumTerjual: stats.inStation,
         cardInTransit: stats.inTransit,
         cardOffice: 0,
         totalCards: stats.total,
@@ -722,20 +771,14 @@ export class CardInventoryService {
     }
 
     // Menghitung total jumlah seluruh kartu dari tabel Card
-    const [totalCards, totalLost, totalDamaged, totalIn, totalOut] =
+    const [totalCards, totalLost, totalDamaged, totalIn, totalOut, totalOther] =
       await Promise.all([
-        // Total All Active = (Office + Transit + Station + Sold)
+        // Total All Physical Cards (Excluding ON_REQUEST which are not yet "in" inventory)
         db.card.count({
           where: {
             ...where,
             status: {
-              in: [
-                "IN_OFFICE",
-                "IN_STATION",
-                "IN_TRANSIT",
-                "SOLD_ACTIVE",
-                "SOLD_INACTIVE",
-              ],
+              not: "ON_REQUEST",
             },
           },
         }),
@@ -743,16 +786,37 @@ export class CardInventoryService {
         db.card.count({ where: { ...where, status: "DAMAGED" } }),
         // Total In = Currently In Office
         db.card.count({ where: { ...where, status: "IN_OFFICE" } }),
-        // Total Out = Distributed (Station + Sold) - Exclude Transit
+        // Total Out = Distributed (Station + Transit + Sold + Transfer)
         db.card.count({
           where: {
             ...where,
             status: {
-              in: ["IN_STATION", "IN_TRANSIT", "SOLD_ACTIVE", "SOLD_INACTIVE"],
+              in: [
+                "IN_STATION",
+                "IN_TRANSIT",
+                "ON_TRANSFER",
+                "SOLD_ACTIVE",
+                "SOLD_INACTIVE",
+                "LOST",
+                "DAMAGED",
+                "BLOCKED",
+                "LOST_BY_PASSANGER",
+              ],
+            },
+          },
+        }),
+        // Remaining statuses for verification/accounting (should be 0 if we covered everything)
+        db.card.count({
+          where: {
+            ...where,
+            status: {
+              in: ["DELETED"],
             },
           },
         }),
       ]);
+
+    // Note: totalOut now includes LOST/DAMAGED as requested.
 
     return {
       totalCards,
@@ -760,6 +824,7 @@ export class CardInventoryService {
       totalDamaged,
       totalIn,
       totalOut,
+      totalOther,
     };
   }
 
@@ -788,7 +853,17 @@ export class CardInventoryService {
     const cardWhere: any = {
       stationId: { not: null }, // Only show valid stations
       status: {
-        in: ["IN_STATION", "IN_TRANSIT", "SOLD_ACTIVE", "SOLD_INACTIVE"],
+        in: [
+          "IN_STATION",
+          "IN_TRANSIT",
+          "ON_TRANSFER",
+          "SOLD_ACTIVE",
+          "SOLD_INACTIVE",
+          "LOST",
+          "DAMAGED",
+          "BLOCKED",
+          "LOST_BY_PASSANGER",
+        ],
       },
     };
 
@@ -863,7 +938,10 @@ export class CardInventoryService {
           cardBelumTerjual: 0, // IN_STATION
           aktif: 0, // SOLD_ACTIVE
           nonAktif: 0, // SOLD_INACTIVE
-          inTransit: 0, // IN_TRANSIT
+          inTransit: 0, // IN_TRANSIT + ON_TRANSFER
+          lost: 0,
+          damaged: 0,
+          other: 0,
           // Beredar = sum
         });
       }
@@ -874,7 +952,12 @@ export class CardInventoryService {
       if (item.status === "IN_STATION") entry.cardBelumTerjual += count;
       else if (item.status === "SOLD_ACTIVE") entry.aktif += count;
       else if (item.status === "SOLD_INACTIVE") entry.nonAktif += count;
-      else if (item.status === "IN_TRANSIT") entry.inTransit += count;
+      else if (item.status === "IN_TRANSIT" || item.status === "ON_TRANSFER")
+        entry.inTransit += count;
+      else if (item.status === "LOST" || item.status === "LOST_BY_PASSANGER")
+        entry.lost += count;
+      else if (item.status === "DAMAGED") entry.damaged += count;
+      else entry.other += count;
     }
 
     // Enrich
@@ -931,6 +1014,9 @@ export class CardInventoryService {
           total: total,
           cardBelumTerjual: inv.cardBelumTerjual,
           cardInTransit: inv.inTransit,
+          lost: inv.lost,
+          damaged: inv.damaged,
+          other: inv.other,
         };
       })
       .filter(Boolean);

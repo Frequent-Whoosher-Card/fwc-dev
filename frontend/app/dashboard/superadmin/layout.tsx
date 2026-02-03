@@ -4,6 +4,8 @@ import { useEffect } from 'react';
 import DashboardLayout from '@/app/dashboard/superadmin/dashboard/dashboard-layout';
 import { getFcmToken } from '@/lib/firebase';
 
+import { InboxProvider } from '@/context/InboxContext';
+
 export default function SuperadminLayout({
   children,
 }: {
@@ -15,5 +17,9 @@ export default function SuperadminLayout({
     });
   }, []);
 
-  return <DashboardLayout>{children}</DashboardLayout>;
+  return (
+    <InboxProvider>
+      <DashboardLayout>{children}</DashboardLayout>
+    </InboxProvider>
+  );
 }

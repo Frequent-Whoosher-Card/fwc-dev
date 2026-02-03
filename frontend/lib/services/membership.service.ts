@@ -22,6 +22,9 @@ export interface MemberListItem {
   updatedAt?: string;
   employeeTypeId?: string | null;
   employeeType?: { id: string; code: string; name: string } | null;
+  deletedAt?: string | null;
+  deletedByName?: string | null;
+  notes?: string | null;
 }
 
 export interface OCRExtractResponse {
@@ -57,6 +60,7 @@ export const getMembers = async (params?: {
   cardCategory?: string;
   hasNippKai?: boolean;
   employeeTypeId?: string;
+  isDeleted?: boolean;
 }) => {
   const query = new URLSearchParams();
 
@@ -87,6 +91,10 @@ export const getMembers = async (params?: {
     query.append("employeeTypeId", params.employeeTypeId);
   }
 
+  if (params?.isDeleted === true) {
+    query.append("isDeleted", "true");
+  }
+
   const res = await apiFetch(`/members?${query.toString()}`, { method: "GET" });
 
   const data = res?.data ?? {};
@@ -113,6 +121,9 @@ export const getMembers = async (params?: {
               updatedAt: item.updatedAt ?? null,
               employeeTypeId: item.employeeTypeId ?? null,
               employeeType: item.employeeType ?? null,
+              deletedAt: item.deletedAt ?? null,
+              deletedByName: item.deletedByName ?? null,
+              notes: item.notes ?? null,
             }),
           )
         : [],
@@ -150,9 +161,10 @@ export const updateMember = (id: string | number, payload: any) => {
 /**
  * DELETE MEMBER
  */
-export const deleteMember = (id: string | number) => {
+export const deleteMember = (id: string | number, notes: string) => {
   return apiFetch(`/members/${id}`, {
     method: "DELETE",
+    body: JSON.stringify({ notes: notes.trim() }),
   });
 };
 
