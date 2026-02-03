@@ -236,7 +236,7 @@ export default function InboxPage() {
   return (
     <div className="space-y-6 h-full flex flex-col">
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between flex-none gap-4">
+      <div className="flex items-center justify-between flex-none">
         <h1 className="text-xl font-semibold text-gray-900">Noted History</h1>
 
         <SwitchTab 
@@ -257,7 +257,7 @@ export default function InboxPage() {
       {/* LIST */}
       <div className="rounded-xl border bg-white shadow-sm flex-1 flex flex-col min-h-0">
          {/* Table Toolbar / Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between px-4 py-3 border-b gap-2">
+        <div className="flex items-center justify-between px-4 py-3 border-b">
            <h3 className="text-sm font-semibold text-gray-700">Messages List</h3>
            <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500">Total Data:</span>
