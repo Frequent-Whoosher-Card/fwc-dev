@@ -161,6 +161,7 @@ export namespace CardInventoryModel {
       totalDamaged: t.Number(),
       totalIn: t.Number(),
       totalOut: t.Number(),
+      totalOther: t.Number(),
     }),
   });
 
@@ -179,6 +180,9 @@ export namespace CardInventoryModel {
         totalNonAktif: t.Number(),
         totalBelumTerjual: t.Number(),
         totalInTransit: t.Number(),
+        totalLost: t.Number(),
+        totalDamaged: t.Number(),
+        totalOther: t.Number(),
       }),
     ),
   });
@@ -193,6 +197,9 @@ export namespace CardInventoryModel {
     total: t.Number(), // aktif + nonAktif
     cardBelumTerjual: t.Number(),
     cardInTransit: t.Number(),
+    lost: t.Number(),
+    damaged: t.Number(),
+    other: t.Number(),
   });
 
   export const getStationInventoryMonitorResponse = t.Object({
