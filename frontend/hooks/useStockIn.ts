@@ -29,8 +29,8 @@ export const useStockIn = ({ programType }: UseStockInProps) => {
   // filters
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  const [category, setCategory] = useState("all");
-  const [type, setType] = useState("all");
+  const [category, setCategory] = useState<string[]>([]);
+  const [type, setType] = useState<string[]>([]);
 
   // delete
   const [openDelete, setOpenDelete] = useState(false);
@@ -60,8 +60,8 @@ export const useStockIn = ({ programType }: UseStockInProps) => {
       const { items, pagination: paging } = await stockService.getStockInList({
         ...params,
         programType,
-        categoryName: category !== "all" ? category : undefined,
-        typeName: type !== "all" ? type : undefined,
+        categoryName: category.length > 0 ? category.join(",") : undefined,
+        typeName: type.length > 0 ? type.join(",") : undefined,
       });
 
       setData(items);
@@ -111,8 +111,9 @@ export const useStockIn = ({ programType }: UseStockInProps) => {
         const end = toDate ? toDate.split("-").reverse().join("-") : "...";
         filtersArr.push(`Periode: ${start} s/d ${end}`);
       }
-      if (category !== "all") filtersArr.push(`Kategori: ${category}`);
-      if (type !== "all") filtersArr.push(`Tipe: ${type}`);
+      if (category.length > 0)
+        filtersArr.push(`Kategori: ${category.join(", ")}`);
+      if (type.length > 0) filtersArr.push(`Tipe: ${type.join(", ")}`);
 
       const { doc, startY } = await initPDFReport({
         title: `Laporan Stock In ${programType} (Vendor ke Office)`,
@@ -131,8 +132,8 @@ export const useStockIn = ({ programType }: UseStockInProps) => {
         endDate: toDate
           ? new Date(toDate + "T23:59:59Z").toISOString()
           : undefined,
-        categoryName: category !== "all" ? category : undefined,
-        typeName: type !== "all" ? type : undefined,
+        categoryName: category.length > 0 ? category.join(",") : undefined,
+        typeName: type.length > 0 ? type.join(",") : undefined,
       });
 
       if (!allData || !Array.isArray(allData) || allData.length === 0) {
@@ -142,6 +143,7 @@ export const useStockIn = ({ programType }: UseStockInProps) => {
 
       autoTable(doc, {
         startY: startY,
+        margin: { left: 15, right: 15 },
         head: [
           ["No", "Tanggal", "Category", "Type", "Stock Masuk", "Serial Number"],
         ],
@@ -182,7 +184,7 @@ export const useStockIn = ({ programType }: UseStockInProps) => {
           halign: "center",
         },
         columnStyles: {
-          0: { cellWidth: 10 },
+          0: { cellWidth: 12 },
         },
       });
 

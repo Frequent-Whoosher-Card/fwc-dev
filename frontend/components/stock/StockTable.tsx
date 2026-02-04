@@ -5,9 +5,9 @@ import { useStockInventoryTable } from "@/hooks/useStockInventoryTable";
 interface StockTableProps {
   programType?: string;
   filters: {
-    station: string;
-    category: string;
-    type: string;
+    station: string[];
+    category: string[];
+    type: string[];
     startDate: string;
     endDate: string;
   };

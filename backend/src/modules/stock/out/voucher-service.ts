@@ -251,6 +251,7 @@ export class StockOutVoucherService {
       stationId,
       pushTitle,
       pushMessage,
+      { type: "VOUCHER" },
     );
     // --------------------------------
 
