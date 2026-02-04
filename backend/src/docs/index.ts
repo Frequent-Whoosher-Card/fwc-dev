@@ -151,7 +151,11 @@ export const docsConfig = swagger({
             { name: "category", in: "query", schema: { type: "string" } },
             { name: "cardType", in: "query", schema: { type: "string" } },
             { name: "redeemType", in: "query", schema: { type: "string" } },
-            { name: "product", in: "query", schema: { type: "string", enum: ["FWC", "VOUCHER"] } },
+            {
+              name: "product",
+              in: "query",
+              schema: { type: "string", enum: ["FWC", "VOUCHER"] },
+            },
             {
               name: "isDeleted",
               in: "query",
@@ -356,6 +360,14 @@ export const docsConfig = swagger({
       {
         name: "Card Product",
         description: "Card product management endpoints",
+      },
+      {
+        name: "Product Type",
+        description: "Product type management endpoints",
+      },
+      {
+        name: "Card Status",
+        description: "Card status management endpoints",
       },
       {
         name: "Generate",

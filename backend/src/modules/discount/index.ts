@@ -26,7 +26,10 @@ export const bulkDiscount = new Elysia({ prefix: "/discounts" })
     "/",
     async ({ query, set }) => {
       try {
-        const discounts = await BulkDiscountService.getAll(query.search);
+        const discounts = await BulkDiscountService.getAll(
+          query.search,
+          query.role,
+        );
         return {
           success: true,
           data: discounts,
