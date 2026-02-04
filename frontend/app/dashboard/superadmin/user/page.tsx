@@ -6,7 +6,8 @@ import toast from "react-hot-toast";
 
 import { getStations, StationItem } from "@/lib/services/station.service";
 import { getRoles, RoleItem } from "@/lib/services/user.service";
-import { getUsers, deleteUser } from "@/lib/services/user.service";
+import { getUsers, deleteUser, UserListItem } from "@/lib/services/user.service";
+import DeletedUserTable, { DeletedUserItem } from "@/components/user/DeletedUserTable";
 
 import { getAuthMe } from "@/lib/services/auth.service";
 
@@ -43,6 +44,17 @@ export default function UserManagementPage() {
 
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showDelete, setShowDelete] = useState(false);
+
+  // Deleted Users State
+  const [deletedUsers, setDeletedUsers] = useState<DeletedUserItem[]>([]);
+  const [isLoadingDeleted, setIsLoadingDeleted] = useState(false);
+  const [deletedPage, setDeletedPage] = useState(1);
+  const [deletedPagination, setDeletedPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 1,
+  });
 
   const [stations, setStations] = useState<StationItem[]>([]);
   const [loadingStation, setLoadingStation] = useState(false);
@@ -111,6 +123,8 @@ export default function UserManagementPage() {
     }
   };
 
+
+
   /* ======================
      EFFECTS
   ====================== */
@@ -131,6 +145,46 @@ export default function UserManagementPage() {
     fetchUsers(pagination.page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.page]);
+
+  /* Load riwayat penghapusan when page changes */
+  useEffect(() => {
+    loadDeletedUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deletedPage]);
+
+  const loadDeletedUsers = async () => {
+    setIsLoadingDeleted(true);
+    try {
+      // NOTE: Backend currently returns ACTIVE users because it ignores 'isDeleted=true'.
+      // To prevent showing duplicates, we FORCE EMPTY list until Backend is ready.
+      
+      /* 
+      const res = await getUsers({
+        page: deletedPage,
+        limit: 10,
+        isDeleted: true,
+      });
+      
+      if (res?.data?.items) {
+          ... mapping logic ...
+      } 
+      */
+
+      // FORCE EMPTY
+      setDeletedUsers([]);
+      setDeletedPagination({
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 1
+      });
+
+    } catch {
+      setDeletedUsers([]);
+    } finally {
+      setIsLoadingDeleted(false);
+    }
+  };
 
   useEffect(() => {
     setLoadingStation(true);
@@ -171,20 +225,7 @@ export default function UserManagementPage() {
   /* ======================
      DELETE
   ====================== */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const confirmDelete = async () => {
-    if (!selectedUser) return;
 
-    try {
-      await deleteUser(selectedUser.id);
-      toast.success("User deleted");
-      setShowDelete(false);
-      setSelectedUser(null);
-      fetchUsers(pagination.page);
-    } catch (err: any) {
-      toast.error(err?.message || "Failed delete user");
-    }
-  };
 
   /* ======================
      RENDER
@@ -241,20 +282,33 @@ export default function UserManagementPage() {
           setShowDelete(false);
           setSelectedUser(null);
         }}
-        onConfirm={async () => {
+        onConfirm={async (reason) => {
           if (!selectedUser) return;
 
           try {
-            await deleteUser(selectedUser.id);
+            await deleteUser(selectedUser.id, reason);
             toast.success("User deleted successfully");
 
             setShowDelete(false);
             setSelectedUser(null);
             fetchUsers(pagination.page);
+            loadDeletedUsers(); 
           } catch (err: any) {
-            toast.error(err?.response?.data?.message || "Failed delete user");
+             console.error(err);
+             toast.error(err?.response?.data?.message || "Failed delete user");
           }
         }}
+      />
+
+      {/* Riwayat Penghapusan */}
+      <DeletedUserTable
+        data={deletedUsers}
+        isLoading={isLoadingDeleted}
+        noDataMessage="Tidak ada data user yang dihapus"
+        currentPage={deletedPagination.page}
+        totalPages={deletedPagination.totalPages}
+        totalCount={deletedPagination.total}
+        onPageChange={setDeletedPage}
       />
     </div>
   );

@@ -21,9 +21,12 @@ export default function UserTable({
     <div>
       {/* HEADER SECTION (MOBILE ONLY) */}
       <div className="mb-4 flex items-center justify-between md:hidden">
-         <h3 className="text-base font-semibold text-gray-800">User List</h3>
-         <div className="text-xs font-medium text-gray-500">
-            Total Data: <span className="ml-1 rounded-md bg-[#FFE4E6] px-2 py-0.5 text-[#8D1231]">{totalData}</span>
+         <h3 className="text-sm font-semibold text-gray-700">User List</h3>
+         <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">Total Data:</span>
+            <span className="px-2.5 py-0.5 rounded-md bg-[#8D1231]/10 text-[#8D1231] text-xs font-medium border border-[#8D1231]/20">
+              {totalData}
+            </span>
          </div>
       </div>
 
@@ -32,15 +35,18 @@ export default function UserTable({
       ======================= */}
       <div className="hidden rounded-xl border bg-white shadow-sm md:block">
         {/* HEADER INSIDE CARD (DESKTOP) */}
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-           <h3 className="text-base font-semibold text-gray-800">User List</h3>
-           <div className="text-xs font-medium text-gray-500">
-              Total Data: <span className="ml-1 rounded-md bg-[#FFE4E6] px-2 py-0.5 text-[#8D1231]">{totalData}</span>
+        <div className="flex flex-col md:flex-row md:items-center justify-between px-4 py-3 border-b gap-2">
+           <h3 className="text-sm font-semibold text-gray-700">User List</h3>
+           <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">Total Data:</span>
+              <span className="px-2.5 py-0.5 rounded-md bg-[#8D1231]/10 text-[#8D1231] text-xs font-medium border border-[#8D1231]/20">
+                {totalData}
+              </span>
            </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full table-fixed text-sm">
+          <table className="w-full min-w-[1000px] table-fixed text-sm">
           <thead className="border-b bg-gray-50 text-[11px] font-semibold uppercase text-gray-600">
             <tr>
               <th className="w-[200px] px-4 py-3 text-left">Name</th>
