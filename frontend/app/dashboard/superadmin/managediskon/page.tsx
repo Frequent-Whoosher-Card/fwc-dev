@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { useDiscount } from "@/hooks/useDiscount";
 import { Edit2, Plus, Save, Trash2, X } from "lucide-react";
+import { MultiSelect } from "@/components/ui/multi-select";
 
 export default function ManageDiskonPage() {
   const {
@@ -83,14 +84,32 @@ export default function ManageDiskonPage() {
                     {rules.map((rule) => (
                       <div
                         key={rule.id}
-                        className="flex items-center justify-between rounded border p-2 text-sm"
+                        className="flex flex-col gap-1 rounded border p-2 text-sm"
                       >
-                        <span>
-                          {rule.minQuantity} - {rule.maxQuantity || "∞"} pcs
-                        </span>
-                        <span className="font-bold text-green-600">
-                          Diskon {Number(rule.discount)}%
-                        </span>
+                        <div className="flex items-center justify-between">
+                          <span>
+                            {rule.minQuantity} - {rule.maxQuantity || "∞"} pcs
+                          </span>
+                          <span className="font-bold text-green-600">
+                            Diskon {Number(rule.discount)}%
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {rule.roleAccess && rule.roleAccess.length > 0 ? (
+                            rule.roleAccess.map((role) => (
+                              <span
+                                key={role}
+                                className="inline-flex items-center rounded-sm bg-gray-100 px-1.5 py-0.5 text-[10px] uppercase font-medium text-gray-600"
+                              >
+                                {role}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-[10px] text-gray-400 italic">
+                              Semua Role (Default)
+                            </span>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -118,13 +137,14 @@ export default function ManageDiskonPage() {
                   <TableHead>Min. Qty</TableHead>
                   <TableHead>Max. Qty</TableHead>
                   <TableHead>Diskon (%)</TableHead>
+                  <TableHead>Role Access</TableHead>
                   <TableHead className="w-[100px]">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {/* Form Tambah Baru */}
                 {isAdding && (
-                  <TableRow className="bg-muted/50">
+                  <TableRow className="bg-muted/50 align-top">
                     <TableCell>
                       <Input
                         type="number"
@@ -171,8 +191,28 @@ export default function ManageDiskonPage() {
                             discount: e.target.valueAsNumber || e.target.value,
                           })
                         }
-                        className="h-8 w-24"
+                        className="h-8 w-16"
                       />
+                    </TableCell>
+                    <TableCell>
+                      <MultiSelect
+                        value={newRule.roleAccess}
+                        onChange={(val) =>
+                          setNewRule({ ...newRule, roleAccess: val })
+                        }
+                        options={[
+                          { id: "1", name: "Superadmin", code: "superadmin" },
+                          { id: "2", name: "Admin", code: "admin" },
+                          { id: "3", name: "Supervisor", code: "supervisor" },
+                          { id: "4", name: "Petugas", code: "petugas" },
+                        ]}
+                        placeholder="Pilih Role"
+                      />
+                      {newRule.roleAccess.length === 0 && (
+                        <span className="text-[10px] text-red-500 ml-1">
+                          Wajib diisi
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
@@ -180,7 +220,7 @@ export default function ManageDiskonPage() {
                           size="icon"
                           variant="ghost"
                           onClick={() => create()}
-                          disabled={loading}
+                          disabled={loading || newRule.roleAccess.length === 0}
                           className="h-8 w-8 text-green-600 hover:text-green-700"
                         >
                           <Save className="h-4 w-4" />
@@ -204,7 +244,10 @@ export default function ManageDiskonPage() {
 
                   if (isEditing && editForm) {
                     return (
-                      <TableRow key={rule.id} className="bg-blue-50/50">
+                      <TableRow
+                        key={rule.id}
+                        className="bg-blue-50/50 align-top"
+                      >
                         <TableCell>
                           <Input
                             type="number"
@@ -249,7 +292,30 @@ export default function ManageDiskonPage() {
                                   e.target.valueAsNumber || e.target.value,
                               })
                             }
-                            className="h-8 w-24"
+                            className="h-8 w-16"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <MultiSelect
+                            value={editForm.roleAccess}
+                            onChange={(val) =>
+                              setEditForm({ ...editForm, roleAccess: val })
+                            }
+                            options={[
+                              {
+                                id: "1",
+                                name: "Superadmin",
+                                code: "superadmin",
+                              },
+                              { id: "2", name: "Admin", code: "admin" },
+                              {
+                                id: "3",
+                                name: "Supervisor",
+                                code: "supervisor",
+                              },
+                              { id: "4", name: "Petugas", code: "petugas" },
+                            ]}
+                            placeholder="Pilih Role"
                           />
                         </TableCell>
                         <TableCell>
@@ -258,7 +324,9 @@ export default function ManageDiskonPage() {
                               size="icon"
                               variant="ghost"
                               onClick={() => update(rule.id)}
-                              disabled={loading}
+                              disabled={
+                                loading || editForm.roleAccess.length === 0
+                              }
                               className="h-8 w-8 text-green-600 hover:text-green-700"
                             >
                               <Save className="h-4 w-4" />
@@ -282,6 +350,24 @@ export default function ManageDiskonPage() {
                       <TableCell>{rule.minQuantity}</TableCell>
                       <TableCell>{rule.maxQuantity || "∞"}</TableCell>
                       <TableCell>{Number(rule.discount)}%</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {(rule.roleAccess || []).length > 0 ? (
+                            rule.roleAccess?.map((r) => (
+                              <span
+                                key={r}
+                                className="text-xs bg-gray-100 px-2 py-0.5 rounded capitalize border"
+                              >
+                                {r}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-gray-400 italic">
+                              No roles
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
                           <Button
@@ -310,7 +396,7 @@ export default function ManageDiskonPage() {
 
                 {!loading && rules.length === 0 && !isAdding && (
                   <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center">
+                    <TableCell colSpan={5} className="h-24 text-center">
                       Tidak ada aturan diskon
                     </TableCell>
                   </TableRow>

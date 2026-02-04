@@ -18,11 +18,6 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
   const router = useRouter();
   const { t } = useLanguage();
 
-  const tabs: SwitchTabItem[] = [
-    { label: "FWC", path: "/dashboard/superadmin/stock/fwc/out" },
-    { label: "Voucher", path: "/dashboard/superadmin/stock/voucher/out" },
-  ];
-
   const {
     data,
     pagination,
@@ -52,12 +47,7 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h2 className="text-lg font-semibold whitespace-nowrap">
-            {t("stock_out_title")}
-          </h2>
-          <SwitchTab items={tabs} />
-        </div>
+        {/* Header removed, controlled by parent page */}
 
         <StockFilterReusable
           programType={programType}
@@ -79,9 +69,9 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
             setPagination((p) => ({ ...p, page: 1 }));
           }}
           onReset={() => {
-            setCategory("all");
-            setType("all");
-            setStation("all");
+            setCategory([]);
+            setType([]);
+            setStation([]);
             setFromDate("");
             setToDate("");
             setPagination((p) => ({ ...p, page: 1 }));
@@ -203,7 +193,7 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
                       <button
                         onClick={() =>
                           router.push(
-                            `/dashboard/superadmin/stock/${programType.toLowerCase()}/out/${row.id}/view`,
+                            `/dashboard/superadmin/stock/out/${row.id}/view?type=${programType}`,
                           )
                         }
                         className="mx-auto flex items-center justify-center w-8 h-8 border border-gray-300 rounded-md text-gray-500 hover:bg-[#8D1231] hover:text-white transition-colors duration-200"
@@ -218,7 +208,7 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
                           onClick={() => {
                             if (row.status !== "APPROVED")
                               router.push(
-                                `/dashboard/superadmin/stock/${programType.toLowerCase()}/out/${row.id}/edit`,
+                                `/dashboard/superadmin/stock/out/${row.id}/edit?type=${programType}`,
                               );
                           }}
                           className={`rounded-md border px-3 py-1 text-xs transition-colors duration-200 ${row.status === "APPROVED" ? "border-gray-300 text-gray-400 bg-gray-100 cursor-not-allowed" : "border-blue-500 text-blue-600 hover:bg-blue-500 hover:text-white"}`}

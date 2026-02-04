@@ -5,9 +5,9 @@ import { useStockStation } from "@/hooks/useStockStation";
 interface StockStationProps {
   programType?: string;
   filters: {
-    station: string;
-    category: string;
-    type: string;
+    station: string[];
+    category: string[];
+    type: string[];
   };
 }
 

@@ -16,9 +16,9 @@ export interface StationRow {
 }
 
 interface Filters {
-  station: string;
-  category: string;
-  type: string;
+  station: string[];
+  category: string[];
+  type: string[];
 }
 
 export const useStockStation = (filters: Filters, programType?: string) => {
@@ -30,9 +30,11 @@ export const useStockStation = (filters: Filters, programType?: string) => {
     try {
       const params: Record<string, string> = { programType: programType ?? "" };
 
-      if (filters.station !== "all") params.stationName = filters.station;
-      if (filters.category !== "all") params.categoryName = filters.category;
-      if (filters.type !== "all") params.typeName = filters.type;
+      if (filters.station.length > 0)
+        params.stationName = filters.station.join(",");
+      if (filters.category.length > 0)
+        params.categoryName = filters.category.join(",");
+      if (filters.type.length > 0) params.typeName = filters.type.join(",");
 
       const res = await axios.get("/inventory/station-monitor", {
         params,
