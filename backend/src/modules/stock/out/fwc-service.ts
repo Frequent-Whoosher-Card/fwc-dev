@@ -274,6 +274,7 @@ export class StockOutFwcService {
       stationId,
       pushTitle,
       pushMessage,
+      { type: "FWC" },
     );
 
     // --------------------------------
