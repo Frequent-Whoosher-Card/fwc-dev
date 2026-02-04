@@ -147,6 +147,7 @@ export const useStockOut = ({ programType }: UseStockOutProps) => {
 
       autoTable(doc, {
         startY: startY,
+        margin: { left: 15, right: 15 },
         head: [
           [
             "No",
@@ -192,7 +193,7 @@ export const useStockOut = ({ programType }: UseStockOutProps) => {
           halign: "center",
         },
         columnStyles: {
-          0: { cellWidth: 8 },
+          0: { cellWidth: 12 },
           9: { cellWidth: 35 },
         },
       });

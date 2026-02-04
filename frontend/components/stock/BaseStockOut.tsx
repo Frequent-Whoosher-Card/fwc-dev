@@ -18,11 +18,6 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
   const router = useRouter();
   const { t } = useLanguage();
 
-  const tabs: SwitchTabItem[] = [
-    { label: "FWC", path: "/dashboard/superadmin/stock/fwc/out" },
-    { label: "Voucher", path: "/dashboard/superadmin/stock/voucher/out" },
-  ];
-
   const {
     data,
     pagination,
@@ -52,12 +47,7 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h2 className="text-lg font-semibold whitespace-nowrap">
-            {t("stock_out_title")}
-          </h2>
-          <SwitchTab items={tabs} />
-        </div>
+        {/* Header removed, controlled by parent page */}
 
         <StockFilterReusable
           programType={programType}

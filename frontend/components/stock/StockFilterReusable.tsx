@@ -41,10 +41,12 @@ interface StockFilterReusableProps {
     search?: boolean;
     dateRange?: boolean;
     add?: boolean;
+    exportPDF?: boolean;
   };
   statusOptions?: string[];
   addLabel?: string;
   programType?: "FWC" | "VOUCHER";
+  onExportPDF?: () => void;
 }
 
 export function StockFilterReusable({
@@ -60,6 +62,7 @@ export function StockFilterReusable({
   statusOptions = [],
   addLabel = "Tambah",
   programType,
+  onExportPDF,
 }: StockFilterReusableProps) {
   const [categories, setCategories] = useState<Option[]>([]);
   const [types, setTypes] = useState<Option[]>([]);
@@ -268,6 +271,17 @@ export function StockFilterReusable({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {/* EXPORT PDF */}
+          {showFields.exportPDF && onExportPDF && (
+            <button
+              onClick={onExportPDF}
+              className="flex flex-1 sm:flex-none items-center justify-center gap-2 rounded-md border border-[#8D1231] px-4 py-2 text-sm font-medium text-[#8D1231] bg-white hover:bg-red-50 transition-colors"
+            >
+              <FileDown size={16} />
+              <span className="whitespace-nowrap">Export PDF</span>
+            </button>
+          )}
+
           {/* ADD */}
           {showFields.add && onAdd && (
             <button

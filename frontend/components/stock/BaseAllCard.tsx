@@ -18,11 +18,6 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
   const userContext = useContext(UserContext);
   const role = userContext?.role || "superadmin";
 
-  const tabs: SwitchTabItem[] = [
-    { label: "FWC", path: `/dashboard/${role}/stock/fwc/all` },
-    { label: "Voucher", path: `/dashboard/${role}/stock/voucher/all` },
-  ];
-
   const { data, loading, pagination, setPagination, statusOptions, filters } =
     useAllCards({ programType });
 
@@ -48,12 +43,7 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h2 className="text-lg font-semibold whitespace-nowrap">
-            All Card ({programType})
-          </h2>
-          <SwitchTab items={tabs} />
-        </div>
+        {/* Header removed, controlled by parent page */}
 
         <StockFilterReusable
           programType={programType}

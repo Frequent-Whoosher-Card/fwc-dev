@@ -6,7 +6,7 @@ import { ProductType } from "@/lib/services/product-type.service";
 import TransferIncomingView from "@/components/stock/transfer/TransferIncomingView";
 import { ProgramType } from "@/lib/services/card.base.service";
 
-export default function VoucherTransferPage() {
+export default function TransferPage() {
   const [selectedProductType, setSelectedProductType] = useState<
     ProductType | undefined
   >(undefined);

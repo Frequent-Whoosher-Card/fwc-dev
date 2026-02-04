@@ -180,7 +180,7 @@ export default function DashboardLayout({
   // Dynamic Menu State
   // Dynamic Menu State
   const [menuItems, setMenuItems] = useState<any[]>([]);
-  
+
   // Badge State (Global Context)
   const { unreadCounts } = useInbox();
 
@@ -247,36 +247,90 @@ export default function DashboardLayout({
 
         // 4. Fetch Dynamic Menu
         try {
-          const menuData = await MenuService.getUserMenu();
-          console.log("[DashboardLayout] Raw Menu Data:", menuData);
+          // override menu for admin
+          if (mappedRole === "admin") {
+            const adminMenu = [
+              {
+                title: "New Product Card",
+                href: "/dashboard/admin/createnewcard",
+                icon: resolveIcon("idcard"),
+              },
+              {
+                title: "Generate Card",
+                href: "/dashboard/admin/generatenumber",
+                icon: resolveIcon("idcard"),
+              },
+              {
+                title: "Stok",
+                href: "#",
+                icon: resolveIcon("folderkanban"),
+                children: [
+                  {
+                    title: "Summary Stok",
+                    href: "/dashboard/admin/stock/all", // a. Stok all stock/Staiun
+                    icon: resolveIcon("circle"),
+                  },
+                  {
+                    title: "Stok Kartu Masuk",
+                    href: "/dashboard/admin/stock/in", // b. Stok Kartu Masuk
+                    icon: resolveIcon("arrowdowntoline"),
+                  },
+                  {
+                    title: "Stok Kartu Keluar",
+                    href: "/dashboard/admin/stock/out", // c. Stok Kartu Keluar
+                    icon: resolveIcon("arrowupnarrowwide"),
+                  },
+                  {
+                    title: "Semua Kartu",
+                    href: "/dashboard/admin/stock/all", // d. Semua Kertu (using same as a?)
+                    icon: resolveIcon("list"),
+                  },
+                  {
+                    title: "Transfer Kartu",
+                    href: "/dashboard/admin/stock/transfer", // e. Transfer Kartu
+                    icon: resolveIcon("transfer"),
+                  },
+                ],
+              },
+              {
+                title: "Manage Discount",
+                href: "/dashboard/admin/managediskon",
+                icon: resolveIcon("percentcircle"),
+              },
+            ];
+            setMenuItems(adminMenu);
+          } else {
+            const menuData = await MenuService.getUserMenu();
+            console.log("[DashboardLayout] Raw Menu Data:", menuData);
 
-          // Transform API menu to UI menu structure
-          const transformMenu = (items: MenuItem[]): any[] => {
-            return items.map((item) => {
-              let href = item.route || "#";
-              // Replace dynamic :role placeholder
-              if (href.includes(":role")) {
-                href = href.replace(":role", mappedRole);
-              }
+            // Transform API menu to UI menu structure
+            const transformMenu = (items: MenuItem[]): any[] => {
+              return items.map((item) => {
+                let href = item.route || "#";
+                // Replace dynamic :role placeholder
+                if (href.includes(":role")) {
+                  href = href.replace(":role", mappedRole);
+                }
 
-              console.log(
-                `[DashboardLayout] Transforming: ${item.label} -> ${href} (Role: ${mappedRole})`,
-              );
+                console.log(
+                  `[DashboardLayout] Transforming: ${item.label} -> ${href} (Role: ${mappedRole})`,
+                );
 
-              return {
-                title: item.label,
-                href: href,
-                icon: resolveIcon(item.icon),
-                children: item.children
-                  ? transformMenu(item.children)
-                  : undefined,
-              };
-            });
-          };
+                return {
+                  title: item.label,
+                  href: href,
+                  icon: resolveIcon(item.icon),
+                  children: item.children
+                    ? transformMenu(item.children)
+                    : undefined,
+                };
+              });
+            };
 
-          const transformed = transformMenu(menuData);
-          console.log("[DashboardLayout] Final Menu Items:", transformed);
-          setMenuItems(transformed);
+            const transformed = transformMenu(menuData);
+            console.log("[DashboardLayout] Final Menu Items:", transformed);
+            setMenuItems(transformed);
+          }
         } catch (menuErr) {
           console.error("Failed to load menu", menuErr);
           // Fallback or empty menu?
@@ -414,11 +468,13 @@ export default function DashboardLayout({
                     >
                       <item.icon className="h-5 w-5" />
                       {item.title}
-                      {(item.href.includes("/inbox") || item.href.includes("/noted")) && unreadCounts.total > 0 && (
-                        <span className="ml-auto bg-white text-[#8D1231] text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          {unreadCounts.total}
-                        </span>
-                      )}
+                      {(item.href.includes("/inbox") ||
+                        item.href.includes("/noted")) &&
+                        unreadCounts.total > 0 && (
+                          <span className="ml-auto bg-white text-[#8D1231] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                            {unreadCounts.total}
+                          </span>
+                        )}
                     </Link>
 
                     {hasChildren && (

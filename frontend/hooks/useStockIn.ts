@@ -142,6 +142,7 @@ export const useStockIn = ({ programType }: UseStockInProps) => {
 
       autoTable(doc, {
         startY: startY,
+        margin: { left: 15, right: 15 },
         head: [
           ["No", "Tanggal", "Category", "Type", "Stock Masuk", "Serial Number"],
         ],
@@ -182,7 +183,7 @@ export const useStockIn = ({ programType }: UseStockInProps) => {
           halign: "center",
         },
         columnStyles: {
-          0: { cellWidth: 10 },
+          0: { cellWidth: 12 },
         },
       });
 

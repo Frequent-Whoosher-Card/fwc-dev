@@ -39,11 +39,6 @@ export default function BaseGenerateNumber({
 
   const { t } = useLanguage();
 
-  const tabs: SwitchTabItem[] = [
-    { label: "FWC", path: "/dashboard/superadmin/generatenumber/fwc" },
-    { label: "Voucher", path: "/dashboard/superadmin/generatenumber/voucher" },
-  ];
-
   const pageNumbers = pagination
     ? Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
     : [];
@@ -55,10 +50,10 @@ export default function BaseGenerateNumber({
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h2 className="text-lg font-semibold">{title}</h2>
-        <SwitchTab items={tabs} />
-      </div>
+      {/* 
+        REMOVED: SwitchTab 
+        Reason: Replaced by global ProductTypeSelector in parent page.
+      */}
 
       {/* FORM */}
       <div className="rounded-xl border bg-white p-6 space-y-4 max-w-xl">
