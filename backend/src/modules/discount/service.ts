@@ -6,12 +6,12 @@ export class BulkDiscountService {
   /**
    * Get All Bulk Discounts
    */
-  static async getAll(search?: string) {
-    const where: any = {};
+  static async getAll(search?: string, role?: string) {
+    const where: any = {
+      deletedAt: null,
+    };
 
     if (search) {
-      // Basic global search implementation
-      // Since fields are numeric, we first check if search is a valid number
       const searchNum = Number(search);
       if (!isNaN(searchNum)) {
         where.OR = [
@@ -19,24 +19,39 @@ export class BulkDiscountService {
           { maxQuantity: { equals: searchNum } },
           { discount: { equals: searchNum } },
         ];
-      } else {
-        // If search is not a number, but we have no string fields,
-        // strictly speaking we return nothing.
-        // Or we could implement a raw query for string-like matching if strictly required.
-        // For now, return empty if non-numeric search on numeric-only table.
-        // But let's be safe: maybe they want to search "null" for maxQuantity?
-        // Let's stick to numeric match.
-        // If exact match is too strict, we might consider Raw query later.
       }
     }
+
+    if (role) {
+      // Logic: Show discount IF roleAccess contains this role OR roleAccess is empty (all allowed)
+      where.AND = [
+        {
+          OR: [
+            { roleAccess: { has: role } },
+            { roleAccess: { isEmpty: true } }, // Assuming empty means global/all
+            // Alternatively, if design requires empty = no access, remove this line.
+            // But usually, empty array in RBAC means "public" or "all".
+            // Let's assume empty = ALL for backward compatibility or ease of use.
+          ],
+        },
+      ];
+    }
+
+    // Always filter active if used by user system (optional, but good practice).
+    // But since this is a management API, maybe we want to see inactive ones too?
+    // Let's assume list logic shows all, but application logic (calc) checks isActive.
+    // We can add "isActive" filter if needed later.
 
     const discounts = await db.bulkDiscount.findMany({
       where,
       orderBy: { minQuantity: "asc" },
     });
+
     return discounts.map((d) => ({
       ...d,
-      discount: d.discount ? d.discount.toString() : null, // Convert Decimal to string safely
+      discount: d.discount ? d.discount.toString() : null,
+      roleAccess: d.roleAccess || [],
+      isActive: d.isActive ?? true,
     }));
   }
 
@@ -48,36 +63,51 @@ export class BulkDiscountService {
       minQuantity: number;
       maxQuantity?: number;
       discount: number;
+      roleAccess?: string[];
+      isActive?: boolean;
     },
     userId: string,
   ) {
     // Validation: max > min
-    if (data.maxQuantity && data.maxQuantity < data.minQuantity) {
+    if (
+      data.maxQuantity !== undefined &&
+      data.maxQuantity !== null &&
+      data.maxQuantity < data.minQuantity
+    ) {
       throw new ValidationError(
         "Max Quantity must be greater than Min Quantity",
       );
     }
-
-    // Overlap Check?
-    // Simplified: Just allow creation for now. Complex overlap checks can be added if needed.
 
     const discount = await db.bulkDiscount.create({
       data: {
         minQuantity: data.minQuantity,
         maxQuantity: data.maxQuantity,
         discount: data.discount,
+        roleAccess: data.roleAccess || [],
+        isActive: data.isActive ?? true,
+        createdBy: userId,
+        updatedBy: userId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
     });
 
     await ActivityLogService.createActivityLog(
       userId,
       "CREATE_BULK_DISCOUNT",
-      `Created bulk discount ID: ${discount.id} (Min: ${discount.minQuantity}, Max: ${discount.maxQuantity}, Disc: ${discount.discount})`,
+      `Created bulk discount ID: ${discount.id} (Min: ${
+        discount.minQuantity
+      }, Max: ${discount.maxQuantity}, Disc: ${discount.discount}, Roles: ${
+        discount.roleAccess.join(",") || "ALL"
+      })`,
     );
 
     return {
       ...discount,
       discount: discount.discount ? discount.discount.toString() : null,
+      roleAccess: discount.roleAccess || [],
+      isActive: discount.isActive ?? true,
     };
   }
 
@@ -90,6 +120,8 @@ export class BulkDiscountService {
       minQuantity?: number;
       maxQuantity?: number;
       discount?: number;
+      roleAccess?: string[];
+      isActive?: boolean;
     },
     userId: string,
   ) {
@@ -100,7 +132,13 @@ export class BulkDiscountService {
     const newMax =
       data.maxQuantity !== undefined ? data.maxQuantity : existing.maxQuantity;
 
-    if (newMax !== null && newMin !== null && newMax < newMin) {
+    if (
+      newMax !== null &&
+      newMax !== undefined &&
+      newMin !== null &&
+      newMin !== undefined &&
+      newMax < newMin
+    ) {
       throw new ValidationError(
         "Max Quantity must be greater than Min Quantity",
       );
@@ -112,6 +150,10 @@ export class BulkDiscountService {
         minQuantity: data.minQuantity,
         maxQuantity: data.maxQuantity,
         discount: data.discount,
+        roleAccess: data.roleAccess,
+        isActive: data.isActive,
+        updatedAt: new Date(),
+        updatedBy: userId,
       },
     });
 
@@ -124,6 +166,8 @@ export class BulkDiscountService {
     return {
       ...updated,
       discount: updated.discount ? updated.discount.toString() : null,
+      roleAccess: updated.roleAccess || [],
+      isActive: updated.isActive ?? true,
     };
   }
 
@@ -134,7 +178,18 @@ export class BulkDiscountService {
     const existing = await db.bulkDiscount.findUnique({ where: { id } });
     if (!existing) throw new ValidationError("Bulk Discount not found");
 
-    await db.bulkDiscount.delete({ where: { id } });
+    // Soft delete if preferred, but schema has deletedAt, so YES soft delete.
+    // Previous implementation check: it did hard delete "await db.bulkDiscount.delete".
+    // Schema shows deletedAt field, so we SHOULD soft delete.
+
+    await db.bulkDiscount.update({
+      where: { id },
+      data: {
+        deletedAt: new Date(),
+        deletedBy: userId,
+        isActive: false, // Optional: Deactivate on delete
+      },
+    });
 
     await ActivityLogService.createActivityLog(
       userId,
