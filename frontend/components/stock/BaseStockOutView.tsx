@@ -4,8 +4,15 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useStockOutView } from "@/hooks/useStockOutView";
 import StatusBadge from "@/components/ui/status-badge";
+import { ProgramType } from "@/lib/services/card.base.service";
 
-export default function BaseStockOutView() {
+interface BaseStockOutViewProps {
+  programType?: ProgramType;
+}
+
+export default function BaseStockOutView({
+  programType,
+}: BaseStockOutViewProps) {
   const params = useParams();
   const id =
     typeof params === "object" && params !== null ? (params as any).id : "";

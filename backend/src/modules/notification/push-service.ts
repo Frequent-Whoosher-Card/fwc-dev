@@ -6,7 +6,7 @@ export class PushNotificationService {
   /**
    * Send Push Notification to Multiple Tokens
    */
-  static async sendMulticast(tokens: string[], title: string, body: string) {
+  static async sendMulticast(tokens: string[], title: string, body: string, data?: { [key: string]: string }) {
     if (!isFirebaseEnabled || tokens.length === 0) return;
 
     try {
@@ -16,19 +16,14 @@ export class PushNotificationService {
           title,
           body,
         },
+        data: data || {}, // Add Data Payload
         tokens: tokens,
       };
 
-      const response = await firebaseAdmin.messaging().sendEachForMulticast(message);
+      const response = await firebaseAdmin.messaging().sendEachForMulticast(message as any);
       
       if (response.failureCount > 0) {
         console.warn(`[FCM] Failed to send ${response.failureCount} messages.`);
-        response.responses.forEach((resp, idx) => {
-            if (!resp.success) {
-                // Optional: Remove invalid tokens here
-                // console.error(resp.error);
-            }
-        });
       }
       
       console.log(`[FCM] Sent ${response.successCount} messages successfully.`);
@@ -40,11 +35,9 @@ export class PushNotificationService {
 
   /**
    * Send to Users with Specific Role at a Specific Station
-   * (e.g., Send to all Supervisors at Station Halim)
    */
-  static async sendToRoleAtStation(roleCode: string, stationId: string, title: string, body: string) {
+  static async sendToRoleAtStation(roleCode: string, stationId: string, title: string, body: string, data?: { [key: string]: string }) {
     try {
-        // 1. Find Users matching Role & Station
         const users = await db.user.findMany({
             where: {
                 role: { roleCode: roleCode },
@@ -58,7 +51,6 @@ export class PushNotificationService {
 
         const userIds = users.map(u => u.id);
 
-        // 2. Get FCM Tokens for these users
         const tokens = await db.fcmToken.findMany({
             where: {
                 userId: { in: userIds }
@@ -70,8 +62,7 @@ export class PushNotificationService {
 
         const tokenStrings = tokens.map(t => t.token);
         
-        // 3. Send
-        await this.sendMulticast(tokenStrings, title, body);
+        await this.sendMulticast(tokenStrings, title, body, data);
 
     } catch (error) {
         console.error("[FCM] Error sending to role at station:", error);
@@ -80,9 +71,8 @@ export class PushNotificationService {
 
   /**
    * Send to All Users with Specific Role (Global)
-   * (e.g., Send to all Admins/Superadmins)
    */
-  static async sendToRole(roleCodes: string[], title: string, body: string) {
+  static async sendToRole(roleCodes: string[], title: string, body: string, data?: { [key: string]: string }) {
     try {
         const users = await db.user.findMany({
             where: {
@@ -106,7 +96,7 @@ export class PushNotificationService {
         if (tokens.length === 0) return;
 
         const tokenStrings = tokens.map(t => t.token);
-        await this.sendMulticast(tokenStrings, title, body);
+        await this.sendMulticast(tokenStrings, title, body, data);
 
     } catch (error) {
         console.error("[FCM] Error sending to global role:", error);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import toast from "react-hot-toast";
 import { CategoryOption, TypeOption } from "@/types/card";
 import { ProgramType } from "@/lib/services/card.base.service";
@@ -13,6 +13,7 @@ interface Props {
   onOpenCategory: () => void;
   onOpenType: () => void;
   service: any; // Using service from hook
+  initialSerialPrefix?: string;
 }
 
 const formatRupiah = (value: string) => {
@@ -31,10 +32,11 @@ export default function BaseCardProductForm({
   onOpenCategory,
   onOpenType,
   service,
+  initialSerialPrefix = "",
 }: Props) {
   const [categoryId, setCategoryId] = useState("");
   const [typeId, setTypeId] = useState("");
-  const [serialPrefix, setSerialPrefix] = useState("");
+  const [serialPrefix, setSerialPrefix] = useState(initialSerialPrefix);
   const [validityDays, setValidityDays] = useState("");
   const [price, setPrice] = useState("");
   const [quota, setQuota] = useState("");
@@ -44,6 +46,13 @@ export default function BaseCardProductForm({
   const [maxQuantity, setMaxQuantity] = useState("");
   const [isDiscount, setIsDiscount] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Sync serialPrefix when initialSerialPrefix changes
+  useEffect(() => {
+    if (initialSerialPrefix) {
+      setSerialPrefix(initialSerialPrefix);
+    }
+  }, [initialSerialPrefix]);
 
   const selectedCategory = useMemo(
     () => categories.find((c) => c.id === categoryId),
@@ -96,7 +105,7 @@ export default function BaseCardProductForm({
       toast.success(`${programType} product berhasil dibuat`);
       onSuccess();
 
-      setSerialPrefix("");
+      setSerialPrefix(initialSerialPrefix);
       setValidityDays("");
       setPrice("");
       setQuota("");
@@ -176,9 +185,11 @@ export default function BaseCardProductForm({
               placeholder="12"
               maxLength={2}
               value={serialPrefix}
-              onChange={(e) =>
-                setSerialPrefix(e.target.value.replace(/\D/g, "").slice(0, 2))
-              }
+              onChange={(e) => {
+                if (initialSerialPrefix) return; // Prevent change if fixed
+                setSerialPrefix(e.target.value.replace(/\D/g, "").slice(0, 2));
+              }}
+              disabled={!!initialSerialPrefix}
             />
             <input
               className="h-11 w-full rounded-lg border px-4 text-center font-mono bg-gray-100"

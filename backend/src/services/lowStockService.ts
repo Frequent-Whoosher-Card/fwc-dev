@@ -59,7 +59,9 @@ export class LowStockService {
     if (!category || !type) return;
 
     const threshold = this.getThreshold(category.categoryName, type.typeName);
-    const productName = `${category.categoryName} - ${type.typeName}`;
+    const programLabel =
+      category.programType === "FWC" ? "📇 FWC" : "🎫 VOUCHER";
+    const productName = `${programLabel} | ${category.categoryName} - ${type.typeName}`;
 
     console.log(
       `[LowStock] Check: ${stationName} | Stock: ${currentStock} | Threshold: ${threshold}`,

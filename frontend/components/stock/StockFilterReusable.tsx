@@ -10,7 +10,7 @@ import {
   ArrowLeftRight,
 } from "lucide-react";
 import axios from "@/lib/axios";
-import { ThemedSelect } from "@/components/ui/ThemedSelect";
+import { MultiSelect } from "@/components/ui/multi-select";
 
 interface Option {
   id: string;
@@ -19,10 +19,10 @@ interface Option {
 }
 
 export interface StockFilterValues {
-  status?: string;
-  category?: string;
-  type?: string;
-  station?: string;
+  status?: string[];
+  category?: string[];
+  type?: string[];
+  station?: string[];
   search?: string;
   startDate?: string;
   endDate?: string;
@@ -41,10 +41,12 @@ interface StockFilterReusableProps {
     search?: boolean;
     dateRange?: boolean;
     add?: boolean;
+    exportPDF?: boolean;
   };
   statusOptions?: string[];
   addLabel?: string;
   programType?: "FWC" | "VOUCHER";
+  onExportPDF?: () => void;
 }
 
 export function StockFilterReusable({
@@ -60,6 +62,7 @@ export function StockFilterReusable({
   statusOptions = [],
   addLabel = "Tambah",
   programType,
+  onExportPDF,
 }: StockFilterReusableProps) {
   const [categories, setCategories] = useState<Option[]>([]);
   const [types, setTypes] = useState<Option[]>([]);
@@ -129,12 +132,20 @@ export function StockFilterReusable({
     programType ?? "",
   ]);
 
-  const handleValueChange = (field: keyof StockFilterValues, value: string) => {
+  const handleArrayChange = (
+    field: keyof StockFilterValues,
+    value: string[],
+  ) => {
     onFilterChange({ [field]: value });
   };
 
-  const selectClass =
-    "w-full sm:w-auto rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[#8D1231] focus:ring-1 focus:ring-[#8D1231] outline-none transition-all";
+  const handleStringChange = (
+    field: keyof StockFilterValues,
+    value: string,
+  ) => {
+    onFilterChange({ [field]: value });
+  };
+
   const inputClass =
     "w-full sm:w-48 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[#8D1231] focus:ring-1 focus:ring-[#8D1231] outline-none transition-all";
   const dateInputWrapper = "relative w-full sm:w-auto flex items-center gap-2";
@@ -147,45 +158,49 @@ export function StockFilterReusable({
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {/* STATUS */}
           {showFields.status && (
-            <ThemedSelect
-              value={values.status}
-              onChange={(val) => handleValueChange("status", val)}
+            <MultiSelect
+              value={values.status || []}
+              onChange={(val) => handleArrayChange("status", val)}
               options={statusOptions.map((st) => ({
                 id: st,
                 name: st.replace(/_/g, " "),
                 code: st,
               }))}
               placeholder="All Status"
+              className="w-full sm:w-36"
             />
           )}
 
           {/* CATEGORY */}
           {showFields.category && (
-            <ThemedSelect
-              value={values.category}
-              onChange={(val) => handleValueChange("category", val)}
+            <MultiSelect
+              value={values.category || []}
+              onChange={(val) => handleArrayChange("category", val)}
               options={categories}
               placeholder="All Category"
+              className="w-full sm:w-36"
             />
           )}
 
           {/* TYPE */}
           {showFields.type && (
-            <ThemedSelect
-              value={values.type}
-              onChange={(val) => handleValueChange("type", val)}
+            <MultiSelect
+              value={values.type || []}
+              onChange={(val) => handleArrayChange("type", val)}
               options={types}
               placeholder="All Type"
+              className="w-full sm:w-36"
             />
           )}
 
           {/* STATION */}
           {showFields.station && (
-            <ThemedSelect
-              value={values.station}
-              onChange={(val) => handleValueChange("station", val)}
+            <MultiSelect
+              value={values.station || []}
+              onChange={(val) => handleArrayChange("station", val)}
               options={stations}
               placeholder="All Station"
+              className="w-full sm:w-36"
             />
           )}
 
@@ -194,8 +209,8 @@ export function StockFilterReusable({
             <div className="relative w-full sm:w-auto">
               <input
                 placeholder="Search serial..."
-                value={values.search}
-                onChange={(e) => handleValueChange("search", e.target.value)}
+                value={values.search || ""}
+                onChange={(e) => handleStringChange("search", e.target.value)}
                 className={`${inputClass} pl-9`}
               />
               <Search
@@ -215,9 +230,9 @@ export function StockFilterReusable({
                 <input
                   ref={startDateRef}
                   type="date"
-                  value={values.startDate}
+                  value={values.startDate || ""}
                   onChange={(e) =>
-                    handleValueChange("startDate", e.target.value)
+                    handleStringChange("startDate", e.target.value)
                   }
                   className={dateInputClass}
                 />
@@ -239,8 +254,10 @@ export function StockFilterReusable({
                 <input
                   ref={endDateRef}
                   type="date"
-                  value={values.endDate}
-                  onChange={(e) => handleValueChange("endDate", e.target.value)}
+                  value={values.endDate || ""}
+                  onChange={(e) =>
+                    handleStringChange("endDate", e.target.value)
+                  }
                   className={dateInputClass}
                 />
                 <button
@@ -268,6 +285,17 @@ export function StockFilterReusable({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {/* EXPORT PDF */}
+          {showFields.exportPDF && onExportPDF && (
+            <button
+              onClick={onExportPDF}
+              className="flex flex-1 sm:flex-none items-center justify-center gap-2 rounded-md border border-[#8D1231] px-4 py-2 text-sm font-medium text-[#8D1231] bg-white hover:bg-red-50 transition-colors"
+            >
+              <FileDown size={16} />
+              <span className="whitespace-nowrap">Export PDF</span>
+            </button>
+          )}
+
           {/* ADD */}
           {showFields.add && onAdd && (
             <button

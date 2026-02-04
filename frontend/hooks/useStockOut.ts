@@ -31,9 +31,9 @@ export const useStockOut = ({ programType }: UseStockOutProps) => {
   // Filters
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  const [category, setCategory] = useState("all");
-  const [type, setType] = useState("all");
-  const [station, setStation] = useState("all");
+  const [category, setCategory] = useState<string[]>([]);
+  const [type, setType] = useState<string[]>([]);
+  const [station, setStation] = useState<string[]>([]);
 
   // Delete State
   const [openDelete, setOpenDelete] = useState(false);
@@ -62,9 +62,9 @@ export const useStockOut = ({ programType }: UseStockOutProps) => {
       const { items, pagination: paging } = await stockService.getStockOutList({
         ...params,
         programType,
-        categoryName: category !== "all" ? category : undefined,
-        typeName: type !== "all" ? type : undefined,
-        stationName: station !== "all" ? station : undefined,
+        categoryName: category.length > 0 ? category.join(",") : undefined,
+        typeName: type.length > 0 ? type.join(",") : undefined,
+        stationName: station.length > 0 ? station.join(",") : undefined,
       });
       setData(items);
       setPagination(paging);
@@ -114,9 +114,10 @@ export const useStockOut = ({ programType }: UseStockOutProps) => {
         const end = toDate ? toDate.split("-").reverse().join("-") : "...";
         filtersArr.push(`Periode: ${start} s/d ${end}`);
       }
-      if (category !== "all") filtersArr.push(`Kategori: ${category}`);
-      if (type !== "all") filtersArr.push(`Tipe: ${type}`);
-      if (station !== "all") filtersArr.push(`Stasiun: ${station}`);
+      if (category.length > 0)
+        filtersArr.push(`Kategori: ${category.join(", ")}`);
+      if (type.length > 0) filtersArr.push(`Tipe: ${type.join(", ")}`);
+      if (station.length > 0) filtersArr.push(`Stasiun: ${station.join(", ")}`);
 
       const { doc, startY } = await initPDFReport({
         title: `Laporan Stock Out ${programType} (Admin ke Stasiun)`,
@@ -135,9 +136,9 @@ export const useStockOut = ({ programType }: UseStockOutProps) => {
         endDate: toDate
           ? new Date(toDate + "T23:59:59Z").toISOString()
           : undefined,
-        categoryName: category !== "all" ? category : undefined,
-        typeName: type !== "all" ? type : undefined,
-        stationName: station !== "all" ? station : undefined,
+        categoryName: category.length > 0 ? category.join(",") : undefined,
+        typeName: type.length > 0 ? type.join(",") : undefined,
+        stationName: station.length > 0 ? station.join(",") : undefined,
       });
 
       if (!allData || !Array.isArray(allData) || allData.length === 0) {
@@ -147,6 +148,7 @@ export const useStockOut = ({ programType }: UseStockOutProps) => {
 
       autoTable(doc, {
         startY: startY,
+        margin: { left: 15, right: 15 },
         head: [
           [
             "No",
@@ -192,7 +194,7 @@ export const useStockOut = ({ programType }: UseStockOutProps) => {
           halign: "center",
         },
         columnStyles: {
-          0: { cellWidth: 8 },
+          0: { cellWidth: 12 },
           9: { cellWidth: 35 },
         },
       });

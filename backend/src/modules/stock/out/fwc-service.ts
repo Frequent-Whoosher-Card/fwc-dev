@@ -263,7 +263,7 @@ export class StockOutFwcService {
     
     // Fire and forget (don't await to block response)
     const { PushNotificationService } = await import("../../notification/push-service");
-    PushNotificationService.sendToRoleAtStation("supervisor", stationId, pushTitle, pushMessage);
+    PushNotificationService.sendToRoleAtStation("supervisor", stationId, pushTitle, pushMessage, { type: "FWC" });
 
     // --------------------------------
 
