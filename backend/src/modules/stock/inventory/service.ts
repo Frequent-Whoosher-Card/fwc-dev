@@ -1,3 +1,8 @@
+import {
+  parseFilter,
+  prismaFilter,
+  parseSmartSearch,
+} from "../../../utils/filterHelper";
 import db from "../../../config/db";
 
 type GetInventoryParams = {
@@ -22,6 +27,7 @@ interface InventoryMonitorOptions {
   categoryName?: string;
   typeName?: string;
   stationName?: string;
+  search?: string;
   programType?: "FWC" | "VOUCHER";
 }
 
@@ -42,75 +48,88 @@ export class CardInventoryService {
     const skip = (page - 1) * limit;
 
     // 1. Build Card Filter
-    const cardWhere: any = {};
+    const cardWhere: any = {
+      deletedAt: null,
+      status: {
+        in: [
+          "IN_OFFICE",
+          "IN_STATION",
+          "IN_TRANSIT",
+          "SOLD_ACTIVE",
+          "SOLD_INACTIVE",
+        ],
+      },
+      ...parseSmartSearch(search || "", [
+        "station.stationName",
+        "cardProduct.category.categoryName",
+        "cardProduct.type.typeName",
+      ]),
+    };
 
     // Filter by Product (Category/Type)
-    if (categoryId || typeId || categoryName || typeName || programType) {
-      const productWhere: any = {};
-      if (programType) {
-        productWhere.category = {
-          programType: programType,
-        };
-      }
-      if (categoryId) productWhere.categoryId = categoryId;
-      if (typeId) productWhere.typeId = typeId;
-      if (categoryName) {
-        productWhere.category = {
-          categoryName: { contains: categoryName, mode: "insensitive" },
-        };
-      }
-      if (typeName) {
-        productWhere.type = {
-          typeName: { contains: typeName, mode: "insensitive" },
-        };
-      }
-      // Get relevant product IDs first (optimization) or use deep filter
-      const products = await db.cardProduct.findMany({
-        where: productWhere,
-        select: { id: true },
-      });
-      cardWhere.cardProductId = { in: products.map((p) => p.id) };
+    const productWhere: any = {};
+    if (programType) {
+      productWhere.category = {
+        programType: programType,
+      };
+    }
+    if (categoryId) productWhere.categoryId = prismaFilter(categoryId);
+    if (typeId) productWhere.typeId = prismaFilter(typeId);
+
+    // If specific product relation filters exist, apply them
+    if (Object.keys(productWhere).length > 0) {
+      cardWhere.cardProduct = productWhere;
+    }
+
+    // Additional specific text filters (if passed and not covered by search)
+    // Additional specific text filters (if passed and not covered by search)
+    if (categoryName) {
+      const names = categoryName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      cardWhere.cardProduct = {
+        ...cardWhere.cardProduct,
+        category: {
+          ...cardWhere.cardProduct?.category,
+          OR: names.map((name) => ({
+            categoryName: { contains: name, mode: "insensitive" },
+          })),
+        },
+      };
+    }
+
+    if (typeName) {
+      const names = typeName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      cardWhere.cardProduct = {
+        ...cardWhere.cardProduct,
+        type: {
+          ...cardWhere.cardProduct?.type,
+          OR: names.map((name) => ({
+            typeName: { contains: name, mode: "insensitive" },
+          })),
+        },
+      };
     }
 
     if (stationId) {
-      cardWhere.stationId = stationId;
-    }
-    if (stationName) {
-      cardWhere.station = {
-        stationName: { contains: stationName, mode: "insensitive" },
-      };
-    }
-    if (search) {
-      // Search is tricky with GroupBy. We usually search by Name/Code which are relations.
-      // Since we reconstruct the view, we can filter AFTER aggregation, or filter relations here.
-      cardWhere.OR = [
-        {
-          cardProduct: {
-            category: {
-              categoryName: { contains: search, mode: "insensitive" },
-            },
-          },
-        },
-        {
-          cardProduct: {
-            type: { typeName: { contains: search, mode: "insensitive" } },
-          },
-        },
-        { station: { stationName: { contains: search, mode: "insensitive" } } },
-      ];
+      cardWhere.stationId = prismaFilter(stationId);
     }
 
-    // Include valid statuses for inventory
-    cardWhere.status = {
-      in: [
-        "IN_OFFICE",
-        "IN_STATION",
-        "IN_TRANSIT",
-        "SOLD_ACTIVE",
-        "SOLD_INACTIVE",
-      ],
-      deletedAt: null, // Exclude soft-deleted
-    };
+    if (stationName) {
+      const names = stationName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      cardWhere.station = {
+        OR: names.map((name) => ({
+          stationName: { contains: name, mode: "insensitive" },
+        })),
+      };
+    }
 
     // 2. Aggregate from Cards
     const grouped = await db.card.groupBy({
@@ -332,26 +351,53 @@ export class CardInventoryService {
       typeName,
       stationName,
       programType,
+      search,
     } = opts;
 
     // 1. Build Product Filter (to get Category/Type info)
-    const productWhere: any = {};
+    const productWhere: any = {
+      ...parseSmartSearch(search || "", [
+        "category.categoryName",
+        "type.typeName",
+        "category.categoryCode",
+        "type.typeCode",
+      ]),
+    };
+
     if (programType) {
       productWhere.category = {
+        ...productWhere.category,
         programType: programType,
       };
     }
 
-    if (categoryId) productWhere.categoryId = categoryId;
-    if (typeId) productWhere.typeId = typeId;
+    // Multi-value filter for IDs
+    if (categoryId) productWhere.categoryId = prismaFilter(categoryId);
+    if (typeId) productWhere.typeId = prismaFilter(typeId);
+
+    // Multi-value filter for Names (OR-based contains)
     if (categoryName) {
+      const names = categoryName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
       productWhere.category = {
-        categoryName: { contains: categoryName, mode: "insensitive" },
+        ...productWhere.category,
+        OR: names.map((name) => ({
+          categoryName: { contains: name, mode: "insensitive" },
+        })),
       };
     }
+
     if (typeName) {
+      const names = typeName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
       productWhere.type = {
-        typeName: { contains: typeName, mode: "insensitive" },
+        OR: names.map((name) => ({
+          typeName: { contains: name, mode: "insensitive" },
+        })),
       };
     }
 
@@ -375,10 +421,6 @@ export class CardInventoryService {
     // 2. Build Card Filter
     const cardWhere: any = {
       cardProductId: { in: productIds },
-      // Exclude deleted/lost/damaged from active inventory counts if desired, or keep them?
-      // Usually Inventory Summary counts "Good" stock.
-      // CardInventory logic tracked: Office, Beredar (BelumTerjual + Aktif + NonAktif).
-      // So we should filter for these statuses.
       status: {
         in: [
           "IN_OFFICE",
@@ -393,15 +435,29 @@ export class CardInventoryService {
           "LOST_BY_PASSANGER",
         ] as any[],
       },
-      deletedAt: null, // Exclude soft-deleted
+      deletedAt: null,
+      ...parseSmartSearch(search || "", [
+        "serialNumber",
+        "station.stationName",
+        "station.stationCode",
+      ]),
     };
 
+    // Multi-value filter for stationId
     if (stationId) {
-      cardWhere.stationId = stationId;
+      cardWhere.stationId = prismaFilter(stationId);
     }
+
+    // Multi-value filter for stationName
     if (stationName) {
+      const names = stationName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
       cardWhere.station = {
-        stationName: { contains: stationName, mode: "insensitive" },
+        OR: names.map((name) => ({
+          stationName: { contains: name, mode: "insensitive" },
+        })),
       };
     }
 

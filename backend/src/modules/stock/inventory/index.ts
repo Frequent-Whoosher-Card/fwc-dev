@@ -296,6 +296,7 @@ const createInventoryRoutes = (app: Elysia) =>
           categoryName,
           typeName,
           stationName,
+          search,
           programType,
         } = query as any;
 
@@ -309,6 +310,7 @@ const createInventoryRoutes = (app: Elysia) =>
             categoryName,
             typeName,
             stationName,
+            search,
             programType: programType as "FWC" | "VOUCHER" | undefined,
           });
           return {

@@ -17,41 +17,48 @@ export class AuthService {
     usernameOrEmail: string,
     password: string,
     appCheckToken: string,
-    turnstileToken: string
+    turnstileToken: string,
   ) {
     // Verify Firebase App Check token (required)
     console.log(`[AuthService] Login attempt for: ${usernameOrEmail}`);
-    console.log(`[AuthService] Tokens - AppCheck: ${appCheckToken}, Turnstile: ${turnstileToken}`);
+    console.log(
+      `[AuthService] Tokens - AppCheck: ${appCheckToken}, Turnstile: ${turnstileToken}`,
+    );
 
-    if (!appCheckToken || typeof appCheckToken !== 'string' || appCheckToken.trim().length === 0) {
-      console.log('[AuthService] Missing App Check token');
-      throw new AuthenticationError('App Check token is required');
+    if (
+      !appCheckToken ||
+      typeof appCheckToken !== "string" ||
+      appCheckToken.trim().length === 0
+    ) {
+      console.log("[AuthService] Missing App Check token");
+      throw new AuthenticationError("App Check token is required");
     }
 
     // Skip verification if token is "disabled" (fallback when App Check is not configured)
-    if (appCheckToken !== 'disabled') {
-      console.log('[AuthService] Verifying App Check token...');
+    if (appCheckToken !== "disabled") {
+      console.log("[AuthService] Verifying App Check token...");
       await verifyAppCheckToken(appCheckToken);
     } else {
-      console.log('[AuthService] App Check disabled/bypassed');
+      console.log("[AuthService] App Check disabled/bypassed");
     }
 
     // Verify Cloudflare Turnstile token (required)
-    if (!turnstileToken || typeof turnstileToken !== 'string' || turnstileToken.trim().length === 0) {
-      console.log('[AuthService] Missing Turnstile token');
-      throw new AuthenticationError('Turnstile token is required');
+    if (
+      !turnstileToken ||
+      typeof turnstileToken !== "string" ||
+      turnstileToken.trim().length === 0
+    ) {
+      console.log("[AuthService] Missing Turnstile token");
+      throw new AuthenticationError("Turnstile token is required");
     }
-    console.log('[AuthService] Verifying Turnstile token...');
+    console.log("[AuthService] Verifying Turnstile token...");
     await verifyTurnstileToken(turnstileToken);
 
     // Find user by username or email
-    console.log('[AuthService] Finding user in DB...');
+    console.log("[AuthService] Finding user in DB...");
     const user = await db.user.findFirst({
       where: {
-        OR: [
-          { username: usernameOrEmail },
-          { email: usernameOrEmail },
-        ],
+        OR: [{ username: usernameOrEmail }, { email: usernameOrEmail }],
         deletedAt: null,
       },
       include: {
@@ -61,24 +68,26 @@ export class AuthService {
     });
 
     if (!user) {
-      console.log('[AuthService] User not found');
+      console.log("[AuthService] User not found");
       throw new AuthenticationError("Invalid username/email or password");
     }
 
     // Check if user is active
     if (!user.isActive) {
-      console.log('[AuthService] User inactive');
-      throw new AuthenticationError("Account is inactive. Please contact administrator");
+      console.log("[AuthService] User inactive");
+      throw new AuthenticationError(
+        "Account is inactive. Please contact administrator",
+      );
     }
 
     // Verify password
-    console.log('[AuthService] Verifying password...');
+    console.log("[AuthService] Verifying password...");
     const isValidPassword = await verifyPassword(password, user.passwordHash);
     if (!isValidPassword) {
-      console.log('[AuthService] Password mismatch');
+      console.log("[AuthService] Password mismatch");
       throw new AuthenticationError("Invalid username/email or password");
     }
-    console.log('[AuthService] Login success');
+    console.log("[AuthService] Login success");
 
     // Update last login
     await db.user.update({
@@ -97,12 +106,14 @@ export class AuthService {
           roleCode: user.role.roleCode,
           roleName: user.role.roleName,
         },
-        station: user.station ? {
-          id: user.station.id,
-          stationCode: user.station.stationCode,
-          stationName: user.station.stationName,
-          location: user.station.location,
-        } : null,
+        station: user.station
+          ? {
+              id: user.station.id,
+              stationCode: user.station.stationCode,
+              stationName: user.station.stationName,
+              location: user.station.location,
+            }
+          : null,
       },
     };
   }
@@ -111,17 +122,11 @@ export class AuthService {
    * Simple login for Swagger/testing (without security tokens)
    * WARNING: Only use in development/testing environment
    */
-  static async simpleLogin(
-    usernameOrEmail: string,
-    password: string
-  ) {
+  static async simpleLogin(usernameOrEmail: string, password: string) {
     // Find user by username or email
     const user = await db.user.findFirst({
       where: {
-        OR: [
-          { username: usernameOrEmail },
-          { email: usernameOrEmail },
-        ],
+        OR: [{ username: usernameOrEmail }, { email: usernameOrEmail }],
         deletedAt: null,
       },
       include: {
@@ -136,7 +141,9 @@ export class AuthService {
 
     // Check if user is active
     if (!user.isActive) {
-      throw new AuthenticationError("Account is inactive. Please contact administrator");
+      throw new AuthenticationError(
+        "Account is inactive. Please contact administrator",
+      );
     }
 
     // Verify password
@@ -162,12 +169,14 @@ export class AuthService {
           roleCode: user.role.roleCode,
           roleName: user.role.roleName,
         },
-        station: user.station ? {
-          id: user.station.id,
-          stationCode: user.station.stationCode,
-          stationName: user.station.stationName,
-          location: user.station.location,
-        } : null,
+        station: user.station
+          ? {
+              id: user.station.id,
+              stationCode: user.station.stationCode,
+              stationName: user.station.stationName,
+              location: user.station.location,
+            }
+          : null,
       },
     };
   }
@@ -194,7 +203,7 @@ export class AuthService {
         .map((byte) => byte.toString(16).padStart(2, "0"))
         .join("");
       const expiresAt = new Date(
-        Date.now() + passwordResetConfig.tokenExpiresIn
+        Date.now() + passwordResetConfig.tokenExpiresIn,
       );
 
       // Invalidate any existing tokens for this user
@@ -214,6 +223,9 @@ export class AuthService {
           userId: user.id,
           token,
           expiresAt,
+          used: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
         },
       });
 
@@ -234,7 +246,7 @@ export class AuthService {
   static async resetPassword(
     token: string,
     newPassword: string,
-    confirmPassword: string
+    confirmPassword: string,
   ) {
     // Validate passwords match
     if (newPassword !== confirmPassword) {
@@ -257,7 +269,7 @@ export class AuthService {
 
     if (!resetToken) {
       throw new ValidationError(
-        "Invalid or expired reset token. Please request a new one."
+        "Invalid or expired reset token. Please request a new one.",
       );
     }
 
@@ -318,13 +330,14 @@ export class AuthService {
       },
       isActive: user.isActive,
       lastLogin: user.lastLogin?.toISOString() || null,
-      station: user.station ? {
-        id: user.station.id,
-        stationCode: user.station.stationCode,
-        stationName: user.station.stationName,
-        location: user.station.location,
-      } : null,
+      station: user.station
+        ? {
+            id: user.station.id,
+            stationCode: user.station.stationCode,
+            stationName: user.station.stationName,
+            location: user.station.location,
+          }
+        : null,
     };
   }
 }
-

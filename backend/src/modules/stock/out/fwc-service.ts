@@ -1,3 +1,8 @@
+import {
+  parseFilter,
+  prismaFilter,
+  parseSmartSearch,
+} from "../../../utils/filterHelper";
 import db from "../../../config/db";
 import { ProgramType } from "@prisma/client";
 import { ValidationError } from "../../../utils/errors";
@@ -260,10 +265,17 @@ export class StockOutFwcService {
     const productName = `${cardProduct.category.categoryName} - ${cardProduct.type.typeName}`;
     const pushTitle = `Kiriman Stock: ${productName}`;
     const pushMessage = `Office mengirimkan ${sentCount} kartu ${productName} ke stasiun ${stationName}.`;
-    
+
     // Fire and forget (don't await to block response)
-    const { PushNotificationService } = await import("../../notification/push-service");
-    PushNotificationService.sendToRoleAtStation("supervisor", stationId, pushTitle, pushMessage, { type: "FWC" });
+    const { PushNotificationService } =
+      await import("../../notification/push-service");
+    PushNotificationService.sendToRoleAtStation(
+      "supervisor",
+      stationId,
+      pushTitle,
+      pushMessage,
+      { type: "FWC" },
+    );
 
     // --------------------------------
 
@@ -685,8 +697,13 @@ export class StockOutFwcService {
         }
 
         // --- PUSH NOTIFICATION TO ADMINS ---
-        const { PushNotificationService } = await import("../../notification/push-service");
-        PushNotificationService.sendToRole(["admin", "superadmin"], title, message);
+        const { PushNotificationService } =
+          await import("../../notification/push-service");
+        PushNotificationService.sendToRole(
+          ["admin", "superadmin"],
+          title,
+          message,
+        );
         // -----------------------------------
 
         return {
@@ -721,11 +738,13 @@ export class StockOutFwcService {
     startDate?: Date;
     endDate?: Date;
     stationId?: string;
+    categoryId?: string;
+    typeId?: string;
     status?: string;
-    search?: string;
-    stationName?: string;
     categoryName?: string;
     typeName?: string;
+    stationName?: string;
+    search?: string;
   }) {
     const {
       page = 1,
@@ -734,64 +753,83 @@ export class StockOutFwcService {
       endDate,
       stationId,
       status,
+      categoryId,
+      typeId,
       search,
-      stationName,
-      categoryName,
-      typeName,
     } = params;
     const skip = (page - 1) * limit;
 
     const where: any = {
       movementType: "OUT",
-      category: { programType: "FWC" },
+      category: {
+        programType: "FWC",
+      },
+      ...parseSmartSearch(search || "", [
+        "note",
+        "station.stationName",
+        "category.categoryName",
+        "type.typeName",
+        "notaDinas",
+        "bast",
+        "batchId",
+        "category.categoryCode",
+        "type.typeCode",
+      ]),
     };
 
-    // --- CASE INSENSITIVE SEARCH LOGIC ---
-    if (search) {
-      where.OR = [
-        { note: { contains: search, mode: "insensitive" } },
-        {
-          station: {
-            stationName: { contains: search, mode: "insensitive" },
-          },
-        },
-        {
-          category: {
-            categoryName: { contains: search, mode: "insensitive" },
-          },
-        },
-        {
-          type: {
-            typeName: { contains: search, mode: "insensitive" },
-          },
-        },
-        { notaDinas: { contains: search, mode: "insensitive" } },
-        { bast: { contains: search, mode: "insensitive" } },
-      ];
+    if (stationId) {
+      where.stationId = prismaFilter(stationId);
     }
 
-    // Specific Filters (Case Insensitive)
-    if (stationName) {
-      where.station = {
-        ...where.station,
-        stationName: { contains: stationName, mode: "insensitive" },
-      };
+    if (categoryId) {
+      where.categoryId = prismaFilter(categoryId);
     }
 
-    if (categoryName) {
+    if (typeId) {
+      where.typeId = prismaFilter(typeId);
+    }
+
+    if (status) {
+      where.status = prismaFilter(status);
+    }
+
+    // Support Multi-Filter for Names (OR-based contains)
+    if (params.categoryName) {
+      const names = params.categoryName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
       where.category = {
         ...where.category,
-        categoryName: { contains: categoryName, mode: "insensitive" },
+        OR: names.map((name) => ({
+          categoryName: { contains: name, mode: "insensitive" },
+        })),
       };
     }
 
-    if (typeName) {
+    if (params.typeName) {
+      const names = params.typeName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
       where.type = {
-        ...where.type,
-        typeName: { contains: typeName, mode: "insensitive" },
+        OR: names.map((name) => ({
+          typeName: { contains: name, mode: "insensitive" },
+        })),
       };
     }
-    // -------------------------------------
+
+    if (params.stationName) {
+      const names = params.stationName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      where.station = {
+        OR: names.map((name) => ({
+          stationName: { contains: name, mode: "insensitive" },
+        })),
+      };
+    }
 
     if (startDate && endDate) {
       where.movementAt = {
@@ -799,21 +837,9 @@ export class StockOutFwcService {
         lte: endDate,
       };
     } else if (startDate) {
-      where.movementAt = {
-        gte: startDate,
-      };
+      where.movementAt = { gte: startDate };
     } else if (endDate) {
-      where.movementAt = {
-        lte: endDate,
-      };
-    }
-
-    if (stationId) {
-      where.stationId = stationId;
-    }
-
-    if (status) {
-      where.status = status.toUpperCase();
+      where.movementAt = { lte: endDate };
     }
 
     const [items, total] = await Promise.all([
