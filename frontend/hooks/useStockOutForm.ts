@@ -336,14 +336,12 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
         payload.bast = form.bast;
 
         await stockService.createStockOut(payload);
-        toast.success("Stock out berhasil dibuat");
+        toast.success("Stock Out berhasil disimpan");
       }
 
-      router.push(
-        `/dashboard/superadmin/stock/${programType.toLowerCase()}/out`,
-      );
-    } catch (err: any) {
-      toast.error(err?.message || "Gagal menyimpan stock out");
+      router.push("/dashboard/superadmin/stock/out");
+    } catch (error: any) {
+      toast.error(error?.message || "Gagal menyimpan stock out");
     } finally {
       setSaving(false);
     }

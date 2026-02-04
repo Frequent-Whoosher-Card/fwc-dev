@@ -17,11 +17,6 @@ export default function BaseStockIn({ programType }: BaseStockInProps) {
   const router = useRouter();
   const { t } = useLanguage();
 
-  const tabs: SwitchTabItem[] = [
-    { label: "FWC", path: "/dashboard/superadmin/stock/fwc/in" },
-    { label: "Voucher", path: "/dashboard/superadmin/stock/voucher/in" },
-  ];
-
   const {
     data,
     pagination,
@@ -55,12 +50,7 @@ export default function BaseStockIn({ programType }: BaseStockInProps) {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h2 className="text-lg font-semibold whitespace-nowrap">
-            {t("stock_in")} (Vendor → Office)
-          </h2>
-          <SwitchTab items={tabs} />
-        </div>
+        {/* Header removed, controlled by parent page */}
 
         <StockFilterReusable
           programType={programType}
@@ -80,8 +70,8 @@ export default function BaseStockIn({ programType }: BaseStockInProps) {
             setPagination((p) => ({ ...p, page: 1 }));
           }}
           onReset={() => {
-            setCategory("all");
-            setType("all");
+            setCategory([]);
+            setType([]);
             setFromDate("");
             setToDate("");
             setPagination((p) => ({ ...p, page: 1 }));
@@ -167,7 +157,7 @@ export default function BaseStockIn({ programType }: BaseStockInProps) {
                       <button
                         onClick={() =>
                           router.push(
-                            `/dashboard/superadmin/stock/${programType.toLowerCase()}/in/${row.id}/view`,
+                            `/dashboard/superadmin/stock/in/${row.id}/view?type=${programType}`,
                           )
                         }
                         className="mx-auto flex items-center justify-center w-8 h-8 border border-gray-300 rounded-md text-gray-500 hover:bg-[#8D1231] hover:text-white transition-colors duration-200"

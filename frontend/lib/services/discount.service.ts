@@ -5,6 +5,8 @@ export interface DiscountRule {
   minQuantity: number;
   maxQuantity: number | null;
   discount: number;
+  roleAccess?: string[];
+  isActive?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -13,12 +15,16 @@ export interface CreateDiscountDto {
   minQuantity: number;
   maxQuantity?: number | null;
   discount: number;
+  roleAccess?: string[];
+  isActive?: boolean;
 }
 
 export interface UpdateDiscountDto {
   minQuantity?: number;
   maxQuantity?: number | null;
   discount?: number;
+  roleAccess?: string[];
+  isActive?: boolean;
 }
 
 const discountService = {

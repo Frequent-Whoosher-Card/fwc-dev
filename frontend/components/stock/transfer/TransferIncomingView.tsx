@@ -43,7 +43,7 @@ export default function TransferIncomingView({
               Transfer Masuk ({programType})
             </h2>
           </div>
-          <SwitchTab items={tabs} />
+          {/* SwitchTab removed, controlled by parent page */}
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-4 bg-white p-4 rounded-lg border">
