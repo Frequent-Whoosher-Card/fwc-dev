@@ -127,6 +127,8 @@ const stockOutFwc = new Elysia({ prefix: "/fwc" })
             body.note,
             body.notaDinas,
             body.bast,
+            body.notaDinasFile,
+            body.bastFile,
           );
           return result;
         } catch (error) {
@@ -139,6 +141,7 @@ const stockOutFwc = new Elysia({ prefix: "/fwc" })
       },
       {
         body: StockOutFwcModel.stockOutRequest,
+        type: "multipart/form-data",
         response: {
           200: StockOutFwcModel.stockOutResponse,
           400: StockOutFwcModel.errorResponse,
@@ -415,6 +418,8 @@ const stockOutVoucher = new Elysia({ prefix: "/voucher" })
               body.note,
               body.notaDinas,
               body.bast,
+              body.notaDinasFile,
+              body.bastFile,
             );
             return result;
           } catch (error) {
@@ -427,6 +432,7 @@ const stockOutVoucher = new Elysia({ prefix: "/voucher" })
         },
         {
           body: StockOutVoucherModel.stockOutRequest,
+          type: "multipart/form-data",
           response: {
             200: StockOutVoucherModel.stockOutResponse,
             400: StockOutVoucherModel.errorResponse,
