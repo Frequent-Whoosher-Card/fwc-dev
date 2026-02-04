@@ -49,10 +49,13 @@ export namespace StockInFwcModel {
     limit: t.Optional(t.String()),
     startDate: t.Optional(t.String({ format: "date" })),
     endDate: t.Optional(t.String({ format: "date" })),
-    categoryId: t.Optional(t.String({ format: "uuid" })),
-    typeId: t.Optional(t.String({ format: "uuid" })),
+    categoryId: t.Optional(t.String()),
+    typeId: t.Optional(t.String()),
+    stationId: t.Optional(t.String()),
     categoryName: t.Optional(t.String()),
     typeName: t.Optional(t.String()),
+    stationName: t.Optional(t.String()),
+    search: t.Optional(t.String()),
   });
 
   // History Response

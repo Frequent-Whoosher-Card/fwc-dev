@@ -42,11 +42,13 @@ const stockOutFwc = new Elysia({ prefix: "/fwc" })
                 : undefined,
               endDate: query.endDate ? new Date(query.endDate) : undefined,
               stationId: query.stationId,
+              categoryId: query.categoryId,
+              typeId: query.typeId,
               status: query.status as any,
-              search: query.search,
-              stationName: query.stationName,
               categoryName: query.categoryName,
               typeName: query.typeName,
+              stationName: query.stationName,
+              search: query.search,
             });
             return { success: true, data: result };
           } catch (error) {
@@ -274,11 +276,13 @@ const stockOutVoucher = new Elysia({ prefix: "/voucher" })
                 : undefined,
               endDate: query.endDate ? new Date(query.endDate) : undefined,
               stationId: query.stationId,
+              categoryId: query.categoryId,
+              typeId: query.typeId,
               status: query.status as any,
-              search: query.search,
-              stationName: query.stationName,
               categoryName: query.categoryName,
               typeName: query.typeName,
+              stationName: query.stationName,
+              search: query.search,
             });
             return { success: true, data: result };
           } catch (error) {

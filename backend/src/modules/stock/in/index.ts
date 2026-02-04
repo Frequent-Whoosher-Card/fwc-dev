@@ -171,8 +171,11 @@ const stockInFwc = new Elysia({ prefix: "/fwc" })
               endDate: query.endDate ? new Date(query.endDate) : undefined,
               categoryId: query.categoryId,
               typeId: query.typeId,
+              stationId: query.stationId,
               categoryName: query.categoryName,
               typeName: query.typeName,
+              stationName: query.stationName,
+              search: query.search,
             });
 
             return {
@@ -464,8 +467,10 @@ const stockInVoucher = new Elysia({ prefix: "/voucher" })
               endDate: query.endDate ? new Date(query.endDate) : undefined,
               categoryId: query.categoryId,
               typeId: query.typeId,
+              stationId: query.stationId,
               categoryName: query.categoryName,
               typeName: query.typeName,
+              stationName: query.stationName,
               search: query.search,
             });
 
