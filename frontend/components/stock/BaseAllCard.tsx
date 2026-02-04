@@ -57,11 +57,10 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
             endDate,
           }}
           onFilterChange={(newValues) => {
-            if (newValues.status !== undefined)
-              setStatus(newValues.status as any);
+            if (newValues.status !== undefined) setStatus(newValues.status);
             if (newValues.category !== undefined) {
               setCategory(newValues.category);
-              setType("");
+              setType([]);
             }
             if (newValues.type !== undefined) setType(newValues.type);
             if (newValues.station !== undefined) setStation(newValues.station);
@@ -72,10 +71,10 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
             setPagination((p) => ({ ...p, page: 1 }));
           }}
           onReset={() => {
-            setStatus("all");
-            setCategory("");
-            setType("");
-            setStation("");
+            setStatus([]);
+            setCategory([]);
+            setType([]);
+            setStation([]);
             setSearch("");
             setStartDate("");
             setEndDate("");

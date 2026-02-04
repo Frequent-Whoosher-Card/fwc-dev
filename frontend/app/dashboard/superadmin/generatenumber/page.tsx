@@ -3,21 +3,16 @@
 import { useState } from "react";
 import ProductTypeSelector from "@/components/ProductTypeSelector";
 import { ProductType } from "@/lib/services/product-type.service";
-import FWCGenerateNumber from "@/components/generatenumber/fwc/FWCGenerateNumber";
-import VoucherGenerateNumber from "@/components/generatenumber/voucher/VoucherGenerateNumber";
-import { usePathname } from "next/navigation";
+import BaseGenerateNumber from "@/components/generatenumber/BaseGenerateNumber";
 
 export default function GenerateNumberPage() {
   const [selectedProductType, setSelectedProductType] = useState<
     ProductType | undefined
   >(undefined);
-  const pathname = usePathname();
 
   const handleProductTypeChange = (val: string, type?: ProductType) => {
     setSelectedProductType(type);
   };
-
-  const isRoleAdmin = pathname.includes("/dashboard/admin");
 
   return (
     <div className="space-y-6 py-6">
@@ -33,13 +28,11 @@ export default function GenerateNumberPage() {
 
       <div className="px-6">
         {selectedProductType ? (
-          <>
-            {selectedProductType.programType === "VOUCHER" ? (
-              <VoucherGenerateNumber />
-            ) : (
-              <FWCGenerateNumber />
-            )}
-          </>
+          <BaseGenerateNumber
+            key={selectedProductType.id} // Re-mount on change to reset state
+            title={`Generate Number + Barcode ${selectedProductType.programType === "VOUCHER" ? "Voucher" : "FWC"}`}
+            programType={selectedProductType.programType || "FWC"}
+          />
         ) : (
           <div className="text-gray-500 italic">
             Silakan pilih tipe produk terlebih dahulu untuk melanjutkan.

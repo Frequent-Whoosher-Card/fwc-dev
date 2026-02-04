@@ -215,10 +215,8 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
         serialDate,
       });
 
-      toast.success("Stock berhasil ditambahkan");
-      router.push(
-        `/dashboard/superadmin/stock/${programType.toLowerCase()}/in`,
-      );
+      toast.success("Stock In berhasil disimpan");
+      router.push("/dashboard/superadmin/stock/in");
     } catch (err: any) {
       toast.error(err?.message || "Gagal menyimpan stock");
     } finally {

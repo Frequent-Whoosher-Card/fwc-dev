@@ -24,10 +24,16 @@ export default function BaseStockSummary({
   const role = userContext?.role || "superadmin";
   const [mode, setMode] = useState<StockMode>("all");
 
-  const [filters, setFilters] = useState({
-    station: "all",
-    category: "all",
-    type: "all",
+  const [filters, setFilters] = useState<{
+    station: string[];
+    category: string[];
+    type: string[];
+    startDate: string;
+    endDate: string;
+  }>({
+    station: [],
+    category: [],
+    type: [],
     startDate: "",
     endDate: "",
   });
@@ -46,7 +52,7 @@ export default function BaseStockSummary({
             className={`px-4 py-2 text-sm transition-colors ${mode === "all" ? "bg-[#8D1231] text-white" : "bg-white hover:bg-gray-50"}`}
             onClick={() => {
               setMode("all");
-              setFilters((f) => ({ ...f, station: "all" }));
+              setFilters((f) => ({ ...f, station: [] }));
             }}
           >
             All Stock
@@ -67,9 +73,9 @@ export default function BaseStockSummary({
           }}
           onReset={() => {
             setFilters({
-              station: "all",
-              category: "all",
-              type: "all",
+              station: [],
+              category: [],
+              type: [],
               startDate: "",
               endDate: "",
             });

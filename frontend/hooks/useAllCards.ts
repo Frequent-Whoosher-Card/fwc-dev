@@ -51,11 +51,11 @@ export const useAllCards = ({ programType }: UseAllCardsProps) => {
   });
 
   // Filters
-  const [status, setStatus] = useState<"all" | CardStatus>("all");
+  const [status, setStatus] = useState<CardStatus[]>([]);
   const [statusOptions, setStatusOptions] = useState<CardStatus[]>([]);
-  const [category, setCategory] = useState("");
-  const [type, setType] = useState("");
-  const [station, setStation] = useState("");
+  const [category, setCategory] = useState<string[]>([]);
+  const [type, setType] = useState<string[]>([]);
+  const [station, setStation] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -67,10 +67,10 @@ export const useAllCards = ({ programType }: UseAllCardsProps) => {
         params: {
           page: pagination.page,
           limit: pagination.limit,
-          status: status === "all" ? undefined : status,
-          categoryName: category && category !== "all" ? category : undefined,
-          typeName: type && type !== "all" ? type : undefined,
-          stationName: station && station !== "all" ? station : undefined,
+          status: status.length > 0 ? status.join(",") : undefined,
+          categoryName: category.length > 0 ? category.join(",") : undefined,
+          typeName: type.length > 0 ? type.join(",") : undefined,
+          stationName: station.length > 0 ? station.join(",") : undefined,
           search: search || undefined,
           startDate: startDate || undefined,
           endDate: endDate || undefined,
@@ -129,16 +129,14 @@ export const useAllCards = ({ programType }: UseAllCardsProps) => {
   // Fetch status options for filter
   useEffect(() => {
     axiosInstance
-      .get("/cards", { params: { page: 1, limit: 100000, programType } })
+      .get("/card/statuses")
       .then((res) => {
-        const items = res.data?.data?.items ?? [];
-        const unique = Array.from(
-          new Set(items.map((i: any) => i.status as CardStatus)),
-        ) as CardStatus[];
-        setStatusOptions(unique);
+        setStatusOptions(res.data?.data || []);
       })
-      .catch(() => {});
-  }, [programType]);
+      .catch((err) => {
+        console.error("Failed to fetch status options", err);
+      });
+  }, []);
 
   return {
     data,

@@ -307,9 +307,15 @@ export default function DashboardLayout({
             const transformMenu = (items: MenuItem[]): any[] => {
               return items.map((item) => {
                 let href = item.route || "#";
+
                 // Replace dynamic :role placeholder
                 if (href.includes(":role")) {
                   href = href.replace(":role", mappedRole);
+                }
+
+                // REMAP: /dashboard/superadmin/stock -> /dashboard/superadmin/stock/summary
+                if (href === "/dashboard/superadmin/stock") {
+                  href = "/dashboard/superadmin/stock/summary";
                 }
 
                 console.log(

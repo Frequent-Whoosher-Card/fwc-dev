@@ -70,8 +70,8 @@ export default function BaseStockIn({ programType }: BaseStockInProps) {
             setPagination((p) => ({ ...p, page: 1 }));
           }}
           onReset={() => {
-            setCategory("all");
-            setType("all");
+            setCategory([]);
+            setType([]);
             setFromDate("");
             setToDate("");
             setPagination((p) => ({ ...p, page: 1 }));
@@ -157,7 +157,7 @@ export default function BaseStockIn({ programType }: BaseStockInProps) {
                       <button
                         onClick={() =>
                           router.push(
-                            `/dashboard/superadmin/stock/${programType.toLowerCase()}/in/${row.id}/view`,
+                            `/dashboard/superadmin/stock/in/${row.id}/view?type=${programType}`,
                           )
                         }
                         className="mx-auto flex items-center justify-center w-8 h-8 border border-gray-300 rounded-md text-gray-500 hover:bg-[#8D1231] hover:text-white transition-colors duration-200"

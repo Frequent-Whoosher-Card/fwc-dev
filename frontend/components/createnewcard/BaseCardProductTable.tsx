@@ -26,7 +26,7 @@ export default function BaseCardProductTable({
 
   const handleEdit = (id: string) => {
     router.push(
-      `/dashboard/superadmin/createnewcard/${programType.toLowerCase()}/${id}/edit`,
+      `/dashboard/superadmin/createnewcard/${id}/edit?type=${programType}`,
     );
   };
 
