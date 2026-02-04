@@ -10,36 +10,37 @@ export class MemberService {
     data: typeof MemberModel.createMemberBody.static,
     userId: string
   ) {
-    // Check duplicate identityNumber
-    const existing = await db.member.findFirst({
-      where: {
-        identityNumber: data.identityNumber,
-        deletedAt: null,
-      },
-    });
+    const member = await db.$transaction(async (tx) => {
+      const existing = await tx.member.findFirst({
+        where: {
+          identityNumber: data.identityNumber,
+          deletedAt: null,
+        },
+      });
 
-    if (existing) {
-      throw new ValidationError(
-        `Member dengan identity number '${data.identityNumber}' sudah terdaftar`
-      );
-    }
+      if (existing) {
+        throw new ValidationError(
+          `Member dengan identity number '${data.identityNumber}' sudah terdaftar`
+        );
+      }
 
-    const member = await db.member.create({
-      data: {
-        name: data.name,
-        identityNumber: data.identityNumber,
-        nationality: data.nationality || "INDONESIA",
-        email: data.email || null,
-        phone: data.phone || null,
-        nippKai: data.nippKai || null,
-        gender: data.gender || null,
-        alamat: data.alamat || null,
-        notes: data.notes || null,
-        companyName: data.companyName ?? null,
-        employeeTypeId: data.employeeTypeId ?? null,
-        createdBy: userId,
-        updatedBy: userId,
-      },
+      return await tx.member.create({
+        data: {
+          name: data.name,
+          identityNumber: data.identityNumber,
+          nationality: data.nationality || "INDONESIA",
+          email: data.email || null,
+          phone: data.phone || null,
+          nippKai: data.nippKai || null,
+          gender: data.gender || null,
+          alamat: data.alamat || null,
+          notes: data.notes || null,
+          companyName: data.companyName ?? null,
+          employeeTypeId: data.employeeTypeId ?? null,
+          createdBy: userId,
+          updatedBy: userId,
+        },
+      });
     });
 
     return await this.getById(member.id);
@@ -330,50 +331,51 @@ export class MemberService {
     data: typeof MemberModel.updateMemberBody.static,
     userId: string
   ) {
-    const member = await db.member.findUnique({ where: { id } });
-    if (!member || member.deletedAt) {
-      throw new NotFoundError("Member tidak ditemukan");
-    }
-
-    // Check duplicate identityNumber if it's being updated
-    if (data.identityNumber && data.identityNumber !== member.identityNumber) {
-      const existing = await db.member.findFirst({
-        where: {
-          identityNumber: data.identityNumber,
-          deletedAt: null,
-          id: { not: id }, // Exclude current member
-        },
-      });
-
-      if (existing) {
-        throw new ValidationError(
-          `Member dengan identity number '${data.identityNumber}' sudah terdaftar`
-        );
+    await db.$transaction(async (tx) => {
+      const member = await tx.member.findUnique({ where: { id } });
+      if (!member || member.deletedAt) {
+        throw new NotFoundError("Member tidak ditemukan");
       }
-    }
 
-    const updateData: Record<string, unknown> = {
-      name: data.name,
-      identityNumber: data.identityNumber,
-      nationality: data.nationality,
-      email: data.email,
-      phone: data.phone,
-      nippKai: data.nippKai,
-      gender: data.gender,
-      alamat: data.alamat,
-      notes: data.notes ?? null,
-      updatedBy: userId,
-      updatedAt: new Date(),
-    };
-    if (data.companyName !== undefined) {
-      updateData.companyName = data.companyName;
-    }
-    if (data.employeeTypeId !== undefined) {
-      updateData.employeeTypeId = data.employeeTypeId;
-    }
-    await db.member.update({
-      where: { id },
-      data: updateData as any,
+      if (data.identityNumber && data.identityNumber !== member.identityNumber) {
+        const existing = await tx.member.findFirst({
+          where: {
+            identityNumber: data.identityNumber,
+            deletedAt: null,
+            id: { not: id },
+          },
+        });
+
+        if (existing) {
+          throw new ValidationError(
+            `Member dengan identity number '${data.identityNumber}' sudah terdaftar`
+          );
+        }
+      }
+
+      const updateData: Record<string, unknown> = {
+        name: data.name,
+        identityNumber: data.identityNumber,
+        nationality: data.nationality,
+        email: data.email,
+        phone: data.phone,
+        nippKai: data.nippKai,
+        gender: data.gender,
+        alamat: data.alamat,
+        notes: data.notes ?? null,
+        updatedBy: userId,
+        updatedAt: new Date(),
+      };
+      if (data.companyName !== undefined) {
+        updateData.companyName = data.companyName;
+      }
+      if (data.employeeTypeId !== undefined) {
+        updateData.employeeTypeId = data.employeeTypeId;
+      }
+      await tx.member.update({
+        where: { id },
+        data: updateData as any,
+      });
     });
 
     return await this.getById(id);
@@ -384,43 +386,44 @@ export class MemberService {
    * @param notes - Alasan penghapusan (wajib, disimpan di member.notes)
    */
   static async delete(id: string, userId: string, notes: string) {
-    const member = await db.member.findUnique({ where: { id } });
-    if (!member || member.deletedAt) {
-      throw new NotFoundError("Member tidak ditemukan");
-    }
-
     const trimmedNotes = notes?.trim() ?? "";
     if (!trimmedNotes) {
       throw new ValidationError("Alasan penghapusan wajib diisi");
     }
 
-    // Check if member has active cards
-    const activeCards = await db.card.count({
-      where: {
-        memberId: id,
-        deletedAt: null,
-        status: {
-          in: ["SOLD_ACTIVE", "SOLD_INACTIVE"],
+    return await db.$transaction(async (tx) => {
+      const member = await tx.member.findUnique({ where: { id } });
+      if (!member || member.deletedAt) {
+        throw new NotFoundError("Member tidak ditemukan");
+      }
+
+      const activeCards = await tx.card.count({
+        where: {
+          memberId: id,
+          deletedAt: null,
+          status: {
+            in: ["SOLD_ACTIVE", "SOLD_INACTIVE"],
+          },
         },
-      },
+      });
+
+      if (activeCards > 0) {
+        throw new ValidationError(
+          `Tidak dapat menghapus member. Member memiliki ${activeCards} kartu aktif.`
+        );
+      }
+
+      await tx.member.update({
+        where: { id },
+        data: {
+          deletedAt: new Date(),
+          deletedBy: userId,
+          notes: trimmedNotes,
+        },
+      });
+
+      return { success: true, message: "Member berhasil dihapus" };
     });
-
-    if (activeCards > 0) {
-      throw new ValidationError(
-        `Tidak dapat menghapus member. Member memiliki ${activeCards} kartu aktif.`
-      );
-    }
-
-    await db.member.update({
-      where: { id },
-      data: {
-        deletedAt: new Date(),
-        deletedBy: userId,
-        notes: trimmedNotes,
-      },
-    });
-
-    return { success: true, message: "Member berhasil dihapus" };
   }
 
   /**
