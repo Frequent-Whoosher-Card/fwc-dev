@@ -2,7 +2,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { toast } from "sonner";
+import toast from "react-hot-toast";
 
 import {
   purchaseFormSchema,
@@ -59,8 +59,11 @@ export function usePurchaseForm() {
       console.log(JSON.stringify(payload, null, 2));
 
       await createPurchase(payload);
-      toast.success("Purchase berhasil disimpan");
-      router.push("/dashboard/superadmin/transaksi");
+      toast.success("Transaksi berhasil disimpan");
+      // Delay redirect untuk memastikan toast sempat ditampilkan
+      setTimeout(() => {
+        router.push("/dashboard/superadmin/transaksi?tab=fwc");
+      }, 500);
     } catch (error: any) {
       toast.error(error?.message || "Gagal menyimpan transaksi");
       console.error("Purchase submission error:", error);

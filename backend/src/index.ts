@@ -19,6 +19,7 @@ import { stock } from "./modules/stock";
 import { station } from "./modules/station";
 import { cardInventory } from "./modules/stock/inventory";
 import { members } from "./modules/members";
+import { city } from "./modules/city";
 import { purchases } from "./modules/purchases";
 import { AuthenticationError, AuthorizationError } from "./utils/errors";
 import { inbox } from "./modules/inbox";
@@ -26,6 +27,7 @@ import { redeem } from "./modules/redeem";
 import { cardSwaps } from "./modules/card-swaps";
 import { bulkDiscount } from "./modules/discount";
 import { employeeTypeController } from "./modules/employee-types";
+import { paymentMethodController } from "./modules/payment-methods";
 import { permissions } from "./modules/permissions";
 import { menuAccess } from "./modules/menu-access";
 import { notificationRoutes } from "./modules/notification";
@@ -44,8 +46,10 @@ const app = new Elysia()
   .use(auth)
   .use(users)
   .use(members)
+  .use(city)
   .use(purchases)
   .use(employeeTypeController)
+  .use(paymentMethodController)
   .use(cardSwaps)
   .use(cardCategory)
   .use(cardTypes)
