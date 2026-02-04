@@ -299,7 +299,7 @@ export default function MembershipDetailPage() {
   const cardBg = isVoucherView
     ? "bg-teal-600 text-white"
     : CARD_COLOR_MAP[activeTransaction?.cardCategory ?? ""] ??
-      "bg-blue-400 text-white";
+    "bg-blue-400 text-white";
 
   /* ======================
      RENDER
@@ -335,12 +335,12 @@ export default function MembershipDetailPage() {
                 </>
               ) : (
                 <>
-                  <span className="text-base font-semibold">
-                    {capitalize(activeTransaction.cardType)}
-                  </span>
-                  <span className="text-xs font-normal">
-                    {capitalize(activeTransaction.cardCategory)}
-                  </span>
+              <span className="text-base font-semibold">
+                {capitalize(activeTransaction.cardType)}
+              </span>
+              <span className="text-xs font-normal">
+                {capitalize(activeTransaction.cardCategory)}
+              </span>
                 </>
               )}
             </div>
@@ -397,12 +397,12 @@ export default function MembershipDetailPage() {
         <div className="text-right text-sm">
           {viewFilter !== "VOUCHER" && (
             <>
-              <p>
-                Total Quota (Trips): <b>{totalQuota}</b>
-              </p>
-              <p>
-                Redeemed: <b>{redeemed}</b>
-              </p>
+          <p>
+            Total Quota (Trips): <b>{totalQuota}</b>
+          </p>
+          <p>
+            Redeemed: <b>{redeemed}</b>
+          </p>
             </>
           )}
           {viewFilter === "VOUCHER" && (
@@ -495,19 +495,19 @@ export default function MembershipDetailPage() {
                           </button>
                         ) : null}
                       </td>
-                      <td className="px-4 py-3 text-left">
-                        {formatDate(trx.purchaseDate)}
-                      </td>
+                  <td className="px-4 py-3 text-left">
+                    {formatDate(trx.purchaseDate)}
+                  </td>
 
-                      <td className="px-4 py-3 text-left">{trx.duration}</td>
+                  <td className="px-4 py-3 text-left">{trx.duration}</td>
 
-                      <td className="px-4 py-3 text-left">
-                        {formatDate(trx.expiredDate)}
-                      </td>
+                  <td className="px-4 py-3 text-left">
+                    {formatDate(trx.expiredDate)}
+                  </td>
 
-                      <td className="px-4 py-3 text-center">
-                        <span
-                          className={`inline-flex min-w-[72px] justify-center rounded px-2 py-1 text-xs font-medium
+                  <td className="px-4 py-3 text-center">
+                    <span
+                      className={`inline-flex min-w-[72px] justify-center rounded px-2 py-1 text-xs font-medium
             ${
               trx.status === "Active"
                 ? "bg-green-100 text-green-700"
@@ -515,34 +515,34 @@ export default function MembershipDetailPage() {
                   ? "bg-red-100 text-red-700"
                   : "bg-gray-100 text-gray-600"
             }`}
-                        >
-                          {trx.status}
-                        </span>
-                      </td>
+                    >
+                      {trx.status}
+                    </span>
+                  </td>
 
-                      <td className="px-4 py-3 text-left">{trx.cardCategory}</td>
-                      <td className="px-4 py-3 text-left">{trx.cardType}</td>
+                  <td className="px-4 py-3 text-left">{trx.cardCategory}</td>
+                  <td className="px-4 py-3 text-left">{trx.cardType}</td>
 
-                      <td className="px-4 py-3 text-right font-semibold">
-                        {trx.quota}
-                      </td>
+                  <td className="px-4 py-3 text-right font-semibold">
+                    {trx.quota}
+                  </td>
 
-                      <td className="px-4 py-3 text-right font-semibold">
-                        {trx.remaining}
-                      </td>
+                  <td className="px-4 py-3 text-right font-semibold">
+                    {trx.remaining}
+                  </td>
 
-                      <td className="px-4 py-3 text-left">{trx.serialNumber}</td>
-                      <td className="px-4 py-3 text-left">{trx.referenceEdc}</td>
+                  <td className="px-4 py-3 text-left">{trx.serialNumber}</td>
+                  <td className="px-4 py-3 text-left">{trx.referenceEdc}</td>
 
-                      <td className="px-4 py-3 text-right">{trx.price}</td>
+                  <td className="px-4 py-3 text-right">{trx.price}</td>
 
-                      <td className="px-4 py-3 text-left">
-                        {formatDate(trx.shiftDate)}
-                      </td>
+                  <td className="px-4 py-3 text-left">
+                    {formatDate(trx.shiftDate)}
+                  </td>
 
-                      <td className="px-4 py-3 text-left">{trx.operatorName}</td>
-                      <td className="px-4 py-3 text-left">{trx.station}</td>
-                    </tr>
+                  <td className="px-4 py-3 text-left">{trx.operatorName}</td>
+                  <td className="px-4 py-3 text-left">{trx.station}</td>
+                </tr>
 
                     {/* Expanded: daftar semua kartu voucher dengan kuota (sama seperti di transaksi) */}
                     {isVoucherBulk && isExpanded && trx.bulkItems && (
