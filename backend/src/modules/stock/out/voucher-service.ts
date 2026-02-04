@@ -240,7 +240,7 @@ export class StockOutVoucherService {
     
     // Fire and forget
     const { PushNotificationService } = await import("../../notification/push-service");
-    PushNotificationService.sendToRoleAtStation("supervisor", stationId, pushTitle, pushMessage);
+    PushNotificationService.sendToRoleAtStation("supervisor", stationId, pushTitle, pushMessage, { type: "VOUCHER" });
     // --------------------------------
 
     return transaction;

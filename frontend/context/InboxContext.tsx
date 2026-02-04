@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { API_BASE_URL } from '@/lib/apiConfig';
+import { onForegroundMessage } from '@/lib/firebase';
 
 interface UnreadCounts {
   total: number;
@@ -42,13 +43,63 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Initial Fetch on Mount
+  // Initial Fetch on Mount & Setup FCM Listener
   useEffect(() => {
+    // 1. Initial Fetch (Only once)
     fetchUnreadCounts();
     
-    // Optional: Poll every 5 seconds to keep fresh (more dynamic)
-    const interval = setInterval(fetchUnreadCounts, 5000);
-    return () => clearInterval(interval);
+    // 2. Listen for Real-time FCM Messages
+    // This replaces the heavy polling (setInterval)
+    onForegroundMessage((payload) => {
+      console.log("[InboxContext] Notification received:", payload);
+      
+      // Option A: Smart Increment (If payload has data)
+      if (payload.data && payload.data.type) {
+         setUnreadCounts(prev => {
+             const type = payload.data.type;
+             const newCounts = { ...prev };
+             
+             // Increment specific counter
+             if (type === 'FWC') newCounts.fwc += 1;
+             if (type === 'VOUCHER') newCounts.voucher += 1;
+             
+             // Always increment total
+             newCounts.total += 1;
+             
+             return newCounts;
+         });
+      } 
+      // Option B: Fallback - Re-fetch counts (Lightweight single fetch) if weird payload
+      else {
+          fetchUnreadCounts();
+      }
+    });
+
+    // Clean up? Firebase listeners are persistent, usually don't need manual off for top-level
+  }, [fetchUnreadCounts]);
+
+  // 3. Auto-Refresh when Tab becomes Active (Handle "Background -> Foreground" scenario)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log("[InboxContext] Tab active, refreshing counts...");
+        fetchUnreadCounts();
+      }
+    };
+    
+    // Also listen for focus (window click)
+    const handleFocus = () => {
+        console.log("[InboxContext] Window focused, refreshing counts...");
+        fetchUnreadCounts();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, [fetchUnreadCounts]);
 
   const decrementUnread = useCallback((type: string) => {
