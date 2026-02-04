@@ -30,10 +30,10 @@ export default function UserFilter({
   return (
     <div
       className="
-  flex flex-col gap-3
-  md:flex-row md:items-center
-  rounded-xl border bg-white px-6 py-4 shadow-sm
-"
+        flex flex-col gap-3
+        md:flex-row md:items-center
+        rounded-xl border bg-white px-6 py-4 shadow-sm
+      "
     >
       <span className="text-sm font-semibold text-[#8D1231]">Filters:</span>
 
@@ -42,7 +42,7 @@ export default function UserFilter({
         value={station}
         onChange={(e) => setStation(e.target.value)}
         disabled={loadingStation}
-        className={`h-10 min-w-[160px] cursor-pointer rounded-lg border px-4 text-sm outline-none transition-colors ${
+        className={`h-10 w-full md:w-auto min-w-[160px] cursor-pointer rounded-lg border px-4 text-sm outline-none transition-colors ${
           station !== "all"
             ? "border-[#8D1231] bg-[#8D1231] text-white"
             : "border-gray-300 bg-white text-gray-700 hover:border-[#8D1231] focus:bg-[#8D1231] focus:text-white"
@@ -68,7 +68,7 @@ export default function UserFilter({
         value={role}
         onChange={(e) => setRole(e.target.value)}
         disabled={loadingRole}
-        className={`h-10 min-w-[160px] cursor-pointer rounded-lg border px-4 text-sm outline-none transition-colors ${
+        className={`h-10 w-full md:w-auto min-w-[160px] cursor-pointer rounded-lg border px-4 text-sm outline-none transition-colors ${
           role !== "all"
             ? "border-[#8D1231] bg-[#8D1231] text-white"
             : "border-gray-300 bg-white text-gray-700 hover:border-[#8D1231] focus:bg-[#8D1231] focus:text-white"
@@ -91,7 +91,7 @@ export default function UserFilter({
 
       <button
         onClick={onReset}
-        className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
+        className={`flex h-10 w-full md:w-10 items-center justify-center rounded-lg border transition-colors ${
           search || role !== "all" || station !== "all"
             ? "border-[#8D1231] bg-[#8D1231] text-white hover:bg-[#73122E]"
             : "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"

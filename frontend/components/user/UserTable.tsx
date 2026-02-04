@@ -16,88 +16,163 @@ export default function UserTable({
   currentUserId,
 }: UserTableProps) {
   return (
-    <div className="overflow-x-auto rounded-xl border bg-white shadow-sm">
-      <table className="w-full table-fixed text-sm">
-        <thead className="border-b bg-gray-50 text-[11px] font-semibold uppercase text-gray-600">
-          <tr>
-            <th className="w-[200px] px-4 py-3 text-left">Name</th>
-            <th className="w-[120px] px-4 py-3 text-left">NIP</th>
-            <th className="w-[140px] px-4 py-3 text-left">Username</th>
-            <th className="w-[200px] px-4 py-3 text-left">Email</th>
-            <th className="w-[140px] px-4 py-3 text-left">Phone</th>
-            <th className="w-[120px] px-4 py-3 text-left">Role</th>
-            <th className="w-[120px] px-4 py-3 text-left">Stasiun</th>
-            <th className="w-[100px] px-4 py-3 text-center">Aksi</th>
-          </tr>
-        </thead>
+    <div>
+      {/* =======================
+          DESKTOP VIEW (TABLE)
+      ======================= */}
+      <div className="hidden overflow-x-auto rounded-xl border bg-white shadow-sm md:block">
+        <table className="w-full table-fixed text-sm">
+          <thead className="border-b bg-gray-50 text-[11px] font-semibold uppercase text-gray-600">
+            <tr>
+              <th className="w-[200px] px-4 py-3 text-left">Name</th>
+              <th className="w-[120px] px-4 py-3 text-left">NIP</th>
+              <th className="w-[140px] px-4 py-3 text-left">Username</th>
+              <th className="w-[200px] px-4 py-3 text-left">Email</th>
+              <th className="w-[140px] px-4 py-3 text-left">Phone</th>
+              <th className="w-[120px] px-4 py-3 text-left">Role</th>
+              <th className="w-[120px] px-4 py-3 text-left">Stasiun</th>
+              <th className="w-[100px] px-4 py-3 text-center">Aksi</th>
+            </tr>
+          </thead>
 
-        <tbody>
-          {data.map((u) => {
-            const isSelf = u.id === currentUserId;
+          <tbody>
+            {data.map((u) => {
+              const isSelf = u.id === currentUserId;
 
-            return (
-              <tr key={u.id} className="border-t transition hover:bg-gray-50">
-                {/* NAME */}
-                <td className="px-4 py-2">
-                  <div className="truncate text-gray-900">{u.fullname}</div>
-                </td>
+              return (
+                <tr key={u.id} className="border-t transition hover:bg-gray-50">
+                  {/* NAME */}
+                  <td className="px-4 py-2">
+                    <div className="truncate text-gray-900">{u.fullname}</div>
+                  </td>
 
-                {/* NIP */}
-                <td className="px-4 py-2 whitespace-nowrap text-gray-700">
-                  {u.nip}
-                </td>
+                  {/* NIP */}
+                  <td className="whitespace-nowrap px-4 py-2 text-gray-700">
+                    {u.nip}
+                  </td>
 
-                {/* USERNAME */}
-                <td className="px-4 py-2 truncate text-gray-700">
-                  {u.username}
-                </td>
+                  {/* USERNAME */}
+                  <td className="truncate px-4 py-2 text-gray-700">
+                    {u.username}
+                  </td>
 
-                {/* EMAIL */}
-                <td className="px-4 py-2 truncate text-gray-700">{u.email}</td>
+                  {/* EMAIL */}
+                  <td className="truncate px-4 py-2 text-gray-700">{u.email}</td>
 
-                {/* PHONE */}
-                <td className="px-4 py-2 whitespace-nowrap text-gray-700">
-                  {u.phone}
-                </td>
+                  {/* PHONE */}
+                  <td className="whitespace-nowrap px-4 py-2 text-gray-700">
+                    {u.phone}
+                  </td>
 
-                {/* ROLE */}
-                <td className="px-4 py-2 text-gray-800">{u.roleLabel}</td>
+                  {/* ROLE */}
+                  <td className="px-4 py-2 text-gray-800">{u.roleLabel}</td>
 
-                {/* STATION */}
-                <td className="px-4 py-2 text-gray-700">{u.station}</td>
-                {/* ACTION */}
-                <td className="px-4 py-2">
-                  <div className="flex flex-col items-center gap-1 md:flex-row md:justify-center">
-                    {/* EDIT */}
-                    <button
-                      onClick={() => onEdit(u.id)}
-                      className="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-700
+                  {/* STATION */}
+                  <td className="px-4 py-2 text-gray-700">{u.station}</td>
+                  {/* ACTION */}
+                  <td className="px-4 py-2">
+                    <div className="flex flex-col items-center gap-1 md:flex-row md:justify-center">
+                      {/* EDIT */}
+                      <button
+                        onClick={() => onEdit(u.id)}
+                        className="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-700
       hover:bg-gray-200"
-                    >
-                      Edit
-                    </button>
+                      >
+                        Edit
+                      </button>
 
-                    {/* DELETE */}
-                    <button
-                      onClick={() => !isSelf && onDelete(u)}
-                      disabled={isSelf}
-                      title={isSelf ? "Tidak bisa menghapus akun sendiri" : ""}
-                      className={`rounded-md px-2 py-1 text-xs text-white transition
+                      {/* DELETE */}
+                      <button
+                        onClick={() => !isSelf && onDelete(u)}
+                        disabled={isSelf}
+                        title={isSelf ? "Tidak bisa menghapus akun sendiri" : ""}
+                        className={`rounded-md px-2 py-1 text-xs text-white transition
                         ${
                           isSelf
                             ? "cursor-not-allowed bg-gray-400 opacity-50"
                             : "bg-[#8D1231] hover:bg-[#73122E]"
                         }`}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* =======================
+          MOBILE VIEW (CARDS)
+      ======================= */}
+      <div className="flex flex-col gap-4 md:hidden">
+        {data.map((u) => {
+            const isSelf = u.id === currentUserId;
+            return (
+                <div key={u.id} className="flex flex-col gap-3 rounded-xl border bg-white p-4 shadow-sm">
+                {/* Header: Name, Username, Role */}
+                <div className="flex items-start justify-between">
+                    <div>
+                    <div className="font-semibold text-gray-900">{u.fullname}</div>
+                    <div className="text-xs text-gray-500">@{u.username}</div>
+                    </div>
+                    <span className="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
+                    {u.roleLabel}
+                    </span>
+                </div>
+
+                {/* Details Grid */}
+                <div className="grid grid-cols-1 gap-y-3 gap-x-4 text-sm text-gray-600 sm:grid-cols-2">
+                    <div>
+                    <div className="text-[10px] uppercase text-gray-400">NIP</div>
+                    <div className="font-medium truncate">{u.nip}</div>
+                    </div>
+                    <div>
+                    <div className="text-[10px] uppercase text-gray-400">Station</div>
+                    <div className="font-medium truncate">{u.station}</div>
+                    </div>
+                    <div>
+                    <div className="text-[10px] uppercase text-gray-400">Phone</div>
+                    <div className="truncate">{u.phone}</div>
+                    </div>
+                    <div className="sm:col-span-2">
+                    <div className="text-[10px] uppercase text-gray-400">Email</div>
+                    <div className="truncate">{u.email}</div>
+                    </div>
+                </div>
+
+                {/* Actions */}
+                <div className="mt-2 flex gap-3 border-t pt-3">
+                    <button
+                        onClick={() => onEdit(u.id)}
+                        className="flex-1 rounded-lg bg-gray-100 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
                     >
-                      Delete
+                    Edit
                     </button>
-                  </div>
-                </td>
-              </tr>
+                    <button
+                        onClick={() => !isSelf && onDelete(u)}
+                        disabled={isSelf}
+                        className={`flex-1 rounded-lg py-2 text-sm font-medium text-white transition ${
+                            isSelf
+                            ? "cursor-not-allowed bg-gray-300"
+                            : "bg-[#8D1231] hover:bg-[#73122E]"
+                        }`}
+                    >
+                    Delete
+                    </button>
+                </div>
+                </div>
             );
-          })}
-        </tbody>
-      </table>
+        })}
+
+        {data.length === 0 && !loading && (
+            <div className="rounded-xl border bg-white p-8 text-center text-gray-500">
+                Data tidak ditemukan
+            </div>
+        )}
+      </div>
 
       {loading && (
         <div className="p-4 text-center text-sm text-gray-400">
