@@ -42,11 +42,7 @@ export default function UserFilter({
         value={station}
         onChange={(e) => setStation(e.target.value)}
         disabled={loadingStation}
-        className={`h-10 w-full md:w-auto min-w-[160px] cursor-pointer rounded-lg border px-4 text-sm outline-none transition-colors ${
-          station !== "all"
-            ? "border-[#8D1231] bg-[#8D1231] text-white"
-            : "border-gray-300 bg-white text-gray-700 hover:border-[#8D1231] focus:bg-[#8D1231] focus:text-white"
-        }`}
+        className="h-10 w-full md:w-auto min-w-[160px] cursor-pointer rounded-lg border border-[#8D1231] bg-[#8D1231] text-white px-4 text-sm outline-none transition-colors"
       >
         <option
           value="all"
@@ -68,11 +64,7 @@ export default function UserFilter({
         value={role}
         onChange={(e) => setRole(e.target.value)}
         disabled={loadingRole}
-        className={`h-10 w-full md:w-auto min-w-[160px] cursor-pointer rounded-lg border px-4 text-sm outline-none transition-colors ${
-          role !== "all"
-            ? "border-[#8D1231] bg-[#8D1231] text-white"
-            : "border-gray-300 bg-white text-gray-700 hover:border-[#8D1231] focus:bg-[#8D1231] focus:text-white"
-        }`}
+        className="h-10 w-full md:w-auto min-w-[160px] cursor-pointer rounded-lg border border-[#8D1231] bg-[#8D1231] text-white px-4 text-sm outline-none transition-colors"
       >
         <option
           value="all"

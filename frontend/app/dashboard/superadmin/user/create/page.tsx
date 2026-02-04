@@ -112,28 +112,35 @@ export default function CreateUserPage() {
   }, []);
 
   /* ======================
-     SUBMIT
+     VALIDATION & SCROLL
   ====================== */
-  const handleSubmit = async () => {
+  const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!form.name || form.name.length < 3)
-      newErrors.name = "Name must be at least 3 characters";
+    if (!form.name || form.name.trim().length === 0)
+      newErrors.name = "Name is required";
+    else if (form.name.length > 50)
+      newErrors.name = "Name cannot exceed 50 characters";
 
     if (!form.nip) newErrors.nip = "NIP is required";
-    else if (form.nip.length > 8)
-      newErrors.nip = "NIP max 8 digits";
+    else if (form.nip.length !== 8)
+      newErrors.nip = "NIP must be exactly 8 digits";
 
     if (!form.username) newErrors.username = "Username is required";
     else if (form.username.length < 4)
       newErrors.username = "Username must be at least 4 characters";
+    else if (form.username.length > 20)
+      newErrors.username = "Username cannot exceed 20 characters";
 
     if (!form.email) newErrors.email = "Email is required";
     else if (!isValidEmail(form.email))
       newErrors.email = "Invalid email format";
 
-    if (!form.phone || form.phone.length < 10)
-      newErrors.phone = "Phone number is required";
+    if (!form.phone) newErrors.phone = "Phone number is required";
+    else if (form.phone.length < 10)
+      newErrors.phone = "Phone number must be at least 10 digits";
+    else if (form.phone.length > 16)
+      newErrors.phone = "Phone number cannot exceed 16 digits";
 
     if (!form.roleId) newErrors.roleId = "Role is required";
     if (!form.stationId) newErrors.stationId = "Stasiun is required";
@@ -153,10 +160,54 @@ export default function CreateUserPage() {
       newErrors.confirmPassword = "Passwords do not match";
     }
 
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      toast.error("Please fix the form errors");
-      return;
+    return newErrors;
+  };
+
+  const handleBlur = (field: string) => {
+      setErrors((prev) => {
+        if (!prev[field]) return prev;
+        const newErr = { ...prev };
+        delete newErr[field];
+        return newErr;
+      });
+  };
+
+  const handleValidationAndScroll = () => {
+    const formErrors = validateForm();
+    const errorKeys = Object.keys(formErrors);
+    
+    if (errorKeys.length > 0) {
+      // USER REQUEST: "satu aja dulu" (Show only the first error)
+      const firstKey = errorKeys[0];
+      const errorMessage = formErrors[firstKey]; // Get specific message
+      const singleError = { [firstKey]: errorMessage };
+      
+      setErrors(singleError);
+      toast.error(errorMessage); // Show specific error in toast
+      
+      // AUTO SCROLL TO FIRST ERROR
+      const element = document.getElementById(firstKey);
+      if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "center" });
+          element.focus();
+      }
+      return false; // Validation Failed
+    }
+    
+    return true; // Validation Success
+  };
+
+
+  /* ======================
+     SUBMIT
+  ====================== */
+  const handleSubmit = async () => {
+    // Validation is already checking in button click, but double check
+    const formErrors = validateForm();
+    if (Object.keys(formErrors).length > 0) {
+         // Re-apply single error logic if somehow bypassed, though button click handles it.
+         // Effectively just reject.
+        return;
     }
 
     try {
@@ -164,7 +215,7 @@ export default function CreateUserPage() {
 
       const payload = {
         username: form.username,
-        password: form.password!, // Pass dynamic password
+        password: form.password!,
         fullName: form.name,
         email: form.email,
         phone: form.phone,
@@ -178,10 +229,7 @@ export default function CreateUserPage() {
 
       await createUser(payload);
 
-      // ✅ FEEDBACK SATU KALI AJA
       toast.success("User successfully created");
-
-      // ✅ LANGSUNG KE LIST
       router.push("/dashboard/superadmin/user");
     } catch (err: any) {
       const errorMessage = err?.response?.data?.message || err?.message || "Failed to create user";
@@ -191,16 +239,22 @@ export default function CreateUserPage() {
         errorMessage.includes("Unique constraint failed") && 
         errorMessage.includes("username")
       ) {
-        // Suppress console.error for known validation error
         console.warn("Validation Error: Duplicate username detected.");
         
         setErrors((prev) => ({
           ...prev,
           username: "Username sudah digunakan, silakan pilih yang lain",
         }));
+        
+        // Scroll to username error
+        const element = document.getElementById("username");
+        if (element) {
+             element.scrollIntoView({ behavior: "smooth", block: "center" });
+             element.focus();
+        }
+        
         toast.error("Username sudah terdaftar!");
       } else {
-        // Log genuine unexpected errors
         console.error("CREATE USER ERROR FULL:", err);
         toast.error(errorMessage);
       }
@@ -235,13 +289,18 @@ export default function CreateUserPage() {
                 Name<span className="ml-1 text-red-500">*</span>
               </label>
               <input
+                id="name" // ADDED ID
                 placeholder="Full name"
                 value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="h-11 w-full rounded-md border px-4 text-sm"
+                onChange={(e) => {
+                  setForm({ ...form, name: e.target.value });
+                  if (errors.name) setErrors((prev) => { const newErr = { ...prev }; delete newErr.name; return newErr; });
+                }}
+                onBlur={() => handleBlur("name")}
+                className={`h-11 w-full rounded-md border px-4 text-sm ${errors.name ? 'border-red-500' : ''}`}
                 autoComplete="off"
               />
-              <p className="mt-1 text-xs text-gray-400">Minimal 3 karakter</p>
+              {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
             </div>
 
             {/* NIP */}
@@ -250,17 +309,18 @@ export default function CreateUserPage() {
                 NIP<span className="ml-1 text-red-500">*</span>
               </label>
               <input
-                placeholder="Angka saja"
+                id="nip" // ADDED ID
+                placeholder="8 Digit Angka"
                 value={form.nip}
                 inputMode="numeric"
-                onChange={(e) =>
-                  setForm({ ...form, nip: sanitizeNip(e.target.value) })
-                }
-                className="h-11 w-full rounded-md border px-4 text-sm"
+                onChange={(e) => {
+                  setForm({ ...form, nip: sanitizeNip(e.target.value) });
+                  if (errors.nip) setErrors((prev) => { const newErr = { ...prev }; delete newErr.nip; return newErr; });
+                }}
+                onBlur={() => handleBlur("nip")}
+                className={`h-11 w-full rounded-md border px-4 text-sm ${errors.nip ? 'border-red-500' : ''}`}
               />
-              <p className="mt-1 text-xs text-gray-400">
-                Maksimal 8 digit, hanya angka
-              </p>
+              {errors.nip && <p className="mt-1 text-xs text-red-500">{errors.nip}</p>}
             </div>
 
             {/* USERNAME */}
@@ -269,7 +329,8 @@ export default function CreateUserPage() {
                 Username<span className="ml-1 text-red-500">*</span>
               </label>
               <input
-                placeholder="username"
+                id="username" // ADDED ID
+                placeholder="Masukkan username"
                 value={form.username}
                 onChange={(e) => {
                   setForm({
@@ -285,15 +346,11 @@ export default function CreateUserPage() {
                     });
                   }
                 }}
-                className="h-11 w-full rounded-md border px-4 text-sm"
+                onBlur={() => handleBlur("username")}
+                className={`h-11 w-full rounded-md border px-4 text-sm ${errors.username ? 'border-red-500' : ''}`}
                 autoComplete="off"
               />
-              <p className="mt-1 text-xs text-gray-400">
-                Huruf kecil, tanpa spasi
-              </p>
-              {errors.username && (
-                <p className="mt-1 text-xs text-red-500">{errors.username}</p>
-              )}
+              {errors.username && <p className="mt-1 text-xs text-red-500">{errors.username}</p>}
             </div>
 
             {/* ROLE */}
@@ -302,9 +359,14 @@ export default function CreateUserPage() {
                 Role<span className="ml-1 text-red-500">*</span>
               </label>
               <select
+                id="roleId" // ADDED ID
                 value={form.roleId}
-                onChange={(e) => setForm({ ...form, roleId: e.target.value })}
-                className="h-11 w-full appearance-none rounded-md border px-4 text-sm"
+                onChange={(e) => {
+                  setForm({ ...form, roleId: e.target.value });
+                  if (errors.roleId) setErrors((prev) => { const newErr = { ...prev }; delete newErr.roleId; return newErr; });
+                }}
+                onBlur={() => handleBlur("roleId")}
+                className={`h-11 w-full appearance-none rounded-md border px-4 text-sm ${errors.roleId ? 'border-red-500' : ''}`}
               >
                 <option value="">Pilih role</option>
                 {roles.map((r) => (
@@ -314,6 +376,7 @@ export default function CreateUserPage() {
                 ))}
               </select>
               <ChevronDown className="absolute right-3 top-[55%] h-4 w-4 text-gray-400" />
+              {errors.roleId && <p className="mt-1 text-xs text-red-500">{errors.roleId}</p>}
             </div>
 
             {/* PHONE */}
@@ -322,22 +385,23 @@ export default function CreateUserPage() {
                 Phone Number<span className="ml-1 text-red-500">*</span>
               </label>
               <input
+                id="phone" // ADDED ID
                 placeholder="08xxxxxxxx"
                 value={form.phone}
-                onChange={(e) =>
+                onChange={(e) => {
                   setForm({
                     ...form,
                     phone: e.target.value
                       .replace(/[^\d+]/g, "") // hanya angka & +
                       .slice(0, 16), // + + 15 digit
-                  })
-                }
-                className="h-11 w-full rounded-md border px-4 pr-10 text-sm"
+                  });
+                  if (errors.phone) setErrors((prev) => { const newErr = { ...prev }; delete newErr.phone; return newErr; });
+                }}
+                onBlur={() => handleBlur("phone")}
+                className={`h-11 w-full rounded-md border px-4 pr-10 text-sm ${errors.phone ? 'border-red-500' : ''}`}
               />
 
-              <p className="mt-1 text-xs text-gray-400">
-                Masukkan nomor telepon yang valid
-              </p>
+              {errors.phone && <p className="mt-1 text-xs text-red-500">{errors.phone}</p>}
             </div>
 
             {/* EMAIL */}
@@ -346,16 +410,19 @@ export default function CreateUserPage() {
                 Email Address<span className="ml-1 text-red-500">*</span>
               </label>
               <input
+                id="email" // ADDED ID
                 placeholder="example@email.com"
                 value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="h-11 w-full rounded-md border px-4 pr-10 text-sm"
+                onChange={(e) => {
+                  setForm({ ...form, email: e.target.value });
+                  if (errors.email) setErrors((prev) => { const newErr = { ...prev }; delete newErr.email; return newErr; });
+                }}
+                onBlur={() => handleBlur("email")}
+                className={`h-11 w-full rounded-md border px-4 pr-10 text-sm ${errors.email ? 'border-red-500' : ''}`}
                 autoComplete="off"
               />
               <Mail className="absolute right-3 top-[55%] h-4 w-4 text-gray-400" />
-              <p className="mt-1 text-xs text-gray-400">
-                Gunakan email yang valid
-              </p>
+              {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email}</p>}
             </div>
 
             {/* STASIUN */}
@@ -364,11 +431,14 @@ export default function CreateUserPage() {
                 Stasiun<span className="ml-1 text-red-500">*</span>
               </label>
               <select
+                id="stationId" // ADDED ID
                 value={form.stationId}
-                onChange={(e) =>
-                  setForm({ ...form, stationId: e.target.value })
-                }
-                className="h-11 w-full appearance-none rounded-md border px-4 text-sm"
+                onChange={(e) => {
+                  setForm({ ...form, stationId: e.target.value });
+                  if (errors.stationId) setErrors((prev) => { const newErr = { ...prev }; delete newErr.stationId; return newErr; });
+                }}
+                onBlur={() => handleBlur("stationId")}
+                className={`h-11 w-full appearance-none rounded-md border px-4 text-sm ${errors.stationId ? 'border-red-500' : ''}`}
               >
                 <option value="">Pilih stasiun</option>
                 {Array.isArray(stations) &&
@@ -379,6 +449,7 @@ export default function CreateUserPage() {
                   ))}
               </select>
               <ChevronDown className="absolute right-3 top-[55%] h-4 w-4 text-gray-400" />
+               {errors.stationId && <p className="mt-1 text-xs text-red-500">{errors.stationId}</p>}
             </div>
 
             {/* PASSWORD */}
@@ -388,6 +459,7 @@ export default function CreateUserPage() {
               </label>
               <div className="relative">
                 <input
+                  id="password" // ADDED ID
                   type={showPassword ? "text" : "password"}
                   placeholder="Password"
                   value={form.password}
@@ -418,8 +490,9 @@ export default function CreateUserPage() {
                         });
                     }
                   }}
+                  onBlur={() => handleBlur("password")}
                   className={`h-11 w-full rounded-md border px-4 pr-10 text-sm ${
-                    errors.password ? "border-red-500 ring-1 ring-red-500" : ""
+                    errors.password ? "border-red-500" : ""
                   }`}
                   autoComplete="new-password"
                 />
@@ -458,20 +531,22 @@ export default function CreateUserPage() {
             </div>
 
             {/* CONFIRM PASSWORD */}
-            {/* CONFIRM PASSWORD */}
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">
                 Confirm Password<span className="ml-1 text-red-500">*</span>
               </label>
               <div className="relative">
                 <input
+                  id="confirmPassword" // ADDED ID
                   type={showConfirmPassword ? "text" : "password"}
                   placeholder="Confirm Password"
                   value={form.confirmPassword}
-                  onChange={(e) =>
-                    setForm({ ...form, confirmPassword: e.target.value })
-                  }
-                  className="h-11 w-full rounded-md border px-4 pr-10 text-sm"
+                  onChange={(e) => {
+                    setForm({ ...form, confirmPassword: e.target.value });
+                    if (errors.confirmPassword) setErrors((prev) => { const newErr = { ...prev }; delete newErr.confirmPassword; return newErr; });
+                  }}
+                  onBlur={() => handleBlur("confirmPassword")}
+                  className={`h-11 w-full rounded-md border px-4 pr-10 text-sm ${errors.confirmPassword ? 'border-red-500' : ''}`}
                   autoComplete="new-password"
                 />
                 <button
@@ -521,6 +596,11 @@ export default function CreateUserPage() {
               type="button"
               disabled={loading}
               onClick={() => {
+                // 1. VALIDATE FIRST
+                const isValid = handleValidationAndScroll();
+                if (!isValid) return;
+
+                // 2. IF VALID, OPEN MODAL
                 setConfirmData({
                   Name: form.name || "-",
                   NIP: form.nip || "-",

@@ -6,6 +6,7 @@ interface UserTableProps {
   onEdit: (id: string) => void;
   onDelete: (user: User) => void;
   currentUserId: string | null;
+  totalData: number; // ADDED
 }
 
 export default function UserTable({
@@ -14,14 +15,32 @@ export default function UserTable({
   onEdit,
   onDelete,
   currentUserId,
+  totalData,
 }: UserTableProps) {
   return (
     <div>
+      {/* HEADER SECTION (MOBILE ONLY) */}
+      <div className="mb-4 flex items-center justify-between md:hidden">
+         <h3 className="text-base font-semibold text-gray-800">User List</h3>
+         <div className="text-xs font-medium text-gray-500">
+            Total Data: <span className="ml-1 rounded-md bg-[#FFE4E6] px-2 py-0.5 text-[#8D1231]">{totalData}</span>
+         </div>
+      </div>
+
       {/* =======================
           DESKTOP VIEW (TABLE)
       ======================= */}
-      <div className="hidden overflow-x-auto rounded-xl border bg-white shadow-sm md:block">
-        <table className="w-full table-fixed text-sm">
+      <div className="hidden rounded-xl border bg-white shadow-sm md:block">
+        {/* HEADER INSIDE CARD (DESKTOP) */}
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+           <h3 className="text-base font-semibold text-gray-800">User List</h3>
+           <div className="text-xs font-medium text-gray-500">
+              Total Data: <span className="ml-1 rounded-md bg-[#FFE4E6] px-2 py-0.5 text-[#8D1231]">{totalData}</span>
+           </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full table-fixed text-sm">
           <thead className="border-b bg-gray-50 text-[11px] font-semibold uppercase text-gray-600">
             <tr>
               <th className="w-[200px] px-4 py-3 text-left">Name</th>
@@ -71,12 +90,11 @@ export default function UserTable({
                   <td className="px-4 py-2 text-gray-700">{u.station}</td>
                   {/* ACTION */}
                   <td className="px-4 py-2">
-                    <div className="flex flex-col items-center gap-1 md:flex-row md:justify-center">
+                    <div className="flex items-center justify-center gap-2">
                       {/* EDIT */}
                       <button
                         onClick={() => onEdit(u.id)}
-                        className="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-700
-      hover:bg-gray-200"
+                        className="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-700 hover:bg-gray-200"
                       >
                         Edit
                       </button>
@@ -85,11 +103,9 @@ export default function UserTable({
                       <button
                         onClick={() => !isSelf && onDelete(u)}
                         disabled={isSelf}
-                        title={isSelf ? "Tidak bisa menghapus akun sendiri" : ""}
-                        className={`rounded-md px-2 py-1 text-xs text-white transition
-                        ${
+                        className={`rounded-md px-2 py-1 text-xs text-white transition ${
                           isSelf
-                            ? "cursor-not-allowed bg-gray-400 opacity-50"
+                            ? "cursor-not-allowed bg-gray-300"
                             : "bg-[#8D1231] hover:bg-[#73122E]"
                         }`}
                       >
@@ -102,6 +118,7 @@ export default function UserTable({
             })}
           </tbody>
         </table>
+       </div>
       </div>
 
       {/* =======================

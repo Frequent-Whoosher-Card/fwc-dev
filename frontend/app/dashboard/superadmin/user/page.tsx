@@ -221,6 +221,7 @@ export default function UserManagementPage() {
         data={data}
         loading={loading}
         currentUserId={currentUserId}
+        totalData={pagination.total}
         onEdit={(id) => router.push(`/dashboard/superadmin/user/edit?id=${id}`)}
         onDelete={(user) => {
           setSelectedUser(user);
