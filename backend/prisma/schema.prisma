@@ -114,23 +114,25 @@ model Role {
 }
 
 model User {
-  id                  String               @id @default(uuid()) @map("user_id") @db.Uuid
-  fullName            String               @map("full_name")
-  nip                 String?              @unique
-  username            String               @unique
-  passwordHash        String               @map("password_hash")
-  email               String?
-  phone               String?
-  roleId              String               @map("role_id") @db.Uuid
-  isActive            Boolean              @map("is_active")
-  lastLogin           DateTime?            @map("last_login")
-  createdAt           DateTime             @default(now()) @map("created_at")
-  createdBy           String?              @map("created_by") @db.Uuid
-  updatedAt           DateTime             @default(now()) @map("updated_at")
-  updatedBy           String?              @map("updated_by") @db.Uuid
-  deletedAt           DateTime?            @map("deleted_at")
-  deletedBy           String?              @map("deleted_by") @db.Uuid
-  stationId           String?              @map("station_id") @db.Uuid
+  id           String    @id @default(uuid()) @map("user_id") @db.Uuid
+  fullName     String    @map("full_name")
+  nip          String?   @unique
+  username     String    @unique
+  passwordHash String    @map("password_hash")
+  email        String?
+  phone        String?
+  roleId       String    @map("role_id") @db.Uuid
+  isActive     Boolean   @map("is_active")
+  lastLogin    DateTime? @map("last_login")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  createdBy    String?   @map("created_by") @db.Uuid
+  updatedAt    DateTime  @default(now()) @map("updated_at")
+  updatedBy    String?   @map("updated_by") @db.Uuid
+  deletedAt    DateTime? @map("deleted_at")
+  deletedBy    String?   @map("deleted_by") @db.Uuid
+  stationId    String?   @map("station_id") @db.Uuid
+
+  // Relations
   activityLogs        ActivityLog[]
   purchases           CardPurchase[]       @relation("PurchaseOperator")
   redeems             Redeem[]
@@ -139,13 +141,14 @@ model User {
   rejectedSwaps       CardSwapRequest[]    @relation("SwapRejecter")
   requestedSwaps      CardSwapRequest[]    @relation("SwapRequester")
   cardSwapRequests    CardSwapRequest[]
-  cards               Card[]
   sentInboxes         Inbox[]              @relation("SentInboxes")
   receivedInboxes     Inbox[]              @relation("ReceivedInboxes")
-  passwordResetTokens PasswordResetToken[]
-  shifts              Shift[]
   role                Role                 @relation(fields: [roleId], references: [id])
   station             Station?             @relation(fields: [stationId], references: [id])
+  passwordResetTokens PasswordResetToken[]
+  shifts              Shift[]
+  cards               Card[]
+  fcmToken            FcmToken[]
 
   @@map("users")
 }
@@ -237,10 +240,18 @@ model Station {
 }
 
 model BulkDiscount {
-  id          Int      @id @default(autoincrement()) @map("bulk_discount_id")
+  id          Int       @id @default(autoincrement()) @map("bulk_discount_id")
   discount    Decimal?
-  minQuantity Int?     @map("min_quantity")
-  maxQuantity Int?     @map("max_quantity")
+  minQuantity Int?      @map("min_quantity")
+  maxQuantity Int?      @map("max_quantity")
+  isActive    Boolean?  @default(true) @map("is_active")
+  roleAccess  String[]  @default([]) @map("role_access")
+  createdAt   DateTime? @default(now()) @map("created_at")
+  createdBy   String?   @map("created_by") @db.Uuid
+  updatedAt   DateTime? @default(now()) @map("updated_at")
+  updatedBy   String?   @map("updated_by") @db.Uuid
+  deletedAt   DateTime? @map("deleted_at")
+  deletedBy   String?   @map("deleted_by") @db.Uuid
 
   cardPurchase CardPurchase[]
 
@@ -278,6 +289,22 @@ model CardProduct {
   @@map("card_products")
 }
 
+model ProductType {
+  id           String       @id @default(uuid()) @map("product_type_id") @db.Uuid
+  programId    String       @map("program_id") // 2 serial awal
+  description  String?
+  abbreviation String?
+  programType  ProgramType? @map("program_type")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  createdBy    String?      @map("created_by") @db.Uuid
+  updatedAt    DateTime     @default(now()) @map("updated_at")
+  updatedBy    String?      @map("updated_by") @db.Uuid
+  deletedAt    DateTime?    @map("deleted_at")
+  deletedBy    String?      @map("deleted_by") @db.Uuid
+
+  @@map("product_types")
+}
+
 model EmployeeType {
   id          String    @id @default(uuid()) @map("employee_type_id") @db.Uuid
   code        String    @unique @map("code")
@@ -304,6 +331,7 @@ model Member {
   email          String?
   phone          String?
   nippKai        String?   @map("nipp_kai")
+  birthDate      DateTime? @map("birth_date")
   createdAt      DateTime  @default(now()) @map("created_at")
   createdBy      String?   @map("created_by") @db.Uuid
   updatedAt      DateTime  @default(now()) @map("updated_at")
@@ -315,11 +343,13 @@ model Member {
   notes          String?
   companyName    String?   @map("company_name")
   employeeTypeId String?   @map("employee_type_id") @db.Uuid
+  cityId         String?   @map("city_id") @db.Uuid
 
   // Relations
   employeeType EmployeeType?  @relation(fields: [employeeTypeId], references: [id])
   purchases    CardPurchase[]
   cards        Card[]
+  city         City?          @relation(fields: [cityId], references: [id])
 
   @@map("members")
 }
@@ -777,4 +807,26 @@ model RolePermission {
 
   @@unique([roleId, permissionId])
   @@map("role_permissions")
+}
+
+model FcmToken {
+  id         String  @id @default(uuid()) @map("fcm_token_id") @db.Uuid
+  token      String  @unique
+  deviceInfo String? @map("device_info")
+  userId     String? @map("user_id") @db.Uuid
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("fcm_tokens")
+}
+
+model City {
+  id   String @id @default(uuid()) @map("city_id") @db.Uuid
+  name String @map("name")
+
+  // Relations
+  members Member[]
+
+  @@map("city")
 }
