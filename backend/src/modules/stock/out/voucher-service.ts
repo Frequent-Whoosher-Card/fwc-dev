@@ -232,6 +232,15 @@ export class StockOutVoucherService {
       null, // Office Scope
       currentStock,
     );
+
+    // 2. Send Push Notification to Supervisor
+    const productName = `${cardProduct.category.categoryName} - ${cardProduct.type.typeName}`;
+    const pushTitle = `Kiriman Voucher: ${productName}`;
+    const pushMessage = `Office mengirim ${sentCount} voucher ${productName} ke stasiun ${stationName}.`;
+    
+    // Fire and forget
+    const { PushNotificationService } = await import("../../notification/push-service");
+    PushNotificationService.sendToRoleAtStation("supervisor", stationId, pushTitle, pushMessage);
     // --------------------------------
 
     return transaction;
@@ -507,6 +516,11 @@ export class StockOutVoucherService {
             createdAt: new Date(),
           },
         });
+
+        // --- PUSH NOTIFICATION TO ADMINS ---
+        const { PushNotificationService } = await import("../../notification/push-service");
+        PushNotificationService.sendToRole(["admin", "superadmin"], title, message);
+        // -----------------------------------
       }
 
       return {

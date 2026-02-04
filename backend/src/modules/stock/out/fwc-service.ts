@@ -241,7 +241,7 @@ export class StockOutFwcService {
     );
 
     // --- POST-TRANSACTION TRIGGER ---
-    // Check Office Stock (Real-time Alert)
+    // 1. Check Office Stock (Real-time Alert)
     const currentStock = await db.card.count({
       where: {
         status: "IN_OFFICE",
@@ -255,6 +255,16 @@ export class StockOutFwcService {
       null, // Office Scope
       currentStock,
     );
+
+    // 2. Send Push Notification to Supervisor
+    const productName = `${cardProduct.category.categoryName} - ${cardProduct.type.typeName}`;
+    const pushTitle = `Kiriman Stock: ${productName}`;
+    const pushMessage = `Office mengirimkan ${sentCount} kartu ${productName} ke stasiun ${stationName}.`;
+    
+    // Fire and forget (don't await to block response)
+    const { PushNotificationService } = await import("../../notification/push-service");
+    PushNotificationService.sendToRoleAtStation("supervisor", stationId, pushTitle, pushMessage);
+
     // --------------------------------
 
     return transaction;
@@ -673,6 +683,11 @@ export class StockOutFwcService {
             },
           });
         }
+
+        // --- PUSH NOTIFICATION TO ADMINS ---
+        const { PushNotificationService } = await import("../../notification/push-service");
+        PushNotificationService.sendToRole(["admin", "superadmin"], title, message);
+        // -----------------------------------
 
         return {
           movementId,

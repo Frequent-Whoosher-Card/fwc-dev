@@ -93,3 +93,13 @@ export async function apiFetch(
 
   return json;
 }
+
+/**
+ * Update FCM Token to server (Database)
+ */
+export async function updateFcmToken(token: string) {
+  return apiFetch('/notification/token', {
+    method: 'POST',
+    body: JSON.stringify({ token, deviceInfo: navigator.userAgent }), // Send User Agent as device info
+  });
+}
