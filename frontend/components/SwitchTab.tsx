@@ -32,7 +32,7 @@ export default function SwitchTab({
     "px-4 py-2 text-sm font-medium transition-colors focus:outline-none flex items-center gap-2";
 
   return (
-    <div className="flex w-fit overflow-hidden rounded-lg border shadow-sm">
+    <div className="flex w-fit max-w-full overflow-x-auto rounded-lg border shadow-sm">
       {items.map((item, index) => {
         const isStateBased =
           activeValue !== undefined && onValueChange !== undefined;

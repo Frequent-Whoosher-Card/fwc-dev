@@ -28,6 +28,7 @@ import { bulkDiscount } from "./modules/discount";
 import { employeeTypeController } from "./modules/employee-types";
 import { permissions } from "./modules/permissions";
 import { menuAccess } from "./modules/menu-access";
+import { notificationRoutes } from "./modules/notification";
 
 config();
 const PORT = process.env.APP_PORT ? Number(process.env.APP_PORT) : 3001;
@@ -60,6 +61,7 @@ const app = new Elysia()
   .use(sales)
   .use(metrics)
   .use(inbox)
+  .use(notificationRoutes)
   .use(redeem)
   .use(bulkDiscount)
   .use(permissions)

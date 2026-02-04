@@ -72,15 +72,15 @@ export default function InboxFilter({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-4 w-full">
+    <div className="flex flex-col md:flex-row md:flex-wrap items-start md:items-center gap-4 w-full">
       {/* SEARCH INPUT */}
-      <div className="relative">
+      <div className="relative w-full md:w-auto">
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Cari..."
-          className="h-9 w-[200px] rounded-md border px-3 pl-9 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
+          className="h-9 w-full md:w-[200px] rounded-md border px-3 pl-9 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
         />
         <Search
           size={16}
@@ -88,17 +88,19 @@ export default function InboxFilter({
         />
       </div>
 
-      <DateInput label="Start" value={startDate} onChange={setStartDate} />
-      <DateInput label="End" value={endDate} onChange={setEndDate} />
+      <div className="grid grid-cols-2 gap-2 w-full md:flex md:w-auto md:items-center">
+        <DateInput label="Start" value={startDate} onChange={setStartDate} />
+        <DateInput label="End" value={endDate} onChange={setEndDate} />
+      </div>
 
       {/* OPTIONAL: STATION FILTER */}
       {stations && onStationChange && (
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">Station</span>
+        <div className="flex flex-col md:flex-row md:items-center gap-2 w-full md:w-auto">
+          <span className="text-sm font-medium hidden md:inline">Station</span>
           <select
             value={selectedStation}
             onChange={(e) => onStationChange(e.target.value)}
-            className="h-9 w-[160px] rounded-md border px-3 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
+            className="h-9 w-full md:w-[160px] rounded-md border px-3 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
           >
             <option value="">Semua Stasiun</option>
             {stations.map((s) => (
@@ -110,12 +112,12 @@ export default function InboxFilter({
         </div>
       )}
 
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium">Status</span>
+      <div className="flex flex-col md:flex-row md:items-center gap-2 w-full md:w-auto">
+        <span className="text-sm font-medium hidden md:inline">Status</span>
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          className="h-9 w-[160px] rounded-md border px-3 text-sm focus:outline-none border-[#8D1231] bg-[#8D1231] text-white"
+          className="h-9 w-full md:w-[160px] rounded-md border px-3 text-sm focus:outline-none border-[#8D1231] bg-[#8D1231] text-white"
         >
           <option value="">Semua Status</option>
           <option value="PENDING_VALIDATION">Pending Validation</option>
@@ -127,13 +129,13 @@ export default function InboxFilter({
 
       <div className="flex gap-2 ml-auto">
         {onRefresh && (
-          <button
-            onClick={reset}
-            title="Refresh & Reset"
-            className="p-2.5 border rounded-xl text-gray-400 hover:bg-red-50 hover:text-[#8D1231] active:bg-[#8D1231] active:text-white transition-colors border-gray-300"
-          >
-            <RefreshCw size={20} />
-          </button>
+            <button
+              onClick={reset}
+              title="Refresh & Reset"
+              className="p-2.5 border rounded-xl text-gray-400 hover:bg-red-50 hover:text-[#8D1231] active:bg-[#8D1231] active:text-white transition-colors border-gray-300"
+            >
+              <RefreshCw size={20} />
+            </button>
         )}
       </div>
     </div>
@@ -152,16 +154,16 @@ function DateInput({
   const ref = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-sm font-medium">{label}</span>
-      <div className="relative">
+    <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-2 w-full md:w-auto">
+      <span className="text-sm font-medium text-gray-500 md:text-gray-900 text-xs md:text-sm">{label}</span>
+      <div className="relative w-full md:w-auto">
         <input
           ref={ref}
           type="date"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onClick={(e) => e.preventDefault()} // Prevent native picker on click
-          className="h-9 w-[150px] rounded-md border px-3 pr-9 text-sm focus:outline-none focus:ring-1 focus:ring-red-500 [&::-webkit-calendar-picker-indicator]:hidden"
+          className="h-9 w-full md:w-[150px] rounded-md border px-3 pr-9 text-sm focus:outline-none focus:ring-1 focus:ring-red-500 [&::-webkit-calendar-picker-indicator]:hidden"
         />
         <Calendar
           size={16}
