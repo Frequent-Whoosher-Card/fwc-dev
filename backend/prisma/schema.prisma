@@ -186,6 +186,7 @@ model CardCategory {
   cardInventories    CardInventory[]
   cardProducts       CardProduct[]
   cardStockMovements CardStockMovement[]
+  lowStockAlerts     LowStockAlert[]
 
   @@unique([categoryCode, programType], name: "unique_category_code_program")
   @@map("card_categories")
@@ -207,6 +208,7 @@ model CardType {
   cardInventories    CardInventory[]
   cardProducts       CardProduct[]
   cardStockMovements CardStockMovement[]
+  lowStockAlerts     LowStockAlert[]
 
   @@unique([typeCode, programType], name: "unique_type_code_program")
   @@map("card_types")
@@ -235,6 +237,7 @@ model Station {
   cards                Card[]
   inboxes              Inbox[]
   users                User[]
+  lowStockAlerts       LowStockAlert[]
 
   @@map("stations")
 }
@@ -829,4 +832,24 @@ model City {
   members Member[]
 
   @@map("city")
+}
+
+model LowStockAlert {
+  id           String   @id @default(uuid()) @map("low_stock_id") @db.Uuid
+  categoryId   String   @map("category_id") @db.Uuid
+  typeId       String   @map("type_id") @db.Uuid
+  stationId    String?  @map("station_id") @db.Uuid // Null = Office
+  currentStock Int      @map("current_stock")
+  threshold    Int      @map("threshold")
+  lastAlertAt  DateTime @default(now()) @map("last_alert_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @map("updated_at")
+
+  // Relations
+  category CardCategory @relation(fields: [categoryId], references: [id])
+  type     CardType     @relation(fields: [typeId], references: [id])
+  station  Station?     @relation(fields: [stationId], references: [id])
+
+  @@unique([categoryId, typeId, stationId]) // Unique constraint for upsert
+  @@map("low_stock_alerts")
 }

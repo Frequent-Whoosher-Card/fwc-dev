@@ -1,3 +1,8 @@
+import {
+  parseFilter,
+  prismaFilter,
+  parseSmartSearch,
+} from "../../../utils/filterHelper";
 import db from "../../../config/db";
 import { ProgramType } from "@prisma/client";
 import { ValidationError } from "../../../utils/errors";
@@ -237,10 +242,16 @@ export class StockOutVoucherService {
     const productName = `${cardProduct.category.categoryName} - ${cardProduct.type.typeName}`;
     const pushTitle = `Kiriman Voucher: ${productName}`;
     const pushMessage = `Office mengirim ${sentCount} voucher ${productName} ke stasiun ${stationName}.`;
-    
+
     // Fire and forget
-    const { PushNotificationService } = await import("../../notification/push-service");
-    PushNotificationService.sendToRoleAtStation("supervisor", stationId, pushTitle, pushMessage);
+    const { PushNotificationService } =
+      await import("../../notification/push-service");
+    PushNotificationService.sendToRoleAtStation(
+      "supervisor",
+      stationId,
+      pushTitle,
+      pushMessage,
+    );
     // --------------------------------
 
     return transaction;
@@ -518,8 +529,13 @@ export class StockOutVoucherService {
         });
 
         // --- PUSH NOTIFICATION TO ADMINS ---
-        const { PushNotificationService } = await import("../../notification/push-service");
-        PushNotificationService.sendToRole(["admin", "superadmin"], title, message);
+        const { PushNotificationService } =
+          await import("../../notification/push-service");
+        PushNotificationService.sendToRole(
+          ["admin", "superadmin"],
+          title,
+          message,
+        );
         // -----------------------------------
       }
 
@@ -542,59 +558,112 @@ export class StockOutVoucherService {
     return transaction;
   }
 
-  static async getHistory(params: any) {
+  static async getHistory(params: {
+    page?: number;
+    limit?: number;
+    startDate?: Date;
+    endDate?: Date;
+    stationId?: string;
+    categoryId?: string;
+    typeId?: string;
+    status?: string;
+    categoryName?: string;
+    typeName?: string;
+    stationName?: string;
+    search?: string;
+  }) {
     const {
+      page = 1,
+      limit = 10,
       startDate,
       endDate,
       stationId,
       status,
-      search,
-      stationName,
-      categoryName,
-      typeName,
     } = params;
-
-    const page = Number(params.page) || 1;
-    const limit = Number(params.limit) || 10;
     const skip = (page - 1) * limit;
-    const where: any = { movementType: "OUT" };
 
-    where.category = { programType: "VOUCHER" };
+    const where: any = {
+      movementType: "OUT",
+      category: {
+        programType: "VOUCHER",
+      },
+      ...parseSmartSearch(params.search || "", [
+        "note",
+        "station.stationName",
+        "category.categoryName",
+        "type.typeName",
+        "notaDinas",
+        "bast",
+        "batchId",
+        "category.categoryCode",
+        "type.typeCode",
+      ]),
+    };
 
-    if (search) {
-      where.OR = [
-        { note: { contains: search, mode: "insensitive" } },
-        { station: { stationName: { contains: search, mode: "insensitive" } } },
-        {
-          category: { categoryName: { contains: search, mode: "insensitive" } },
-        },
-        { type: { typeName: { contains: search, mode: "insensitive" } } },
-        { notaDinas: { contains: search, mode: "insensitive" } },
-        { bast: { contains: search, mode: "insensitive" } },
-      ];
+    if (stationId) {
+      where.stationId = prismaFilter(stationId);
     }
-    if (stationName)
-      where.station = {
-        stationName: { contains: stationName, mode: "insensitive" },
-      };
 
-    // Date Filters
-    if (startDate || endDate) {
-      where.movementAt = {};
-      if (startDate) where.movementAt.gte = startDate;
-      if (endDate) where.movementAt.lte = endDate;
+    if (params.categoryId) {
+      where.categoryId = prismaFilter(params.categoryId);
     }
-    if (stationId) where.stationId = stationId;
-    if (status) where.status = status;
-    if (categoryName)
+
+    if (params.typeId) {
+      where.typeId = prismaFilter(params.typeId);
+    }
+
+    if (status) {
+      where.status = prismaFilter(status);
+    }
+
+    // Support Multi-Filter for Names (OR-based contains)
+    if (params.categoryName) {
+      const names = params.categoryName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
       where.category = {
         ...where.category,
-        categoryName: { contains: categoryName, mode: "insensitive" },
+        OR: names.map((name) => ({
+          categoryName: { contains: name, mode: "insensitive" },
+        })),
       };
-    if (typeName)
+    }
+
+    if (params.typeName) {
+      const names = params.typeName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
       where.type = {
-        typeName: { contains: typeName, mode: "insensitive" },
+        OR: names.map((name) => ({
+          typeName: { contains: name, mode: "insensitive" },
+        })),
       };
+    }
+
+    if (params.stationName) {
+      const names = params.stationName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      where.station = {
+        OR: names.map((name) => ({
+          stationName: { contains: name, mode: "insensitive" },
+        })),
+      };
+    }
+
+    if (startDate && endDate) {
+      where.movementAt = {
+        gte: startDate,
+        lte: endDate,
+      };
+    } else if (startDate) {
+      where.movementAt = { gte: startDate };
+    } else if (endDate) {
+      where.movementAt = { lte: endDate };
+    }
 
     const [items, total] = await Promise.all([
       db.cardStockMovement.findMany({

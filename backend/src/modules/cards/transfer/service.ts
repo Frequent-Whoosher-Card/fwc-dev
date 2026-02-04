@@ -262,7 +262,7 @@ export class TransferService {
         id: item.type.id,
         typeName: item.type.typeName,
       },
-      programType: item.category.programType,
+      programType: item.category.programType || undefined,
       sentSerialNumbers: item.sentSerialNumbers,
       receivedSerialNumbers: item.receivedSerialNumbers,
       createdByUser:
@@ -337,7 +337,7 @@ export class TransferService {
         id: transfer.type.id,
         typeName: transfer.type.typeName,
       },
-      programType: transfer.category.programType,
+      programType: transfer.category.programType || undefined,
       sentSerialNumbers: transfer.sentSerialNumbers,
       receivedSerialNumbers: transfer.receivedSerialNumbers,
       createdByUser:
