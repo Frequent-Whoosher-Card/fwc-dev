@@ -34,6 +34,7 @@ export namespace CardInventoryModel {
     categoryName: t.Optional(t.String()),
     typeName: t.Optional(t.String()),
     stationName: t.Optional(t.String()),
+    search: t.Optional(t.String()),
     programType: t.Optional(t.Union([t.Literal("FWC"), t.Literal("VOUCHER")])),
   });
 

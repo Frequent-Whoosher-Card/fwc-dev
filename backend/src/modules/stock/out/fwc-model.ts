@@ -70,9 +70,10 @@ export namespace StockOutFwcModel {
     limit: t.Optional(t.String()),
     startDate: t.Optional(t.String({ format: "date" })),
     endDate: t.Optional(t.String({ format: "date" })),
-    stationId: t.Optional(t.String({ format: "uuid" })),
+    stationId: t.Optional(t.String()),
+    categoryId: t.Optional(t.String()),
+    typeId: t.Optional(t.String()),
     status: t.Optional(t.String()),
-    // New Search Params
     search: t.Optional(t.String()),
     stationName: t.Optional(t.String()),
     categoryName: t.Optional(t.String()),

@@ -56,6 +56,8 @@ enum FilePurpose {
   LAST_REDEEM
   BARCODE_IMAGE
   GENERATION_DOCUMENT
+  STOCK_OUT_NOTA
+  STOCK_OUT_BAST
 }
 
 enum Gender {
@@ -101,6 +103,7 @@ model Role {
   roleName    String           @map("role_name")
   description String?
   isActive    Boolean          @map("is_active")
+  notes       String?
   createdAt   DateTime         @default(now()) @map("created_at")
   createdBy   String?          @map("created_by") @db.Uuid
   updatedAt   DateTime         @default(now()) @map("updated_at")
@@ -123,6 +126,7 @@ model User {
   phone        String?
   roleId       String    @map("role_id") @db.Uuid
   isActive     Boolean   @map("is_active")
+  notes        String?
   lastLogin    DateTime? @map("last_login")
   createdAt    DateTime  @default(now()) @map("created_at")
   createdBy    String?   @map("created_by") @db.Uuid
@@ -158,6 +162,7 @@ model Shift {
   userId    String    @map("user_id") @db.Uuid
   startDate DateTime  @map("start_date")
   endDate   DateTime  @map("end_date")
+  notes     String?
   createdAt DateTime  @default(now()) @map("created_at")
   createdBy String?   @map("created_by") @db.Uuid
   updatedAt DateTime  @default(now()) @map("updated_at")
@@ -175,6 +180,7 @@ model CardCategory {
   categoryCode       String              @map("category_code")
   categoryName       String              @map("category_name")
   description        String?
+  notes              String?
   createdAt          DateTime            @default(now()) @map("created_at")
   createdBy          String?             @map("created_by") @db.Uuid
   updatedAt          DateTime            @default(now()) @map("updated_at")
@@ -197,6 +203,7 @@ model CardType {
   typeCode           String              @map("type_code")
   typeName           String              @map("type_name")
   routeDescription   String?             @map("route_description")
+  notes              String?
   createdAt          DateTime            @default(now()) @map("created_at")
   createdBy          String?             @map("created_by") @db.Uuid
   updatedAt          DateTime            @default(now()) @map("updated_at")
@@ -219,6 +226,7 @@ model Station {
   stationCode          String              @unique @map("station_code")
   stationName          String              @map("station_name")
   location             String?
+  notes                String?
   createdAt            DateTime            @default(now()) @map("created_at")
   createdBy            String?             @map("created_by") @db.Uuid
   updatedAt            DateTime            @default(now()) @map("updated_at")
@@ -249,6 +257,7 @@ model BulkDiscount {
   maxQuantity Int?      @map("max_quantity")
   isActive    Boolean?  @default(true) @map("is_active")
   roleAccess  String[]  @default([]) @map("role_access")
+  notes       String?
   createdAt   DateTime? @default(now()) @map("created_at")
   createdBy   String?   @map("created_by") @db.Uuid
   updatedAt   DateTime? @default(now()) @map("updated_at")
@@ -273,6 +282,7 @@ model CardProduct {
   isDiscount     Boolean?     @default(false) @map("is_discount")
   serialTemplate String       @unique @map("serial_template")
   programType    ProgramType? @map("program_type")
+  notes          String?
   createdAt      DateTime     @default(now()) @map("created_at")
   createdBy      String?      @map("created_by") @db.Uuid
   updatedAt      DateTime     @default(now()) @map("updated_at")
@@ -281,15 +291,31 @@ model CardProduct {
   deletedBy      String?      @map("deleted_by") @db.Uuid
 
   // Relation
-  category         CardCategory      @relation(fields: [categoryId], references: [id])
-  type             CardType          @relation(fields: [typeId], references: [id])
-  cardSwapRequests CardSwapRequest[]
-  swapRequests     CardSwapRequest[] @relation("ExpectedProduct")
-  cards            Card[]
+  category             CardCategory         @relation(fields: [categoryId], references: [id])
+  type                 CardType             @relation(fields: [typeId], references: [id])
+  cardSwapRequests     CardSwapRequest[]
+  swapRequests         CardSwapRequest[]    @relation("ExpectedProduct")
+  cards                Card[]
+  cardProductHistories CardProductHistory[]
 
   @@unique([categoryId, typeId], name: "unique_category_type")
   @@index([categoryId, typeId], map: "index_category_type")
   @@map("card_products")
+}
+
+model CardProductHistory {
+  id            String   @id @default(uuid()) @db.Uuid
+  cardProductId String   @map("card_product_id") @db.Uuid
+  previousLimit Int      @map("previous_limit")
+  newLimit      Int      @map("new_limit")
+  changedAt     DateTime @default(now()) @map("changed_at")
+  changedBy     String?  @map("changed_by") @db.Uuid
+  notes         String?
+
+  // Relation
+  cardProduct CardProduct @relation(fields: [cardProductId], references: [id])
+
+  @@map("card_product_history")
 }
 
 model ProductType {
@@ -298,6 +324,7 @@ model ProductType {
   description  String?
   abbreviation String?
   programType  ProgramType? @map("program_type")
+  notes        String?
   createdAt    DateTime     @default(now()) @map("created_at")
   createdBy    String?      @map("created_by") @db.Uuid
   updatedAt    DateTime     @default(now()) @map("updated_at")
@@ -313,6 +340,7 @@ model EmployeeType {
   code        String    @unique @map("code")
   name        String    @map("name")
   description String?   @map("description")
+  notes       String?
   createdAt   DateTime  @default(now()) @map("created_at")
   createdBy   String?   @map("created_by") @db.Uuid
   updatedAt   DateTime  @updatedAt @map("updated_at")
@@ -327,33 +355,33 @@ model EmployeeType {
 }
 
 model Member {
-  id             String    @id @default(uuid()) @map("member_id") @db.Uuid
-  name           String    @map("member_name")
-  identityNumber String    @unique @map("identity_number")
-  nationality    String?
-  email          String?
-  phone          String?
-  nippKai        String?   @map("nipp_kai")
-  birthDate      DateTime? @map("birth_date")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  createdBy      String?   @map("created_by") @db.Uuid
-  updatedAt      DateTime  @default(now()) @map("updated_at")
-  updatedBy      String?   @map("updated_by") @db.Uuid
-  deletedAt      DateTime? @map("deleted_at")
-  deletedBy      String?   @map("deleted_by") @db.Uuid
-  gender         Gender?
-  alamat         String?
-  notes          String?
-  companyName    String?   @map("company_name")
-  employeeTypeId   String?   @map("employee_type_id") @db.Uuid
-  cityId           String?   @map("city_id") @db.Uuid
-  paymentMethodId  String?   @map("payment_method_id") @db.Uuid
+  id              String    @id @default(uuid()) @map("member_id") @db.Uuid
+  name            String    @map("member_name")
+  identityNumber  String    @unique @map("identity_number")
+  nationality     String?
+  email           String?
+  phone           String?
+  nippKai         String?   @map("nipp_kai")
+  birthDate       DateTime? @map("birth_date")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  createdBy       String?   @map("created_by") @db.Uuid
+  updatedAt       DateTime  @default(now()) @map("updated_at")
+  updatedBy       String?   @map("updated_by") @db.Uuid
+  deletedAt       DateTime? @map("deleted_at")
+  deletedBy       String?   @map("deleted_by") @db.Uuid
+  gender          Gender?
+  alamat          String?
+  notes           String?
+  companyName     String?   @map("company_name")
+  employeeTypeId  String?   @map("employee_type_id") @db.Uuid
+  cityId          String?   @map("city_id") @db.Uuid
+  paymentMethodId String?   @map("payment_method_id") @db.Uuid
 
   // Relations
   employeeType  EmployeeType?  @relation(fields: [employeeTypeId], references: [id])
   purchases     CardPurchase[]
-  cards        Card[]
-  city         City?          @relation(fields: [cityId], references: [id])
+  cards         Card[]
+  city          City?          @relation(fields: [cityId], references: [id])
   paymentMethod PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
 
   @@map("members")
@@ -506,6 +534,7 @@ model Inbox {
   programType   ProgramType? @map("program_type")
   readByUserIds String[]     @default([]) @map("read_by_user_ids")
   targetRoles   String[]     @default([]) @map("target_roles")
+  notes         String?
   createdAt     DateTime     @default(now()) @map("created_at")
   createdBy     String?      @map("created_by") @db.Uuid
   updatedAt     DateTime     @default(now()) @map("updated_at")
@@ -606,6 +635,7 @@ model PassengerInfo {
   passengerName String    @map("nama_passanger")
   nik           String    @map("nik")
   redeemId      String    @map("card_redeem_id") @db.Uuid
+  notes         String?
   createdAt     DateTime  @default(now()) @map("created_at")
   createdBy     String?   @map("created_by") @db.Uuid
   updatedAt     DateTime  @default(now()) @map("updated_at")
@@ -624,6 +654,7 @@ model CardUsageLog {
   quotaUsed      Int       @map("quota_used")
   remainingQuota Int       @map("remaining_quota")
   usageDate      DateTime  @map("usage_date")
+  notes          String?
   createdAt      DateTime  @default(now()) @map("created_at")
   createdBy      String?   @map("created_by")
   updatedAt      DateTime  @updatedAt @map("updated_at")
@@ -728,6 +759,7 @@ model ActivityLog {
   userId      String    @map("user_id") @db.Uuid
   action      String    @map("action")
   description String?   @map("description")
+  notes       String?
   createdAt   DateTime? @map("created_at")
   createdBy   String?   @map("created_by")
   updatedAt   DateTime? @map("updated_at")
@@ -827,8 +859,9 @@ model FcmToken {
 }
 
 model City {
-  id   String @id @default(uuid()) @map("city_id") @db.Uuid
-  name String @map("name")
+  id    String  @id @default(uuid()) @map("city_id") @db.Uuid
+  name  String  @map("name")
+  notes String?
 
   // Relations
   members Member[]
@@ -837,8 +870,8 @@ model City {
 }
 
 model PaymentMethod {
-  id   String  @id @default(uuid()) @map("payment_method_id") @db.Uuid
-  name String  @map("name")
+  id   String @id @default(uuid()) @map("payment_method_id") @db.Uuid
+  name String @map("name")
 
   // Relations
   members Member[]
@@ -854,8 +887,11 @@ model LowStockAlert {
   currentStock Int      @map("current_stock")
   threshold    Int      @map("threshold")
   lastAlertAt  DateTime @default(now()) @map("last_alert_at")
+  notes        String?
   createdAt    DateTime @default(now()) @map("created_at")
+  createdBy    String?  @map("created_by") @db.Uuid
   updatedAt    DateTime @default(now()) @map("updated_at")
+  updatedBy    String?  @map("updated_by") @db.Uuid
 
   // Relations
   category CardCategory @relation(fields: [categoryId], references: [id])
