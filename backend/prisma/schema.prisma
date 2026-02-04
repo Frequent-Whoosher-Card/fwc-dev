@@ -291,15 +291,31 @@ model CardProduct {
   deletedBy      String?      @map("deleted_by") @db.Uuid
 
   // Relation
-  category         CardCategory      @relation(fields: [categoryId], references: [id])
-  type             CardType          @relation(fields: [typeId], references: [id])
-  cardSwapRequests CardSwapRequest[]
-  swapRequests     CardSwapRequest[] @relation("ExpectedProduct")
-  cards            Card[]
+  category             CardCategory         @relation(fields: [categoryId], references: [id])
+  type                 CardType             @relation(fields: [typeId], references: [id])
+  cardSwapRequests     CardSwapRequest[]
+  swapRequests         CardSwapRequest[]    @relation("ExpectedProduct")
+  cards                Card[]
+  cardProductHistories CardProductHistory[]
 
   @@unique([categoryId, typeId], name: "unique_category_type")
   @@index([categoryId, typeId], map: "index_category_type")
   @@map("card_products")
+}
+
+model CardProductHistory {
+  id            String   @id @default(uuid()) @db.Uuid
+  cardProductId String   @map("card_product_id") @db.Uuid
+  previousLimit Int      @map("previous_limit")
+  newLimit      Int      @map("new_limit")
+  changedAt     DateTime @default(now()) @map("changed_at")
+  changedBy     String?  @map("changed_by") @db.Uuid
+  notes         String?
+
+  // Relation
+  cardProduct CardProduct @relation(fields: [cardProductId], references: [id])
+
+  @@map("card_product_history")
 }
 
 model ProductType {
@@ -339,33 +355,33 @@ model EmployeeType {
 }
 
 model Member {
-  id             String    @id @default(uuid()) @map("member_id") @db.Uuid
-  name           String    @map("member_name")
-  identityNumber String    @unique @map("identity_number")
-  nationality    String?
-  email          String?
-  phone          String?
-  nippKai        String?   @map("nipp_kai")
-  birthDate      DateTime? @map("birth_date")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  createdBy      String?   @map("created_by") @db.Uuid
-  updatedAt      DateTime  @default(now()) @map("updated_at")
-  updatedBy      String?   @map("updated_by") @db.Uuid
-  deletedAt      DateTime? @map("deleted_at")
-  deletedBy      String?   @map("deleted_by") @db.Uuid
-  gender         Gender?
-  alamat         String?
-  notes          String?
-  companyName    String?   @map("company_name")
-  employeeTypeId   String?   @map("employee_type_id") @db.Uuid
-  cityId           String?   @map("city_id") @db.Uuid
-  paymentMethodId  String?   @map("payment_method_id") @db.Uuid
+  id              String    @id @default(uuid()) @map("member_id") @db.Uuid
+  name            String    @map("member_name")
+  identityNumber  String    @unique @map("identity_number")
+  nationality     String?
+  email           String?
+  phone           String?
+  nippKai         String?   @map("nipp_kai")
+  birthDate       DateTime? @map("birth_date")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  createdBy       String?   @map("created_by") @db.Uuid
+  updatedAt       DateTime  @default(now()) @map("updated_at")
+  updatedBy       String?   @map("updated_by") @db.Uuid
+  deletedAt       DateTime? @map("deleted_at")
+  deletedBy       String?   @map("deleted_by") @db.Uuid
+  gender          Gender?
+  alamat          String?
+  notes           String?
+  companyName     String?   @map("company_name")
+  employeeTypeId  String?   @map("employee_type_id") @db.Uuid
+  cityId          String?   @map("city_id") @db.Uuid
+  paymentMethodId String?   @map("payment_method_id") @db.Uuid
 
   // Relations
   employeeType  EmployeeType?  @relation(fields: [employeeTypeId], references: [id])
   purchases     CardPurchase[]
-  cards        Card[]
-  city         City?          @relation(fields: [cityId], references: [id])
+  cards         Card[]
+  city          City?          @relation(fields: [cityId], references: [id])
   paymentMethod PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
 
   @@map("members")
@@ -854,8 +870,8 @@ model City {
 }
 
 model PaymentMethod {
-  id   String  @id @default(uuid()) @map("payment_method_id") @db.Uuid
-  name String  @map("name")
+  id   String @id @default(uuid()) @map("payment_method_id") @db.Uuid
+  name String @map("name")
 
   // Relations
   members Member[]
