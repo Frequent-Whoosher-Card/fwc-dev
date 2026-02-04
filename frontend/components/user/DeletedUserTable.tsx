@@ -1,6 +1,5 @@
-"use client";
-
 import { useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export interface DeletedUserItem {
   id: string;
@@ -40,7 +39,9 @@ export default function DeletedUserTable({
 
   const handleViewNotes = (item: DeletedUserItem) => {
     setOpenNotesId(item.id);
-    setNotesContent(item.notes || "Tidak ada alasan yang terekam (Data backend belum tersedia)");
+    setNotesContent(
+      item.notes || "Tidak ada alasan yang terekam (Data backend belum tersedia)"
+    );
   };
 
   const handleCloseNotes = () => {
@@ -71,32 +72,38 @@ export default function DeletedUserTable({
           Total Data : {totalCount}
         </span>
       </div>
-      <div className="overflow-x-auto border border-t-0 border-red-200 rounded-b-lg scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-        <table className="min-w-[1000px] md:min-w-full text-sm">
+      <div className="overflow-x-auto border-t-0 rounded-b-lg pb-4 [&::-webkit-scrollbar]:h-3 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-400 [&::-webkit-scrollbar-track]:bg-gray-100">
+        <table className="min-w-[1500px] text-sm md:min-w-[1200px] border-collapse">
           <thead>
-            <tr className="bg-red-50/50 border-b border-red-100">
-              <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">
+            <tr className="bg-gray-50 border-b border-gray-200 text-[11px] font-semibold uppercase text-gray-600">
+              <th className="px-2 md:px-4 py-3 text-left whitespace-nowrap">
                 Tanggal Dihapus
               </th>
-              <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">
+              <th className="px-2 md:px-4 py-3 text-left whitespace-nowrap">
                 Nama
               </th>
-              <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">
+              <th className="px-2 md:px-4 py-3 text-left whitespace-nowrap">
                 NIP
               </th>
-              <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">
+              <th className="px-2 md:px-4 py-3 text-left whitespace-nowrap">
                 Username
               </th>
-              <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">
+              <th className="px-2 md:px-4 py-3 text-left whitespace-nowrap">
+                Email
+              </th>
+              <th className="px-2 md:px-4 py-3 text-left whitespace-nowrap">
+                Phone
+              </th>
+              <th className="px-2 md:px-4 py-3 text-left whitespace-nowrap">
                 Role
               </th>
-              <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">
+              <th className="px-2 md:px-4 py-3 text-left whitespace-nowrap">
                 Stasiun
               </th>
-              <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">
+              <th className="px-2 md:px-4 py-3 text-left whitespace-nowrap">
                 Dihapus Oleh
               </th>
-              <th className="px-2 md:px-4 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">
+              <th className="px-2 md:px-4 py-3 text-center whitespace-nowrap">
                 Alasan Hapus
               </th>
             </tr>
@@ -104,7 +111,7 @@ export default function DeletedUserTable({
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
                   <div className="flex justify-center">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-red-600" />
                   </div>
@@ -112,7 +119,7 @@ export default function DeletedUserTable({
               </tr>
             ) : !data || data.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
                   {noDataMessage || "Tidak ada data yang dihapus"}
                 </td>
               </tr>
@@ -120,7 +127,7 @@ export default function DeletedUserTable({
               data.map((item) => (
                 <tr
                   key={item.id}
-                  className="border-b border-gray-100 hover:bg-red-50 transition"
+                  className="border-b border-gray-200 hover:bg-gray-50 transition"
                 >
                   <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
                     {item.deletedAt ? formatDate(item.deletedAt) : "-"}
@@ -135,6 +142,12 @@ export default function DeletedUserTable({
                     {item.username || "-"}
                   </td>
                   <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                    {item.email || "-"}
+                  </td>
+                  <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                    {item.phone || "-"}
+                  </td>
+                  <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
                     {item.roleLabel || "-"}
                   </td>
                   <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
@@ -144,11 +157,6 @@ export default function DeletedUserTable({
                     {item.deletedByName || "-"}
                   </td>
                   <td className="px-2 md:px-4 py-3 text-center whitespace-nowrap">
-                     {/* 
-                         NOTE for FUTURE BACKEND INTEGRATION:
-                         Currently 'notes' might be undefined until BE implements it.
-                         But the UI is ready to show it.
-                     */}
                     {item.notes ? (
                       <button
                         type="button"
@@ -171,38 +179,40 @@ export default function DeletedUserTable({
       </div>
 
       {!isLoading && totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-600">
+        <div className="flex flex-wrap items-center justify-center gap-2 px-4 py-4">
           <button
-            type="button"
             disabled={currentPage === 1}
             onClick={() => currentPage > 1 && onPageChange(currentPage - 1)}
-            className="px-2 disabled:opacity-40 hover:text-red-700 transition"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30"
           >
-            Previous
+            <ChevronLeft size={16} />
           </button>
+
           {pageNumbers.map((p) => (
             <button
-              type="button"
               key={p}
               onClick={() => onPageChange(p)}
-              className={`px-3 py-1 rounded ${
-                p === currentPage
-                  ? "bg-red-100 text-red-800 font-semibold"
-                  : "hover:bg-gray-100"
-              }`}
+              className={`
+                flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium transition-colors
+                ${
+                  p === currentPage
+                    ? "bg-[#8D1231] text-white"
+                    : "text-gray-600 hover:bg-gray-100"
+                }
+              `}
             >
               {p}
             </button>
           ))}
+
           <button
-            type="button"
             disabled={currentPage === totalPages}
             onClick={() =>
               currentPage < totalPages && onPageChange(currentPage + 1)
             }
-            className="px-2 disabled:opacity-40 hover:text-red-700 transition"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30"
           >
-            Next
+            <ChevronRight size={16} />
           </button>
         </div>
       )}

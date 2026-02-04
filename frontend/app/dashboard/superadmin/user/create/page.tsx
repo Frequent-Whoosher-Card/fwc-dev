@@ -11,6 +11,28 @@ import {
   RoleItem,
 } from "@/lib/services/user.service";
 import { getStations, StationItem } from "@/lib/services/station.service";
+import SuccesModal from "@/components/user/SuccesModal"; // TYPO IS INTENTIONAL FROM FILE
+
+/* ======================
+   HELPER COMPONENT: PASSWORD REVEAL
+====================== */
+function PasswordReveal({ value }: { value: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="flex items-center justify-between gap-2">
+       <span className="font-mono text-sm break-all">
+        {show ? value : "••••••••"}
+      </span>
+      <button
+        type="button"
+        onClick={() => setShow(!show)}
+        className="text-gray-400 hover:text-gray-600 focus:outline-none"
+      >
+        {show ? <EyeOff size={16} /> : <Eye size={16} />}
+      </button>
+    </div>
+  );
+}
 
 /* ======================
    TYPES
@@ -50,6 +72,7 @@ export default function CreateUserPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   
+  // UI VISIBILITY
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -58,9 +81,6 @@ export default function CreateUserPage() {
   ====================== */
   const sanitizeNip = (value: string) =>
     value.replace(/\D/g, "").slice(0, 8);
-
-  const sanitizeUsername = (value: string) =>
-    value.toLowerCase().replace(/[^a-z0-9_]/g, "");
 
   const isValidEmail = (email: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -92,25 +112,33 @@ export default function CreateUserPage() {
   }, []);
 
   /* ======================
-     SUBMIT (CREATE)
+     CONFIRMATION MODAL STATE
   ====================== */
-  const handleSubmit = async () => {
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmData, setConfirmData] = useState<Record<string, React.ReactNode>>({});
+
+  const handleInitialSubmit = () => {
     const newErrors: Record<string, string> = {};
 
     if (!form.name || form.name.trim().length === 0)
       newErrors.name = "Name is required";
-    else if (form.name.length > 50)
-      newErrors.name = "Name cannot exceed 50 characters";
+    else if (form.name.length > 20)
+      newErrors.name = "Name cannot exceed 20 characters";
 
     if (!form.nip)
       newErrors.nip = "NIP is required";
     else if (form.nip.length !== 8)
       newErrors.nip = "NIP must be exactly 8 digits";
 
-    if (!form.username) newErrors.username = "Username is required";
+    if (!form.username) 
+      newErrors.username = "Username is required";
+    else if (form.username.length > 10)
+      newErrors.username = "Username cannot exceed 10 characters";
 
     if (!form.email)
       newErrors.email = "Email is required";
+    else if (form.email.length > 20)
+       newErrors.email = "Email cannot exceed 20 characters";
     else if (!isValidEmail(form.email))
       newErrors.email = "Invalid email format";
 
@@ -127,6 +155,9 @@ export default function CreateUserPage() {
     if (!form.password) {
         newErrors.password = "Password is required";
     } else {
+        if (form.password.length > 20) {
+             newErrors.password = "Password cannot exceed 20 characters";
+        }
         // Rules: 8 chars, Start with Uppercase, Contain Number
         const passwordRegex = /^[A-Z](?=.*\d).{7,}$/;
         if (!passwordRegex.test(form.password)) {
@@ -141,14 +172,12 @@ export default function CreateUserPage() {
     // CHECK ERRORS
     const errorKeys = Object.keys(newErrors);
     if (errorKeys.length > 0) {
-      // USER REQUEST: "satu aja dulu" (Show only the first error)
       const firstKey = errorKeys[0];
       const errorMessage = newErrors[firstKey];
       setErrors({ [firstKey]: errorMessage });
       
       toast.error(errorMessage);
       
-      // AUTO SCROLL
       const element = document.getElementById(firstKey);
       if (element) {
           element.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -157,7 +186,30 @@ export default function CreateUserPage() {
       return;
     }
 
+    // PREPARE DATA FOR CONFIRMATION
+    const roleLabel = roles.find(r => r.id === form.roleId)?.roleName || "-";
+    const stationLabel = stations.find(s => s.id === form.stationId)?.stationName || "-";
+
+    setConfirmData({
+        Name: form.name,
+        NIP: form.nip,
+        Username: form.username,
+        Role: roleLabel,
+        "Phone Number": form.phone,
+        "Email Address": form.email,
+        Stasiun: stationLabel,
+        Password: <PasswordReveal value={form.password || ""} />, // Masked for display
+    });
+    
+    setShowConfirm(true);
+  };
+
+  /* ======================
+     REAL SUBMIT (AFTER CONFIRM)
+  ====================== */
+  const handleFinalSubmit = async () => {
     try {
+      setShowConfirm(false); // Close modal
       setLoading(true);
 
       const payload = {
@@ -182,7 +234,10 @@ export default function CreateUserPage() {
       
       if (msg.includes("Unique constraint") && msg.includes("username")) {
            setErrors(prev => ({...prev, username: "Username already taken"}));
-           toast.error("Username already taken");
+           toast.error("Username already taken! Silakan ganti.");
+      } else if (msg.includes("Unique constraint") && msg.includes("nip")) {
+           setErrors(prev => ({...prev, nip: "NIP already registered"}));
+           toast.error("NIP already registered! Silakan periksa kembali.");
       } else {
            toast.error(msg);
       }
@@ -208,8 +263,6 @@ export default function CreateUserPage() {
           <h2 className="text-lg font-semibold">Add Users</h2>
         </div>
 
-        {/* LOADING STATE - Not really needed for Create as we just fetch selects, but kept distinct from Edit */}
-        
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             {/* NAME */}
             <div>
@@ -218,10 +271,13 @@ export default function CreateUserPage() {
                 </label>
                 <input
                 id="name"
+                maxLength={20}
                 value={form.name}
                 placeholder="Masukkan Nama Lengkap"
                 onChange={(e) => {
-                    setForm({ ...form, name: e.target.value });
+                    // NO NUMBERS ALLOWED
+                    const cleanVal = e.target.value.replace(/[0-9]/g, "");
+                    setForm({ ...form, name: cleanVal });
                     if (errors.name) setErrors((prev) => { const newErr = { ...prev }; delete newErr.name; return newErr; });
                 }}
                 onBlur={() => {
@@ -239,6 +295,7 @@ export default function CreateUserPage() {
                 </label>
                 <input
                 id="nip"
+                maxLength={8}
                 value={form.nip}
                 placeholder="8 Digit Angka"
                 onChange={(e) => {
@@ -260,14 +317,17 @@ export default function CreateUserPage() {
                 </label>
                 <input
                 id="username"
+                maxLength={10}
                 value={form.username}
                 placeholder="Masukkan Username"
                 onChange={(e) => {
-                    setForm({ ...form, username: sanitizeUsername(e.target.value) });
+                    // REMOVE NON-ALPHABETIC + LOWERCASE
+                    const cleanVal = e.target.value.replace(/[^a-zA-Z]/g, "").toLowerCase();
+                    setForm({ ...form, username: cleanVal });
                      if (errors.username) setErrors((prev) => { const newErr = { ...prev }; delete newErr.username; return newErr; });
                 }}
                  onBlur={() => {
-                   setErrors((prev) => { const n = {...prev}; delete n.username; return n; });
+                    setErrors((prev) => { const n = {...prev}; delete n.username; return n; });
                 }}
                 className={`h-11 w-full rounded-md border px-4 text-sm ${errors.username ? 'border-red-500' : ''}`}
                 autoComplete="off"
@@ -334,6 +394,7 @@ export default function CreateUserPage() {
                 </label>
                 <input
                 id="email"
+                maxLength={20}
                 value={form.email}
                 placeholder="Contoh: nama@kcic.co.id"
                 onChange={(e) => {
@@ -386,6 +447,7 @@ export default function CreateUserPage() {
                 <div className="relative">
                     <input
                     id="password"
+                    maxLength={20}
                     type={showPassword ? "text" : "password"}
                     placeholder="Password"
                     value={form.password}
@@ -428,6 +490,9 @@ export default function CreateUserPage() {
                     </div>
                     <div className={`flex items-center gap-2 ${/\d/.test(form.password) ? "text-green-600" : "text-gray-500"}`}>
                         <span>{/\d/.test(form.password) ? "✅" : "○"}</span> Mengandung Angka
+                    </div>
+                     <div className={`flex items-center gap-2 ${form.password.length <= 20 ? "text-green-600" : "text-red-500"}`}>
+                        <span>{form.password.length <= 20 ? "✅" : "❌"}</span> Maksimal 20 Karakter
                     </div>
                     </div>
                 )}
@@ -493,7 +558,7 @@ export default function CreateUserPage() {
         {/* ACTION */}
         <div className="mt-10 flex justify-end">
             <button
-            onClick={handleSubmit}
+            onClick={handleInitialSubmit}
             disabled={loading}
             className="h-11 rounded-md bg-[#7A0C2E] px-10 text-sm text-white disabled:opacity-50 hover:bg-[#5f0923] transition-colors"
             >
@@ -502,6 +567,17 @@ export default function CreateUserPage() {
         </div>
         
       </div>
+      
+      {/* CONFIRMATION MODAL */}
+      <SuccesModal
+        open={showConfirm}
+        title="Confirm Save"
+        message="Please review the user data before saving"
+        data={confirmData}
+        confirmText="Save"
+        onClose={() => setShowConfirm(false)}
+        onConfirm={handleFinalSubmit}
+      />
     </div>
   );
 }

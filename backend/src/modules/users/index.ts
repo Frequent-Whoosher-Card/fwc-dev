@@ -99,7 +99,10 @@ const baseRoutes = new Elysia()
           search,
           roleId,
           stationId,
+          roleId,
+          stationId,
           isActive: isActive ? isActive === "true" : undefined,
+          isDeleted: query.isDeleted ? query.isDeleted === "true" : undefined,
         });
 
         return {
@@ -551,9 +554,10 @@ const superadminRoutes = new Elysia()
   .delete(
     "/:id",
     async (context) => {
-      const { params, set, user } = context as typeof context & AuthContextUser;
+      const { params, body, set, user } = context as typeof context &
+        AuthContextUser;
       try {
-        await UserService.deleteUser(params.id, user.id);
+        await UserService.deleteUser(params.id, user.id, body.reason);
 
         return {
           success: true,
@@ -568,8 +572,10 @@ const superadminRoutes = new Elysia()
       }
     },
     {
+      body: UserModel.deleteUserBody,
       response: {
         200: UserModel.successResponse,
+        400: UserModel.errorResponse,
         403: UserModel.errorResponse,
         404: UserModel.errorResponse,
         500: UserModel.errorResponse,
@@ -577,7 +583,7 @@ const superadminRoutes = new Elysia()
       detail: {
         tags: ["Users & Roles"],
         summary: "Delete user",
-        description: "Soft delete a user (superadmin only)",
+        description: "Soft delete a user with a reason (superadmin only)",
       },
     }
   );

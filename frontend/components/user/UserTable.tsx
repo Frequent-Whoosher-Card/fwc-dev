@@ -45,9 +45,9 @@ export default function UserTable({
            </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1000px] table-fixed text-sm">
-          <thead className="border-b bg-gray-50 text-[11px] font-semibold uppercase text-gray-600">
+        <div className="overflow-x-auto pb-4 [&::-webkit-scrollbar]:h-3 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-400 [&::-webkit-scrollbar-track]:bg-gray-100">
+          <table className="w-full min-w-[1500px] table-fixed text-sm border-collapse">
+          <thead className="bg-gray-50 text-[11px] font-semibold uppercase text-gray-600 border-b border-gray-200">
             <tr>
               <th className="w-[200px] px-4 py-3 text-left">Name</th>
               <th className="w-[120px] px-4 py-3 text-left">NIP</th>
@@ -65,7 +65,7 @@ export default function UserTable({
               const isSelf = u.id === currentUserId;
 
               return (
-                <tr key={u.id} className="border-t transition hover:bg-gray-50">
+                <tr key={u.id} className="transition hover:bg-gray-50 border-b border-gray-200">
                   {/* NAME */}
                   <td className="px-4 py-2">
                     <div className="truncate text-gray-900">{u.fullname}</div>
@@ -97,11 +97,11 @@ export default function UserTable({
                   {/* ACTION */}
                   <td className="px-4 py-2">
                     <div className="flex items-center justify-center gap-2">
-                      {/* EDIT */}
-                      <button
+                        {/* EDIT */}
+                        <button
                         onClick={() => onEdit(u.id)}
                         className="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-700 hover:bg-gray-200"
-                      >
+                        >
                         Edit
                       </button>
 

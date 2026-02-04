@@ -155,29 +155,31 @@ export default function UserManagementPage() {
   const loadDeletedUsers = async () => {
     setIsLoadingDeleted(true);
     try {
-      // NOTE: Backend currently returns ACTIVE users because it ignores 'isDeleted=true'.
-      // To prevent showing duplicates, we FORCE EMPTY list until Backend is ready.
-      
-      /* 
       const res = await getUsers({
         page: deletedPage,
         limit: 10,
         isDeleted: true,
       });
-      
-      if (res?.data?.items) {
-          ... mapping logic ...
-      } 
-      */
 
-      // FORCE EMPTY
-      setDeletedUsers([]);
-      setDeletedPagination({
-        page: 1,
-        limit: 10,
-        total: 0,
-        totalPages: 1
-      });
+      if (res?.data?.items) {
+        const mapped: DeletedUserItem[] = res.data.items.map((item: any) => ({
+          id: item.id,
+          fullname: item.fullName,
+          nip: item.nip ?? "-",
+          username: item.username,
+          email: item.email ?? "-",
+          phone: item.phone ?? "-",
+          roleLabel: item.roleName ?? item.roleCode ?? "-", // Fallback naming
+          station: item.stationName ?? "-",
+          deletedAt: item.deletedAt,
+          deletedByName: item.deletedByName,
+          notes: item.notes,
+        }));
+        setDeletedUsers(mapped);
+        setDeletedPagination(res.data.pagination);
+      } else {
+        setDeletedUsers([]);
+      }
 
     } catch {
       setDeletedUsers([]);
