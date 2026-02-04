@@ -8,6 +8,7 @@ import { users } from "./modules/users";
 import { cardCategory } from "./modules/cards/category";
 import { cardTypes } from "./modules/cards/type";
 import { productTypeRoutes } from "./modules/cards/product-type";
+import { cardStatusRoutes } from "./modules/cards/status";
 import { cardProducts } from "./modules/cards/product";
 import { cards } from "./modules/cards/card";
 import { transfers } from "./modules/cards/transfer";
@@ -27,6 +28,7 @@ import { bulkDiscount } from "./modules/discount";
 import { employeeTypeController } from "./modules/employee-types";
 import { permissions } from "./modules/permissions";
 import { menuAccess } from "./modules/menu-access";
+import { notificationRoutes } from "./modules/notification";
 
 config();
 const PORT = process.env.APP_PORT ? Number(process.env.APP_PORT) : 3001;
@@ -48,6 +50,7 @@ const app = new Elysia()
   .use(cardCategory)
   .use(cardTypes)
   .use(productTypeRoutes)
+  .use(cardStatusRoutes)
   .use(cardProducts)
   .use(cards)
   .use(transfers)
@@ -58,6 +61,7 @@ const app = new Elysia()
   .use(sales)
   .use(metrics)
   .use(inbox)
+  .use(notificationRoutes)
   .use(redeem)
   .use(bulkDiscount)
   .use(permissions)
