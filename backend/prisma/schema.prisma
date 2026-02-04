@@ -357,14 +357,16 @@ model Member {
   alamat         String?
   notes          String?
   companyName    String?   @map("company_name")
-  employeeTypeId String?   @map("employee_type_id") @db.Uuid
-  cityId         String?   @map("city_id") @db.Uuid
+  employeeTypeId   String?   @map("employee_type_id") @db.Uuid
+  cityId           String?   @map("city_id") @db.Uuid
+  paymentMethodId  String?   @map("payment_method_id") @db.Uuid
 
   // Relations
-  employeeType EmployeeType?  @relation(fields: [employeeTypeId], references: [id])
-  purchases    CardPurchase[]
+  employeeType  EmployeeType?  @relation(fields: [employeeTypeId], references: [id])
+  purchases     CardPurchase[]
   cards        Card[]
   city         City?          @relation(fields: [cityId], references: [id])
+  paymentMethod PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
 
   @@map("members")
 }
@@ -849,6 +851,16 @@ model City {
   members Member[]
 
   @@map("city")
+}
+
+model PaymentMethod {
+  id   String  @id @default(uuid()) @map("payment_method_id") @db.Uuid
+  name String  @map("name")
+
+  // Relations
+  members Member[]
+
+  @@map("payment_method")
 }
 
 model LowStockAlert {
