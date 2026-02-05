@@ -56,8 +56,19 @@ export default function RedeemTable({
           <thead>
             <tr className="bg-gray-50 border-b-2 border-gray-200">
               <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Tanggal Redeem</th>
-              <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Nama Pelanggan</th>
-              <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">NIK</th>
+              {product === 'VOUCHER' ? (
+                <>
+                  <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Nama PIC</th>
+                  <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">NIK PIC</th>
+                  <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Nama Pelanggan</th>
+                  <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">NIK Pelanggan</th>
+                </>
+              ) : (
+                <>
+                  <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Nama Pelanggan</th>
+                  <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">NIK</th>
+                </>
+              )}
               <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Nomor Transaksi</th>
               <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Serial Kartu</th>
               <th className="px-2 md:px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Kategori Kartu</th>
@@ -75,7 +86,7 @@ export default function RedeemTable({
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={product !== 'VOUCHER' ? 13 : 12} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={product === 'VOUCHER' ? 14 : 13} className="px-4 py-8 text-center text-gray-500">
                   <div className="flex justify-center">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
                   </div>
@@ -83,7 +94,7 @@ export default function RedeemTable({
               </tr>
             ) : !data || data.length === 0 ? (
               <tr>
-                <td colSpan={product !== 'VOUCHER' ? 13 : 12} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={product === 'VOUCHER' ? 14 : 13} className="px-4 py-8 text-center text-gray-500">
                   {noDataMessage || 'Tidak ada data redeem'}
                 </td>
               </tr>
@@ -99,12 +110,31 @@ export default function RedeemTable({
                     <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
                       {formatDate(item.createdAt)}
                     </td>
-                    <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                      {item.card?.member?.name || '-'}
-                    </td>
-                    <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap font-mono">
-                      {item.card?.member?.identityNumber || '-'}
-                    </td>
+                    {product === 'VOUCHER' ? (
+                      <>
+                        <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                          {item.card?.member?.name || '-'}
+                        </td>
+                        <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap font-mono">
+                          {item.card?.member?.identityNumber || '-'}
+                        </td>
+                        <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                          {item.passengers?.[0]?.passengerName || '-'}
+                        </td>
+                        <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap font-mono">
+                          {item.passengers?.[0]?.nik || '-'}
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                          {item.card?.member?.name || '-'}
+                        </td>
+                        <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap font-mono">
+                          {item.card?.member?.identityNumber || '-'}
+                        </td>
+                      </>
+                    )}
                     <td className="px-2 md:px-4 py-3 text-sm text-gray-900 whitespace-nowrap font-mono">
                       {item.transactionNumber || '-'}
                     </td>

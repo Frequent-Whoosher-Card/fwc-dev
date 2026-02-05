@@ -125,7 +125,7 @@ const createRoutes = new Elysia()
   .post(
     "/",
     async ({
-      body: { serialNumber, redeemType, product, notes },
+      body: { serialNumber, redeemType, product, notes, passengerNik, passengerName },
       user,
       set,
     }) => {
@@ -141,7 +141,9 @@ const createRoutes = new Elysia()
           user.id,
           user.stationId,
           product,
-          notes
+          notes,
+          passengerNik,
+          passengerName
         );
 
         return {
