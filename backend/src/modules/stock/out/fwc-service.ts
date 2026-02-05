@@ -297,6 +297,8 @@ export class StockOutFwcService {
       cardProduct.typeId,
       null, // Office Scope
       currentStock,
+      db,
+      false, // Web Alert Only (No Telegram for Distribution)
     );
 
     // 2. Send Push Notification to Supervisor

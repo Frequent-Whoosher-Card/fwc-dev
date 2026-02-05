@@ -2,6 +2,7 @@ import path from "path";
 import { config } from "dotenv";
 import { Elysia } from "elysia";
 import { cors } from "@elysiajs/cors";
+import { cron } from "@elysiajs/cron";
 import { docsConfig } from "./docs";
 import { auth } from "./modules/auth";
 import { users } from "./modules/users";
@@ -71,6 +72,46 @@ const app = new Elysia()
   .use(permissions)
   .use(menuAccess)
   // .use(superset)
+
+  // --- CRON JOBS ---
+  .use(
+    cron({
+      name: "temp-cleanup",
+      pattern: "*/30 * * * *", // Run every 30 minutes
+      async run() {
+        try {
+          const { tempStorage } = await import("./utils/temp_storage");
+          const cleanedCount = await tempStorage.cleanupExpired();
+          if (cleanedCount > 0) {
+            console.log(
+              `[Cleanup-Cron] Removed ${cleanedCount} expired temporary file(s)`,
+            );
+          }
+        } catch (error) {
+          console.error(
+            "[Cleanup-Cron] Error cleaning up temporary files:",
+            error,
+          );
+        }
+      },
+    }),
+  )
+  .use(
+    cron({
+      name: "low-stock-reminder",
+      pattern: "0 * * * *", // Run every hour at minute 0
+      async run() {
+        try {
+          const { LowStockCron } = await import("./cron/lowStockReminder");
+          console.log("[LowStock-Cron] Running periodic check...");
+          await LowStockCron.runJob();
+        } catch (error) {
+          console.error("[LowStock-Cron] Error running job:", error);
+        }
+      },
+    }),
+  )
+  // -----------------
 
   .onError(({ code, error, set }) => {
     // Global error handler
@@ -173,38 +214,16 @@ console.log(
 );
 
 // Cleanup job for temporary storage (runs every 30 minutes)
-setInterval(
-  async () => {
-    try {
-      const { tempStorage } = await import("./utils/temp_storage");
-      const cleanedCount = await tempStorage.cleanupExpired();
-      if (cleanedCount > 0) {
-        console.log(
-          `[Cleanup] Removed ${cleanedCount} expired temporary file(s)`,
-        );
-      }
-    } catch (error) {
-      console.error("[Cleanup] Error cleaning up temporary files:", error);
-    }
-  },
-  30 * 60 * 1000,
-); // 30 minutes
+// (Manual setIntervals removed in favor of @elysiajs/cron above)
 
-// Run cleanup immediately on startup
+// Run Low Stock Job immediately on startup
 (async () => {
   try {
-    const { tempStorage } = await import("./utils/temp_storage");
-    const cleanedCount = await tempStorage.cleanupExpired();
-    if (cleanedCount > 0) {
-      console.log(
-        `[Cleanup] Removed ${cleanedCount} expired temporary file(s) on startup`,
-      );
-    }
+    const { LowStockCron } = await import("./cron/lowStockReminder");
+    console.log("[Cron] Running initial LowStock check...");
+    await LowStockCron.runJob();
   } catch (error) {
-    console.error(
-      "[Cleanup] Error cleaning up temporary files on startup:",
-      error,
-    );
+    console.error("[Cron] Error running initial LowStockCron:", error);
   }
 })();
 

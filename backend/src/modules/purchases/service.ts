@@ -2,6 +2,7 @@ import db from "../../config/db";
 import { ValidationError, NotFoundError } from "../../utils/errors";
 import { PurchaseModel } from "./model";
 import { EmailService } from "../../services/emailService";
+import { LowStockService } from "../../services/lowStockService";
 
 export class PurchaseService {
   /**
@@ -26,7 +27,8 @@ export class PurchaseService {
   ) {
     // Determine purchase type: FWC (single card) or VOUCHER (bulk)
     const programType = data.programType || "FWC";
-    const isBulkPurchase = programType === "VOUCHER" && data.cards && data.cards.length > 0;
+    const isBulkPurchase =
+      programType === "VOUCHER" && data.cards && data.cards.length > 0;
 
     // Validate: FWC must have cardId, VOUCHER bulk must have cards array
     if (!isBulkPurchase && !data.cardId) {
@@ -36,16 +38,16 @@ export class PurchaseService {
     }
 
     if (isBulkPurchase && data.cardId) {
-        throw new ValidationError(
+      throw new ValidationError(
         "cardId harus null untuk pembelian voucher bulk. Gunakan cards[] array.",
       );
     }
 
     if (isBulkPurchase && (!data.cards || data.cards.length === 0)) {
-        throw new ValidationError(
+      throw new ValidationError(
         "cards[] array wajib diisi dengan minimal 1 card untuk pembelian voucher bulk.",
-        );
-      }
+      );
+    }
 
     // Use database transaction to ensure atomicity
     // Increased timeout to handle large bulk purchases (up to 10000 items)
@@ -355,49 +357,49 @@ export class PurchaseService {
         }
 
         // Calculate expired date based on masaBerlaku
-      const masaBerlaku = card.cardProduct.masaBerlaku;
-      const expiredDate = new Date(purchaseDate);
-      expiredDate.setDate(expiredDate.getDate() + masaBerlaku);
+        const masaBerlaku = card.cardProduct.masaBerlaku;
+        const expiredDate = new Date(purchaseDate);
+        expiredDate.setDate(expiredDate.getDate() + masaBerlaku);
 
         // Determine final price: use input price or default to cardProduct.price
         finalPrice =
-        data.price !== undefined && data.price !== null
-          ? data.price
-          : Number(card.cardProduct.price);
+          data.price !== undefined && data.price !== null
+            ? data.price
+            : Number(card.cardProduct.price);
 
         purchaseCardId = data.cardId;
 
         // Create purchase record
-      const purchase = await tx.cardPurchase.create({
-        data: {
+        const purchase = await tx.cardPurchase.create({
+          data: {
             cardId: purchaseCardId,
-          memberId: data.memberId,
-          operatorId: operatorId,
-          stationId: stationId,
-          edcReferenceNumber: edcReferenceNumber,
-          purchaseDate: purchaseDate,
-          price: finalPrice,
-          notes: data.notes || null,
+            memberId: data.memberId,
+            operatorId: operatorId,
+            stationId: stationId,
+            edcReferenceNumber: edcReferenceNumber,
+            purchaseDate: purchaseDate,
+            price: finalPrice,
+            notes: data.notes || null,
             programType: programType,
-          createdBy: userId,
-          updatedBy: userId,
-        },
-      });
+            createdBy: userId,
+            updatedBy: userId,
+          },
+        });
 
         // Update card: set status to SOLD_ACTIVE
-      await tx.card.update({
-        where: { id: data.cardId },
-        data: {
-          status: "SOLD_ACTIVE",
-          purchaseDate: purchaseDate,
-          memberId: data.memberId,
-          expiredDate: expiredDate,
-          quotaTicket: card.cardProduct.totalQuota, // Initialize quota from product
-          updatedBy: userId,
-        },
-      });
+        await tx.card.update({
+          where: { id: data.cardId },
+          data: {
+            status: "SOLD_ACTIVE",
+            purchaseDate: purchaseDate,
+            memberId: data.memberId,
+            expiredDate: expiredDate,
+            quotaTicket: card.cardProduct.totalQuota, // Initialize quota from product
+            updatedBy: userId,
+          },
+        });
 
-      return purchase;
+        return purchase;
       }
     }, {
       maxWait: 10000, // Maximum time to wait for transaction to start (10 seconds)
@@ -417,6 +419,56 @@ export class PurchaseService {
         emailError,
       );
     }
+
+    // --- LOW STOCK CHECK ---
+    // Perform async check without blocking response to user
+    (async () => {
+      try {
+        const affectedProducts = new Set<string>(); // key: categoryId:typeId
+
+        if (
+          purchaseData.bulkPurchaseItems &&
+          purchaseData.bulkPurchaseItems.length > 0
+        ) {
+          purchaseData.bulkPurchaseItems.forEach((item: any) => {
+            const p = item.card?.cardProduct;
+            if (p && p.category && p.type)
+              affectedProducts.add(`${p.category.id}:${p.type.id}`);
+          });
+        } else if (purchaseData.card) {
+          const p = purchaseData.card.cardProduct;
+          if (p && p.category && p.type)
+            affectedProducts.add(`${p.category.id}:${p.type.id}`);
+        }
+
+        for (const key of affectedProducts) {
+          const [categoryId, typeId] = key.split(":");
+
+          // Count remaining stock at station
+          const currentStock = await db.card.count({
+            where: {
+              status: "IN_STATION",
+              stationId: stationId,
+              cardProduct: {
+                categoryId,
+                typeId,
+              },
+            },
+          });
+
+          await LowStockService.checkStock(
+            categoryId,
+            typeId,
+            stationId,
+            currentStock,
+            db,
+            true, // Send Telegram = TRUE for Purchase (Operational Consumption)
+          );
+        }
+      } catch (err) {
+        console.error("[Purchase] LowStock check failed:", err);
+      }
+    })();
 
     return purchaseData;
   }
@@ -568,11 +620,7 @@ export class PurchaseService {
 
       // If transactionType filter exists, combine with AND
       if (transactionType && where.OR) {
-        where.AND = [
-          ...(where.AND || []),
-          where.OR,
-          { OR: searchConditions },
-        ];
+        where.AND = [...(where.AND || []), where.OR, { OR: searchConditions }];
         delete where.OR;
       } else {
         where.OR = searchConditions;
@@ -723,7 +771,9 @@ export class PurchaseService {
       updatedAt: item.updatedAt.toISOString(),
       ...(item.deletedAt && {
         deletedAt: item.deletedAt.toISOString(),
-        deletedByName: item.deletedBy ? userMap.get(item.deletedBy) || null : null,
+        deletedByName: item.deletedBy
+          ? userMap.get(item.deletedBy) || null
+          : null,
       }),
       createdByName: item.createdBy
         ? userMap.get(item.createdBy) || null
@@ -733,16 +783,16 @@ export class PurchaseService {
         : null,
       card: item.card
         ? {
-        ...item.card,
-        expiredDate: item.card.expiredDate
-          ? item.card.expiredDate.toISOString()
-          : null,
-        cardProduct: {
-          ...item.card.cardProduct,
-          totalQuota: item.card.cardProduct.totalQuota,
-          masaBerlaku: item.card.cardProduct.masaBerlaku,
-        },
-        }
+            ...item.card,
+            expiredDate: item.card.expiredDate
+              ? item.card.expiredDate.toISOString()
+              : null,
+            cardProduct: {
+              ...item.card.cardProduct,
+              totalQuota: item.card.cardProduct.totalQuota,
+              masaBerlaku: item.card.cardProduct.masaBerlaku,
+            },
+          }
         : null,
       // Optimize: For list view, only return first item for preview (to avoid loading thousands of items)
       // Full list can be fetched via /purchases/:id/bulk-items endpoint
@@ -1092,16 +1142,16 @@ export class PurchaseService {
       updatedByName: updater?.fullName || null,
       card: purchase.card
         ? {
-        ...purchase.card,
-        expiredDate: purchase.card.expiredDate
-          ? purchase.card.expiredDate.toISOString()
-          : null,
-        cardProduct: {
-          ...purchase.card.cardProduct,
-          totalQuota: purchase.card.cardProduct.totalQuota,
-          masaBerlaku: purchase.card.cardProduct.masaBerlaku,
-        },
-        }
+            ...purchase.card,
+            expiredDate: purchase.card.expiredDate
+              ? purchase.card.expiredDate.toISOString()
+              : null,
+            cardProduct: {
+              ...purchase.card.cardProduct,
+              totalQuota: purchase.card.cardProduct.totalQuota,
+              masaBerlaku: purchase.card.cardProduct.masaBerlaku,
+            },
+          }
         : null,
       bulkPurchaseItems: purchase.bulkPurchaseItems.map((bulkItem: any) => ({
         id: bulkItem.id,
@@ -1150,8 +1200,8 @@ export class PurchaseService {
         include: {
           card: true,
           bulkPurchaseItems: {
-        include: {
-          card: true,
+            include: {
+              card: true,
             },
           },
         },
@@ -1304,36 +1354,38 @@ export class PurchaseService {
         updatedByName: updater?.fullName || null,
         card: updatedPurchase.card
           ? {
-          ...updatedPurchase.card,
-          expiredDate: updatedPurchase.card.expiredDate
-            ? updatedPurchase.card.expiredDate.toISOString()
-            : null,
-          cardProduct: {
-            ...updatedPurchase.card.cardProduct,
-            totalQuota: updatedPurchase.card.cardProduct.totalQuota,
-            masaBerlaku: updatedPurchase.card.cardProduct.masaBerlaku,
-          },
-          }
+              ...updatedPurchase.card,
+              expiredDate: updatedPurchase.card.expiredDate
+                ? updatedPurchase.card.expiredDate.toISOString()
+                : null,
+              cardProduct: {
+                ...updatedPurchase.card.cardProduct,
+                totalQuota: updatedPurchase.card.cardProduct.totalQuota,
+                masaBerlaku: updatedPurchase.card.cardProduct.masaBerlaku,
+              },
+            }
           : null,
-        bulkPurchaseItems: updatedPurchase.bulkPurchaseItems.map((bulkItem: any) => ({
-          id: bulkItem.id,
-          purchaseId: bulkItem.purchaseId,
-          cardId: bulkItem.cardId,
-          price: Number(bulkItem.price),
-          createdAt: bulkItem.createdAt.toISOString(),
-          updatedAt: bulkItem.updatedAt.toISOString(),
-          card: {
-            ...bulkItem.card,
-            expiredDate: bulkItem.card.expiredDate
-              ? bulkItem.card.expiredDate.toISOString()
-              : null,
-            cardProduct: {
-              ...bulkItem.card.cardProduct,
-              totalQuota: bulkItem.card.cardProduct.totalQuota,
-              masaBerlaku: bulkItem.card.cardProduct.masaBerlaku,
+        bulkPurchaseItems: updatedPurchase.bulkPurchaseItems.map(
+          (bulkItem: any) => ({
+            id: bulkItem.id,
+            purchaseId: bulkItem.purchaseId,
+            cardId: bulkItem.cardId,
+            price: Number(bulkItem.price),
+            createdAt: bulkItem.createdAt.toISOString(),
+            updatedAt: bulkItem.updatedAt.toISOString(),
+            card: {
+              ...bulkItem.card,
+              expiredDate: bulkItem.card.expiredDate
+                ? bulkItem.card.expiredDate.toISOString()
+                : null,
+              cardProduct: {
+                ...bulkItem.card.cardProduct,
+                totalQuota: bulkItem.card.cardProduct.totalQuota,
+                masaBerlaku: bulkItem.card.cardProduct.masaBerlaku,
+              },
             },
-          },
-        })),
+          }),
+        ),
         member: updatedPurchase.member,
         operator: updatedPurchase.operator,
         station: updatedPurchase.station,
@@ -1379,12 +1431,14 @@ export class PurchaseService {
 
       const oldCardId = purchase.cardId;
       if (!oldCardId) {
-        throw new ValidationError("Transaksi ini tidak memiliki card (bukan FWC single card)");
+        throw new ValidationError(
+          "Transaksi ini tidak memiliki card (bukan FWC single card)",
+        );
       }
 
       if (!oldCardId) {
         throw new ValidationError(
-          "Transaksi ini tidak memiliki cardId (mungkin transaksi Voucher/Bulk). Koreksi kartu hanya untuk transaksi FWC."
+          "Transaksi ini tidak memiliki cardId (mungkin transaksi Voucher/Bulk). Koreksi kartu hanya untuk transaksi FWC.",
         );
       }
 
@@ -1548,37 +1602,37 @@ export class PurchaseService {
         employeeType: updatedPurchase.member?.employeeType ?? null,
         bulkPurchaseItems: updatedPurchase.bulkPurchaseItems
           ? updatedPurchase.bulkPurchaseItems.map((bulkItem: any) => ({
-            id: bulkItem.id,
-            purchaseId: bulkItem.purchaseId,
-            cardId: bulkItem.cardId,
-            price: Number(bulkItem.price),
-            createdAt: bulkItem.createdAt.toISOString(),
-            updatedAt: bulkItem.updatedAt.toISOString(),
-        card: {
-              ...bulkItem.card,
-              expiredDate: bulkItem.card.expiredDate
-                ? bulkItem.card.expiredDate.toISOString()
-                : null,
-              cardProduct: {
-                ...bulkItem.card.cardProduct,
-                totalQuota: bulkItem.card.cardProduct.totalQuota,
-                masaBerlaku: bulkItem.card.cardProduct.masaBerlaku,
+              id: bulkItem.id,
+              purchaseId: bulkItem.purchaseId,
+              cardId: bulkItem.cardId,
+              price: Number(bulkItem.price),
+              createdAt: bulkItem.createdAt.toISOString(),
+              updatedAt: bulkItem.updatedAt.toISOString(),
+              card: {
+                ...bulkItem.card,
+                expiredDate: bulkItem.card.expiredDate
+                  ? bulkItem.card.expiredDate.toISOString()
+                  : null,
+                cardProduct: {
+                  ...bulkItem.card.cardProduct,
+                  totalQuota: bulkItem.card.cardProduct.totalQuota,
+                  masaBerlaku: bulkItem.card.cardProduct.masaBerlaku,
+                },
               },
-            },
-          }))
+            }))
           : [],
         card: updatedPurchase.card
           ? {
-          ...updatedPurchase.card,
-          expiredDate: updatedPurchase.card.expiredDate
-            ? updatedPurchase.card.expiredDate.toISOString()
-            : null,
-          cardProduct: {
-            ...updatedPurchase.card.cardProduct,
-            totalQuota: updatedPurchase.card.cardProduct.totalQuota,
-            masaBerlaku: updatedPurchase.card.cardProduct.masaBerlaku,
-          },
-          }
+              ...updatedPurchase.card,
+              expiredDate: updatedPurchase.card.expiredDate
+                ? updatedPurchase.card.expiredDate.toISOString()
+                : null,
+              cardProduct: {
+                ...updatedPurchase.card.cardProduct,
+                totalQuota: updatedPurchase.card.cardProduct.totalQuota,
+                masaBerlaku: updatedPurchase.card.cardProduct.masaBerlaku,
+              },
+            }
           : null,
         member: updatedPurchase.member,
         operator: updatedPurchase.operator,
@@ -1603,8 +1657,8 @@ export class PurchaseService {
         include: {
           card: true,
           bulkPurchaseItems: {
-        include: {
-          card: true,
+            include: {
+              card: true,
             },
           },
         },
@@ -1627,19 +1681,24 @@ export class PurchaseService {
       // 3. Update card(s) status back to IN_STATION
       if (purchase.cardId) {
         // FWC: Single card purchase
-      await tx.card.update({
-        where: { id: purchase.cardId },
-        data: {
-          status: "IN_STATION",
+        await tx.card.update({
+          where: { id: purchase.cardId },
+          data: {
+            status: "IN_STATION",
             purchaseDate: null,
             expiredDate: null,
             memberId: null,
             updatedBy: userId,
-        },
-      });
-      } else if (purchase.bulkPurchaseItems && purchase.bulkPurchaseItems.length > 0) {
+          },
+        });
+      } else if (
+        purchase.bulkPurchaseItems &&
+        purchase.bulkPurchaseItems.length > 0
+      ) {
         // VOUCHER: Bulk purchase - update all cards
-        const cardIds = purchase.bulkPurchaseItems.map((item: any) => item.cardId);
+        const cardIds = purchase.bulkPurchaseItems.map(
+          (item: any) => item.cardId,
+        );
 
         await tx.card.updateMany({
           where: {
@@ -1686,9 +1745,10 @@ export class PurchaseService {
     );
 
     // Check if this is a bulk purchase (VOUCHER) or single purchase (FWC)
-    const isBulkPurchase = purchaseData.programType === "VOUCHER" && 
-                           purchaseData.bulkPurchaseItems && 
-                           purchaseData.bulkPurchaseItems.length > 0;
+    const isBulkPurchase =
+      purchaseData.programType === "VOUCHER" &&
+      purchaseData.bulkPurchaseItems &&
+      purchaseData.bulkPurchaseItems.length > 0;
 
     if (isBulkPurchase) {
       // VOUCHER BULK PURCHASE
@@ -1711,7 +1771,10 @@ export class PurchaseService {
       });
 
       // Calculate subtotal and discount
-      const subtotal = vouchers.reduce((sum: number, v: any) => sum + v.harga, 0);
+      const subtotal = vouchers.reduce(
+        (sum: number, v: any) => sum + v.harga,
+        0,
+      );
       const totalPrice = Number(purchaseData.price);
       const discountAmount = subtotal - totalPrice;
 
