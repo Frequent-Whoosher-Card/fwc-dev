@@ -12,7 +12,7 @@ export interface ProductType {
 
 export const ProductTypeService = {
   getAll: async (): Promise<ProductType[]> => {
-    const res = await axios.get("/product-types");
+    const res = await axios.get("/product-type");
     return res.data?.data || [];
   },
 };

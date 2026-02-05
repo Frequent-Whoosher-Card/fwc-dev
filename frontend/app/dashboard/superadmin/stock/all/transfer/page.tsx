@@ -1,26 +1,24 @@
 "use client";
 
-"use client";
-
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import BaseStockOutView from "@/components/stock/BaseStockOutView";
+import TransferCardView from "@/components/stock/TransferCardView";
 import { ProgramType } from "@/lib/services/card.base.service";
 
-function ViewStockOutContent() {
+function CreateTransferContent() {
   const searchParams = useSearchParams();
   const typeParam = searchParams.get("type");
   const programType = (
     typeParam === "VOUCHER" ? "VOUCHER" : "FWC"
   ) as ProgramType;
 
-  return <BaseStockOutView programType={programType} />;
+  return <TransferCardView programType={programType} />;
 }
 
-export default function ViewStockOutPage() {
+export default function CreateTransferPage() {
   return (
     <Suspense fallback={<div>Loading...</div>}>
-      <ViewStockOutContent />
+      <CreateTransferContent />
     </Suspense>
   );
 }

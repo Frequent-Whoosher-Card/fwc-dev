@@ -1,10 +1,13 @@
 "use client";
 
+"use client";
+
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import BaseStockOutEdit from "@/components/stock/BaseStockOutEdit";
 import { ProgramType } from "@/lib/services/card.base.service";
 
-export default function EditStockOutPage() {
+function EditStockOutContent() {
   const searchParams = useSearchParams();
   const typeParam = searchParams.get("type");
   const programType = (
@@ -12,4 +15,12 @@ export default function EditStockOutPage() {
   ) as ProgramType;
 
   return <BaseStockOutEdit programType={programType} />;
+}
+
+export default function EditStockOutPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <EditStockOutContent />
+    </Suspense>
+  );
 }

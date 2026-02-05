@@ -6,6 +6,7 @@ import { ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
 import { useTransferReceive } from "@/hooks/useTransferReceive";
 import StatusBadge from "@/components/ui/status-badge";
 import { ReceiveConfirmModal } from "./ReceiveConfirmModal";
+import toast from "react-hot-toast";
 import { useContext } from "react";
 import { UserContext } from "@/app/dashboard/superadmin/dashboard/dashboard-layout";
 
@@ -49,10 +50,11 @@ export default function TransferReceiveDetailView({
   const handleReceive = async () => {
     const success = await confirmReceive();
     if (success) {
+      toast.success("Transfer berhasil diterima");
       setShowConfirm(false);
-      router.push(
-        `/dashboard/${role}/stock/${data.programType.toLowerCase()}/transfer`,
-      );
+      // router.push(`/dashboard/${role}/stock/${data.programType.toLowerCase()}/transfer`);
+      // For now just back to transfer list
+      router.push(`/dashboard/${role}/stock/transfer`);
     }
   };
 

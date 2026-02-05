@@ -18,7 +18,7 @@ export default function BaseStockOutView({
     typeof params === "object" && params !== null ? (params as any).id : "";
   const router = useRouter();
 
-  const { data, loading } = useStockOutView(id);
+  const { data, loading } = useStockOutView(id, programType || "FWC");
 
   if (loading) {
     return (
@@ -72,11 +72,63 @@ export default function BaseStockOutView({
           </div>
           <div>
             <p className="text-sm text-gray-500">Nota Dinas</p>
-            <p className="font-medium">{data.notaDinas || "-"}</p>
+            <div className="space-y-1">
+              <p className="font-medium">{data.notaDinas || "-"}</p>
+              {data.notaDinasFile && (
+                <a
+                  href={data.notaDinasFile.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-xs text-blue-600 hover:text-blue-700 hover:underline bg-blue-50 px-2 py-1.5 rounded-md border border-blue-100 transition-colors"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                    <polyline points="14 2 14 8 20 8" />
+                  </svg>
+                  Lihat File
+                </a>
+              )}
+            </div>
           </div>
           <div>
             <p className="text-sm text-gray-500">BAST</p>
-            <p className="font-medium">{data.bast || "-"}</p>
+            <div className="space-y-1">
+              <p className="font-medium">{data.bast || "-"}</p>
+              {data.bastFile && (
+                <a
+                  href={data.bastFile.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-xs text-blue-600 hover:text-blue-700 hover:underline bg-blue-50 px-2 py-1.5 rounded-md border border-blue-100 transition-colors"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                    <polyline points="14 2 14 8 20 8" />
+                  </svg>
+                  Lihat File
+                </a>
+              )}
+            </div>
           </div>
           <div>
             <div className="flex items-center gap-2">

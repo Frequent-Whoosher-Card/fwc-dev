@@ -112,12 +112,30 @@ export default function BaseStockOutAdd({ programType }: BaseStockOutAddProps) {
               <input
                 type="text"
                 className="w-full rounded-lg border px-4 py-2"
-                value={form.notaDinas}
+                value={form.notaDinas || ""}
                 onChange={(e) =>
                   setForm({ ...form, notaDinas: e.target.value })
                 }
                 placeholder="Masukkan No Nota Dinas"
               />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Upload Nota Dinas</label>
+              <input
+                type="file"
+                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#8D1231]/10 file:text-[#8D1231] hover:file:bg-[#8D1231]/20"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    setForm({ ...form, notaDinasFile: e.target.files[0] });
+                  }
+                }}
+              />
+              {form.notaDinasFile && (
+                <p className="text-xs text-green-600 mt-1">
+                  File dipilih: {form.notaDinasFile.name}
+                </p>
+              )}
             </div>
           </div>
 
@@ -127,10 +145,28 @@ export default function BaseStockOutAdd({ programType }: BaseStockOutAddProps) {
               <input
                 type="text"
                 className="w-full rounded-lg border px-4 py-2"
-                value={form.bast}
+                value={form.bast || ""}
                 onChange={(e) => setForm({ ...form, bast: e.target.value })}
                 placeholder="Masukkan No BAST"
               />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Upload BAST</label>
+              <input
+                type="file"
+                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#8D1231]/10 file:text-[#8D1231] hover:file:bg-[#8D1231]/20"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    setForm({ ...form, bastFile: e.target.files[0] });
+                  }
+                }}
+              />
+              {form.bastFile && (
+                <p className="text-xs text-green-600 mt-1">
+                  File dipilih: {form.bastFile.name}
+                </p>
+              )}
             </div>
             <div>
               <label className="text-sm font-medium">Jumlah (Qty)</label>

@@ -163,7 +163,7 @@ export default function TransferCardView({
       });
 
       toast.success("Transfer kartu berhasil dibuat");
-      router.push(`/dashboard/${role}/stock/${programType.toLowerCase()}/all`);
+      router.push(`/dashboard/${role}/stock/all?type=${programType}`);
     } catch (error: any) {
       console.error("Transfer failed", error);
       toast.error(error?.response?.data?.message || "Gagal membuat transfer");
