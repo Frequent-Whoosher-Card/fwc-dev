@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { redeemService, RedeemItem, RedeemFilterParams } from '@/lib/services/redeem/redeemService';
+import { redeemService, RedeemItem, RedeemFilterParams, ProductType } from '@/lib/services/redeem/redeemService';
 import { useRedeemPermission } from '@/lib/hooks/useRedeemPermission';
 import CreateRedeemModal from '@/components/redeem/CreateRedeemModal';
 import RedeemTable from '@/components/redeem/RedeemTable';
@@ -254,7 +254,7 @@ export default function PetugasRedeemPage() {
                   loadRedeems({ page: 1, limit: 10 });
                   setCurrentPage(1);
                 }}
-                product={product as 'FWC' | 'VOUCHER'}
+                initialProduct={product as 'FWC' | 'VOUCHER' | undefined}
               />
               <RedeemDetailModal
                 isOpen={detailModalOpen}

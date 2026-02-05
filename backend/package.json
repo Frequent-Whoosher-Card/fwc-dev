@@ -6,6 +6,7 @@
     "test:e2e": "bun test --env-file .env scripts/e2e_full_flow.test.ts",
     "dev": "bun run --watch src/index.ts",
     "db:update": "bunx prisma migrate deploy && bunx prisma generate",
+    "seed:payment-method-menu": "bun run scripts/seed-payment-method-menu.ts",
     "db:backup:server": "bash scripts/backup-database-server.sh",
     "build": "tsc",
     "start": "node dist/index.js"

@@ -194,6 +194,13 @@ export function useVoucherBulkPurchaseForm() {
     );
   };
 
+  const clearAllCards = () => {
+    setSelectedCards([]);
+    form.setValue("cards", []);
+    setSelectedBulkDiscountId(undefined);
+    form.setValue("bulkDiscountId", undefined);
+  };
+
   const handleBulkDiscountChange = (discountId: number | undefined) => {
     setSelectedBulkDiscountId(discountId);
     form.setValue("bulkDiscountId", discountId);
@@ -258,6 +265,7 @@ export function useVoucherBulkPurchaseForm() {
     addCard,
     addCards,
     removeCard,
+    clearAllCards,
     bulkDiscounts,
     selectedBulkDiscountId,
     handleBulkDiscountChange,

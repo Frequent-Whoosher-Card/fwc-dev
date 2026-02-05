@@ -10,12 +10,12 @@ export const purchaseFormSchema = z.object({
     .max(20, "Identity Number maksimal 20 karakter"),
 
   cardCategory: z
-    .enum(["GOLD", "SILVER", "KAI"], {
-      required_error: "Card Category wajib dipilih",
-    })
-    .or(z.literal("")),
+    .enum(["GOLD", "SILVER", "KAI"])
+    .or(z.literal(""))
+    .optional()
+    .default(""),
 
-  cardTypeId: z.string().min(1, "Card Type wajib dipilih"),
+  cardTypeId: z.string().optional().default(""),
 
   cardId: z.string().min(1, "Serial Number wajib dipilih"),
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useContext } from 'react';
 import toast from 'react-hot-toast';
-import { redeemService, RedeemItem, RedeemFilterParams } from '@/lib/services/redeem/redeemService';
+import { redeemService, RedeemItem, RedeemFilterParams, ProductType } from '@/lib/services/redeem/redeemService';
 import { useRedeemPermission } from '@/lib/hooks/useRedeemPermission';
 import { UserContext } from '@/app/dashboard/admin/dashboard-layout';
 import CreateRedeemModal from '@/components/redeem/CreateRedeemModal';
@@ -301,7 +301,7 @@ export default function AdminRedeemPage() {
                   search: search || undefined,
                   product,
                 })}
-                product={product as 'FWC' | 'VOUCHER'}
+                initialProduct={product as 'FWC' | 'VOUCHER' | undefined}
               />
               <RedeemDetailModal
                 isOpen={detailModalOpen}
