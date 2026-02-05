@@ -137,8 +137,10 @@ export default function EditUserPage() {
 
     if (!form.nip)
       newErrors.nip = "NIP is required";
-    else if (form.nip.length !== 8)
-      newErrors.nip = "NIP must be exactly 8 digits";
+    // NIP validation: Max 8 enforced by input maxLength (not set here but should be implied or added in UI, currently strictly just removing logic validation).
+    // Note: Render part has no maxLength prop for NIP in Edit, unlike Create. I should probably add maxLength in render separately or just trust logic.
+    // Wait, Create page had maxLength=8 in input. Edit page does NOT have maxLength in input (verified in view_file, line 268 user input). 
+    // I should probably clean up logic first.
 
     if (!form.email)
       newErrors.email = "Email is required";
@@ -146,8 +148,6 @@ export default function EditUserPage() {
       newErrors.email = "Invalid email format";
 
     if (!form.phone) newErrors.phone = "Phone number is required";
-    else if (form.phone.length < 10)
-      newErrors.phone = "Phone number must be at least 10 digits";
     else if (form.phone.length > 16)
       newErrors.phone = "Phone number cannot exceed 16 digits";
 
@@ -267,6 +267,7 @@ export default function EditUserPage() {
                 </label>
                 <input
                 id="nip"
+                maxLength={8}
                 value={form.nip}
                 placeholder="8 Digit Angka"
                 onChange={(e) => {
