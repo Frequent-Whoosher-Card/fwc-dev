@@ -111,7 +111,11 @@ export default function UserManagementPage() {
 
         station: item.stationName ?? "-",
       }));
-      console.log("USERS FROM SERVICE:", res.data.items);
+      
+      // DEBUG: Check IDs (REMOVED) - Too noisy
+      
+      setData(mapped);
+
 
       setData(mapped);
       setPagination(res.data.pagination);

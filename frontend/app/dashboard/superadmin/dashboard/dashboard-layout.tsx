@@ -301,7 +301,7 @@ export default function DashboardLayout({
             setMenuItems(adminMenu);
           } else {
             const menuData = await MenuService.getUserMenu();
-            console.log("[DashboardLayout] Raw Menu Data:", menuData);
+
 
             // Transform API menu to UI menu structure
             const transformMenu = (items: MenuItem[]): any[] => {
@@ -334,7 +334,7 @@ export default function DashboardLayout({
             };
 
             const transformed = transformMenu(menuData);
-            console.log("[DashboardLayout] Final Menu Items:", transformed);
+
             setMenuItems(transformed);
           }
         } catch (menuErr) {

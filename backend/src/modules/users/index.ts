@@ -99,8 +99,6 @@ const baseRoutes = new Elysia()
           search,
           roleId,
           stationId,
-          roleId,
-          stationId,
           isActive: isActive ? isActive === "true" : undefined,
           isDeleted: query.isDeleted ? query.isDeleted === "true" : undefined,
         });

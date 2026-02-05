@@ -122,31 +122,29 @@ export default function CreateUserPage() {
 
     if (!form.name || form.name.trim().length === 0)
       newErrors.name = "Name is required";
-    else if (form.name.length > 20)
-      newErrors.name = "Name cannot exceed 20 characters";
+    else if (form.name.length > 25)
+      newErrors.name = "Name cannot exceed 25 characters";
 
     if (!form.nip)
       newErrors.nip = "NIP is required";
-    else if (form.nip.length !== 8)
-      newErrors.nip = "NIP must be exactly 8 digits";
+    // NIP validation: Max 8 enforced by input maxLength. Min 1 enforced by required check.
 
     if (!form.username) 
       newErrors.username = "Username is required";
-    else if (form.username.length > 10)
-      newErrors.username = "Username cannot exceed 10 characters";
+    else if (form.username.length > 20)
+      newErrors.username = "Username cannot exceed 20 characters";
 
     if (!form.email)
       newErrors.email = "Email is required";
-    else if (form.email.length > 20)
-       newErrors.email = "Email cannot exceed 20 characters";
+    else if (form.email.length > 25)
+       newErrors.email = "Email cannot exceed 25 characters";
     else if (!isValidEmail(form.email))
       newErrors.email = "Invalid email format";
 
     if (!form.phone) newErrors.phone = "Phone number is required";
-    else if (form.phone.length < 10)
-      newErrors.phone = "Phone number must be at least 10 digits";
-    else if (form.phone.length > 16)
-      newErrors.phone = "Phone number cannot exceed 16 digits";
+    // Phone validation: Min 1 enforced by required check. Max 12 enforced below.
+    else if (form.phone.length > 12)
+      newErrors.phone = "Phone number cannot exceed 12 digits";
 
     if (!form.roleId) newErrors.roleId = "Role is required";
     if (!form.stationId) newErrors.stationId = "Station is required";
@@ -229,17 +227,38 @@ export default function CreateUserPage() {
       toast.success("User created successfully");
       router.push("/dashboard/superadmin/user");
     } catch (err: any) {
-      console.error("CREATE USER ERROR:", err);
+      // Parse error message
       const msg = err?.response?.data?.message || err?.message || "Failed create user";
       
-      if (msg.includes("Unique constraint") && msg.includes("username")) {
-           setErrors(prev => ({...prev, username: "Username already taken"}));
-           toast.error("Username already taken! Silakan ganti.");
-      } else if (msg.includes("Unique constraint") && msg.includes("nip")) {
-           setErrors(prev => ({...prev, nip: "NIP already registered"}));
-           toast.error("NIP already registered! Silakan periksa kembali.");
+      // Known validation errors (Prisma Unique Constraints)
+      const isUniqueError = msg.includes("Unique constraint") || msg.includes("already exists");
+      
+      if (isUniqueError) {
+         // Suppress console.error for known logic errors to avoid Next.js Red Overlay
+
+         if (msg.toLowerCase().includes("username")) {
+            setErrors(prev => ({...prev, username: "Username already taken"}));
+            toast.error("Username sudah digunakan! Silakan ganti.");
+         } 
+         else if (msg.toLowerCase().includes("nip")) {
+            setErrors(prev => ({...prev, nip: "NIP already registered"}));
+            toast.error("NIP sudah terdaftar! Silakan periksa kembali.");
+         }
+         else if (msg.toLowerCase().includes("email")) {
+            setErrors(prev => ({...prev, email: "Email already registered"}));
+            toast.error("Email sudah terdaftar! Gunakan email lain.");
+         }
+         else if (msg.toLowerCase().includes("phone")) {
+            setErrors(prev => ({...prev, phone: "Phone already registered"}));
+            toast.error("Nomor HP sudah terdaftar! Gunakan nomor lain.");
+         }
+         else {
+            toast.error("Data duplikat ditemukan (NIP/Email/Username). Cek kembali.");
+         }
       } else {
-           toast.error(msg);
+         // Unknown errors -> Log full error for debugging
+         console.error("CREATE USER ERROR:", err);
+         toast.error(msg);
       }
     } finally {
       setLoading(false);
@@ -271,7 +290,7 @@ export default function CreateUserPage() {
                 </label>
                 <input
                 id="name"
-                maxLength={20}
+                maxLength={25}
                 value={form.name}
                 placeholder="Masukkan Nama Lengkap"
                 onChange={(e) => {
@@ -317,7 +336,7 @@ export default function CreateUserPage() {
                 </label>
                 <input
                 id="username"
-                maxLength={10}
+                maxLength={20}
                 value={form.username}
                 placeholder="Masukkan Username"
                 onChange={(e) => {
@@ -375,7 +394,7 @@ export default function CreateUserPage() {
                 onChange={(e) => {
                     setForm({
                     ...form,
-                    phone: e.target.value.replace(/[^\d+]/g, "").slice(0, 16),
+                    phone: e.target.value.replace(/[^\d+]/g, "").slice(0, 12),
                     });
                     if (errors.phone) setErrors((prev) => { const newErr = { ...prev }; delete newErr.phone; return newErr; });
                 }}
@@ -394,7 +413,7 @@ export default function CreateUserPage() {
                 </label>
                 <input
                 id="email"
-                maxLength={20}
+                maxLength={25}
                 value={form.email}
                 placeholder="Contoh: nama@kcic.co.id"
                 onChange={(e) => {

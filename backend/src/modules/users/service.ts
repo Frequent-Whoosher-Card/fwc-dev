@@ -223,6 +223,20 @@ export class UserService {
       }
     }
 
+    // Check if Phone already exists (if provided)
+    if (data.phone) {
+      const existingPhone = await db.user.findFirst({
+        where: {
+          phone: data.phone,
+          deletedAt: null,
+        },
+      });
+
+      if (existingPhone) {
+        throw new ValidationError(`Phone '${data.phone}' already exists`);
+      }
+    }
+
     // Verify role exists
     const role = await db.role.findFirst({
       where: {
@@ -544,6 +558,21 @@ export class UserService {
 
       if (existingNip) {
         throw new ValidationError(`NIP '${data.nip}' already exists`);
+      }
+    }
+
+    // Check if Phone already exists (if provided and different)
+    if (data.phone && data.phone !== user.phone) {
+      const existingPhone = await db.user.findFirst({
+        where: {
+          phone: data.phone,
+          deletedAt: null,
+          id: { not: userId },
+        },
+      });
+
+      if (existingPhone) {
+        throw new ValidationError(`Phone '${data.phone}' already exists`);
       }
     }
 
