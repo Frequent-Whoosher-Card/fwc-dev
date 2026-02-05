@@ -48,18 +48,35 @@ const baseRoutes = new Elysia()
           return isNaN(parsed) ? undefined : parsed;
         };
 
+        // Handle array query params (for multiple filter selections)
+        // Parse comma-separated string into array
+        const parseArrayParam = (value: any): string[] | undefined => {
+          if (!value) return undefined;
+          if (Array.isArray(value)) {
+            return value.filter((v: any) => v && cleanParam(v)) as string[];
+          }
+          const cleaned = cleanParam(value);
+          if (!cleaned) return undefined;
+          // Split by comma and filter out empty strings
+          return cleaned.split(",").map((v: string) => v.trim()).filter((v: string) => v.length > 0);
+        };
+
         const result = await PurchaseService.getAll({
           page: safeParseInt(query.page),
           limit: safeParseInt(query.limit),
           startDate: cleanParam(query.startDate),
           endDate: cleanParam(query.endDate),
           stationId: cleanParam(query.stationId),
+          stationIds: parseArrayParam(query.stationIds),
           categoryId: cleanParam(query.categoryId),
+          categoryIds: parseArrayParam(query.categoryIds),
           typeId: cleanParam(query.typeId),
+          typeIds: parseArrayParam(query.typeIds),
           operatorId: cleanParam(query.operatorId),
           search: cleanParam(query.search),
           transactionType: cleanParam(query.transactionType) as "fwc" | "voucher" | undefined,
           employeeTypeId: cleanParam(query.employeeTypeId),
+          employeeTypeIds: parseArrayParam(query.employeeTypeIds),
           isDeleted: query.isDeleted === "true",
           // Pass user context for role-based filtering
           userRole: user.role.roleCode,

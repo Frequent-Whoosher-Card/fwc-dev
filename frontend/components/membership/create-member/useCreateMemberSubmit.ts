@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { API_BASE_URL } from "@/lib/apiConfig";
+import { apiFetch } from "@/lib/apiConfig";
 import { createMember } from "@/lib/services/membership.service";
 import { createPurchase, createVoucherPurchase } from "@/lib/services/purchase.service";
 import type { CreateMemberFormState } from "./types";
@@ -179,18 +179,7 @@ export function useCreateMemberSubmit({
     setIsSubmitting(true);
 
     try {
-      const token = localStorage.getItem("fwc_token");
-      if (!token) {
-        toast.error("Session expired. Silakan login kembali.");
-        return;
-      }
-
-      const meRes = await fetch(`${API_BASE_URL}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!meRes.ok) throw new Error("Gagal mengambil data user");
-
-      const meData = await meRes.json();
+      const meData = await apiFetch("/auth/me");
       if (!meData.data?.station?.id) {
         toast.error(
           "User tidak memiliki stasiun. Silakan hubungi administrator.",
