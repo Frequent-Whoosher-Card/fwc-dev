@@ -73,6 +73,7 @@ export interface VoucherTransactionListItem {
   } | null;
 
   bulkPurchaseItems: BulkPurchaseItem[];
+  bulkPurchaseItemsCount?: number; // Actual total count (for display)
 
   member: {
     id: string;
@@ -317,4 +318,39 @@ export async function createVoucherPurchase(
 
   const response = await axios.post("/purchases", requestPayload);
   return response.data.data;
+}
+
+/**
+ * Get bulk purchase items with pagination
+ * Used to fetch voucher items separately to avoid loading all items at once
+ */
+export interface GetBulkPurchaseItemsParams {
+  page?: number;
+  limit?: number;
+}
+
+export interface BulkPurchaseItemsResponse {
+  items: BulkPurchaseItem[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export async function getBulkPurchaseItems(
+  purchaseId: string,
+  params?: GetBulkPurchaseItemsParams
+): Promise<BulkPurchaseItemsResponse> {
+  const query = new URLSearchParams();
+  
+  if (params?.page) query.append("page", String(params.page));
+  if (params?.limit) query.append("limit", String(params.limit));
+
+  const response = await apiFetch(`/purchases/${purchaseId}/bulk-items?${query.toString()}`, {
+    method: "GET",
+  });
+
+  return response.data;
 }
