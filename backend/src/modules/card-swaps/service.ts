@@ -301,9 +301,9 @@ export class CardSwapService {
     }
 
     // 2. Validate card status - must be SOLD_ACTIVE
-    if (purchase.card.status !== "SOLD_ACTIVE") {
+    if (!purchase.card || purchase.card.status !== "SOLD_ACTIVE") {
       throw new ValidationError(
-        `Kartu harus berstatus SOLD_ACTIVE untuk di-swap. Status saat ini: ${purchase.card.status}`,
+        `Kartu harus berstatus SOLD_ACTIVE untuk di-swap. Status saat ini: ${purchase.card?.status}`,
       );
     }
 
@@ -364,7 +364,7 @@ export class CardSwapService {
     const swapRequest = await db.cardSwapRequest.create({
       data: {
         purchaseId: data.purchaseId,
-        originalCardId: purchase.cardId,
+        originalCardId: purchase.cardId!,
         sourceStationId: purchase.stationId,
         targetStationId: data.targetStationId,
         expectedProductId: data.expectedProductId,
@@ -449,9 +449,13 @@ export class CardSwapService {
     }
 
     // 3. Validate card is still SOLD_ACTIVE
-    if (swapRequest.purchase.card.status !== "SOLD_ACTIVE") {
+    if (
+      !swapRequest.purchase ||
+      !swapRequest.purchase.card ||
+      swapRequest.purchase.card.status !== "SOLD_ACTIVE"
+    ) {
       throw new ValidationError(
-        `Kartu tidak lagi berstatus SOLD_ACTIVE. Status: ${swapRequest.purchase.card.status}`,
+        `Kartu tidak lagi berstatus SOLD_ACTIVE. Status: ${swapRequest.purchase?.card?.status ?? "Unknown"}`,
       );
     }
 
@@ -1158,7 +1162,7 @@ export class CardSwapService {
     const cancelled = await db.cardSwapRequest.update({
       where: { id: swapRequestId },
       data: {
-        status: "CANCELLED",
+        status: "CANCELLED" as any,
       },
       include: {
         purchase: {

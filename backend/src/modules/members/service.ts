@@ -24,6 +24,13 @@ export class MemberService {
         );
       }
 
+      const birthDateParsed = data.birthDate
+        ? (() => {
+            const [y, m, d] = data.birthDate.split("-").map(Number);
+            return new Date(y, m - 1, d);
+          })()
+        : null;
+
       return await tx.member.create({
         data: {
           name: data.name,
@@ -37,6 +44,8 @@ export class MemberService {
           notes: data.notes || null,
           companyName: data.companyName ?? null,
           employeeTypeId: data.employeeTypeId ?? null,
+          cityId: data.cityId ?? null,
+          birthDate: birthDateParsed,
           createdBy: userId,
           updatedBy: userId,
         },
@@ -207,6 +216,9 @@ export class MemberService {
           employeeType: {
             select: { id: true, code: true, name: true },
           },
+          city: {
+            select: { id: true, name: true },
+          },
         },
       }),
       db.member.count({ where }),
@@ -242,6 +254,9 @@ export class MemberService {
       employeeType: item.employeeType
         ? { id: item.employeeType.id, code: item.employeeType.code, name: item.employeeType.name }
         : null,
+      cityId: item.cityId ?? null,
+      city: item.city ? { id: item.city.id, name: item.city.name } : null,
+      birthDate: item.birthDate ? item.birthDate.toISOString() : null,
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
       ...(item.deletedAt && {
@@ -273,6 +288,9 @@ export class MemberService {
       include: {
         employeeType: {
           select: { id: true, code: true, name: true },
+        },
+        city: {
+          select: { id: true, name: true },
         },
       },
     });
@@ -316,6 +334,9 @@ export class MemberService {
           name: member.employeeType.name,
         }
         : null,
+      cityId: member.cityId ?? null,
+      city: member.city ? { id: member.city.id, name: member.city.name } : null,
+      birthDate: member.birthDate ? member.birthDate.toISOString() : null,
       createdAt: member.createdAt.toISOString(),
       updatedAt: member.updatedAt.toISOString(),
       createdByName: creator?.fullName || null,
@@ -371,6 +392,17 @@ export class MemberService {
       }
       if (data.employeeTypeId !== undefined) {
         updateData.employeeTypeId = data.employeeTypeId;
+      }
+      if (data.cityId !== undefined) {
+        updateData.cityId = data.cityId;
+      }
+      if (data.birthDate !== undefined) {
+        updateData.birthDate = data.birthDate
+          ? (() => {
+              const [y, m, d] = data.birthDate!.split("-").map(Number);
+              return new Date(y, m - 1, d);
+            })()
+          : null;
       }
       await tx.member.update({
         where: { id },

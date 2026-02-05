@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useContext } from 'react';
 import toast from 'react-hot-toast';
-import { redeemService, RedeemItem, RedeemFilterParams } from '@/lib/services/redeem/redeemService';
+import { redeemService, RedeemItem, RedeemFilterParams, ProductType } from '@/lib/services/redeem/redeemService';
 import { useRedeemPermission } from '@/lib/hooks/useRedeemPermission';
 import { UserContext } from '@/app/dashboard/supervisor/dashboard-layout';
 import CreateRedeemModal from '@/components/redeem/CreateRedeemModal';

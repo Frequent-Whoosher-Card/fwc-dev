@@ -1,3 +1,8 @@
+import {
+  parseFilter,
+  prismaFilter,
+  parseSmartSearch,
+} from "../../../utils/filterHelper";
 import db from "../../../config/db";
 import { ValidationError } from "../../../utils/errors";
 import { ActivityLogService } from "../../activity-log/service";
@@ -192,21 +197,14 @@ export class StockInVoucherService {
         success: true,
         message,
         data: {
-          movementId,
+          movementId: movementId || "",
+          cardProductId,
+          startSerial,
+          endSerial,
           quantityRequested,
           processedCount: toProcess.length,
           skippedCount: skippedSerials.length,
-          movement: movementId
-            ? {
-                // Construct partial movement object for FE if needed, or just ID
-                id: movementId,
-                movementAt: new Date(movementAt).toISOString(),
-                movementType: "IN",
-                quantity: toProcess.length,
-                status: "APPROVED",
-                // ... other fields simplified
-              }
-            : null,
+          serialDate: dateBase.toISOString(),
         },
       };
     });
@@ -215,6 +213,7 @@ export class StockInVoucherService {
   /**
    * Get History (Filtered for Voucher)
    */
+  // Moved to top
   static async getHistory(params: {
     page?: number;
     limit?: number;
@@ -222,8 +221,10 @@ export class StockInVoucherService {
     endDate?: Date;
     categoryId?: string;
     typeId?: string;
+    stationId?: string;
     categoryName?: string;
     typeName?: string;
+    stationName?: string;
     search?: string;
   }) {
     const page = Number(params.page) || 1;
@@ -235,6 +236,16 @@ export class StockInVoucherService {
       category: {
         programType: "VOUCHER",
       },
+      ...parseSmartSearch(params.search || "", [
+        "note",
+        "station.stationName",
+        "category.categoryName",
+        "type.typeName",
+        "notaDinas",
+        "bast",
+        "category.categoryCode",
+        "type.typeCode",
+      ]),
     };
 
     if (params.startDate && params.endDate) {
@@ -249,31 +260,53 @@ export class StockInVoucherService {
     }
 
     if (params.categoryId) {
-      where.categoryId = params.categoryId;
+      where.categoryId = prismaFilter(params.categoryId);
     }
 
     if (params.typeId) {
-      where.typeId = params.typeId;
+      where.typeId = prismaFilter(params.typeId);
     }
 
+    if (params.stationId) {
+      where.stationId = prismaFilter(params.stationId);
+    }
+
+    // Support Multi-Filter for Names (OR-based contains)
     if (params.categoryName) {
+      const names = params.categoryName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
       where.category = {
         ...where.category,
-        categoryName: { contains: params.categoryName, mode: "insensitive" },
+        OR: names.map((name) => ({
+          categoryName: { contains: name, mode: "insensitive" },
+        })),
       };
     }
 
     if (params.typeName) {
+      const names = params.typeName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
       where.type = {
-        typeName: { contains: params.typeName, mode: "insensitive" },
+        OR: names.map((name) => ({
+          typeName: { contains: name, mode: "insensitive" },
+        })),
       };
     }
 
-    if (params.search) {
-      where.OR = [
-        { batchId: { contains: params.search, mode: "insensitive" } },
-        { note: { contains: params.search, mode: "insensitive" } },
-      ];
+    if (params.stationName) {
+      const names = params.stationName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      where.station = {
+        OR: names.map((name) => ({
+          stationName: { contains: name, mode: "insensitive" },
+        })),
+      };
     }
 
     const [items, total] = await Promise.all([
@@ -283,15 +316,8 @@ export class StockInVoucherService {
         take: limitNum,
         orderBy: { createdAt: "desc" },
         include: {
-          category: {
-            select: {
-              id: true,
-              categoryName: true,
-              categoryCode: true,
-              programType: true,
-            },
-          },
-          type: { select: { id: true, typeName: true, typeCode: true } },
+          category: true,
+          type: true,
         },
       }),
       db.cardStockMovement.count({ where }),
@@ -517,7 +543,10 @@ export class StockInVoucherService {
       `Updated Stock In Voucher ID: ${id}`,
     );
 
-    return result;
+    return {
+      id: result.id,
+      updatedAt: result.updatedAt.toISOString(),
+    };
   }
 
   /**

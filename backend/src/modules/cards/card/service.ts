@@ -1,3 +1,8 @@
+import {
+  parseFilter,
+  prismaFilter,
+  parseSmartSearch,
+} from "../../../utils/filterHelper";
 import db from "../../../config/db";
 import { ValidationError } from "../../../utils/errors";
 import { getEnumStatus, getFriendlyStatus } from "./constants";
@@ -24,106 +29,88 @@ export class CardService {
       search,
       page = 1,
       limit = 50,
+      categoryId,
+      typeId,
+      stationId,
+      stationName,
+      programType,
+      categoryName,
+      typeName,
     } = params || {};
+
+    const skip = (page - 1) * limit;
 
     const where: any = {
       deletedAt: null,
+      ...parseSmartSearch(search || "", [
+        "serialNumber",
+        "notes",
+        "cardProduct.category.categoryName",
+        "cardProduct.type.typeName",
+        "station.stationCode",
+        "station.stationName",
+      ]),
     };
 
     // Filter by cardProductId
     if (cardProductId) {
-      where.cardProductId = cardProductId;
+      where.cardProductId = prismaFilter(cardProductId);
     }
 
-    // Filter by status
+    // Filter by status (Multi-value support)
     if (status) {
-      const enumStatus = getEnumStatus(status) || status.toUpperCase();
-      where.status = enumStatus;
-    }
-
-    // Build search OR conditions
-    const searchConditions: any[] = [];
-    if (search) {
-      searchConditions.push(
-        { serialNumber: { contains: search, mode: "insensitive" } },
-        { notes: { contains: search, mode: "insensitive" } },
-        {
-          cardProduct: {
-            category: {
-              categoryName: { contains: search, mode: "insensitive" },
-            },
-          },
-        },
-        {
-          cardProduct: {
-            type: { typeName: { contains: search, mode: "insensitive" } },
-          },
-        },
-        {
-          station: { stationCode: { contains: search, mode: "insensitive" } },
-        },
-      );
+      const statuses = status.split(",").map((s) => {
+        const trimmed = s.trim();
+        return getEnumStatus(trimmed) || trimmed.toUpperCase();
+      });
+      where.status = { in: statuses };
     }
 
     // Filter by Category/Type (Relations)
     const cardProductWhere: any = {};
 
-    if (params?.categoryId) {
-      cardProductWhere.categoryId = params.categoryId;
+    if (categoryId) {
+      cardProductWhere.categoryId = prismaFilter(categoryId);
     }
 
-    if (params?.typeId) {
-      cardProductWhere.typeId = params.typeId;
+    if (typeId) {
+      cardProductWhere.typeId = prismaFilter(typeId);
     }
 
-    if (params?.categoryName) {
-      cardProductWhere.category = {
-        categoryName: {
-          contains: params.categoryName,
-          mode: "insensitive",
-        },
-      };
+    if (programType) {
+      if (!cardProductWhere.category) cardProductWhere.category = {};
+      cardProductWhere.category.programType = programType;
     }
 
-    if (params?.typeName) {
-      cardProductWhere.type = {
-        typeName: {
-          contains: params.typeName,
-          mode: "insensitive",
-        },
-      };
+    if (categoryName) {
+      if (!cardProductWhere.category) cardProductWhere.category = {};
+      const names = categoryName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      cardProductWhere.category.OR = names.map((name) => ({
+        categoryName: { contains: name, mode: "insensitive" },
+      }));
     }
 
-    if (params?.stationId) {
-      where.stationId = params.stationId;
-    }
-
-    if (params?.stationName) {
-      where.station = {
-        stationName: {
-          contains: params.stationName,
-          mode: "insensitive",
-        },
-      };
-    }
-
-    if (params?.programType) {
-      cardProductWhere.category = {
-        ...cardProductWhere.category,
-        programType: params.programType,
-      };
+    if (typeName) {
+      if (!cardProductWhere.type) cardProductWhere.type = {};
+      const names = typeName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      cardProductWhere.type.OR = names.map((name) => ({
+        typeName: { contains: name, mode: "insensitive" },
+      }));
     }
 
     if (Object.keys(cardProductWhere).length > 0) {
       where.cardProduct = cardProductWhere;
     }
 
-    // Apply search conditions using AND if other filters exist
-    if (searchConditions.length > 0) {
-      where.OR = searchConditions;
+    if (stationId) {
+      where.stationId = prismaFilter(stationId);
     }
-
-    const skip = (page - 1) * limit;
 
     const [cards, total] = await Promise.all([
       db.card.findMany({
@@ -274,12 +261,14 @@ export class CardService {
     }
 
     // Convert Date objects to ISO strings; ensure cardProduct.price is number (Prisma Decimal)
-    const cardProduct = card.cardProduct
-      ? {
-          ...card.cardProduct,
-          price: Number(card.cardProduct.price),
-        }
-      : null;
+    if (!card.cardProduct) {
+      throw new ValidationError("Card product not found for this card");
+    }
+
+    const cardProduct = {
+      ...card.cardProduct,
+      price: Number(card.cardProduct.price),
+    };
 
     return {
       ...card,
@@ -358,12 +347,14 @@ export class CardService {
     }
 
     // Convert Date objects to ISO strings; ensure cardProduct.price is number (Prisma Decimal)
-    const cardProduct = card.cardProduct
-      ? {
-          ...card.cardProduct,
-          price: Number(card.cardProduct.price),
-        }
-      : null;
+    if (!card.cardProduct) {
+      throw new ValidationError("Card product not found for this card");
+    }
+
+    const cardProduct = {
+      ...card.cardProduct,
+      price: Number(card.cardProduct.price),
+    };
 
     return {
       ...card,

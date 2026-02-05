@@ -1,3 +1,8 @@
+import {
+  parseFilter,
+  prismaFilter,
+  parseSmartSearch,
+} from "../../../utils/filterHelper";
 import db from "../../../config/db";
 import { ValidationError } from "../../../utils/errors";
 import { parseSmartSerial } from "../../../utils/serialHelper";
@@ -219,7 +224,7 @@ export class StockInFwcService {
         success: true,
         message,
         data: {
-          movementId,
+          movementId: movementId || "",
           startSerial: formattedStartSerial,
           endSerial: endSerialFormatted,
           quantityRequested,
@@ -237,6 +242,17 @@ export class StockInFwcService {
   /**
    * Get History
    */
+  /**
+   * Get History
+   */
+
+  // ... (other imports)
+
+  // ... inside StockInFwcService
+
+  /**
+   * Get History
+   */
   static async getHistory(params: {
     page?: number;
     limit?: number;
@@ -244,10 +260,13 @@ export class StockInFwcService {
     endDate?: Date;
     categoryId?: string;
     typeId?: string;
+    stationId?: string;
     categoryName?: string;
     typeName?: string;
+    stationName?: string;
+    search?: string;
   }) {
-    const { page = 1, limit = 10, startDate, endDate, categoryId } = params;
+    const { page = 1, limit = 10, startDate, endDate } = params;
     const skip = (page - 1) * limit;
 
     const where: any = {
@@ -255,6 +274,16 @@ export class StockInFwcService {
       category: {
         programType: "FWC",
       },
+      ...parseSmartSearch(params.search || "", [
+        "note",
+        "station.stationName",
+        "category.categoryName",
+        "type.typeName",
+        "notaDinas",
+        "bast",
+        "category.categoryCode",
+        "type.typeCode",
+      ]),
     };
 
     if (startDate && endDate) {
@@ -272,30 +301,54 @@ export class StockInFwcService {
       };
     }
 
-    if (categoryId) {
-      where.categoryId = categoryId;
+    // Support Multi-Filter for IDs
+    if (params.categoryId) {
+      where.categoryId = prismaFilter(params.categoryId);
     }
 
     if (params.typeId) {
-      where.typeId = params.typeId;
+      where.typeId = prismaFilter(params.typeId);
     }
 
+    if (params.stationId) {
+      where.stationId = prismaFilter(params.stationId);
+    }
+
+    // Support Multi-Filter for Names (OR-based contains)
     if (params.categoryName) {
+      const names = params.categoryName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
       where.category = {
         ...where.category,
-        categoryName: {
-          contains: params.categoryName,
-          mode: "insensitive",
-        },
+        OR: names.map((name) => ({
+          categoryName: { contains: name, mode: "insensitive" },
+        })),
       };
     }
 
     if (params.typeName) {
+      const names = params.typeName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
       where.type = {
-        typeName: {
-          contains: params.typeName,
-          mode: "insensitive",
-        },
+        OR: names.map((name) => ({
+          typeName: { contains: name, mode: "insensitive" },
+        })),
+      };
+    }
+
+    if (params.stationName) {
+      const names = params.stationName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      where.station = {
+        OR: names.map((name) => ({
+          stationName: { contains: name, mode: "insensitive" },
+        })),
       };
     }
 

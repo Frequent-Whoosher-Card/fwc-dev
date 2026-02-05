@@ -1,9 +1,15 @@
+import {
+  parseFilter,
+  prismaFilter,
+  parseSmartSearch,
+} from "../../../utils/filterHelper";
 import db from "../../../config/db";
-import { ProgramType } from "@prisma/client";
+import { ProgramType, FilePurpose } from "@prisma/client";
 import { ValidationError } from "../../../utils/errors";
 import { BatchService } from "../../../services/batchService";
 import { LowStockService } from "../../../services/lowStockService";
 import { ActivityLogService } from "../../activity-log/service";
+import { uploadStockFile, deleteStockFile } from "../../../utils/fileUpload";
 
 function normalizeSerials(arr: string[]) {
   return Array.from(
@@ -26,6 +32,8 @@ export class StockOutVoucherService {
     note?: string,
     notaDinas?: string,
     bast?: string,
+    notaDinasFile?: File,
+    bastFile?: File,
   ) {
     // 1. Validate Input
     if (!/^\d+$/.test(startSerial) || !/^\d+$/.test(endSerial)) {
@@ -113,103 +121,137 @@ export class StockOutVoucherService {
     });
     const stationName = station?.stationName || "Station";
 
+    // --- HANDLE FILE UPLOADS ---
+    let notaDinasFileId: string | null = null;
+    let bastFileId: string | null = null;
+
+    if (notaDinasFile) {
+      notaDinasFileId = await uploadStockFile(
+        notaDinasFile,
+        userId,
+        FilePurpose.STOCK_OUT_NOTA, // Ensure this enum exists or allow if using string based
+        "stock-out",
+        notaDinas,
+      );
+    }
+
+    if (bastFile) {
+      bastFileId = await uploadStockFile(
+        bastFile,
+        userId,
+        FilePurpose.STOCK_OUT_BAST, // Ensure this enum exists
+        "stock-out",
+        bast,
+      );
+    }
+    // ---------------------------
+
     // --- TRANSACTION ---
-    const transaction = await db.$transaction(
-      async (tx) => {
-        // Update Card Status
-        const updateRes = await tx.card.updateMany({
-          where: {
-            id: { in: cards.map((c) => c.id) },
-            status: "IN_OFFICE",
-          },
-          data: {
-            status: "IN_TRANSIT",
-            updatedAt: new Date(),
-            updatedBy: userId,
-            stationId: stationId,
-          },
-        });
+    let transaction;
+    try {
+      transaction = await db.$transaction(
+        async (tx) => {
+          // Update Card Status
+          const updateRes = await tx.card.updateMany({
+            where: {
+              id: { in: cards.map((c) => c.id) },
+              status: "IN_OFFICE",
+            },
+            data: {
+              status: "IN_TRANSIT",
+              updatedAt: new Date(),
+              updatedBy: userId,
+              stationId: stationId,
+            },
+          });
 
-        if (updateRes.count !== sentCount) {
-          throw new ValidationError("Double booking detected during update.");
-        }
+          if (updateRes.count !== sentCount) {
+            throw new ValidationError("Double booking detected during update.");
+          }
 
-        const batchId = await BatchService.generateBatchId(
-          tx,
-          categoryId,
-          typeId,
-          stationId,
-        );
-
-        // Use ACTUAL processed/found cards, not the requested full range
-        const finalSerials = cards.map((c) => c.serialNumber);
-
-        const movement = await tx.cardStockMovement.create({
-          data: {
-            movementAt,
-            movementType: "OUT",
-            status: "PENDING",
+          const batchId = await BatchService.generateBatchId(
+            tx,
             categoryId,
             typeId,
             stationId,
-            batchId,
-            quantity: sentCount,
-            note: note ?? null,
-            notaDinas: notaDinas ?? null,
-            bast: bast ?? null,
-            sentSerialNumbers: finalSerials, // CORRECTED: Use actual serials
-            receivedSerialNumbers: [],
-            lostSerialNumbers: [],
-            createdAt: new Date(),
-            createdBy: userId,
-          },
-        });
+          );
 
-        // Inbox Notification
-        // Inbox Notification (Scoped Broadcast)
-        const productName = `${cardProduct.category.categoryName} - ${cardProduct.type.typeName}`;
+          // Use ACTUAL processed/found cards, not the requested full range
+          const finalSerials = cards.map((c) => c.serialNumber);
 
-        await tx.inbox.create({
-          data: {
-            title: `Kiriman Voucher: ${productName}`,
-            message: `Office mengirim ${sentCount} voucher ${productName} (Prod: ${d.toISOString().split("T")[0]}) ke stasiun ${stationName}.`,
-            targetRoles: ["supervisor"],
-            sentTo: null,
-            sentBy: userId,
-            stationId: stationId, // Scoped to this station
-            type: "STOCK_DISTRIBUTION",
-            programType: ProgramType.VOUCHER,
-            payload: {
-              movementId: movement.id,
-              cardProductId,
-              quantity: sentCount,
+          const movement = await tx.cardStockMovement.create({
+            data: {
+              movementAt,
+              movementType: "OUT",
               status: "PENDING",
-              serialDate: d.toISOString(),
-              serials: finalSerials, // CORRECTED: Use actual serials
+              categoryId,
+              typeId,
+              stationId,
+              batchId,
+              quantity: sentCount,
+              note: note ?? null,
+              notaDinas: notaDinas ?? null,
+              bast: bast ?? null,
+              notaDinasFileId, // New
+              bastFileId, // New
+              sentSerialNumbers: finalSerials, // CORRECTED: Use actual serials
+              receivedSerialNumbers: [],
+              lostSerialNumbers: [],
+              createdAt: new Date(),
+              createdBy: userId,
             },
-            isRead: false,
-            readByUserIds: [],
-            createdAt: new Date(),
-          },
-        });
+          });
 
-        // Construct Custom Message
-        const message = `Stock Out Berhasil. Permintaan: ${count}. (Terproses: ${sentCount}, Dilewati/Tidak Tersedia: ${skippedCount})`;
+          // Inbox Notification
+          // Inbox Notification (Scoped Broadcast)
+          const productName = `${cardProduct.category.categoryName} - ${cardProduct.type.typeName}`;
 
-        return {
-          success: true,
-          message,
-          data: {
-            movementId: movement.id,
-            status: movement.status,
-            requestedCount: count,
-            sentCount,
-            skippedCount,
-          },
-        };
-      },
-      { maxWait: 5000, timeout: 10000 },
-    );
+          await tx.inbox.create({
+            data: {
+              title: `Kiriman Voucher: ${productName}`,
+              message: `Office mengirim ${sentCount} voucher ${productName} (Prod: ${d.toISOString().split("T")[0]}) ke stasiun ${stationName}.`,
+              targetRoles: ["supervisor"],
+              sentTo: null,
+              sentBy: userId,
+              stationId: stationId, // Scoped to this station
+              type: "STOCK_DISTRIBUTION",
+              programType: ProgramType.VOUCHER,
+              payload: {
+                movementId: movement.id,
+                cardProductId,
+                quantity: sentCount,
+                status: "PENDING",
+                serialDate: d.toISOString(),
+                serials: finalSerials, // CORRECTED: Use actual serials
+              },
+              isRead: false,
+              readByUserIds: [],
+              createdAt: new Date(),
+            },
+          });
+
+          // Construct Custom Message
+          const message = `Stock Out Berhasil. Permintaan: ${count}. (Terproses: ${sentCount}, Dilewati/Tidak Tersedia: ${skippedCount})`;
+
+          return {
+            success: true,
+            message,
+            data: {
+              movementId: movement.id,
+              status: movement.status,
+              requestedCount: count,
+              sentCount,
+              skippedCount,
+            },
+          };
+        },
+        { maxWait: 5000, timeout: 10000 },
+      );
+    } catch (error) {
+      if (notaDinasFileId) await deleteStockFile(notaDinasFileId);
+      if (bastFileId) await deleteStockFile(bastFileId);
+      throw error;
+    }
 
     // Logging
     await ActivityLogService.createActivityLog(
@@ -237,10 +279,17 @@ export class StockOutVoucherService {
     const productName = `${cardProduct.category.categoryName} - ${cardProduct.type.typeName}`;
     const pushTitle = `Kiriman Voucher: ${productName}`;
     const pushMessage = `Office mengirim ${sentCount} voucher ${productName} ke stasiun ${stationName}.`;
-    
+
     // Fire and forget
-    const { PushNotificationService } = await import("../../notification/push-service");
-    PushNotificationService.sendToRoleAtStation("supervisor", stationId, pushTitle, pushMessage, { type: "VOUCHER" });
+    const { PushNotificationService } =
+      await import("../../notification/push-service");
+    PushNotificationService.sendToRoleAtStation(
+      "supervisor",
+      stationId,
+      pushTitle,
+      pushMessage,
+      { type: "VOUCHER" },
+    );
     // --------------------------------
 
     return transaction;
@@ -518,8 +567,13 @@ export class StockOutVoucherService {
         });
 
         // --- PUSH NOTIFICATION TO ADMINS ---
-        const { PushNotificationService } = await import("../../notification/push-service");
-        PushNotificationService.sendToRole(["admin", "superadmin"], title, message);
+        const { PushNotificationService } =
+          await import("../../notification/push-service");
+        PushNotificationService.sendToRole(
+          ["admin", "superadmin"],
+          title,
+          message,
+        );
         // -----------------------------------
       }
 
@@ -542,59 +596,112 @@ export class StockOutVoucherService {
     return transaction;
   }
 
-  static async getHistory(params: any) {
+  static async getHistory(params: {
+    page?: number;
+    limit?: number;
+    startDate?: Date;
+    endDate?: Date;
+    stationId?: string;
+    categoryId?: string;
+    typeId?: string;
+    status?: string;
+    categoryName?: string;
+    typeName?: string;
+    stationName?: string;
+    search?: string;
+  }) {
     const {
+      page = 1,
+      limit = 10,
       startDate,
       endDate,
       stationId,
       status,
-      search,
-      stationName,
-      categoryName,
-      typeName,
     } = params;
-
-    const page = Number(params.page) || 1;
-    const limit = Number(params.limit) || 10;
     const skip = (page - 1) * limit;
-    const where: any = { movementType: "OUT" };
 
-    where.category = { programType: "VOUCHER" };
+    const where: any = {
+      movementType: "OUT",
+      category: {
+        programType: "VOUCHER",
+      },
+      ...parseSmartSearch(params.search || "", [
+        "note",
+        "station.stationName",
+        "category.categoryName",
+        "type.typeName",
+        "notaDinas",
+        "bast",
+        "batchId",
+        "category.categoryCode",
+        "type.typeCode",
+      ]),
+    };
 
-    if (search) {
-      where.OR = [
-        { note: { contains: search, mode: "insensitive" } },
-        { station: { stationName: { contains: search, mode: "insensitive" } } },
-        {
-          category: { categoryName: { contains: search, mode: "insensitive" } },
-        },
-        { type: { typeName: { contains: search, mode: "insensitive" } } },
-        { notaDinas: { contains: search, mode: "insensitive" } },
-        { bast: { contains: search, mode: "insensitive" } },
-      ];
+    if (stationId) {
+      where.stationId = prismaFilter(stationId);
     }
-    if (stationName)
-      where.station = {
-        stationName: { contains: stationName, mode: "insensitive" },
-      };
 
-    // Date Filters
-    if (startDate || endDate) {
-      where.movementAt = {};
-      if (startDate) where.movementAt.gte = startDate;
-      if (endDate) where.movementAt.lte = endDate;
+    if (params.categoryId) {
+      where.categoryId = prismaFilter(params.categoryId);
     }
-    if (stationId) where.stationId = stationId;
-    if (status) where.status = status;
-    if (categoryName)
+
+    if (params.typeId) {
+      where.typeId = prismaFilter(params.typeId);
+    }
+
+    if (status) {
+      where.status = prismaFilter(status);
+    }
+
+    // Support Multi-Filter for Names (OR-based contains)
+    if (params.categoryName) {
+      const names = params.categoryName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
       where.category = {
         ...where.category,
-        categoryName: { contains: categoryName, mode: "insensitive" },
+        OR: names.map((name) => ({
+          categoryName: { contains: name, mode: "insensitive" },
+        })),
       };
-    if (typeName)
+    }
+
+    if (params.typeName) {
+      const names = params.typeName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
       where.type = {
-        typeName: { contains: typeName, mode: "insensitive" },
+        OR: names.map((name) => ({
+          typeName: { contains: name, mode: "insensitive" },
+        })),
       };
+    }
+
+    if (params.stationName) {
+      const names = params.stationName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      where.station = {
+        OR: names.map((name) => ({
+          stationName: { contains: name, mode: "insensitive" },
+        })),
+      };
+    }
+
+    if (startDate && endDate) {
+      where.movementAt = {
+        gte: startDate,
+        lte: endDate,
+      };
+    } else if (startDate) {
+      where.movementAt = { gte: startDate };
+    } else if (endDate) {
+      where.movementAt = { lte: endDate };
+    }
 
     const [items, total] = await Promise.all([
       db.cardStockMovement.findMany({
@@ -602,7 +709,13 @@ export class StockOutVoucherService {
         skip,
         take: limit,
         orderBy: { movementAt: "desc" },
-        include: { category: true, type: true, station: true },
+        include: {
+          category: true,
+          type: true,
+          station: true,
+          notaDinasFile: true,
+          bastFile: true,
+        },
       }),
       db.cardStockMovement.count({ where }),
     ]);
@@ -626,6 +739,20 @@ export class StockOutVoucherService {
       note: item.note,
       notaDinas: item.notaDinas,
       bast: item.bast,
+      notaDinasFile: item.notaDinasFile
+        ? {
+            id: item.notaDinasFile.id,
+            url: `${process.env.BASE_URL}:${process.env.APP_PORT}/${item.notaDinasFile.relativePath}`,
+            filename: item.notaDinasFile.originalName,
+          }
+        : null,
+      bastFile: item.bastFile
+        ? {
+            id: item.bastFile.id,
+            url: `${process.env.BASE_URL}:${process.env.APP_PORT}/${item.bastFile.relativePath}`,
+            filename: item.bastFile.originalName,
+          }
+        : null,
       createdByName: item.createdBy ? userMap.get(item.createdBy) : null,
       cardCategory: {
         id: item.category.id,
@@ -653,7 +780,13 @@ export class StockOutVoucherService {
   static async getDetail(id: string) {
     const movement = await db.cardStockMovement.findUnique({
       where: { id },
-      include: { category: true, type: true, station: true },
+      include: {
+        category: true,
+        type: true,
+        station: true,
+        notaDinasFile: true,
+        bastFile: true,
+      },
     });
     if (!movement) throw new ValidationError("Not found");
 
@@ -684,6 +817,20 @@ export class StockOutVoucherService {
         note: movement.note,
         notaDinas: movement.notaDinas,
         bast: movement.bast,
+        notaDinasFile: movement.notaDinasFile
+          ? {
+              id: movement.notaDinasFile.id,
+              url: `${process.env.BASE_URL}:${process.env.APP_PORT}/${movement.notaDinasFile.relativePath}`,
+              filename: movement.notaDinasFile.originalName,
+            }
+          : null,
+        bastFile: movement.bastFile
+          ? {
+              id: movement.bastFile.id,
+              url: `${process.env.BASE_URL}:${process.env.APP_PORT}/${movement.bastFile.relativePath}`,
+              filename: movement.bastFile.originalName,
+            }
+          : null,
         createdAt: movement.createdAt.toISOString(),
         createdByName,
         validatedAt: movement.validatedAt?.toISOString() || null,

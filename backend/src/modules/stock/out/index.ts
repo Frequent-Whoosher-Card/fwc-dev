@@ -42,11 +42,13 @@ const stockOutFwc = new Elysia({ prefix: "/fwc" })
                 : undefined,
               endDate: query.endDate ? new Date(query.endDate) : undefined,
               stationId: query.stationId,
+              categoryId: query.categoryId,
+              typeId: query.typeId,
               status: query.status as any,
-              search: query.search,
-              stationName: query.stationName,
               categoryName: query.categoryName,
               typeName: query.typeName,
+              stationName: query.stationName,
+              search: query.search,
             });
             return { success: true, data: result };
           } catch (error) {
@@ -125,6 +127,8 @@ const stockOutFwc = new Elysia({ prefix: "/fwc" })
             body.note,
             body.notaDinas,
             body.bast,
+            body.notaDinasFile,
+            body.bastFile,
           );
           return result;
         } catch (error) {
@@ -137,6 +141,7 @@ const stockOutFwc = new Elysia({ prefix: "/fwc" })
       },
       {
         body: StockOutFwcModel.stockOutRequest,
+        type: "multipart/form-data",
         response: {
           200: StockOutFwcModel.stockOutResponse,
           400: StockOutFwcModel.errorResponse,
@@ -274,11 +279,13 @@ const stockOutVoucher = new Elysia({ prefix: "/voucher" })
                 : undefined,
               endDate: query.endDate ? new Date(query.endDate) : undefined,
               stationId: query.stationId,
+              categoryId: query.categoryId,
+              typeId: query.typeId,
               status: query.status as any,
-              search: query.search,
-              stationName: query.stationName,
               categoryName: query.categoryName,
               typeName: query.typeName,
+              stationName: query.stationName,
+              search: query.search,
             });
             return { success: true, data: result };
           } catch (error) {
@@ -411,6 +418,8 @@ const stockOutVoucher = new Elysia({ prefix: "/voucher" })
               body.note,
               body.notaDinas,
               body.bast,
+              body.notaDinasFile,
+              body.bastFile,
             );
             return result;
           } catch (error) {
@@ -423,6 +432,7 @@ const stockOutVoucher = new Elysia({ prefix: "/voucher" })
         },
         {
           body: StockOutVoucherModel.stockOutRequest,
+          type: "multipart/form-data",
           response: {
             200: StockOutVoucherModel.stockOutResponse,
             400: StockOutVoucherModel.errorResponse,

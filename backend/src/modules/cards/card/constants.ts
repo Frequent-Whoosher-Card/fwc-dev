@@ -12,6 +12,7 @@ export const CARD_STATUS_MAPPING: Record<CardStatus, string> = {
   [CardStatus.BLOCKED]: "Diblokir",
   [CardStatus.DELETED]: "Dihapus",
   [CardStatus.ON_TRANSFER]: "Transfer",
+  [CardStatus.LOST_BY_PASSANGER]: "Hilang (Penumpang)",
 };
 
 export const REVERSE_CARD_STATUS_MAPPING: Record<string, CardStatus> =

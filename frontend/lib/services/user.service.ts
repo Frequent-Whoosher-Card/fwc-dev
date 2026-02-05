@@ -43,6 +43,9 @@ export interface UserListItem {
   lastLogin?: string | null;
   createdAt?: string;
   updatedAt?: string;
+  deletedAt?: string;
+  deletedByName?: string | null;
+  notes?: string | null;
 }
 
 export interface UserDetail extends UserListItem {}
@@ -107,6 +110,7 @@ export const getUsers = async (params?: {
   search?: string;
   roleId?: string;
   stationId?: string;
+  isDeleted?: boolean; // ADDED
 }) => {
   const query = new URLSearchParams();
 
@@ -116,6 +120,7 @@ export const getUsers = async (params?: {
   if (params?.search) query.append("search", params.search);
   if (params?.roleId) query.append("roleId", params.roleId);
   if (params?.stationId) query.append("stationId", params.stationId);
+  if (params?.isDeleted) query.append("isDeleted", "true"); // ADDED
 
   const res = await apiFetch(`/users?${query.toString()}`, { method: "GET" });
   const data = res?.data ?? [];
@@ -144,6 +149,11 @@ export const getUsers = async (params?: {
               lastLogin: item.lastLogin ?? null,
               createdAt: item.createdAt,
               updatedAt: item.updatedAt,
+              
+              // Map potential new fields from backend
+              deletedAt: item.deletedAt,
+              deletedByName: item.deletedByName, // Assuming backend might send this eventually
+              notes: item.notes, // Assuming backend might send this eventually
             })
           )
         : [],
@@ -240,8 +250,11 @@ export const updateUser = (
 /**
  * DELETE USER
  */
-export const deleteUser = (id: string | number) => {
-  return apiFetch(`/users/${id}`, { method: "DELETE" });
+export const deleteUser = (id: string | number, reason: string) => {
+  return apiFetch(`/users/${id}`, { 
+    method: "DELETE",
+    body: JSON.stringify({ reason }) 
+  });
 };
 
 /**

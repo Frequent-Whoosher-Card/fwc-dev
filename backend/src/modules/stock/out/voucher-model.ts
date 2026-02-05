@@ -15,8 +15,12 @@ export namespace StockOutVoucherModel {
     serialDate: t.String({ format: "date" }),
 
     note: t.Optional(t.String({ maxLength: 500 })),
+    // Text input (backward compatibility)
     notaDinas: t.Optional(t.String()),
     bast: t.Optional(t.String()),
+    // File upload (new feature)
+    notaDinasFile: t.Optional(t.File()),
+    bastFile: t.Optional(t.File()),
   });
 
   // Stock Out Response
@@ -74,9 +78,10 @@ export namespace StockOutVoucherModel {
     limit: t.Optional(t.String()),
     startDate: t.Optional(t.String({ format: "date" })),
     endDate: t.Optional(t.String({ format: "date" })),
-    stationId: t.Optional(t.String({ format: "uuid" })),
+    stationId: t.Optional(t.String()),
+    categoryId: t.Optional(t.String()),
+    typeId: t.Optional(t.String()),
     status: t.Optional(t.String()),
-    // Search Params
     search: t.Optional(t.String()),
     stationName: t.Optional(t.String()),
     categoryName: t.Optional(t.String()),
@@ -98,6 +103,22 @@ export namespace StockOutVoucherModel {
           note: t.Union([t.String(), t.Null()]),
           notaDinas: t.Union([t.String(), t.Null()]),
           bast: t.Union([t.String(), t.Null()]),
+          notaDinasFile: t.Union([
+            t.Object({
+              id: t.String(),
+              url: t.String(),
+              filename: t.String(),
+            }),
+            t.Null(),
+          ]),
+          bastFile: t.Union([
+            t.Object({
+              id: t.String(),
+              url: t.String(),
+              filename: t.String(),
+            }),
+            t.Null(),
+          ]),
           createdByName: t.Union([t.String(), t.Null(), t.Undefined()]),
           cardCategory: t.Object({
             id: t.String(),
@@ -140,6 +161,22 @@ export namespace StockOutVoucherModel {
         note: t.Union([t.String(), t.Null()]),
         notaDinas: t.Union([t.String(), t.Null()]),
         bast: t.Union([t.String(), t.Null()]),
+        notaDinasFile: t.Union([
+          t.Object({
+            id: t.String(),
+            url: t.String(),
+            filename: t.String(),
+          }),
+          t.Null(),
+        ]),
+        bastFile: t.Union([
+          t.Object({
+            id: t.String(),
+            url: t.String(),
+            filename: t.String(),
+          }),
+          t.Null(),
+        ]),
         createdAt: t.String(),
         createdByName: t.Union([t.String(), t.Null(), t.Undefined()]),
         validatedAt: t.Union([t.String(), t.Null()]),

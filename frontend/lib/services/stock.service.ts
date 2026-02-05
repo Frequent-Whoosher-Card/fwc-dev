@@ -78,6 +78,16 @@ export interface StockOutDetail {
   batchId?: string | null;
   notaDinas?: string | null;
   bast?: string | null;
+  notaDinasFile?: {
+    id: string;
+    url: string;
+    filename: string;
+  } | null;
+  bastFile?: {
+    id: string;
+    url: string;
+    filename: string;
+  } | null;
 }
 
 export interface StockPaginationMeta {
@@ -368,9 +378,27 @@ const stockService = {
     quantity?: number;
     programType?: string;
     note?: string;
+    startSerial?: string;
+    endSerial?: string;
+    notaDinas?: string;
+    bast?: string;
+    notaDinasFile?: File | null;
+    bastFile?: File | null;
   }) => {
     const { programType = "fwc", ...rest } = payload;
-    return axios.post(`/stock/out/${programType.toLowerCase()}`, rest);
+
+    const formData = new FormData();
+    Object.entries(rest).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        formData.append(key, value as any);
+      }
+    });
+
+    return axios.post(`/stock/out/${programType.toLowerCase()}`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
   },
 
   getStockOutById: async (
@@ -415,6 +443,20 @@ const stockService = {
       batchId: item.batchId,
       notaDinas: item.notaDinas,
       bast: item.bast,
+      notaDinasFile: item.notaDinasFile
+        ? {
+            id: item.notaDinasFile.id,
+            url: item.notaDinasFile.url,
+            filename: item.notaDinasFile.filename,
+          }
+        : null,
+      bastFile: item.bastFile
+        ? {
+            id: item.bastFile.id,
+            url: item.bastFile.url,
+            filename: item.bastFile.filename,
+          }
+        : null,
     };
   },
 

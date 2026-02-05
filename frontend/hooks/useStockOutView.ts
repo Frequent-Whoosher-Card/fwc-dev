@@ -4,7 +4,10 @@ import { useState, useEffect, useCallback } from "react";
 import stockService, { StockOutDetail } from "@/lib/services/stock.service";
 import toast from "react-hot-toast";
 
-export const useStockOutView = (id: string) => {
+export const useStockOutView = (
+  id: string,
+  programType: "FWC" | "VOUCHER" = "FWC",
+) => {
   const [data, setData] = useState<StockOutDetail>({
     id: "",
     movementAt: "",
@@ -27,7 +30,7 @@ export const useStockOutView = (id: string) => {
     if (!id) return;
     try {
       setLoading(true);
-      const item = await stockService.getStockOutById(id);
+      const item = await stockService.getStockOutById(id, programType);
       setData(item);
     } catch (err: any) {
       toast.error(err.message || "Gagal mengambil detail stock out");
@@ -35,7 +38,7 @@ export const useStockOutView = (id: string) => {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, programType]);
 
   useEffect(() => {
     fetchDetail();
