@@ -294,6 +294,7 @@ export interface CreateVoucherPurchasePayload {
     price?: number;
   }>;
   edcReferenceNumber: string;
+  paymentMethodId?: string;
   programType?: "VOUCHER";
   bulkDiscountId?: number;
   price?: number; // Total price (optional, will be calculated if not provided)
@@ -307,6 +308,7 @@ export async function createVoucherPurchase(
     memberId: payload.memberId,
     cards: payload.cards,
     edcReferenceNumber: payload.edcReferenceNumber,
+    paymentMethodId: payload.paymentMethodId,
     programType: payload.programType || "VOUCHER",
     bulkDiscountId: payload.bulkDiscountId,
     price: payload.price,

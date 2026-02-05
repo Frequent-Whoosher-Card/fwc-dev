@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { getCardsByType } from "@/lib/services/card.service";
 import { getCategoryByName } from "@/lib/services/category.service";
 import { getAppConfig } from "@/lib/services/config.service";
@@ -9,7 +9,7 @@ import type {
   Card,
   CardStatus,
 } from "@/types/purchase";
-import { toast } from "sonner";
+import toast from "react-hot-toast";
 
 export function useCardSelection() {
   const [cardCategory, setCardCategory] = useState<CardCategory | "">("");
@@ -72,7 +72,7 @@ export function useCardSelection() {
       setCardTypes(uniqueTypes);
 
       if (uniqueTypes.length === 0) {
-        toast.warning("Tidak ada card type tersedia untuk kategori ini");
+        toast("Tidak ada card type tersedia untuk kategori ini", { icon: "⚠️" });
       }
     } catch (error) {
       toast.error("Gagal memuat card types");
@@ -129,7 +129,7 @@ export function useCardSelection() {
       setCards(availableCards);
 
       if (availableCards.length === 0) {
-        toast.warning("Tidak ada kartu tersedia untuk tipe ini");
+        toast("Tidak ada kartu tersedia untuk tipe ini", { icon: "⚠️" });
       }
     } catch (error) {
       toast.error("Gagal memuat kartu");
@@ -201,11 +201,11 @@ export function useCardSelection() {
     }
   };
 
-  const handleCardSelect = (card: Card) => {
+  const handleCardSelect = useCallback((card: Card) => {
     setCardId(card.id);
     setSerialNumber(card.serialNumber);
     setSearchResults([]);
-  };
+  }, []);
 
   const handleCardChange = (id: string) => {
     setCardId(id);
