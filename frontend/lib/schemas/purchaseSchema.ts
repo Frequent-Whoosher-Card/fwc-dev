@@ -23,7 +23,9 @@ export const purchaseFormSchema = z.object({
     .string()
     .min(1, "No. Reference EDC wajib diisi")
     .regex(/^\d+$/, "No. Reference EDC harus berupa angka")
-    .max(20, "No. Reference EDC maksimal 20 digit"),
+    .max(12, "No. Reference EDC maksimal 12 digit"),
+
+  paymentMethodId: z.string().min(1, "Payment Method wajib dipilih"),
 
   price: z.number().min(0, "Price harus >= 0"),
 
