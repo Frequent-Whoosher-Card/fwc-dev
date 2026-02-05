@@ -1,6 +1,7 @@
 import db from "../../config/db";
 import { ValidationError, NotFoundError } from "../../utils/errors";
 import { MemberModel } from "./model";
+import { ActivityLogService } from "../activity-log/service";
 
 export class MemberService {
   /**
@@ -8,19 +9,35 @@ export class MemberService {
    */
   static async create(
     data: typeof MemberModel.createMemberBody.static,
-    userId: string
+    userId: string,
   ) {
     const member = await db.$transaction(async (tx) => {
+      let finalIdentityNumber = data.identityNumber;
+
+      // Handle Prefix based on Program Type
+      if (data.programType) {
+        const productType = await tx.productType.findFirst({
+          where: {
+            programType: data.programType as any,
+            deletedAt: null,
+          },
+        });
+
+        if (productType?.prefix) {
+          finalIdentityNumber = `${productType.prefix}${data.identityNumber}`;
+        }
+      }
+
       const existing = await tx.member.findFirst({
         where: {
-          identityNumber: data.identityNumber,
+          identityNumber: finalIdentityNumber,
           deletedAt: null,
         },
       });
 
       if (existing) {
         throw new ValidationError(
-          `Member dengan identity number '${data.identityNumber}' sudah terdaftar`
+          `Member dengan identity number '${finalIdentityNumber}' sudah terdaftar`,
         );
       }
 
@@ -34,7 +51,7 @@ export class MemberService {
       return await tx.member.create({
         data: {
           name: data.name,
-          identityNumber: data.identityNumber,
+          identityNumber: finalIdentityNumber,
           nationality: data.nationality || "INDONESIA",
           email: data.email || null,
           phone: data.phone || null,
@@ -46,13 +63,23 @@ export class MemberService {
           employeeTypeId: data.employeeTypeId ?? null,
           cityId: data.cityId ?? null,
           birthDate: birthDateParsed,
+          programType: (data.programType as any) || null,
           createdBy: userId,
           updatedBy: userId,
         },
       });
     });
 
-    return await this.getById(member.id);
+    const createdMember = await this.getById(member.id);
+
+    // Activity Log
+    await ActivityLogService.createActivityLog(
+      userId,
+      "CREATE_MEMBER",
+      `Membuat member baru: ${createdMember.name} (${createdMember.identityNumber})`,
+    );
+
+    return createdMember;
   }
 
   /**
@@ -68,8 +95,20 @@ export class MemberService {
     hasNippKai?: string;
     employeeTypeId?: string;
     isDeleted?: boolean;
+    programType?: string;
   }) {
-    const { page, limit, search, startDate, endDate, gender, hasNippKai, employeeTypeId, isDeleted = false } = params;
+    const {
+      page,
+      limit,
+      search,
+      startDate,
+      endDate,
+      gender,
+      hasNippKai,
+      employeeTypeId,
+      isDeleted = false,
+      programType,
+    } = params;
     const skip = page && limit ? (page - 1) * limit : undefined;
 
     const where: any = {
@@ -77,7 +116,7 @@ export class MemberService {
     };
 
     // Filter by NIPKAI - only members that have NIPKAI
-    if (hasNippKai === 'true') {
+    if (hasNippKai === "true") {
       where.nippKai = {
         not: null,
       };
@@ -93,18 +132,23 @@ export class MemberService {
       where.employeeTypeId = employeeTypeId;
     }
 
+    // Filter by program type
+    if (programType) {
+      where.programType = programType as any;
+    }
+
     // Filter membership date (createdAt)
     if (startDate || endDate) {
       where.createdAt = {};
       if (startDate) {
         // Parse date string in local timezone
-        const [year, month, day] = startDate.split('-').map(Number);
+        const [year, month, day] = startDate.split("-").map(Number);
         const start = new Date(year, month - 1, day, 0, 0, 0, 0);
         where.createdAt.gte = start;
       }
       if (endDate) {
         // Parse date string in local timezone for end of day
-        const [year, month, day] = endDate.split('-').map(Number);
+        const [year, month, day] = endDate.split("-").map(Number);
         const end = new Date(year, month - 1, day, 23, 59, 59, 999);
         where.createdAt.lte = end;
       }
@@ -139,10 +183,16 @@ export class MemberService {
 
       // Search by Gender (L or P)
       const searchUpper = search.toUpperCase().trim();
-      if (searchUpper === 'L' || searchUpper === 'LAKI' || searchUpper === 'LAKI-LAKI' || searchUpper === 'LAKI LAKI' || searchUpper === 'LAKI-LAKI') {
-        where.OR.push({ gender: 'L' });
-      } else if (searchUpper === 'P' || searchUpper === 'PEREMPUAN') {
-        where.OR.push({ gender: 'P' });
+      if (
+        searchUpper === "L" ||
+        searchUpper === "LAKI" ||
+        searchUpper === "LAKI-LAKI" ||
+        searchUpper === "LAKI LAKI" ||
+        searchUpper === "LAKI-LAKI"
+      ) {
+        where.OR.push({ gender: "L" });
+      } else if (searchUpper === "P" || searchUpper === "PEREMPUAN") {
+        where.OR.push({ gender: "P" });
       }
 
       // Add search by updatedBy (user fullName) - Last Updated by
@@ -154,27 +204,41 @@ export class MemberService {
 
       // Search by date fields (Membership Date and Last Updated)
       // Try to parse as date and search in date range
-      const dateMatch = search.match(/\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4}|\d{2}-\d{2}-\d{4}/);
+      const dateMatch = search.match(
+        /\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4}|\d{2}-\d{2}-\d{4}/,
+      );
       if (dateMatch) {
         try {
           // Try different date formats
           let searchDate: Date | null = null;
           const dateStr = dateMatch[0];
 
-          if (dateStr.includes('-')) {
+          if (dateStr.includes("-")) {
             // YYYY-MM-DD or DD-MM-YYYY
-            const parts = dateStr.split('-');
+            const parts = dateStr.split("-");
             if (parts[0].length === 4) {
               // YYYY-MM-DD
-              searchDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+              searchDate = new Date(
+                parseInt(parts[0]),
+                parseInt(parts[1]) - 1,
+                parseInt(parts[2]),
+              );
             } else {
               // DD-MM-YYYY
-              searchDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+              searchDate = new Date(
+                parseInt(parts[2]),
+                parseInt(parts[1]) - 1,
+                parseInt(parts[0]),
+              );
             }
-          } else if (dateStr.includes('/')) {
+          } else if (dateStr.includes("/")) {
             // DD/MM/YYYY
-            const parts = dateStr.split('/');
-            searchDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+            const parts = dateStr.split("/");
+            searchDate = new Date(
+              parseInt(parts[2]),
+              parseInt(parts[1]) - 1,
+              parseInt(parts[0]),
+            );
           }
 
           if (searchDate && !isNaN(searchDate.getTime())) {
@@ -197,7 +261,7 @@ export class MemberService {
                   gte: startOfDay,
                   lte: endOfDay,
                 },
-              }
+              },
             );
           }
         } catch (error) {
@@ -252,16 +316,23 @@ export class MemberService {
       companyName: item.companyName ?? null,
       employeeTypeId: item.employeeTypeId ?? null,
       employeeType: item.employeeType
-        ? { id: item.employeeType.id, code: item.employeeType.code, name: item.employeeType.name }
+        ? {
+            id: item.employeeType.id,
+            code: item.employeeType.code,
+            name: item.employeeType.name,
+          }
         : null,
       cityId: item.cityId ?? null,
       city: item.city ? { id: item.city.id, name: item.city.name } : null,
       birthDate: item.birthDate ? item.birthDate.toISOString() : null,
+      programType: item.programType,
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
       ...(item.deletedAt && {
         deletedAt: item.deletedAt.toISOString(),
-        deletedByName: item.deletedBy ? userMap.get(item.deletedBy) || null : null,
+        deletedByName: item.deletedBy
+          ? userMap.get(item.deletedBy) || null
+          : null,
       }),
       createdByName: item.createdBy
         ? userMap.get(item.createdBy) || null
@@ -302,15 +373,15 @@ export class MemberService {
     const [creator, updater] = await Promise.all([
       member.createdBy
         ? db.user.findUnique({
-          where: { id: member.createdBy },
-          select: { fullName: true },
-        })
+            where: { id: member.createdBy },
+            select: { fullName: true },
+          })
         : null,
       member.updatedBy
         ? db.user.findUnique({
-          where: { id: member.updatedBy },
-          select: { fullName: true },
-        })
+            where: { id: member.updatedBy },
+            select: { fullName: true },
+          })
         : null,
     ]);
 
@@ -329,14 +400,15 @@ export class MemberService {
       employeeTypeId: member.employeeTypeId ?? null,
       employeeType: member.employeeType
         ? {
-          id: member.employeeType.id,
-          code: member.employeeType.code,
-          name: member.employeeType.name,
-        }
+            id: member.employeeType.id,
+            code: member.employeeType.code,
+            name: member.employeeType.name,
+          }
         : null,
       cityId: member.cityId ?? null,
       city: member.city ? { id: member.city.id, name: member.city.name } : null,
       birthDate: member.birthDate ? member.birthDate.toISOString() : null,
+      programType: member.programType,
       createdAt: member.createdAt.toISOString(),
       updatedAt: member.updatedAt.toISOString(),
       createdByName: creator?.fullName || null,
@@ -350,7 +422,7 @@ export class MemberService {
   static async update(
     id: string,
     data: typeof MemberModel.updateMemberBody.static,
-    userId: string
+    userId: string,
   ) {
     await db.$transaction(async (tx) => {
       const member = await tx.member.findUnique({ where: { id } });
@@ -358,7 +430,10 @@ export class MemberService {
         throw new NotFoundError("Member tidak ditemukan");
       }
 
-      if (data.identityNumber && data.identityNumber !== member.identityNumber) {
+      if (
+        data.identityNumber &&
+        data.identityNumber !== member.identityNumber
+      ) {
         const existing = await tx.member.findFirst({
           where: {
             identityNumber: data.identityNumber,
@@ -369,7 +444,7 @@ export class MemberService {
 
         if (existing) {
           throw new ValidationError(
-            `Member dengan identity number '${data.identityNumber}' sudah terdaftar`
+            `Member dengan identity number '${data.identityNumber}' sudah terdaftar`,
           );
         }
       }
@@ -404,13 +479,25 @@ export class MemberService {
             })()
           : null;
       }
+      if (data.programType !== undefined) {
+        updateData.programType = data.programType as any;
+      }
       await tx.member.update({
         where: { id },
         data: updateData as any,
       });
     });
 
-    return await this.getById(id);
+    const updatedMember = await this.getById(id);
+
+    // Activity Log
+    await ActivityLogService.createActivityLog(
+      userId,
+      "UPDATE_MEMBER",
+      `Memperbarui member: ${updatedMember.name} (${updatedMember.identityNumber})`,
+    );
+
+    return updatedMember;
   }
 
   /**
@@ -441,7 +528,7 @@ export class MemberService {
 
       if (activeCards > 0) {
         throw new ValidationError(
-          `Tidak dapat menghapus member. Member memiliki ${activeCards} kartu aktif.`
+          `Tidak dapat menghapus member. Member memiliki ${activeCards} kartu aktif.`,
         );
       }
 
@@ -453,6 +540,13 @@ export class MemberService {
           notes: trimmedNotes,
         },
       });
+
+      // Activity Log - using member data before update (it was fetched above)
+      await ActivityLogService.createActivityLog(
+        userId,
+        "DELETE_MEMBER",
+        `Menghapus member: ${member.name} (${member.identityNumber}). Alasan: ${trimmedNotes}`,
+      );
 
       return { success: true, message: "Member berhasil dihapus" };
     });
@@ -467,13 +561,14 @@ export class MemberService {
   static async detectKTP(
     imageFile: File,
     returnMultiple: boolean = false,
-    minConfidence: number = 0.5
+    minConfidence: number = 0.5,
   ): Promise<typeof MemberModel.ktpDetectionResponse.static> {
     const startTime = performance.now();
-    console.log('🔍 [KTP Detection] Memulai deteksi KTP...');
+    console.log("🔍 [KTP Detection] Memulai deteksi KTP...");
 
     // Import services (lazy import to avoid circular dependencies)
-    const { ktpDetectionService } = await import("../../services/ktp_detection_service");
+    const { ktpDetectionService } =
+      await import("../../services/ktp_detection_service");
     const { tempStorage } = await import("../../utils/temp_storage");
 
     try {
@@ -482,7 +577,7 @@ export class MemberService {
       const result = await ktpDetectionService.detectAndCrop(
         imageFile,
         returnMultiple,
-        minConfidence
+        minConfidence,
       );
 
       if (!result.success) {
@@ -506,14 +601,20 @@ export class MemberService {
             bbox: img.bbox,
             originalSize: result.original_size!,
             confidence: img.confidence,
-          }))
+          })),
         );
 
         const detectionTime = performance.now() - detectionStartTime;
         const totalTime = performance.now() - startTime;
-        console.log(`✅ [KTP Detection] Deteksi selesai dalam ${detectionTime.toFixed(2)}ms`);
-        console.log(`✅ [KTP Detection] Total waktu (termasuk penyimpanan): ${totalTime.toFixed(2)}ms`);
-        console.log(`📊 [KTP Detection] Jumlah KTP terdeteksi: ${result.cropped_images.length}`);
+        console.log(
+          `✅ [KTP Detection] Deteksi selesai dalam ${detectionTime.toFixed(2)}ms`,
+        );
+        console.log(
+          `✅ [KTP Detection] Total waktu (termasuk penyimpanan): ${totalTime.toFixed(2)}ms`,
+        );
+        console.log(
+          `📊 [KTP Detection] Jumlah KTP terdeteksi: ${result.cropped_images.length}`,
+        );
 
         return {
           success: true,
@@ -535,14 +636,20 @@ export class MemberService {
           result.cropped_image,
           result.bbox,
           result.original_size,
-          result.confidence
+          result.confidence,
         );
 
         const detectionTime = performance.now() - detectionStartTime;
         const totalTime = performance.now() - startTime;
-        console.log(`✅ [KTP Detection] Deteksi selesai dalam ${detectionTime.toFixed(2)}ms`);
-        console.log(`✅ [KTP Detection] Total waktu (termasuk penyimpanan): ${totalTime.toFixed(2)}ms`);
-        console.log(`📊 [KTP Detection] Confidence: ${result.confidence?.toFixed(2)}`);
+        console.log(
+          `✅ [KTP Detection] Deteksi selesai dalam ${detectionTime.toFixed(2)}ms`,
+        );
+        console.log(
+          `✅ [KTP Detection] Total waktu (termasuk penyimpanan): ${totalTime.toFixed(2)}ms`,
+        );
+        console.log(
+          `📊 [KTP Detection] Confidence: ${result.confidence?.toFixed(2)}`,
+        );
 
         return {
           success: true,
@@ -558,7 +665,9 @@ export class MemberService {
       }
     } catch (error) {
       const totalTime = performance.now() - startTime;
-      console.error(`❌ [KTP Detection] Gagal setelah ${totalTime.toFixed(2)}ms`);
+      console.error(
+        `❌ [KTP Detection] Gagal setelah ${totalTime.toFixed(2)}ms`,
+      );
       if (error instanceof Error) {
         console.error(`❌ [KTP Detection] Error: ${error.message}`);
         throw new ValidationError(`KTP detection failed: ${error.message}`);
@@ -573,10 +682,10 @@ export class MemberService {
    */
   static async extractKTPFields(
     imageFileOrBase64OrSessionId: File | string,
-    isSessionId: boolean = false
+    isSessionId: boolean = false,
   ): Promise<typeof MemberModel.ocrExtractResponse.static> {
     const startTime = performance.now();
-    console.log('📝 [KTP Extraction] Memulai ekstraksi data KTP...');
+    console.log("📝 [KTP Extraction] Memulai ekstraksi data KTP...");
 
     // Import services (lazy import to avoid circular dependencies)
     const { ocrService } = await import("../../services/ocr_service");
@@ -591,10 +700,15 @@ export class MemberService {
         // SessionId - retrieve from temp storage
         const stored = await tempStorage.getImage(imageFileOrBase64OrSessionId);
         if (!stored) {
-          throw new Error("Session expired or not found. Please re-upload the image.");
+          throw new Error(
+            "Session expired or not found. Please re-upload the image.",
+          );
         }
         // Convert stored base64 to File
-        const base64Data = stored.croppedImage.replace(/^data:image\/\w+;base64,/, "");
+        const base64Data = stored.croppedImage.replace(
+          /^data:image\/\w+;base64,/,
+          "",
+        );
         const buffer = Buffer.from(base64Data, "base64");
         fileObj = new File([buffer], "cropped_ktp.jpg", { type: "image/jpeg" });
 
@@ -602,7 +716,10 @@ export class MemberService {
         // await tempStorage.deleteImage(imageFileOrBase64OrSessionId);
       } else if (typeof imageFileOrBase64OrSessionId === "string") {
         // Base64 string - convert to File
-        const base64Data = imageFileOrBase64OrSessionId.replace(/^data:image\/\w+;base64,/, "");
+        const base64Data = imageFileOrBase64OrSessionId.replace(
+          /^data:image\/\w+;base64,/,
+          "",
+        );
         const buffer = Buffer.from(base64Data, "base64");
         fileObj = new File([buffer], "cropped_ktp.jpg", { type: "image/jpeg" });
       } else {
@@ -611,7 +728,9 @@ export class MemberService {
       }
 
       const prepTime = performance.now() - prepStartTime;
-      console.log(`⏱️  [KTP Extraction] Waktu persiapan file: ${prepTime.toFixed(2)}ms`);
+      console.log(
+        `⏱️  [KTP Extraction] Waktu persiapan file: ${prepTime.toFixed(2)}ms`,
+      );
 
       // Use cached OCR daemon service (model loaded once, reused for all requests)
       const ocrStartTime = performance.now();
@@ -623,9 +742,13 @@ export class MemberService {
       }
 
       const totalTime = performance.now() - startTime;
-      console.log(`✅ [KTP Extraction] OCR processing selesai dalam ${ocrTime.toFixed(2)}ms`);
+      console.log(
+        `✅ [KTP Extraction] OCR processing selesai dalam ${ocrTime.toFixed(2)}ms`,
+      );
       console.log(`✅ [KTP Extraction] Total waktu: ${totalTime.toFixed(2)}ms`);
-      console.log(`📊 [KTP Extraction] Data terektrak: NIK=${result.data?.identityNumber || 'N/A'}, Nama=${result.data?.name || 'N/A'}`);
+      console.log(
+        `📊 [KTP Extraction] Data terektrak: NIK=${result.data?.identityNumber || "N/A"}, Nama=${result.data?.name || "N/A"}`,
+      );
 
       return {
         success: true,
@@ -640,7 +763,9 @@ export class MemberService {
       };
     } catch (error) {
       const totalTime = performance.now() - startTime;
-      console.error(`❌ [KTP Extraction] Gagal setelah ${totalTime.toFixed(2)}ms`);
+      console.error(
+        `❌ [KTP Extraction] Gagal setelah ${totalTime.toFixed(2)}ms`,
+      );
       if (error instanceof Error) {
         console.error(`❌ [KTP Extraction] Error: ${error.message}`);
         throw new ValidationError(`OCR extraction failed: ${error.message}`);
@@ -649,4 +774,3 @@ export class MemberService {
     }
   }
 }
-

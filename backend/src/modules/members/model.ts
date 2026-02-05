@@ -1,6 +1,11 @@
 import { t } from "elysia";
 
 export namespace MemberModel {
+  export enum ProgramType {
+    FWC = "FWC",
+    VOUCHER = "VOUCHER",
+  }
+
   // --- Data Shape ---
   export const memberData = t.Object({
     id: t.String({ format: "uuid" }),
@@ -32,11 +37,14 @@ export namespace MemberModel {
       t.Null(),
     ]),
     birthDate: t.Union([t.String({ format: "date-time" }), t.Null()]),
+    programType: t.Union([t.Enum(ProgramType), t.Null()]),
     createdAt: t.String({ format: "date-time" }),
     updatedAt: t.String({ format: "date-time" }),
     createdByName: t.Union([t.String(), t.Null()]),
     updatedByName: t.Union([t.String(), t.Null()]),
-    deletedAt: t.Optional(t.Union([t.String({ format: "date-time" }), t.Null()])),
+    deletedAt: t.Optional(
+      t.Union([t.String({ format: "date-time" }), t.Null()]),
+    ),
     deletedByName: t.Optional(t.Union([t.String(), t.Null()])),
   });
 
@@ -56,76 +64,90 @@ export namespace MemberModel {
       t.String({
         maxLength: 100,
         description: "Nationality (default: INDONESIA)",
-      })
+      }),
     ),
     email: t.Optional(
       t.String({
         format: "email",
         maxLength: 255,
         description: "Email address",
-      })
+      }),
     ),
     phone: t.Optional(
       t.String({
         maxLength: 20,
         description: "Phone number",
-      })
+      }),
     ),
     nippKai: t.Optional(
       t.String({
         maxLength: 50,
         description: "NIPP KAI",
-      })
+      }),
     ),
     gender: t.Optional(
-      t.Union([
-        t.Literal("L"),
-        t.Literal("P"),
-      ], {
+      t.Union([t.Literal("L"), t.Literal("P")], {
         description: "Gender: L (Laki-laki) or P (Perempuan)",
-      })
+      }),
     ),
     alamat: t.Optional(
       t.String({
         maxLength: 500,
         description: "Address",
-      })
+      }),
     ),
     notes: t.Optional(
       t.String({
         maxLength: 1000,
         description: "Notes or additional information",
-      })
+      }),
     ),
     companyName: t.Optional(
       t.String({
         maxLength: 200,
         description: "Company name (e.g. for voucher membership)",
-      })
+      }),
     ),
     employeeTypeId: t.Optional(
-      t.Union([
-        t.String({ format: "uuid", description: "Employee type ID" }),
-        t.Null(),
-      ], {
-        description: "Employee type ID (e.g. tipe karyawan). Optional.",
-      })
+      t.Union(
+        [
+          t.String({ format: "uuid", description: "Employee type ID" }),
+          t.Null(),
+        ],
+        {
+          description: "Employee type ID (e.g. tipe karyawan). Optional.",
+        },
+      ),
     ),
     cityId: t.Optional(
-      t.Union([
-        t.String({ format: "uuid", description: "City ID (kota/kabupaten)" }),
-        t.Null(),
-      ], {
-        description: "City ID. Optional.",
-      })
+      t.Union(
+        [
+          t.String({ format: "uuid", description: "City ID (kota/kabupaten)" }),
+          t.Null(),
+        ],
+        {
+          description: "City ID. Optional.",
+        },
+      ),
     ),
     birthDate: t.Optional(
-      t.Union([
-        t.String({ format: "date", description: "Tanggal lahir (YYYY-MM-DD)" }),
-        t.Null(),
-      ], {
-        description: "Tanggal lahir. Optional.",
-      })
+      t.Union(
+        [
+          t.String({
+            format: "date",
+            description: "Tanggal lahir (YYYY-MM-DD)",
+          }),
+          t.Null(),
+        ],
+        {
+          description: "Tanggal lahir. Optional.",
+        },
+      ),
+    ),
+    programType: t.Optional(
+      t.Enum(ProgramType, {
+        description: "Program type: FWC or VOUCHER",
+      }),
     ),
   });
 
@@ -135,89 +157,103 @@ export namespace MemberModel {
         minLength: 1,
         maxLength: 200,
         description: "Member name",
-      })
+      }),
     ),
     identityNumber: t.Optional(
       t.String({
         minLength: 1,
         maxLength: 50,
         description: "Identity number (unique)",
-      })
+      }),
     ),
     nationality: t.Optional(
       t.String({
         maxLength: 100,
         description: "Nationality",
-      })
+      }),
     ),
     email: t.Optional(
       t.String({
         format: "email",
         maxLength: 255,
         description: "Email address",
-      })
+      }),
     ),
     phone: t.Optional(
       t.String({
         maxLength: 20,
         description: "Phone number",
-      })
+      }),
     ),
     nippKai: t.Optional(
       t.String({
         maxLength: 50,
         description: "NIPP KAI",
-      })
+      }),
     ),
     gender: t.Optional(
-      t.Union([
-        t.Literal("L"),
-        t.Literal("P"),
-      ], {
+      t.Union([t.Literal("L"), t.Literal("P")], {
         description: "Gender: L (Laki-laki) or P (Perempuan)",
-      })
+      }),
     ),
     alamat: t.Optional(
       t.String({
         maxLength: 500,
         description: "Address",
-      })
+      }),
     ),
     notes: t.Optional(
       t.String({
         maxLength: 1000,
         description: "Notes or additional information",
-      })
+      }),
     ),
     companyName: t.Optional(
       t.String({
         maxLength: 200,
         description: "Company name. Pass null to clear.",
-      })
+      }),
     ),
     employeeTypeId: t.Optional(
-      t.Union([
-        t.String({ format: "uuid", description: "Employee type ID" }),
-        t.Null(),
-      ], {
-        description: "Update employee type ID. Pass null to clear.",
-      })
+      t.Union(
+        [
+          t.String({ format: "uuid", description: "Employee type ID" }),
+          t.Null(),
+        ],
+        {
+          description: "Update employee type ID. Pass null to clear.",
+        },
+      ),
     ),
     cityId: t.Optional(
-      t.Union([
-        t.String({ format: "uuid", description: "City ID (kota/kabupaten)" }),
-        t.Null(),
-      ], {
-        description: "Update city ID. Pass null to clear.",
-      })
+      t.Union(
+        [
+          t.String({ format: "uuid", description: "City ID (kota/kabupaten)" }),
+          t.Null(),
+        ],
+        {
+          description: "Update city ID. Pass null to clear.",
+        },
+      ),
     ),
     birthDate: t.Optional(
-      t.Union([
-        t.String({ format: "date", description: "Tanggal lahir (YYYY-MM-DD)" }),
-        t.Null(),
-      ], {
-        description: "Update tanggal lahir. Pass null to clear.",
-      })
+      t.Union(
+        [
+          t.String({
+            format: "date",
+            description: "Tanggal lahir (YYYY-MM-DD)",
+          }),
+          t.Null(),
+        ],
+        {
+          description: "Update tanggal lahir. Pass null to clear.",
+        },
+      ),
+    ),
+    programType: t.Optional(
+      t.Union([t.Enum(ProgramType), t.Null()], {
+        description: "Update program type. Pass null to clear.",
+      }),
     ),
   });
 
@@ -226,44 +262,49 @@ export namespace MemberModel {
     limit: t.Optional(t.String()),
     search: t.Optional(
       t.String({
-        description: "Search across all member fields: Customer Name, Identity Number, Nationality, Gender (L/P/Laki-laki/Perempuan), Email, Phone, Address, Membership Date (YYYY-MM-DD/DD/MM/YYYY/DD-MM-YYYY), Last Updated (YYYY-MM-DD/DD/MM/YYYY/DD-MM-YYYY), and Last Updated By (user name). Supports partial matching."
-      })
+        description:
+          "Search across all member fields: Customer Name, Identity Number, Nationality, Gender (L/P/Laki-laki/Perempuan), Email, Phone, Address, Membership Date (YYYY-MM-DD/DD/MM/YYYY/DD-MM-YYYY), Last Updated (YYYY-MM-DD/DD/MM/YYYY/DD-MM-YYYY), and Last Updated By (user name). Supports partial matching.",
+      }),
     ),
     startDate: t.Optional(
       t.String({
         format: "date",
-        description: "Start date for membership date filter (YYYY-MM-DD)"
-      })
+        description: "Start date for membership date filter (YYYY-MM-DD)",
+      }),
     ),
     endDate: t.Optional(
       t.String({
         format: "date",
-        description: "End date for membership date filter (YYYY-MM-DD)"
-      })
+        description: "End date for membership date filter (YYYY-MM-DD)",
+      }),
     ),
     gender: t.Optional(
-      t.Union([
-        t.Literal("L"),
-        t.Literal("P"),
-      ], {
-        description: "Filter by gender: L (Laki-laki) or P (Perempuan)"
-      })
+      t.Union([t.Literal("L"), t.Literal("P")], {
+        description: "Filter by gender: L (Laki-laki) or P (Perempuan)",
+      }),
     ),
     hasNippKai: t.Optional(
       t.String({
-        description: "Filter members that have NIPKAI. Set to 'true' to filter only members with NIPKAI"
-      })
+        description:
+          "Filter members that have NIPKAI. Set to 'true' to filter only members with NIPKAI",
+      }),
     ),
     employeeTypeId: t.Optional(
       t.String({
         format: "uuid",
         description: "Filter by employee type UUID (tipe karyawan)",
-      })
+      }),
     ),
     isDeleted: t.Optional(
       t.Union([t.Literal("true"), t.Literal("false")], {
-        description: "When 'true', return only soft-deleted members (riwayat penghapusan)",
-      })
+        description:
+          "When 'true', return only soft-deleted members (riwayat penghapusan)",
+      }),
+    ),
+    programType: t.Optional(
+      t.Enum(ProgramType, {
+        description: "Filter by program type: FWC or VOUCHER",
+      }),
     ),
   });
 
@@ -329,7 +370,7 @@ export namespace MemberModel {
       t.Object({
         text_blocks_count: t.Number(),
         combined_text: t.String(),
-      })
+      }),
     ),
     message: t.Optional(t.String()),
   });
@@ -338,18 +379,48 @@ export namespace MemberModel {
   export const ktpDetectionResponse = t.Object({
     success: t.Boolean(),
     data: t.Object({
-      sessionId: t.String({ description: "Session ID for retrieving cropped image(s) later" }),
-      cropped_image: t.Optional(t.String({ description: "Base64 encoded cropped KTP image (single detection)" })),
-      cropped_images: t.Optional(t.Array(t.Object({
-        cropped_image: t.String({ description: "Base64 encoded cropped KTP image" }),
-        bbox: t.Array(t.Number(), { minItems: 4, maxItems: 4, description: "Bounding box [x1, y1, x2, y2]" }),
-        confidence: t.Number({ description: "Detection confidence score" }),
-      }), { description: "Multiple detections (if return_multiple=true)" })),
-      bbox: t.Optional(t.Array(t.Number(), { minItems: 4, maxItems: 4, description: "Bounding box [x1, y1, x2, y2] (single detection)" })),
-      original_size: t.Array(t.Number(), { minItems: 2, maxItems: 2, description: "Original image size [width, height]" }),
-      confidence: t.Optional(t.Number({ description: "Detection confidence score (single detection)" })),
+      sessionId: t.String({
+        description: "Session ID for retrieving cropped image(s) later",
+      }),
+      cropped_image: t.Optional(
+        t.String({
+          description: "Base64 encoded cropped KTP image (single detection)",
+        }),
+      ),
+      cropped_images: t.Optional(
+        t.Array(
+          t.Object({
+            cropped_image: t.String({
+              description: "Base64 encoded cropped KTP image",
+            }),
+            bbox: t.Array(t.Number(), {
+              minItems: 4,
+              maxItems: 4,
+              description: "Bounding box [x1, y1, x2, y2]",
+            }),
+            confidence: t.Number({ description: "Detection confidence score" }),
+          }),
+          { description: "Multiple detections (if return_multiple=true)" },
+        ),
+      ),
+      bbox: t.Optional(
+        t.Array(t.Number(), {
+          minItems: 4,
+          maxItems: 4,
+          description: "Bounding box [x1, y1, x2, y2] (single detection)",
+        }),
+      ),
+      original_size: t.Array(t.Number(), {
+        minItems: 2,
+        maxItems: 2,
+        description: "Original image size [width, height]",
+      }),
+      confidence: t.Optional(
+        t.Number({
+          description: "Detection confidence score (single detection)",
+        }),
+      ),
     }),
     message: t.Optional(t.String()),
   });
 }
-
