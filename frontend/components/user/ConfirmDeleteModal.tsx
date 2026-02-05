@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 
 interface Props {
@@ -8,7 +8,7 @@ interface Props {
   name: string;
   identity: string;
   onCancel: () => void;
-  onConfirm: () => void;
+  onConfirm: (reason: string) => void;
 }
 
 export default function ConfirmDeleteModal({
@@ -18,6 +18,18 @@ export default function ConfirmDeleteModal({
   onCancel,
   onConfirm,
 }: Props) {
+  const [reason, setReason] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setReason(""); // Reset reason when modal opens
+    }
+  }, [open]);
+
+  const onConfirmClick = () => {
+    onConfirm(reason);
+  };
+
   useEffect(() => {
     if (!open) return;
 
@@ -58,6 +70,7 @@ export default function ConfirmDeleteModal({
           Are you sure you want to delete this member?
         </p>
 
+
         {/* INFO BOX */}
         <div className="mt-4 rounded-lg bg-gray-50 p-4 text-sm">
           <div className="flex justify-between">
@@ -70,6 +83,20 @@ export default function ConfirmDeleteModal({
           </div>
         </div>
 
+        {/* REASON INPUT */}
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Alasan Penghapusan <span className="text-red-500">*</span>
+          </label>
+          <textarea
+            className="w-full rounded-md border border-gray-300 p-2 text-sm focus:border-[#8D1231] focus:ring-1 focus:ring-[#8D1231] outline-none"
+            rows={3}
+            placeholder="Tulis alasan penghapusan..."
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+          />
+        </div>
+
         {/* ACTION */}
         <div className="mt-6 flex justify-center gap-3">
           <button
@@ -80,8 +107,9 @@ export default function ConfirmDeleteModal({
           </button>
 
           <button
-            onClick={onConfirm}
-            className="rounded-md bg-[#8D1231] px-6 py-2 text-sm text-white hover:bg-[#73122E]"
+            onClick={onConfirmClick}
+            disabled={!reason.trim()}
+            className="rounded-md bg-[#8D1231] px-6 py-2 text-sm text-white hover:bg-[#73122E] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Delete
           </button>
@@ -90,3 +118,4 @@ export default function ConfirmDeleteModal({
     </div>
   );
 }
+

@@ -48,11 +48,18 @@ export async function apiFetch(
     }
   );
 
-  // ✅ PARSE JSON (AMAN)
+  // ✅ PARSE RESPONSE (JSON / TEXT)
   let json: any = null;
+  let textBody: string | null = null;
+  
   try {
-    json = await res.json();
+    const text = await res.text();
+    textBody = text;
+    if (text) {
+        json = JSON.parse(text);
+    }
   } catch {
+    // Not valid JSON, stick with textBody
     json = null;
   }
 
@@ -65,11 +72,12 @@ export async function apiFetch(
         window.location.href = '/login';
       }
 
-      // 🚨 WAJIB Error irmat: { success: false, error: { message: "...", code: "...", statusCode: 400 } }
+      // 🚨 WAJIB Error Format
       const message =
         json?.error?.message ||
         json?.message ||
         (typeof json?.error === 'string' ? json.error : null) ||
+        textBody || // Fallback to raw text
         `API Error (${res.status})`;
 
       throw new Error(message);
@@ -77,14 +85,22 @@ export async function apiFetch(
 
     let message = `API Error (${res.status})`;
 
-    if (typeof json?.message === 'string') {
-      message = json.message;
-    } else if (typeof json?.error === 'string') {
-      message = json.error;
-    } else if (json?.error?.message) {
-      message = json.error.message;
-    } else if (Array.isArray(json?.error)) {
-      message = json.error.join(', ');
+    if (json) {
+        if (typeof json.message === 'string') {
+          message = json.message;
+        } else if (typeof json.error === 'string') {
+          message = json.error;
+        } else if (json.error?.message) {
+          message = json.error.message;
+        } else if (Array.isArray(json.error)) {
+          message = json.error.join(', ');
+        } else {
+            // Fallback: If JSON exists but unknown structure, stringify it
+             message = JSON.stringify(json);
+        }
+    } else if (textBody) {
+        // Fallback: Raw Text
+        message = textBody;
     }
 
     throw new Error(message);
