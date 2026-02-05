@@ -57,7 +57,8 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
             endDate,
           }}
           onFilterChange={(newValues) => {
-            if (newValues.status !== undefined) setStatus(newValues.status);
+            if (newValues.status !== undefined)
+              setStatus(newValues.status as any); // Cast because StockFilter returns string[]
             if (newValues.category !== undefined) {
               setCategory(newValues.category);
               setType([]);
@@ -82,7 +83,7 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
           }}
           onAdd={() =>
             router.push(
-              `/dashboard/${role}/stock/${programType.toLowerCase()}/all/transfer`,
+              `/dashboard/${role}/stock/all/transfer?type=${programType}`,
             )
           }
           showFields={{
