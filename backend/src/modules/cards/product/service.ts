@@ -270,7 +270,7 @@ export class CardProductService {
     isDiscount?: boolean,
     isActive?: boolean,
   ) {
-    const [cardCategory, cardType] = await Promise.all([
+    const [cardCategory, cardType, currentProduct] = await Promise.all([
       db.cardCategory.findUnique({
         where: {
           id: categoryId,
@@ -280,6 +280,9 @@ export class CardProductService {
         where: {
           id: typeId,
         },
+      }),
+      db.cardProduct.findUnique({
+        where: { id },
       }),
     ]);
 
@@ -292,6 +295,13 @@ export class CardProductService {
 
     if (!cardType) {
       throw new ValidationError("Card Type Not Found", "CARD_TYPE_NOT_FOUND");
+    }
+
+    if (!currentProduct) {
+      throw new ValidationError(
+        "Card Product Not Found",
+        "CARD_PRODUCT_NOT_FOUND",
+      );
     }
 
     // Validate Program Type Consistency
@@ -328,6 +338,22 @@ export class CardProductService {
         `Serial Template '${generatedSerialTemplate}' sudah digunakan oleh produk lain.`,
         "SERIAL_TEMPLATE_ALREADY_EXISTS",
       );
+    }
+
+    // Record History if maxQuantity changed
+    if (
+      maxQuantity !== undefined &&
+      currentProduct.maxQuantity !== maxQuantity
+    ) {
+      await db.cardProductHistory.create({
+        data: {
+          cardProductId: id,
+          previousLimit: currentProduct.maxQuantity ?? 0,
+          newLimit: maxQuantity,
+          changedBy: userId,
+          notes: `Update maximal generate limit dari ${currentProduct.maxQuantity ?? 0} ke ${maxQuantity}`,
+        },
+      });
     }
 
     const updateData: any = {
