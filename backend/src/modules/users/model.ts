@@ -186,6 +186,14 @@ export namespace UserModel {
     }),
   });
 
+  // Delete User Body
+  export const deleteUserBody = t.Object({
+    reason: t.String({
+      description: "Reason for deletion",
+      minLength: 1,
+    }),
+  });
+
   // Get Users Query Parameters
   export const getUsersQuery = t.Object({
     page: t.Optional(t.String()),
@@ -209,6 +217,11 @@ export namespace UserModel {
     isActive: t.Optional(
       t.String({
         description: "Filter by active status (true/false)",
+      })
+    ),
+    isDeleted: t.Optional(
+      t.String({
+        description: "Filter by deleted status (true/false)",
       })
     ),
   });
@@ -235,9 +248,13 @@ export namespace UserModel {
       })
     ),
     isActive: t.Boolean(),
+    notes: t.Nullable(t.String()),
     lastLogin: t.Nullable(t.String()),
     createdAt: t.String(),
     updatedAt: t.String(),
+    deletedAt: t.Nullable(t.String()),
+    deletedBy: t.Nullable(t.String()),
+    deletedByName: t.Nullable(t.String()),
   });
 
   // Pagination Metadata

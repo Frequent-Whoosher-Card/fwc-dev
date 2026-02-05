@@ -153,7 +153,7 @@ export default function TransferIncomingView({
                         <button
                           onClick={() =>
                             router.push(
-                              `/dashboard/${role}/stock/${programType.toLowerCase()}/transfer/${row.id}`,
+                              `/dashboard/${role}/stock/transfer/${row.id}/view?type=${programType}`,
                             )
                           }
                           className="mx-auto flex items-center justify-center w-8 h-8 rounded-full border hover:bg-[#8D1231] hover:text-white transition"

@@ -1,16 +1,38 @@
 "use client";
 
-import toast from "react-hot-toast";
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Phone, Mail, ChevronDown, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Mail, ChevronDown, Eye, EyeOff } from "lucide-react";
+import toast from "react-hot-toast";
 
-import SuccessModal from "@/components/user/SuccesModal";
-// sesuaikan path aslinya
-
-import { createUser, getRoles, RoleItem } from "@/lib/services/user.service";
+import {
+  createUser,
+  getRoles,
+  RoleItem,
+} from "@/lib/services/user.service";
 import { getStations, StationItem } from "@/lib/services/station.service";
+import SuccesModal from "@/components/user/SuccesModal"; // TYPO IS INTENTIONAL FROM FILE
+
+/* ======================
+   HELPER COMPONENT: PASSWORD REVEAL
+====================== */
+function PasswordReveal({ value }: { value: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="flex items-center justify-between gap-2">
+       <span className="font-mono text-sm break-all">
+        {show ? value : "••••••••"}
+      </span>
+      <button
+        type="button"
+        onClick={() => setShow(!show)}
+        className="text-gray-400 hover:text-gray-600 focus:outline-none"
+      >
+        {show ? <EyeOff size={16} /> : <Eye size={16} />}
+      </button>
+    </div>
+  );
+}
 
 /* ======================
    TYPES
@@ -30,7 +52,6 @@ interface UserForm {
 /* ======================
    PAGE
 ====================== */
-
 export default function CreateUserPage() {
   const router = useRouter();
 
@@ -49,122 +70,149 @@ export default function CreateUserPage() {
   const [roles, setRoles] = useState<RoleItem[]>([]);
   const [stations, setStations] = useState<StationItem[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [showSuccess, setShowSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  // Simpan data text biasa di state
-  const [confirmData, setConfirmData] = useState<Record<string, string>>({});
   
+  // UI VISIBILITY
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
-  // State khusus untuk toggle password di dalam modal
-  const [showModalPassword, setShowModalPassword] = useState(false);
 
   /* ======================
-     HELPERS (BEST PRACTICE)
+     HELPERS
   ====================== */
-  const sanitizeNip = (value: string) => value.replace(/\D/g, "").slice(0, 8);
-
-  const sanitizeUsername = (value: string) =>
-    value.toLowerCase().replace(/[^a-z0-9_]/g, "");
+  const sanitizeNip = (value: string) =>
+    value.replace(/\D/g, "").slice(0, 8);
 
   const isValidEmail = (email: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   /* ======================
-     FETCH ROLES
+     FETCH INITIAL DATA
   ====================== */
   useEffect(() => {
-    const fetchRoles = async () => {
+    const init = async () => {
       try {
-        const res = await getRoles();
+        const [roleRes, stationRes] = await Promise.all([
+          getRoles(),
+          getStations(),
+        ]);
 
-        const roleItems = Array.isArray(res.data)
-          ? res.data
-          : res.data?.items ?? [];
+        const roleItems = Array.isArray(roleRes.data)
+          ? roleRes.data
+          : roleRes.data?.items ?? [];
 
         setRoles(roleItems);
+        setStations(stationRes.data?.items ?? []);
       } catch (err) {
-        console.error("fetchRoles error:", err);
-        setRoles([]);
+        console.error("LOAD DATA ERROR:", err);
+        toast.error("Failed to load roles/stations");
       }
     };
 
-    fetchRoles();
+    init();
   }, []);
 
   /* ======================
-   FETCH STATIONS
-====================== */
-  useEffect(() => {
-    const fetchStations = async () => {
-      try {
-        const res = await getStations();
-        setStations(res.data.items); // ⬅️ INI FIX FINAL
-      } catch (err) {
-        console.error(err);
-        setStations([]);
-      }
-    };
-
-    fetchStations();
-  }, []);
-
-  /* ======================
-     SUBMIT
+     CONFIRMATION MODAL STATE
   ====================== */
-  const handleSubmit = async () => {
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmData, setConfirmData] = useState<Record<string, React.ReactNode>>({});
+
+  const handleInitialSubmit = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!form.name || form.name.length < 3)
-      newErrors.name = "Name must be at least 3 characters";
+    if (!form.name || form.name.trim().length === 0)
+      newErrors.name = "Name is required";
+    else if (form.name.length > 25)
+      newErrors.name = "Name cannot exceed 25 characters";
 
-    if (!form.nip) newErrors.nip = "NIP is required";
-    else if (form.nip.length > 8)
-      newErrors.nip = "NIP max 8 digits";
+    if (!form.nip)
+      newErrors.nip = "NIP is required";
+    // NIP validation: Max 8 enforced by input maxLength. Min 1 enforced by required check.
 
-    if (!form.username) newErrors.username = "Username is required";
-    else if (form.username.length < 4)
-      newErrors.username = "Username must be at least 4 characters";
+    if (!form.username) 
+      newErrors.username = "Username is required";
+    else if (form.username.length > 20)
+      newErrors.username = "Username cannot exceed 20 characters";
 
-    if (!form.email) newErrors.email = "Email is required";
+    if (!form.email)
+      newErrors.email = "Email is required";
+    else if (form.email.length > 25)
+       newErrors.email = "Email cannot exceed 25 characters";
     else if (!isValidEmail(form.email))
       newErrors.email = "Invalid email format";
 
-    if (!form.phone || form.phone.length < 10)
-      newErrors.phone = "Phone number is required";
+    if (!form.phone) newErrors.phone = "Phone number is required";
+    // Phone validation: Min 1 enforced by required check. Max 12 enforced below.
+    else if (form.phone.length > 12)
+      newErrors.phone = "Phone number cannot exceed 12 digits";
 
     if (!form.roleId) newErrors.roleId = "Role is required";
-    if (!form.stationId) newErrors.stationId = "Stasiun is required";
-    
-    // PASSWORD VALIDATION
+    if (!form.stationId) newErrors.stationId = "Station is required";
+
+    // PASSWORD VALIDATION (REQUIRED FOR CREATE)
     if (!form.password) {
-      newErrors.password = "Password is required";
+        newErrors.password = "Password is required";
     } else {
-       // Rules: 8 chars, Start with Uppercase, Contain Number
-       const passwordRegex = /^[A-Z](?=.*\d).{7,}$/;
-       if (!passwordRegex.test(form.password)) {
-          newErrors.password = "Password harus 8+ karakter, berawalan Huruf Besar, & mengandung Angka";
-       }
+        if (form.password.length > 20) {
+             newErrors.password = "Password cannot exceed 20 characters";
+        }
+        // Rules: 8 chars, Start with Uppercase, Contain Number
+        const passwordRegex = /^[A-Z](?=.*\d).{7,}$/;
+        if (!passwordRegex.test(form.password)) {
+            newErrors.password = "Password harus 8+ karakter, berawalan Huruf Besar, & mengandung Angka";
+        }
     }
 
     if (form.password !== form.confirmPassword) {
       newErrors.confirmPassword = "Passwords do not match";
     }
 
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      toast.error("Please fix the form errors");
+    // CHECK ERRORS
+    const errorKeys = Object.keys(newErrors);
+    if (errorKeys.length > 0) {
+      const firstKey = errorKeys[0];
+      const errorMessage = newErrors[firstKey];
+      setErrors({ [firstKey]: errorMessage });
+      
+      toast.error(errorMessage);
+      
+      const element = document.getElementById(firstKey);
+      if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "center" });
+          element.focus();
+      }
       return;
     }
 
+    // PREPARE DATA FOR CONFIRMATION
+    const roleLabel = roles.find(r => r.id === form.roleId)?.roleName || "-";
+    const stationLabel = stations.find(s => s.id === form.stationId)?.stationName || "-";
+
+    setConfirmData({
+        Name: form.name,
+        NIP: form.nip,
+        Username: form.username,
+        Role: roleLabel,
+        "Phone Number": form.phone,
+        "Email Address": form.email,
+        Stasiun: stationLabel,
+        Password: <PasswordReveal value={form.password || ""} />, // Masked for display
+    });
+    
+    setShowConfirm(true);
+  };
+
+  /* ======================
+     REAL SUBMIT (AFTER CONFIRM)
+  ====================== */
+  const handleFinalSubmit = async () => {
     try {
+      setShowConfirm(false); // Close modal
       setLoading(true);
 
       const payload = {
         username: form.username,
-        password: form.password!, // Pass dynamic password
+        password: form.password!,
         fullName: form.name,
         email: form.email,
         phone: form.phone,
@@ -174,35 +222,43 @@ export default function CreateUserPage() {
         isActive: true,
       };
 
-      console.log("CREATE USER PAYLOAD >>>", payload);
-
       await createUser(payload);
-
-      // ✅ FEEDBACK SATU KALI AJA
-      toast.success("User successfully created");
-
-      // ✅ LANGSUNG KE LIST
+      
+      toast.success("User created successfully");
       router.push("/dashboard/superadmin/user");
     } catch (err: any) {
-      const errorMessage = err?.response?.data?.message || err?.message || "Failed to create user";
+      // Parse error message
+      const msg = err?.response?.data?.message || err?.message || "Failed create user";
+      
+      // Known validation errors (Prisma Unique Constraints)
+      const isUniqueError = msg.includes("Unique constraint") || msg.includes("already exists");
+      
+      if (isUniqueError) {
+         // Suppress console.error for known logic errors to avoid Next.js Red Overlay
 
-      // Handle duplicate username explicitly
-      if (
-        errorMessage.includes("Unique constraint failed") && 
-        errorMessage.includes("username")
-      ) {
-        // Suppress console.error for known validation error
-        console.warn("Validation Error: Duplicate username detected.");
-        
-        setErrors((prev) => ({
-          ...prev,
-          username: "Username sudah digunakan, silakan pilih yang lain",
-        }));
-        toast.error("Username sudah terdaftar!");
+         if (msg.toLowerCase().includes("username")) {
+            setErrors(prev => ({...prev, username: "Username already taken"}));
+            toast.error("Username sudah digunakan! Silakan ganti.");
+         } 
+         else if (msg.toLowerCase().includes("nip")) {
+            setErrors(prev => ({...prev, nip: "NIP already registered"}));
+            toast.error("NIP sudah terdaftar! Silakan periksa kembali.");
+         }
+         else if (msg.toLowerCase().includes("email")) {
+            setErrors(prev => ({...prev, email: "Email already registered"}));
+            toast.error("Email sudah terdaftar! Gunakan email lain.");
+         }
+         else if (msg.toLowerCase().includes("phone")) {
+            setErrors(prev => ({...prev, phone: "Phone already registered"}));
+            toast.error("Nomor HP sudah terdaftar! Gunakan nomor lain.");
+         }
+         else {
+            toast.error("Data duplikat ditemukan (NIP/Email/Username). Cek kembali.");
+         }
       } else {
-        // Log genuine unexpected errors
-        console.error("CREATE USER ERROR FULL:", err);
-        toast.error(errorMessage);
+         // Unknown errors -> Log full error for debugging
+         console.error("CREATE USER ERROR:", err);
+         toast.error(msg);
       }
     } finally {
       setLoading(false);
@@ -213,376 +269,334 @@ export default function CreateUserPage() {
      RENDER
   ====================== */
   return (
-    <>
-      <div className="space-y-6">
-        <div className="rounded-lg border bg-white p-8">
-          {/* HEADER */}
-          <div className="mb-8 flex items-center gap-3">
-            <button
-              onClick={() => router.back()}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </button>
-            <h2 className="text-lg font-semibold">Add Users</h2>
-          </div>
+    <div className="space-y-6">
+      <div className="rounded-lg border bg-white p-8">
+        {/* HEADER */}
+        <div className="mb-8 flex items-center gap-3">
+          <button
+            onClick={() => router.back()}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <h2 className="text-lg font-semibold">Add Users</h2>
+        </div>
 
-          {/* FORM */}
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             {/* NAME */}
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+                <label className="mb-1 block text-sm font-medium text-gray-700">
                 Name<span className="ml-1 text-red-500">*</span>
-              </label>
-              <input
-                placeholder="Full name"
+                </label>
+                <input
+                id="name"
+                maxLength={25}
                 value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="h-11 w-full rounded-md border px-4 text-sm"
-                autoComplete="off"
-              />
-              <p className="mt-1 text-xs text-gray-400">Minimal 3 karakter</p>
+                placeholder="Masukkan Nama Lengkap"
+                onChange={(e) => {
+                    // NO NUMBERS ALLOWED
+                    const cleanVal = e.target.value.replace(/[0-9]/g, "");
+                    setForm({ ...form, name: cleanVal });
+                    if (errors.name) setErrors((prev) => { const newErr = { ...prev }; delete newErr.name; return newErr; });
+                }}
+                onBlur={() => {
+                   setErrors((prev) => { const n = {...prev}; delete n.name; return n; });
+                }}
+                className={`h-11 w-full rounded-md border px-4 text-sm ${errors.name ? 'border-red-500' : ''}`}
+                />
+                {errors.name ? <p className="mt-1 text-xs text-red-500">{errors.name}</p> : <p className="mt-1 text-xs text-gray-400">Nama lengkap user</p>}
             </div>
 
             {/* NIP */}
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+                <label className="mb-1 block text-sm font-medium text-gray-700">
                 NIP<span className="ml-1 text-red-500">*</span>
-              </label>
-              <input
-                placeholder="Angka saja"
+                </label>
+                <input
+                id="nip"
+                maxLength={8}
                 value={form.nip}
-                inputMode="numeric"
-                onChange={(e) =>
-                  setForm({ ...form, nip: sanitizeNip(e.target.value) })
-                }
-                className="h-11 w-full rounded-md border px-4 text-sm"
-              />
-              <p className="mt-1 text-xs text-gray-400">
-                Maksimal 8 digit, hanya angka
-              </p>
+                placeholder="8 Digit Angka"
+                onChange={(e) => {
+                    setForm({ ...form, nip: sanitizeNip(e.target.value) });
+                    if (errors.nip) setErrors((prev) => { const newErr = { ...prev }; delete newErr.nip; return newErr; });
+                }}
+                onBlur={() => {
+                   setErrors((prev) => { const n = {...prev}; delete n.nip; return n; });
+                }}
+                className={`h-11 w-full rounded-md border px-4 text-sm ${errors.nip ? 'border-red-500' : ''}`}
+                />
+                {errors.nip ? <p className="mt-1 text-xs text-red-500">{errors.nip}</p> : <p className="mt-1 text-xs text-gray-400">Maksimal 8 digit, hanya angka</p>}
             </div>
 
             {/* USERNAME */}
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+                <label className="mb-1 block text-sm font-medium text-gray-700">
                 Username<span className="ml-1 text-red-500">*</span>
-              </label>
-              <input
-                placeholder="username"
+                </label>
+                <input
+                id="username"
+                maxLength={20}
                 value={form.username}
+                placeholder="Masukkan Username"
                 onChange={(e) => {
-                  setForm({
-                    ...form,
-                    username: sanitizeUsername(e.target.value),
-                  });
-                  // Clear error when user types
-                  if (errors.username) {
-                    setErrors((prev) => {
-                      const newErr = { ...prev };
-                      delete newErr.username;
-                      return newErr;
-                    });
-                  }
+                    // REMOVE NON-ALPHABETIC + LOWERCASE
+                    const cleanVal = e.target.value.replace(/[^a-zA-Z]/g, "").toLowerCase();
+                    setForm({ ...form, username: cleanVal });
+                     if (errors.username) setErrors((prev) => { const newErr = { ...prev }; delete newErr.username; return newErr; });
                 }}
-                className="h-11 w-full rounded-md border px-4 text-sm"
+                 onBlur={() => {
+                    setErrors((prev) => { const n = {...prev}; delete n.username; return n; });
+                }}
+                className={`h-11 w-full rounded-md border px-4 text-sm ${errors.username ? 'border-red-500' : ''}`}
                 autoComplete="off"
-              />
-              <p className="mt-1 text-xs text-gray-400">
-                Huruf kecil, tanpa spasi
-              </p>
-              {errors.username && (
-                <p className="mt-1 text-xs text-red-500">{errors.username}</p>
-              )}
+                />
+                 {errors.username ? <p className="mt-1 text-xs text-red-500">{errors.username}</p> : <p className="mt-1 text-xs text-gray-400">Huruf kecil, tanpa spasi</p>}
             </div>
 
             {/* ROLE */}
             <div className="relative">
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+                <label className="mb-1 block text-sm font-medium text-gray-700">
                 Role<span className="ml-1 text-red-500">*</span>
-              </label>
-              <select
+                </label>
+                <select
+                id="roleId"
                 value={form.roleId}
-                onChange={(e) => setForm({ ...form, roleId: e.target.value })}
-                className="h-11 w-full appearance-none rounded-md border px-4 text-sm"
-              >
+                onChange={(e) => {
+                    setForm({ ...form, roleId: e.target.value });
+                    if (errors.roleId) setErrors((prev) => { const newErr = { ...prev }; delete newErr.roleId; return newErr; });
+                }}
+                onBlur={() => {
+                   setErrors((prev) => { const n = {...prev}; delete n.roleId; return n; });
+                }}
+                className={`h-11 w-full appearance-none rounded-md border px-4 text-sm ${errors.roleId ? 'border-red-500' : ''}`}
+                >
                 <option value="">Pilih role</option>
                 {roles.map((r) => (
-                  <option key={r.id} value={r.id}>
+                    <option key={r.id} value={r.id}>
                     {r.roleName}
-                  </option>
+                    </option>
                 ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-[55%] h-4 w-4 text-gray-400" />
+                </select>
+                <ChevronDown className="absolute right-3 top-[55%] h-4 w-4 text-gray-400" />
+                {errors.roleId && <p className="mt-1 text-xs text-red-500">{errors.roleId}</p>}
             </div>
 
             {/* PHONE */}
             <div className="relative md:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+                <label className="mb-1 block text-sm font-medium text-gray-700">
                 Phone Number<span className="ml-1 text-red-500">*</span>
-              </label>
-              <input
-                placeholder="08xxxxxxxx"
+                </label>
+                <input
+                id="phone"
                 value={form.phone}
-                onChange={(e) =>
-                  setForm({
+                placeholder="Contoh: 0812xxxxxxxx"
+                onChange={(e) => {
+                    setForm({
                     ...form,
-                    phone: e.target.value
-                      .replace(/[^\d+]/g, "") // hanya angka & +
-                      .slice(0, 16), // + + 15 digit
-                  })
-                }
-                className="h-11 w-full rounded-md border px-4 pr-10 text-sm"
-              />
-
-              <p className="mt-1 text-xs text-gray-400">
-                Masukkan nomor telepon yang valid
-              </p>
+                    phone: e.target.value.replace(/[^\d+]/g, "").slice(0, 12),
+                    });
+                    if (errors.phone) setErrors((prev) => { const newErr = { ...prev }; delete newErr.phone; return newErr; });
+                }}
+                onBlur={() => {
+                   setErrors((prev) => { const n = {...prev}; delete n.phone; return n; });
+                }}
+                className={`h-11 w-full rounded-md border px-4 pr-10 text-sm ${errors.phone ? 'border-red-500' : ''}`}
+                />
+                {errors.phone ? <p className="mt-1 text-xs text-red-500">{errors.phone}</p> : <p className="mt-1 text-xs text-gray-400">Masukkan nomor telepon yang valid</p>}
             </div>
 
             {/* EMAIL */}
             <div className="relative md:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+                <label className="mb-1 block text-sm font-medium text-gray-700">
                 Email Address<span className="ml-1 text-red-500">*</span>
-              </label>
-              <input
-                placeholder="example@email.com"
+                </label>
+                <input
+                id="email"
+                maxLength={25}
                 value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="h-11 w-full rounded-md border px-4 pr-10 text-sm"
+                placeholder="Contoh: nama@kcic.co.id"
+                onChange={(e) => {
+                    setForm({ ...form, email: e.target.value });
+                    if (errors.email) setErrors((prev) => { const newErr = { ...prev }; delete newErr.email; return newErr; });
+                }}
+                onBlur={() => {
+                   setErrors((prev) => { const n = {...prev}; delete n.email; return n; });
+                }}
+                className={`h-11 w-full rounded-md border px-4 pr-10 text-sm ${errors.email ? 'border-red-500' : ''}`}
                 autoComplete="off"
-              />
-              <Mail className="absolute right-3 top-[55%] h-4 w-4 text-gray-400" />
-              <p className="mt-1 text-xs text-gray-400">
-                Gunakan email yang valid
-              </p>
+                />
+                <Mail className="absolute right-3 top-[55%] h-4 w-4 text-gray-400" />
+                {errors.email ? <p className="mt-1 text-xs text-red-500">{errors.email}</p> : <p className="mt-1 text-xs text-gray-400">Gunakan email yang valid</p>}
             </div>
 
-            {/* STASIUN */}
+            {/* STATION */}
             <div className="relative md:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Stasiun<span className="ml-1 text-red-500">*</span>
-              </label>
-              <select
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                Station<span className="ml-1 text-red-500">*</span>
+                </label>
+                <select
+                id="stationId"
                 value={form.stationId}
-                onChange={(e) =>
-                  setForm({ ...form, stationId: e.target.value })
-                }
-                className="h-11 w-full appearance-none rounded-md border px-4 text-sm"
-              >
+                onChange={(e) => {
+                    setForm({ ...form, stationId: e.target.value });
+                    if (errors.stationId) setErrors((prev) => { const newErr = { ...prev }; delete newErr.stationId; return newErr; });
+                }}
+                onBlur={() => {
+                   setErrors((prev) => { const n = {...prev}; delete n.stationId; return n; });
+                }}
+                className={`h-11 w-full appearance-none rounded-md border px-4 text-sm ${errors.stationId ? 'border-red-500' : ''}`}
+                >
                 <option value="">Pilih stasiun</option>
-                {Array.isArray(stations) &&
-                  stations.map((s) => (
+                {stations.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.stationName}
+                    {s.stationName}
                     </option>
-                  ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-[55%] h-4 w-4 text-gray-400" />
+                ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-[55%] h-4 w-4 text-gray-400" />
+                {errors.stationId && <p className="mt-1 text-xs text-red-500">{errors.stationId}</p>}
             </div>
 
             {/* PASSWORD */}
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+                <label className="mb-1 block text-sm font-medium text-gray-700">
                 Password<span className="ml-1 text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Password"
-                  value={form.password}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setForm({ ...form, password: val });
-                    
-                    // Real-time validation
-                    if (val) {
-                      const passwordRegex = /^[A-Z](?=.*\d).{7,}$/;
-                      if (!passwordRegex.test(val)) {
-                        setErrors((prev) => ({
-                          ...prev,
-                          password: "Must start with Uppercase, contain Number, min 8 chars",
-                        }));
-                      } else {
-                        setErrors((prev) => {
-                          const newErr = { ...prev };
-                          delete newErr.password;
-                          return newErr;
-                        });
-                      }
-                    } else {
-                       setErrors((prev) => {
-                          const newErr = { ...prev };
-                          delete newErr.password;
-                          return newErr;
-                        });
-                    }
-                  }}
-                  className={`h-11 w-full rounded-md border px-4 pr-10 text-sm ${
-                    errors.password ? "border-red-500 ring-1 ring-red-500" : ""
-                  }`}
-                  autoComplete="new-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
-              
-               {/* PASSWORD REQUIREMENTS CHECKLIST */}
-               {form.password && (
-                <div className="mt-2 text-xs space-y-1 p-2 bg-gray-50 rounded-md border text-gray-600">
-                  <p className="font-semibold mb-1">Syarat Password:</p>
-                  <div className={`flex items-center gap-2 ${form.password.length >= 8 ? "text-green-600" : "text-gray-500"}`}>
-                    <span>{form.password.length >= 8 ? "✅" : "○"}</span> Minimal 8 Karakter
-                  </div>
-                  <div className={`flex items-center gap-2 ${/^[A-Z]/.test(form.password) ? "text-green-600" : "text-gray-500"}`}>
-                     <span>{/^[A-Z]/.test(form.password) ? "✅" : "○"}</span> Berawalan Huruf Besar
-                  </div>
-                  <div className={`flex items-center gap-2 ${/\d/.test(form.password) ? "text-green-600" : "text-gray-500"}`}>
-                     <span>{/\d/.test(form.password) ? "✅" : "○"}</span> Mengandung Angka
-                  </div>
+                </label>
+                <div className="relative">
+                    <input
+                    id="password"
+                    maxLength={20}
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Password"
+                    value={form.password}
+                    onChange={(e) => {
+                        const val = e.target.value;
+                        setForm({ ...form, password: val });
+                        if (val) {
+                          // Real-time
+                          const passwordRegex = /^[A-Z](?=.*\d).{7,}$/;
+                          if (!passwordRegex.test(val)) {
+                             setErrors(prev => ({...prev, password: "Must start with Uppercase, contain Number, min 8 chars"}));
+                          } else {
+                             setErrors(prev => { const n = {...prev}; delete n.password; return n; });
+                          }
+                        } else {
+                             setErrors(prev => { const n = {...prev}; delete n.password; return n; });
+                        }
+                    }}
+                    className={`h-11 w-full rounded-md border px-4 pr-10 text-sm ${errors.password ? 'border-red-500' : ''}`}
+                    autoComplete="new-password"
+                    />
+                    <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                 </div>
-               )}
+                
+                {/* PASSWORD REQUIREMENTS CHECKLIST */}
+                {form.password && (
+                    <div className="mt-2 text-xs space-y-1 p-2 bg-gray-50 rounded-md border text-gray-600">
+                    <p className="font-semibold mb-1">Syarat Password:</p>
+                    <div className={`flex items-center gap-2 ${form.password.length >= 8 ? "text-green-600" : "text-gray-500"}`}>
+                        <span>{form.password.length >= 8 ? "✅" : "○"}</span> Minimal 8 Karakter
+                    </div>
+                    <div className={`flex items-center gap-2 ${/^[A-Z]/.test(form.password) ? "text-green-600" : "text-gray-500"}`}>
+                        <span>{/^[A-Z]/.test(form.password) ? "✅" : "○"}</span> Berawalan Huruf Besar
+                    </div>
+                    <div className={`flex items-center gap-2 ${/\d/.test(form.password) ? "text-green-600" : "text-gray-500"}`}>
+                        <span>{/\d/.test(form.password) ? "✅" : "○"}</span> Mengandung Angka
+                    </div>
+                     <div className={`flex items-center gap-2 ${form.password.length <= 20 ? "text-green-600" : "text-red-500"}`}>
+                        <span>{form.password.length <= 20 ? "✅" : "❌"}</span> Maksimal 20 Karakter
+                    </div>
+                    </div>
+                )}
 
-              {errors.password && (
-                <p className="mt-1 text-xs text-red-500">{errors.password}</p>
-              )}
+                {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password}</p>}
             </div>
 
-            {/* CONFIRM PASSWORD */}
             {/* CONFIRM PASSWORD */}
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+                <label className="mb-1 block text-sm font-medium text-gray-700">
                 Confirm Password<span className="ml-1 text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type={showConfirmPassword ? "text" : "password"}
-                  placeholder="Confirm Password"
-                  value={form.confirmPassword}
-                  onChange={(e) =>
-                    setForm({ ...form, confirmPassword: e.target.value })
-                  }
-                  className="h-11 w-full rounded-md border px-4 pr-10 text-sm"
-                  autoComplete="new-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  {showConfirmPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
-
-               {/* CONFIRM PASSWORD CHECKLIST */}
-               {form.confirmPassword && (
-                <div className="mt-2 text-xs space-y-1 p-2 bg-gray-50 rounded-md border text-gray-600">
-                  <p className="font-semibold mb-1">Syarat Password:</p>
-                  <div className={`flex items-center gap-2 ${form.confirmPassword.length >= 8 ? "text-green-600" : "text-gray-500"}`}>
-                    <span>{form.confirmPassword.length >= 8 ? "✅" : "○"}</span> Minimal 8 Karakter
-                  </div>
-                  <div className={`flex items-center gap-2 ${/^[A-Z]/.test(form.confirmPassword) ? "text-green-600" : "text-gray-500"}`}>
-                     <span>{/^[A-Z]/.test(form.confirmPassword) ? "✅" : "○"}</span> Berawalan Huruf Besar
-                  </div>
-                  <div className={`flex items-center gap-2 ${/\d/.test(form.confirmPassword) ? "text-green-600" : "text-gray-500"}`}>
-                     <span>{/\d/.test(form.confirmPassword) ? "✅" : "○"}</span> Mengandung Angka
-                  </div>
-                  {/* MATCH CHECK */}
-                   <div className={`flex items-center gap-2 ${form.confirmPassword === form.password && form.confirmPassword !== "" ? "text-green-600" : "text-gray-500"}`}>
-                     <span>{form.confirmPassword === form.password && form.confirmPassword !== "" ? "✅" : "○"}</span> Password Cocok
-                  </div>
+                </label>
+                <div className="relative">
+                    <input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Confirm Password"
+                    value={form.confirmPassword}
+                    onChange={(e) => {
+                        setForm({ ...form, confirmPassword: e.target.value });
+                        if (errors.confirmPassword) setErrors(prev => { const n = {...prev}; delete n.confirmPassword; return n; });
+                    }}
+                    onBlur={() => {
+                       setErrors((prev) => { const n = {...prev}; delete n.confirmPassword; return n; });
+                    }}
+                    className={`h-11 w-full rounded-md border px-4 pr-10 text-sm ${errors.confirmPassword ? 'border-red-500' : ''}`}
+                    autoComplete="new-password"
+                    />
+                     <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                 </div>
-               )}
+                
+                {/* CONFIRM PASSWORD CHECKLIST */}
+                {form.confirmPassword && (
+                    <div className="mt-2 text-xs space-y-1 p-2 bg-gray-50 rounded-md border text-gray-600">
+                    <p className="font-semibold mb-1">Syarat Password:</p>
+                    <div className={`flex items-center gap-2 ${form.confirmPassword.length >= 8 ? "text-green-600" : "text-gray-500"}`}>
+                        <span>{form.confirmPassword.length >= 8 ? "✅" : "○"}</span> Minimal 8 Karakter
+                    </div>
+                    <div className={`flex items-center gap-2 ${/^[A-Z]/.test(form.confirmPassword) ? "text-green-600" : "text-gray-500"}`}>
+                        <span>{/^[A-Z]/.test(form.confirmPassword) ? "✅" : "○"}</span> Berawalan Huruf Besar
+                    </div>
+                    <div className={`flex items-center gap-2 ${/\d/.test(form.confirmPassword) ? "text-green-600" : "text-gray-500"}`}>
+                        <span>{/\d/.test(form.confirmPassword) ? "✅" : "○"}</span> Mengandung Angka
+                    </div>
+                     {/* MATCH CHECK */}
+                    <div className={`flex items-center gap-2 ${form.confirmPassword === form.password && form.confirmPassword !== "" ? "text-green-600" : "text-gray-500"}`}>
+                        <span>{form.confirmPassword === form.password && form.confirmPassword !== "" ? "✅" : "○"}</span> Password Cocok
+                    </div>
+                    </div>
+                )}
 
-              {errors.confirmPassword && (
-                <p className="mt-1 text-xs text-red-500">
-                  {errors.confirmPassword}
-                </p>
-              )}
+                {errors.confirmPassword && <p className="mt-1 text-xs text-red-500">{errors.confirmPassword}</p>}
             </div>
-          </div>
+            
+        </div> {/* End Grid */}
 
-          {/* ACTION */}
-          <div className="mt-10 flex justify-end">
+        {/* ACTION */}
+        <div className="mt-10 flex justify-end">
             <button
-              type="button"
-              disabled={loading}
-              onClick={() => {
-                setConfirmData({
-                  Name: form.name || "-",
-                  NIP: form.nip || "-",
-                  Username: form.username || "-",
-                  Role:
-                    roles.find((r) => r.id === form.roleId)?.roleName || "-",
-                  "Phone Number": form.phone || "-",
-                  "Email Address": form.email || "-",
-                  Stasiun:
-                    stations.find((s) => s.id === form.stationId)
-                      ?.stationName || "-",
-                  // Password tidak disimpan di state confirmData karena butuh interaksi
-                });
-
-                setShowConfirm(true); 
-                setShowModalPassword(false); // Reset toggle modal saat dibuka
-              }}
-              className="h-11 rounded-md bg-[#7A0C2E] px-10 text-sm text-white disabled:opacity-50"
+            onClick={handleInitialSubmit}
+            disabled={loading}
+            className="h-11 rounded-md bg-[#7A0C2E] px-10 text-sm text-white disabled:opacity-50 hover:bg-[#5f0923] transition-colors"
             >
-              {loading ? "Saving..." : "Submit"}
+            {loading ? "Creating..." : "Submit"}
             </button>
-          </div>
         </div>
+        
       </div>
-
-      {/* ======================
-   SUCCESS MODAL
-====================== */}
-
-      {/* ======================
-   CONFIRM SAVE MODAL
-====================== */}
-      <SuccessModal
+      
+      {/* CONFIRMATION MODAL */}
+      <SuccesModal
         open={showConfirm}
         title="Confirm Save"
         message="Please review the user data before saving"
+        data={confirmData}
         confirmText="Save"
-        data={{
-          ...confirmData,
-          Password: (
-             <div className="flex items-center justify-between">
-              <span>
-                {showModalPassword ? form.password : "•".repeat(8)}
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowModalPassword((prev) => !prev)}
-                 className="ml-2 text-gray-400 hover:text-gray-600"
-              >
-                  {showModalPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-          ),
-        }}
-        onClose={() => {
-          setShowConfirm(false);
-        }}
-        onConfirm={async () => {
-          setShowConfirm(false);
-          await handleSubmit(); // ✅ API BENAR-BENAR KEKIRIM DI SINI
-        }}
+        onClose={() => setShowConfirm(false)}
+        onConfirm={handleFinalSubmit}
       />
-    </>
+    </div>
   );
 }

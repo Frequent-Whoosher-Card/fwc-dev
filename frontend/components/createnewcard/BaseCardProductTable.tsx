@@ -53,6 +53,7 @@ export default function BaseCardProductTable({
             <thead className="bg-[#8D1231] text-white">
               <tr className="text-left uppercase text-xs tracking-wide">
                 <th className="px-6 py-3">No</th>
+                <th className="px-6 py-3">Tanggal</th>
                 <th className="px-6 py-3">Category</th>
                 <th className="px-6 py-3 text-center">Type</th>
                 <th className="px-6 py-3 text-center">Serial</th>
@@ -72,7 +73,7 @@ export default function BaseCardProductTable({
               {data.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={programType === "VOUCHER" ? 9 : 7}
+                    colSpan={programType === "VOUCHER" ? 10 : 8}
                     className="px-6 py-10 text-center text-gray-400"
                   >
                     Belum ada data
@@ -86,6 +87,17 @@ export default function BaseCardProductTable({
                   >
                     <td className="px-6 py-4 font-medium">
                       {(page - 1) * 10 + index + 1}
+                    </td>
+                    <td className="px-6 py-4 font-medium text-xs text-gray-500 whitespace-nowrap">
+                      {item.createdAt
+                        ? new Date(item.createdAt).toLocaleDateString("id-ID", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : "-"}
                     </td>
                     <td className="px-6 py-4 font-medium">
                       {item.category?.categoryName || "-"}

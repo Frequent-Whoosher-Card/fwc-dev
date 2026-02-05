@@ -51,6 +51,7 @@ export interface CreatePurchasePayload {
   purchaseDate: string;
   shiftDate: string;
   edcReferenceNumber: string;
+  paymentMethodId?: string;
   price: number;
 }
 

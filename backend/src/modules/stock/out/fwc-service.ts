@@ -4,13 +4,14 @@ import {
   parseSmartSearch,
 } from "../../../utils/filterHelper";
 import db from "../../../config/db";
-import { ProgramType } from "@prisma/client";
+import { ProgramType, FilePurpose } from "@prisma/client";
 import { ValidationError } from "../../../utils/errors";
 import { parseSmartSerial } from "../../../utils/serialHelper";
 import { InboxService } from "../../inbox/service";
 import { BatchService } from "../../../services/batchService";
 import { LowStockService } from "../../../services/lowStockService";
 import { ActivityLogService } from "../../activity-log/service";
+import { uploadStockFile, deleteStockFile } from "../../../utils/fileUpload";
 
 function normalizeSerials(arr: string[]) {
   return Array.from(
@@ -38,6 +39,8 @@ export class StockOutFwcService {
     note?: string,
     notaDinas?: string,
     bast?: string,
+    notaDinasFile?: File,
+    bastFile?: File,
   ) {
     // 1. Validate Input - Basic Regex Only
     if (!/^\d+$/.test(startSerial) || !/^\d+$/.test(endSerial)) {
@@ -134,110 +137,145 @@ export class StockOutFwcService {
     });
     const stationName = stationObj?.stationName || "Station";
 
+    // --- HANDLE FILE UPLOADS ---
+    let notaDinasFileId: string | null = null;
+    let bastFileId: string | null = null;
+
+    if (notaDinasFile) {
+      notaDinasFileId = await uploadStockFile(
+        notaDinasFile,
+        userId,
+        FilePurpose.STOCK_OUT_NOTA, // Ensure this enum exists or allow if using string based
+        "stock-out",
+        notaDinas,
+      );
+    }
+
+    if (bastFile) {
+      bastFileId = await uploadStockFile(
+        bastFile,
+        userId,
+        FilePurpose.STOCK_OUT_BAST, // Ensure this enum exists
+        "stock-out",
+        bast,
+      );
+    }
+    // ---------------------------
+
     // --- TRANSACTION (WRITES ONLY) ---
     // Increase timeout slightly for bulk updates
-    const transaction = await db.$transaction(
-      async (tx) => {
-        // 4) Atomic Card Status Update
-        const updateCardResult = await tx.card.updateMany({
-          where: {
-            id: { in: cards.map((c) => c.id) },
-            status: "IN_OFFICE",
-          },
-          data: {
-            status: "IN_TRANSIT",
-            updatedAt: new Date(),
-            updatedBy: userId,
-            stationId: stationId,
-          },
-        });
+    let transaction;
+    try {
+      transaction = await db.$transaction(
+        async (tx) => {
+          // 4) Atomic Card Status Update
+          const updateCardResult = await tx.card.updateMany({
+            where: {
+              id: { in: cards.map((c) => c.id) },
+              status: "IN_OFFICE",
+            },
+            data: {
+              status: "IN_TRANSIT",
+              updatedAt: new Date(),
+              updatedBy: userId,
+              stationId: stationId,
+            },
+          });
 
-        if (updateCardResult.count !== sentCount) {
-          throw new ValidationError(
-            "Gagal memproses transaksi: Status beberapa kartu berubah saat diproses (Double Booking)",
-          );
-        }
+          if (updateCardResult.count !== sentCount) {
+            throw new ValidationError(
+              "Gagal memproses transaksi: Status beberapa kartu berubah saat diproses (Double Booking)",
+            );
+          }
 
-        // 5) Generate Batch ID (Fast enough, keeps integrity inside TX)
-        const batchId = await BatchService.generateBatchId(
-          tx,
-          categoryId,
-          typeId,
-          stationId,
-        );
-
-        // 6) Create movement OUT PENDING
-        // Use ACTUAL processed/found cards, not the requested full range
-        const finalSerials = cards.map((c) => c.serialNumber);
-
-        const movement = await tx.cardStockMovement.create({
-          data: {
-            movementAt,
-            movementType: "OUT",
-            status: "PENDING",
+          // 5) Generate Batch ID (Fast enough, keeps integrity inside TX)
+          const batchId = await BatchService.generateBatchId(
+            tx,
             categoryId,
             typeId,
             stationId,
-            batchId,
-            quantity: sentCount,
-            note: note ?? null,
-            notaDinas: notaDinas ?? null,
-            bast: bast ?? null,
-            sentSerialNumbers: finalSerials, // CORRECTED: Use actual serials
-            receivedSerialNumbers: [],
-            lostSerialNumbers: [],
-            createdAt: new Date(),
-            createdBy: userId,
-          },
-        });
+          );
 
-        // --- NOTIFICATION TO SUPERVISOR (Scoped Broadcast) ---
-        const productName = `${cardProduct.category.categoryName} - ${cardProduct.type.typeName}`;
+          // 6) Create movement OUT PENDING
+          // Use ACTUAL processed/found cards, not the requested full range
+          const finalSerials = cards.map((c) => c.serialNumber);
 
-        await tx.inbox.create({
-          data: {
-            title: `Kiriman Stock: ${productName}`,
-            message: `Office mengirimkan ${sentCount} kartu ${productName} ke stasiun ${stationName}. Mohon cek fisik & validasi penerimaan.`,
-            targetRoles: ["supervisor"],
-            sentTo: null,
-            sentBy: userId,
-            stationId: stationId, // Scoped to this station
-            type: "STOCK_DISTRIBUTION",
-            programType: ProgramType.FWC,
-            payload: {
-              movementId: movement.id,
-              cardProductId: cardProductId,
-              quantity: sentCount,
+          const movement = await tx.cardStockMovement.create({
+            data: {
+              movementAt,
+              movementType: "OUT",
               status: "PENDING",
-              serials: finalSerials, // CORRECTED: Use actual serials
+              categoryId,
+              typeId,
+              stationId,
+              batchId,
+              quantity: sentCount,
+              note: note ?? null,
+              notaDinas: notaDinas ?? null,
+              bast: bast ?? null,
+              notaDinasFileId, // New
+              bastFileId, // New
+              sentSerialNumbers: finalSerials, // CORRECTED: Use actual serials
+              receivedSerialNumbers: [],
+              lostSerialNumbers: [],
+              createdAt: new Date(),
+              createdBy: userId,
             },
-            isRead: false,
-            readByUserIds: [],
-            createdAt: new Date(),
-          },
-        });
-        // ----------------------------------
+          });
 
-        // Construct Custom Message
-        const message = `Stock Out Berhasil. Permintaan: ${count}. (Terproses: ${sentCount}, Dilewati/Tidak Tersedia: ${skippedCount})`;
+          // --- NOTIFICATION TO SUPERVISOR (Scoped Broadcast) ---
+          const productName = `${cardProduct.category.categoryName} - ${cardProduct.type.typeName}`;
 
-        return {
-          success: true,
-          message,
-          data: {
-            movementId: movement.id,
-            status: movement.status,
-            requestedCount: count,
-            sentCount,
-            skippedCount,
-          },
-        };
-      },
-      {
-        maxWait: 5000, // default: 2000
-        timeout: 10000, // Increase timeout to 10s for safety
-      },
-    );
+          await tx.inbox.create({
+            data: {
+              title: `Kiriman Stock: ${productName}`,
+              message: `Office mengirimkan ${sentCount} kartu ${productName} ke stasiun ${stationName}. Mohon cek fisik & validasi penerimaan.`,
+              targetRoles: ["supervisor"],
+              sentTo: null,
+              sentBy: userId,
+              stationId: stationId, // Scoped to this station
+              type: "STOCK_DISTRIBUTION",
+              programType: ProgramType.FWC,
+              payload: {
+                movementId: movement.id,
+                cardProductId: cardProductId,
+                quantity: sentCount,
+                status: "PENDING",
+                serials: finalSerials, // CORRECTED: Use actual serials
+              },
+              isRead: false,
+              readByUserIds: [],
+              createdAt: new Date(),
+            },
+          });
+          // ----------------------------------
+
+          // Construct Custom Message
+          const message = `Stock Out Berhasil. Permintaan: ${count}. (Terproses: ${sentCount}, Dilewati/Tidak Tersedia: ${skippedCount})`;
+
+          return {
+            success: true,
+            message,
+            data: {
+              movementId: movement.id,
+              status: movement.status,
+              requestedCount: count,
+              sentCount,
+              skippedCount,
+            },
+          };
+        },
+        {
+          maxWait: 5000, // default: 2000
+          timeout: 10000, // Increase timeout to 10s for safety
+        },
+      );
+    } catch (error) {
+      // Rollback files if transaction failed
+      if (notaDinasFileId) await deleteStockFile(notaDinasFileId);
+      if (bastFileId) await deleteStockFile(bastFileId);
+      throw error;
+    }
 
     await ActivityLogService.createActivityLog(
       userId,
@@ -852,6 +890,8 @@ export class StockOutFwcService {
           category: true,
           type: true,
           station: true,
+          notaDinasFile: true,
+          bastFile: true,
         },
       }),
       db.cardStockMovement.count({ where }),
@@ -874,6 +914,20 @@ export class StockOutFwcService {
       note: item.note,
       notaDinas: item.notaDinas,
       bast: item.bast,
+      notaDinasFile: item.notaDinasFile
+        ? {
+            id: item.notaDinasFile.id,
+            url: `${process.env.BASE_URL}:${process.env.APP_PORT}/${item.notaDinasFile.relativePath}`,
+            filename: item.notaDinasFile.originalName,
+          }
+        : null,
+      bastFile: item.bastFile
+        ? {
+            id: item.bastFile.id,
+            url: `${process.env.BASE_URL}:${process.env.APP_PORT}/${item.bastFile.relativePath}`,
+            filename: item.bastFile.originalName,
+          }
+        : null,
       createdByName: item.createdBy
         ? userMap.get(item.createdBy) || null
         : null,
@@ -914,6 +968,8 @@ export class StockOutFwcService {
         category: true,
         type: true,
         station: true,
+        notaDinasFile: true,
+        bastFile: true,
       },
     });
 
@@ -953,6 +1009,20 @@ export class StockOutFwcService {
         note: movement.note,
         notaDinas: movement.notaDinas,
         bast: movement.bast,
+        notaDinasFile: movement.notaDinasFile
+          ? {
+              id: movement.notaDinasFile.id,
+              url: `${process.env.BASE_URL}:${process.env.APP_PORT}/${movement.notaDinasFile.relativePath}`,
+              filename: movement.notaDinasFile.originalName,
+            }
+          : null,
+        bastFile: movement.bastFile
+          ? {
+              id: movement.bastFile.id,
+              url: `${process.env.BASE_URL}:${process.env.APP_PORT}/${movement.bastFile.relativePath}`,
+              filename: movement.bastFile.originalName,
+            }
+          : null,
         createdAt: movement.createdAt.toISOString(),
         createdByName,
         validatedAt: movement.validatedAt
