@@ -145,6 +145,7 @@ export default function AddMemberPage({ programType: programTypeProp }: CreateMe
     serialNumber,
     setCardId,
     setPrice,
+    setSerialNumber,
     handleCardSelect,
   });
 
@@ -281,7 +282,7 @@ export default function AddMemberPage({ programType: programTypeProp }: CreateMe
             />
 
             {/* Card Information */}
-            <SectionCard title={programType === "VOUCHER" ? "Select Vouchers (Bulk)" : "Card Information"}>
+            <SectionCard title={programType === "VOUCHER" ? "Select Vouchers (Bulk)" : "Card Information"} gridCols={1} className="w-full">
               {programType === "FWC" ? (
                 <FwcCardSection
                   inputMode={inputMode === "range" ? "" : (inputMode as "" | "manual" | "recommendation")}
@@ -304,6 +305,7 @@ export default function AddMemberPage({ programType: programTypeProp }: CreateMe
                   searchResults={searchResults}
                   isSearching={isSearching}
                   cardId={cardId}
+                  price={displayFwcPrice}
                   handleCategoryChange={handleCategoryChange}
                   handleTypeChange={handleTypeChange}
                   handleCardSearch={handleCardSearch}

@@ -223,6 +223,20 @@ export class UserService {
       }
     }
 
+    // Check if Phone already exists (if provided)
+    if (data.phone) {
+      const existingPhone = await db.user.findFirst({
+        where: {
+          phone: data.phone,
+          deletedAt: null,
+        },
+      });
+
+      if (existingPhone) {
+        throw new ValidationError(`Phone '${data.phone}' already exists`);
+      }
+    }
+
     // Verify role exists
     const role = await db.role.findFirst({
       where: {
@@ -297,6 +311,10 @@ export class UserService {
       lastLogin: user.lastLogin?.toISOString() || null,
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
+      notes: null,
+      deletedAt: null,
+      deletedBy: null,
+      deletedByName: null,
     };
   }
 
@@ -310,6 +328,7 @@ export class UserService {
     roleId?: string;
     stationId?: string;
     isActive?: boolean;
+    isDeleted?: boolean;
   }) {
     const {
       page = 1,
@@ -318,14 +337,20 @@ export class UserService {
       roleId,
       stationId,
       isActive,
+      isDeleted,
     } = params || {};
 
     const skip = (page - 1) * limit;
 
     // Build where clause
-    const where: any = {
-      deletedAt: null,
-    };
+    const where: any = {};
+
+    // Deleted filter
+    if (isDeleted) {
+      where.deletedAt = { not: null };
+    } else {
+      where.deletedAt = null;
+    }
 
     // Role filter
     if (roleId) {
@@ -378,6 +403,20 @@ export class UserService {
 
     const totalPages = Math.ceil(total / limit);
 
+    const deletedByIds = Array.from(
+      new Set(users.map((u) => u.deletedBy).filter((id): id is string => !!id))
+    );
+
+    const deletedByUsers =
+      deletedByIds.length > 0
+        ? await db.user.findMany({
+            where: { id: { in: deletedByIds } },
+            select: { id: true, fullName: true },
+          })
+        : [];
+
+    const deletedByMap = new Map(deletedByUsers.map((u) => [u.id, u.fullName]));
+
     return {
       data: users.map((user) => ({
         id: user.id,
@@ -394,15 +433,19 @@ export class UserService {
         },
         station: user.station
           ? {
-            id: user.station.id,
-            stationCode: user.station.stationCode,
-            stationName: user.station.stationName,
-          }
+              id: user.station.id,
+              stationCode: user.station.stationCode,
+              stationName: user.station.stationName,
+            }
           : null,
         isActive: user.isActive,
+        notes: user.notes,
         lastLogin: user.lastLogin?.toISOString() || null,
         createdAt: user.createdAt.toISOString(),
         updatedAt: user.updatedAt.toISOString(),
+        deletedAt: user.deletedAt?.toISOString() || null,
+        deletedBy: user.deletedBy,
+        deletedByName: user.deletedBy ? deletedByMap.get(user.deletedBy) || null : null,
       })),
       pagination: {
         page,
@@ -462,6 +505,10 @@ export class UserService {
       lastLogin: user.lastLogin?.toISOString() || null,
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
+      notes: null,
+      deletedAt: null,
+      deletedBy: null,
+      deletedByName: null,
     };
   }
 
@@ -511,6 +558,21 @@ export class UserService {
 
       if (existingNip) {
         throw new ValidationError(`NIP '${data.nip}' already exists`);
+      }
+    }
+
+    // Check if Phone already exists (if provided and different)
+    if (data.phone && data.phone !== user.phone) {
+      const existingPhone = await db.user.findFirst({
+        where: {
+          phone: data.phone,
+          deletedAt: null,
+          id: { not: userId },
+        },
+      });
+
+      if (existingPhone) {
+        throw new ValidationError(`Phone '${data.phone}' already exists`);
       }
     }
 
@@ -586,13 +648,17 @@ export class UserService {
       lastLogin: updatedUser.lastLogin?.toISOString() || null,
       createdAt: updatedUser.createdAt.toISOString(),
       updatedAt: updatedUser.updatedAt.toISOString(),
+      notes: updatedUser.notes,
+      deletedAt: updatedUser.deletedAt?.toISOString() || null,
+      deletedBy: updatedUser.deletedBy,
+      deletedByName: null,
     };
   }
 
   /**
    * Delete user (soft delete)
    */
-  static async deleteUser(userId: string, deletedBy?: string) {
+  static async deleteUser(userId: string, deletedBy?: string, reason?: string) {
     const user = await db.user.findFirst({
       where: {
         id: userId,
@@ -609,6 +675,7 @@ export class UserService {
       data: {
         deletedAt: new Date(),
         deletedBy: deletedBy || null,
+        notes: reason || null,
       },
     });
 

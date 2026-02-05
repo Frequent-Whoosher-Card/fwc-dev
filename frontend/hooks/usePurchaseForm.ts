@@ -33,6 +33,7 @@ export function usePurchaseForm() {
       cardTypeId: "",
       cardId: "",
       edcReferenceNumber: "",
+      paymentMethodId: "",
       price: 0,
       purchaseDate: getTodayDate(),
       shiftDate: getTodayDate(),
@@ -50,6 +51,7 @@ export function usePurchaseForm() {
         purchaseDate: data.purchaseDate,
         shiftDate: data.shiftDate,
         edcReferenceNumber: data.edcReferenceNumber,
+        paymentMethodId: data.paymentMethodId,
         price: data.price,
       };
 
