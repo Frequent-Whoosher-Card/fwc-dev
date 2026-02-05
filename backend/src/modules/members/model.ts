@@ -23,6 +23,15 @@ export namespace MemberModel {
       }),
       t.Null(),
     ]),
+    cityId: t.Union([t.String({ format: "uuid" }), t.Null()]),
+    city: t.Union([
+      t.Object({
+        id: t.String({ format: "uuid" }),
+        name: t.String(),
+      }),
+      t.Null(),
+    ]),
+    birthDate: t.Union([t.String({ format: "date-time" }), t.Null()]),
     createdAt: t.String({ format: "date-time" }),
     updatedAt: t.String({ format: "date-time" }),
     createdByName: t.Union([t.String(), t.Null()]),
@@ -102,6 +111,22 @@ export namespace MemberModel {
         description: "Employee type ID (e.g. tipe karyawan). Optional.",
       })
     ),
+    cityId: t.Optional(
+      t.Union([
+        t.String({ format: "uuid", description: "City ID (kota/kabupaten)" }),
+        t.Null(),
+      ], {
+        description: "City ID. Optional.",
+      })
+    ),
+    birthDate: t.Optional(
+      t.Union([
+        t.String({ format: "date", description: "Tanggal lahir (YYYY-MM-DD)" }),
+        t.Null(),
+      ], {
+        description: "Tanggal lahir. Optional.",
+      })
+    ),
   });
 
   export const updateMemberBody = t.Object({
@@ -176,6 +201,22 @@ export namespace MemberModel {
         t.Null(),
       ], {
         description: "Update employee type ID. Pass null to clear.",
+      })
+    ),
+    cityId: t.Optional(
+      t.Union([
+        t.String({ format: "uuid", description: "City ID (kota/kabupaten)" }),
+        t.Null(),
+      ], {
+        description: "Update city ID. Pass null to clear.",
+      })
+    ),
+    birthDate: t.Optional(
+      t.Union([
+        t.String({ format: "date", description: "Tanggal lahir (YYYY-MM-DD)" }),
+        t.Null(),
+      ], {
+        description: "Update tanggal lahir. Pass null to clear.",
       })
     ),
   });

@@ -22,7 +22,6 @@ type AuthContextUser = {
 
 const baseRoutes = new Elysia()
   .use(authMiddleware)
-  .use(permissionMiddleware("product.type.view")) // Reusing card.type.view or specific if exists
   .get(
     "/",
     async (context) => {
@@ -193,6 +192,6 @@ const manageRoutes = new Elysia()
     },
   );
 
-export const productTypeRoutes = new Elysia({ prefix: "/product-types" })
+export const productTypeRoutes = new Elysia({ prefix: "/product-type" })
   .use(baseRoutes)
   .use(manageRoutes);

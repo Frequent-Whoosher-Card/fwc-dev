@@ -15,6 +15,7 @@ export interface MemberListItem {
   phone: string | null;
   nippKai?: string | null;
   gender?: string | null;
+  birthDate?: string | null;
   alamat?: string | null;
   companyName?: string | null;
   operatorName?: string | null;
@@ -22,6 +23,8 @@ export interface MemberListItem {
   updatedAt?: string;
   employeeTypeId?: string | null;
   employeeType?: { id: string; code: string; name: string } | null;
+  cityId?: string | null;
+  city?: { id: string; name: string } | null;
   deletedAt?: string | null;
   deletedByName?: string | null;
   notes?: string | null;
@@ -114,6 +117,7 @@ export const getMembers = async (params?: {
               phone: item.phone ?? null,
               nippKai: item.nippKai ?? null,
               gender: item.gender ?? null,
+              birthDate: item.birthDate ?? null,
               alamat: item.alamat ?? null,
               companyName: item.companyName ?? null,
               operatorName: item.createdByName ?? null,
@@ -121,6 +125,8 @@ export const getMembers = async (params?: {
               updatedAt: item.updatedAt ?? null,
               employeeTypeId: item.employeeTypeId ?? null,
               employeeType: item.employeeType ?? null,
+              cityId: item.cityId ?? null,
+              city: item.city ?? null,
               deletedAt: item.deletedAt ?? null,
               deletedByName: item.deletedByName ?? null,
               notes: item.notes ?? null,
