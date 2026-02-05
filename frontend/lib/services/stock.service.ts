@@ -36,6 +36,16 @@ export interface StockOutItem {
   batchId?: string | null;
   notaDinas?: string | null;
   bast?: string | null;
+  notaDinasFile?: {
+    id: string;
+    url: string;
+    filename: string;
+  } | null;
+  bastFile?: {
+    id: string;
+    url: string;
+    filename: string;
+  } | null;
 }
 
 export interface StockInDetail {
@@ -375,11 +385,13 @@ const stockService = {
     stationId: string;
     cardCategoryId?: string;
     cardTypeId?: string;
+    cardProductId?: string; // Added
     quantity?: number;
     programType?: string;
     note?: string;
     startSerial?: string;
     endSerial?: string;
+    serialDate?: string; // Added
     notaDinas?: string;
     bast?: string;
     notaDinasFile?: File | null;
@@ -510,6 +522,14 @@ const stockService = {
 
   receiveTransfer: async (id: string) => {
     return axios.post(`/transfers/${id}/receive`);
+  },
+
+  downloadFile: async (url: string) => {
+    // If url is full path (http...), use it, otherwise partial
+    const res = await axios.get(url, {
+      responseType: "blob",
+    });
+    return res.data;
   },
 };
 

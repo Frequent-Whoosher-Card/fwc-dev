@@ -136,7 +136,13 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
 
   const handleQuantityChange = (val: string) => {
     setForm((prev) => {
-      const qty = parseInt(val);
+      let qty = parseInt(val);
+      if (!isNaN(qty) && qty > 10000) {
+        toast.error("Maksimal quantity adalah 10.000");
+        qty = 10000;
+        val = "10000";
+      }
+
       let newEnd = prev.lastSerial;
       if (!isNaN(qty) && qty > 0 && prev.initialSerial) {
         newEnd = calculateEndSerial(prev.initialSerial, qty);
@@ -158,6 +164,13 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
             : val;
 
         const qty = calculateQuantity(prev.initialSerial, fullEnd);
+
+        if (qty > 10000) {
+          toast.error("Maksimal quantity adalah 10.000");
+          // Optionally clamp logic here, but for end serial usually we just warn or let user correct
+          // If we enforce, we'd have to recalculate end serial based on max qty
+        }
+
         newQty = qty > 0 ? String(qty) : "";
       } else {
         newQty = "";

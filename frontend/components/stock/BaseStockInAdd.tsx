@@ -117,6 +117,7 @@ export default function BaseStockInAdd({ programType }: BaseStockInAddProps) {
                 onChange={(e) => handleQuantityChange(e.target.value)}
                 placeholder="Masukkan jumlah kartu"
                 disabled={!form.productId}
+                max={10000}
               />
             </div>
           </div>

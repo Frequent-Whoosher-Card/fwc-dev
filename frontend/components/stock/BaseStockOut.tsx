@@ -163,9 +163,15 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
                       {row.batchId || "-"}
                     </td>
                     <td className="px-3 py-2 text-center">
-                      {row.notaDinas || "-"}
+                      <div className="flex items-center justify-center gap-2">
+                        <span>{row.notaDinas || "-"}</span>
+                      </div>
                     </td>
-                    <td className="px-3 py-2 text-center">{row.bast || "-"}</td>
+                    <td className="px-3 py-2 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <span>{row.bast || "-"}</span>
+                      </div>
+                    </td>
                     <td className="px-3 py-2 text-center">
                       {row.stationName ? (
                         <span className="rounded px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700">
