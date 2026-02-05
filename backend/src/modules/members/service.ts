@@ -553,6 +553,112 @@ export class MemberService {
   }
 
   /**
+   * Block Member's Card
+   */
+  static async blockCard(
+    memberId: string,
+    cardId: string,
+    userId: string,
+    notes?: string,
+  ) {
+    return await db.$transaction(async (tx) => {
+      // Find card and verify ownership
+      const card = await tx.card.findFirst({
+        where: {
+          id: cardId,
+          memberId: memberId,
+          deletedAt: null,
+        },
+      });
+
+      if (!card) {
+        throw new NotFoundError(
+          "Card not found or does not belong to this member",
+        );
+      }
+
+      if (card.status === "BLOCKED") {
+        throw new ValidationError("Card is already blocked");
+      }
+
+      // Update status to BLOCKED
+      await tx.card.update({
+        where: { id: cardId },
+        data: {
+          status: "BLOCKED",
+          updatedBy: userId,
+          updatedAt: new Date(),
+          notes: notes
+            ? `${card.notes ? card.notes + "\n" : ""}[BLOCKED]: ${notes}`
+            : card.notes,
+        },
+      });
+
+      // Activity Log
+      await ActivityLogService.createActivityLog(
+        userId,
+        "BLOCK_CARD",
+        `Memblokir kartu ${card.serialNumber} milik member ID ${memberId}.${notes ? " Alasan: " + notes : ""}`,
+      );
+
+      return { success: true, message: "Card blocked successfully" };
+    });
+  }
+
+  /**
+   * Unblock Member's Card
+   */
+  static async unblockCard(
+    memberId: string,
+    cardId: string,
+    userId: string,
+    notes?: string,
+  ) {
+    return await db.$transaction(async (tx) => {
+      // Find card and verify ownership
+      const card = await tx.card.findFirst({
+        where: {
+          id: cardId,
+          memberId: memberId,
+          deletedAt: null,
+        },
+      });
+
+      if (!card) {
+        throw new NotFoundError(
+          "Card not found or does not belong to this member",
+        );
+      }
+
+      if (card.status !== "BLOCKED") {
+        throw new ValidationError("Card is not blocked");
+      }
+
+      // Update status back to SOLD_ACTIVE
+      await tx.card.update({
+        where: { id: cardId },
+        data: {
+          status: "SOLD_ACTIVE",
+          updatedBy: userId,
+          updatedAt: new Date(),
+          notes: notes
+            ? `${card.notes ? card.notes + "\n" : ""}[UNBLOCKED]: ${notes}`
+            : card.notes,
+        },
+      });
+
+      // Activity Log
+      await ActivityLogService.createActivityLog(
+        userId,
+        "UNBLOCK_CARD",
+        `Membuka blokir kartu ${card.serialNumber} milik member ID ${memberId}.${notes ? " Alasan: " + notes : ""}`,
+      );
+
+      return { success: true, message: "Card unblocked successfully" };
+    });
+  }
+
+  /**
    * Extract KTP fields using OCR
    */
   /**

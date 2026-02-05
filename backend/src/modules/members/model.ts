@@ -316,6 +316,24 @@ export namespace MemberModel {
     }),
   });
 
+  /** Body for POST /members/cards/:cardId/block */
+  export const blockCardBody = t.Object({
+    notes: t.Optional(
+      t.String({
+        description: "Reason for blocking the card",
+      }),
+    ),
+  });
+
+  /** Body for POST /members/cards/:cardId/unblock */
+  export const unblockCardBody = t.Object({
+    notes: t.Optional(
+      t.String({
+        description: "Reason for unblocking the card",
+      }),
+    ),
+  });
+
   // --- Responses ---
   export const genericResponse = t.Object({
     success: t.Boolean(),

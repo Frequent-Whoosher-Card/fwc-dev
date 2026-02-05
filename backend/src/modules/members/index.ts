@@ -670,6 +670,95 @@ const ocrRoutes = new Elysia()
     },
   );
 
+// Card Status Routes - petugas, supervisor, superadmin
+const cardStatusRoutes = new Elysia()
+  .use(permissionMiddleware("member.update"))
+  .post(
+    "/:id/cards/:cardId/block",
+    async (context) => {
+      const { params, body, set, user } = context as typeof context &
+        AuthContextUser;
+      try {
+        const result = await MemberService.blockCard(
+          params.id,
+          params.cardId,
+          user.id,
+          body.notes,
+        );
+        return result;
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      params: t.Object({
+        id: t.String(),
+        cardId: t.String(),
+      }),
+      body: MemberModel.blockCardBody,
+      response: {
+        200: MemberModel.genericResponse,
+        400: MemberModel.errorResponse,
+        401: MemberModel.errorResponse,
+        403: MemberModel.errorResponse,
+        404: MemberModel.errorResponse,
+        500: MemberModel.errorResponse,
+      },
+      detail: {
+        tags: ["Members"],
+        summary: "Block Member Card",
+        description: "Block a specific card belonging to a member.",
+      },
+    },
+  )
+  .post(
+    "/:id/cards/:cardId/unblock",
+    async (context) => {
+      const { params, body, set, user } = context as typeof context &
+        AuthContextUser;
+      try {
+        const result = await MemberService.unblockCard(
+          params.id,
+          params.cardId,
+          user.id,
+          body.notes,
+        );
+        return result;
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      params: t.Object({
+        id: t.String(),
+        cardId: t.String(),
+      }),
+      body: MemberModel.unblockCardBody,
+      response: {
+        200: MemberModel.genericResponse,
+        400: MemberModel.errorResponse,
+        401: MemberModel.errorResponse,
+        403: MemberModel.errorResponse,
+        404: MemberModel.errorResponse,
+        500: MemberModel.errorResponse,
+      },
+      detail: {
+        tags: ["Members"],
+        summary: "Unblock Member Card",
+        description:
+          "Unblock (restore to SOLD_ACTIVE) a specific card belonging to a member.",
+      },
+    },
+  );
+
 // Combine all routes
 export const members = new Elysia({ prefix: "/members" })
   .use(baseRoutes)
@@ -677,4 +766,5 @@ export const members = new Elysia({ prefix: "/members" })
   .use(updateRoutes)
   .use(deleteRoutes)
   .use(detectionRoutes)
-  .use(ocrRoutes);
+  .use(ocrRoutes)
+  .use(cardStatusRoutes);
