@@ -1,9 +1,10 @@
 "use client";
 
-import { RotateCcw, Calendar, Download, ChevronDown } from "lucide-react";
+import { RotateCcw, Calendar, Download } from "lucide-react";
 import { useMemo, useRef, useState, useEffect } from "react";
 import axios from "@/lib/axios";
 import { getEmployeeTypes } from "@/lib/services/employee-type.service";
+import { MultiSelect } from "@/components/ui/multi-select";
 
 /* ======================
    TYPES
@@ -40,19 +41,19 @@ interface Props {
   role?: "superadmin" | "admin" | "supervisor" | "petugas";
 
   /* FILTER */
-  stationId?: string;
+  stationIds?: string[];
   purchasedDate?: string;
   shiftDate?: string;
-  cardCategoryId?: string;
-  cardTypeId?: string;
-  employeeTypeId?: string;
+  cardCategoryIds?: string[];
+  cardTypeIds?: string[];
+  employeeTypeIds?: string[];
 
-  onStationChange: (v?: string) => void;
+  onStationChange: (v?: string[]) => void;
   onPurchasedDateChange: (v?: string) => void;
   onShiftDateChange: (v?: string) => void;
-  onCardCategoryChange: (v?: string) => void;
-  onCardTypeChange: (v?: string) => void;
-  onEmployeeTypeChange: (v?: string) => void;
+  onCardCategoryChange: (v?: string[]) => void;
+  onCardTypeChange: (v?: string[]) => void;
+  onEmployeeTypeChange: (v?: string[]) => void;
 
   onReset: () => void;
   onExportPDF: () => void;
@@ -68,12 +69,12 @@ export default function TransactionFilter({
 
   role,
 
-  stationId,
+  stationIds = [],
   purchasedDate,
   shiftDate,
-  cardCategoryId,
-  cardTypeId,
-  employeeTypeId,
+  cardCategoryIds = [],
+  cardTypeIds = [],
+  employeeTypeIds = [],
 
   onStationChange,
   onPurchasedDateChange,
@@ -88,9 +89,7 @@ export default function TransactionFilter({
 }: Props) {
   const purchasedRef = useRef<HTMLInputElement>(null);
   const shiftRef = useRef<HTMLInputElement>(null);
-  const stationRef = useRef<HTMLDivElement>(null);
 
-  const [openStation, setOpenStation] = useState(false);
   const [stations, setStations] = useState<StationItem[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [types, setTypes] = useState<TypeItem[]>([]);
@@ -130,35 +129,15 @@ export default function TransactionFilter({
   }, [activeTab]);
 
   /* ======================
-     CLOSE STATION DROPDOWN
-  ====================== */
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (
-        stationRef.current &&
-        !stationRef.current.contains(e.target as Node)
-      ) {
-        setOpenStation(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  /* ======================
      HELPERS
   ====================== */
-  const selectedStation =
-    stations.find((s) => s.id === stationId)?.stationName || "All Station";
-
   const isFilterActive =
-    !!stationId ||
+    (stationIds && stationIds.length > 0) ||
     !!purchasedDate ||
     !!shiftDate ||
-    !!cardCategoryId ||
-    !!cardTypeId ||
-    !!employeeTypeId;
+    (cardCategoryIds && cardCategoryIds.length > 0) ||
+    (cardTypeIds && cardTypeIds.length > 0) ||
+    (employeeTypeIds && employeeTypeIds.length > 0);
 
   const safeTypes = useMemo(
     () =>
@@ -174,90 +153,82 @@ export default function TransactionFilter({
   /* ======================
      RENDER
   ====================== */
+  // Convert to MultiSelect options format
+  const categoryOptions = useMemo(
+    () =>
+      categories.map((c) => ({
+        id: c.id,
+        name: c.categoryName,
+        code: c.id,
+      })),
+    [categories]
+  );
+
+  const typeOptions = useMemo(
+    () =>
+      safeTypes.map((t) => ({
+        id: t.id,
+        name: t.typeName,
+        code: t.id,
+      })),
+    [safeTypes]
+  );
+
+  const stationOptions = useMemo(
+    () =>
+      stations.map((s) => ({
+        id: s.id,
+        name: s.stationName,
+        code: s.id,
+      })),
+    [stations]
+  );
+
+  const employeeTypeOptions = useMemo(
+    () =>
+      employeeTypes.map((et) => ({
+        id: et.id,
+        name: et.name,
+        code: et.id,
+      })),
+    [employeeTypes]
+  );
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
       <div className="flex flex-wrap items-center gap-3">
-        {/* Filter dropdowns - satu grup rapi */}
-        <select
-          value={cardCategoryId ?? ""}
-          onChange={(e) => onCardCategoryChange(e.target.value || undefined)}
-          className={selectClass}
-        >
-          <option value="">
-            {activeTab === "fwc" ? "All Card Category" : "All Voucher Category"}
-          </option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.categoryName}
-            </option>
-          ))}
-        </select>
+        {/* Filter dengan MultiSelect (checkbox) */}
+        <MultiSelect
+          value={cardCategoryIds || []}
+          onChange={(val) => onCardCategoryChange(val.length > 0 ? val : undefined)}
+          options={categoryOptions}
+          placeholder={activeTab === "fwc" ? "All Card Category" : "All Voucher Category"}
+          className="w-full sm:w-36"
+        />
 
-        <select
-          value={cardTypeId ?? ""}
-          onChange={(e) => onCardTypeChange(e.target.value || undefined)}
-          className={selectClass}
-        >
-          <option value="">
-            {activeTab === "fwc" ? "All Card Type" : "All Voucher Type"}
-          </option>
-          {safeTypes.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.typeName}
-            </option>
-          ))}
-        </select>
+        <MultiSelect
+          value={cardTypeIds || []}
+          onChange={(val) => onCardTypeChange(val.length > 0 ? val : undefined)}
+          options={typeOptions}
+          placeholder={activeTab === "fwc" ? "All Card Type" : "All Voucher Type"}
+          className="w-full sm:w-36"
+        />
 
-        <select
-          value={employeeTypeId ?? ""}
-          onChange={(e) => onEmployeeTypeChange(e.target.value || undefined)}
-          className={selectClass}
-        >
-          <option value="">All Tipe Karyawan</option>
-          {employeeTypes.map((et) => (
-            <option key={et.id} value={et.id}>
-              {et.name}
-            </option>
-          ))}
-        </select>
+        <MultiSelect
+          value={employeeTypeIds || []}
+          onChange={(val) => onEmployeeTypeChange(val.length > 0 ? val : undefined)}
+          options={employeeTypeOptions}
+          placeholder="All Tipe Karyawan"
+          className="w-full sm:w-36"
+        />
 
-        {/* Station - style sama dengan select lain */}
-        <div ref={stationRef} className="relative">
-          <button
-            type="button"
-            onClick={() => setOpenStation((v) => !v)}
-            className="flex h-9 min-w-[140px] items-center justify-between rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-700 focus:border-[#8D1231] focus:outline-none focus:ring-1 focus:ring-[#8D1231]"
-          >
-            <span className="truncate">{selectedStation}</span>
-            <ChevronDown size={16} className="shrink-0 text-gray-500" />
-          </button>
-
-          {openStation && (
-            <div className="absolute left-0 top-full z-30 mt-1 min-w-[180px] rounded-md border border-gray-200 bg-white py-1 shadow-lg">
-              <button
-                onClick={() => {
-                  onStationChange(undefined);
-                  setOpenStation(false);
-                }}
-                className="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
-              >
-                All Station
-              </button>
-              {stations.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => {
-                    onStationChange(s.id);
-                    setOpenStation(false);
-                  }}
-                  className="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  {s.stationName}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <MultiSelect
+          value={stationIds || []}
+          onChange={(val) => onStationChange(val.length > 0 ? val : undefined)}
+          options={stationOptions}
+          placeholder="All Station"
+          className="w-full sm:w-36"
+        />
 
         {/* Start & End date - satu grup, rapi */}
         {role !== "petugas" && (

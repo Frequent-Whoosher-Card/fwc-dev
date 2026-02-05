@@ -198,6 +198,9 @@ export class PurchaseService {
           totalPrice += itemPrice;
         }
 
+        // Store subtotal BEFORE discount is applied
+        const subtotalValue = totalPrice;
+
         // Apply bulk discount if provided
         let discountAmount = 0;
         if (data.bulkDiscountId) {
@@ -223,11 +226,14 @@ export class PurchaseService {
           }
         }
 
-        // Use provided total price or calculated total price
+        // Use provided total price or calculated total price (after discount)
         finalPrice =
           data.price !== undefined && data.price !== null
             ? data.price
             : totalPrice;
+
+        // Store discountAmount (null if no discount applied)
+        const discountAmountValue = discountAmount > 0 ? discountAmount : null;
 
         // Create purchase record (cardId is null for bulk purchase)
         const purchase = await tx.cardPurchase.create({
@@ -240,6 +246,8 @@ export class PurchaseService {
             edcReferenceNumber: edcReferenceNumber,
             purchaseDate: purchaseDate,
             price: finalPrice,
+            subtotal: subtotalValue,
+            discountAmount: discountAmountValue,
             notes: data.notes || null,
             programType: "VOUCHER",
             createdBy: userId,
@@ -367,6 +375,11 @@ export class PurchaseService {
 
         purchaseCardId = data.cardId;
 
+        // For FWC purchase, subtotal equals price (no bulk discount typically)
+        // discountAmount is null for single card purchases
+        const subtotalValue = finalPrice;
+        const discountAmountValue = null;
+
         // Create purchase record
       const purchase = await tx.cardPurchase.create({
         data: {
@@ -377,6 +390,8 @@ export class PurchaseService {
           edcReferenceNumber: edcReferenceNumber,
           purchaseDate: purchaseDate,
           price: finalPrice,
+          subtotal: subtotalValue,
+          discountAmount: discountAmountValue,
           notes: data.notes || null,
             programType: programType,
           createdBy: userId,
@@ -430,12 +445,16 @@ export class PurchaseService {
     startDate?: string;
     endDate?: string;
     stationId?: string;
+    stationIds?: string[];
     categoryId?: string;
+    categoryIds?: string[];
     typeId?: string;
+    typeIds?: string[];
     operatorId?: string;
     search?: string;
     transactionType?: "fwc" | "voucher";
     employeeTypeId?: string;
+    employeeTypeIds?: string[];
     isDeleted?: boolean;
     userRole?: string;
     userId?: string;
@@ -447,12 +466,16 @@ export class PurchaseService {
       startDate,
       endDate,
       stationId,
+      stationIds,
       categoryId,
+      categoryIds,
       typeId,
+      typeIds,
       operatorId,
       search,
       transactionType,
       employeeTypeId,
+      employeeTypeIds,
       isDeleted = false,
       userRole,
       userId,
@@ -499,21 +522,37 @@ export class PurchaseService {
     }
 
     // Station filter (only apply if not already set by role-based filter)
-    if (!where.stationId && stationId) {
-      where.stationId = stationId;
+    // Support both single and array filters (backward compatibility)
+    if (!where.stationId) {
+      if (stationIds && stationIds.length > 0) {
+        where.stationId = { in: stationIds };
+      } else if (stationId) {
+        where.stationId = stationId;
+      }
     }
 
     // Card Category and Type filter (nested in card.cardProduct)
-    if (categoryId || typeId) {
+    // Support both single and array filters (backward compatibility)
+    // Build cardProduct filter object explicitly to avoid overwriting
+    const cardProductFilter: any = {};
+    
+    if (categoryIds && categoryIds.length > 0) {
+      cardProductFilter.categoryId = { in: categoryIds };
+    } else if (categoryId) {
+      cardProductFilter.categoryId = categoryId;
+    }
+    
+    if (typeIds && typeIds.length > 0) {
+      cardProductFilter.typeId = { in: typeIds };
+    } else if (typeId) {
+      cardProductFilter.typeId = typeId;
+    }
+    
+    // Only set where.card if we have at least one filter
+    if (Object.keys(cardProductFilter).length > 0) {
       where.card = {
-        cardProduct: {},
+        cardProduct: cardProductFilter,
       };
-      if (categoryId) {
-        where.card.cardProduct.categoryId = categoryId;
-      }
-      if (typeId) {
-        where.card.cardProduct.typeId = typeId;
-      }
     }
 
     // Operator filter (only apply if not already set by role-based filter)
@@ -522,7 +561,10 @@ export class PurchaseService {
     }
 
     // Employee type filter (via member - employee type is stored in membership)
-    if (employeeTypeId) {
+    // Support both single and array filters (backward compatibility)
+    if (employeeTypeIds && employeeTypeIds.length > 0) {
+      where.member = { employeeTypeId: { in: employeeTypeIds } };
+    } else if (employeeTypeId) {
       where.member = { employeeTypeId };
     }
 
@@ -684,6 +726,12 @@ export class PurchaseService {
               stationName: true,
             },
           },
+          bulkDiscount: {
+            select: {
+              id: true,
+              discount: true,
+            },
+          },
           _count: {
             select: {
               bulkPurchaseItems: true,
@@ -717,6 +765,9 @@ export class PurchaseService {
       edcReferenceNumber: item.edcReferenceNumber,
       purchaseDate: item.purchaseDate.toISOString(),
       price: Number(item.price),
+      subtotal: item.subtotal !== null && item.subtotal !== undefined ? Number(item.subtotal) : null,
+      discountAmount: item.discountAmount !== null && item.discountAmount !== undefined ? Number(item.discountAmount) : null,
+      discountPercentage: item.bulkDiscount?.discount ? Number(item.bulkDiscount.discount) : null,
       notes: item.notes,
       programType: item.programType,
       createdAt: item.createdAt.toISOString(),
@@ -1052,6 +1103,12 @@ export class PurchaseService {
             stationName: true,
           },
         },
+        bulkDiscount: {
+          select: {
+            id: true,
+            discount: true,
+          },
+        },
       },
     });
 
@@ -1084,6 +1141,9 @@ export class PurchaseService {
       edcReferenceNumber: purchase.edcReferenceNumber,
       purchaseDate: purchase.purchaseDate.toISOString(),
       price: Number(purchase.price),
+      subtotal: purchase.subtotal !== null && purchase.subtotal !== undefined ? Number(purchase.subtotal) : null,
+      discountAmount: purchase.discountAmount !== null && purchase.discountAmount !== undefined ? Number(purchase.discountAmount) : null,
+      discountPercentage: purchase.bulkDiscount?.discount ? Number(purchase.bulkDiscount.discount) : null,
       notes: purchase.notes,
       programType: purchase.programType,
       createdAt: purchase.createdAt.toISOString(),
