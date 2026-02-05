@@ -137,30 +137,8 @@ export function VoucherCardSection({
       ? rangeStartSerial.slice(SERIAL_PREFIX_LEN)
       : "";
 
-  // Calculate range end serial number
-  const calculateRangeEndSerial = (startSerial: string, quantity: string): string => {
-    if (!startSerial || !quantity || parseInt(quantity, 10) <= 0) return "";
-    
-    const qty = parseInt(quantity, 10);
-    const serialLength = startSerial.length;
-    
-    // Extract the numeric suffix (last 3 digits typically)
-    const numericSuffix = startSerial.slice(-3);
-    const prefix = startSerial.slice(0, -3);
-    
-    try {
-      const startNum = parseInt(numericSuffix, 10);
-      const endNum = startNum + qty - 1;
-      const endSuffix = String(endNum).padStart(3, "0");
-      return `${prefix}${endSuffix}`;
-    } catch {
-      return "";
-    }
-  };
-
-  const rangeEndSerial = rangeStartSerial && rangeQuantity 
-    ? calculateRangeEndSerial(rangeStartSerial, rangeQuantity)
-    : "";
+  // Note: Range end serial will be determined by backend based on available vouchers
+  // We'll show a message that it will fetch next available vouchers
 
   return (
     <>
@@ -375,16 +353,16 @@ export function VoucherCardSection({
             </Field>
             
             {/* Range Information */}
-            {rangeStartSerial && rangeQuantity && parseInt(rangeQuantity, 10) > 0 && rangeEndSerial && (
+            {rangeStartSerial && rangeQuantity && parseInt(rangeQuantity, 10) > 0 && (
               <div className="rounded-md border border-blue-200 bg-blue-50 p-3 space-y-2">
                 <div className="flex items-start gap-2">
                   <span className="text-blue-600 text-sm">📋</span>
                   <div className="flex-1 space-y-1">
                     <p className="text-sm font-medium text-blue-900">
-                      Range yang akan ditambahkan: {rangeStartSerial} - {rangeEndSerial} ({rangeQuantity} vouchers)
+                      Mulai dari serial: {rangeStartSerial} ({rangeQuantity} vouchers)
                     </p>
                     <p className="text-xs text-blue-700">
-                      Maksimal 10000 voucher per range. Sistem akan mencari dan menambahkan semua voucher yang tersedia dalam range tersebut.
+                      Sistem akan mencari dan menambahkan {rangeQuantity} voucher berikutnya yang tersedia, dimulai dari serial {rangeStartSerial}, diurutkan berdasarkan serial number.
                     </p>
                   </div>
                 </div>

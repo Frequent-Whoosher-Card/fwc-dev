@@ -74,6 +74,8 @@ export interface VoucherTransactionListItem {
 
   bulkPurchaseItems: BulkPurchaseItem[];
   bulkPurchaseItemsCount?: number; // Actual total count (for display)
+  firstSerialNumber?: string | null; // First serial number for bulk purchase
+  lastSerialNumber?: string | null; // Last serial number for bulk purchase
 
   member: {
     id: string;

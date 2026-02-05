@@ -80,6 +80,8 @@ export namespace PurchaseModel {
     ]),
     bulkPurchaseItems: t.Array(bulkPurchaseItemData),
     bulkPurchaseItemsCount: t.Optional(t.Number()), // Actual total count (for display when only 1 item is returned for preview)
+    firstSerialNumber: t.Optional(t.Union([t.String(), t.Null()])), // First serial number for bulk purchase
+    lastSerialNumber: t.Optional(t.Union([t.String(), t.Null()])), // Last serial number for bulk purchase
     member: t.Union([
       t.Object({
         id: t.String({ format: "uuid" }),
