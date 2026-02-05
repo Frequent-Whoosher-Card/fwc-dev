@@ -23,7 +23,7 @@ import { useTypesVoucher } from "@/hooks/useTypesVoucher";
 import { useMemberSearch } from "@/hooks/useMemberSearch";
 import { cardVoucherService } from "@/lib/services/card.voucher.service";
 import { getPaymentMethods, type PaymentMethod } from "@/lib/services/payment-method.service";
-import { getCardsBySerialNumbers } from "@/lib/services/card.service";
+import { getNextAvailableCards } from "@/lib/services/card.service";
 import axios from "@/lib/axios";
 import toast from "react-hot-toast";
 
@@ -506,12 +506,9 @@ export default function CreateVoucherBulkPurchasePage({
 
     setIsAddingRange(true);
     try {
-      const serialNumbers = generateSerialNumbers(rangeStartSerial, quantity);
-      
       console.log("=== RANGE ADD DEBUG ===");
       console.log("Start Serial:", rangeStartSerial);
       console.log("Quantity:", quantity);
-      console.log("Generated Serial Numbers:", serialNumbers);
       
       // Get price from product
       const product = voucherProducts.find(
@@ -532,9 +529,10 @@ export default function CreateVoucherBulkPurchasePage({
         }
       }
 
-      // Use batch API to fetch all cards in a single request
-      const batchResult = await getCardsBySerialNumbers({
-        serialNumbers,
+      // Get next available cards starting from rangeStartSerial
+      const batchResult = await getNextAvailableCards({
+        startSerial: rangeStartSerial,
+        quantity: quantity,
         status: "IN_STATION",
         programType: "VOUCHER",
         categoryId: selectedCategoryId,
@@ -542,19 +540,12 @@ export default function CreateVoucherBulkPurchasePage({
         stationId: userStationId && role !== "superadmin" ? userStationId : undefined,
       });
 
-      // Create a map for quick lookup by serial number
-      const cardMap = new Map(
-        batchResult.items.map((card) => [card.serialNumber, card])
-      );
-
-      // Get cards in the same order as requested serial numbers
-      const validCards = serialNumbers
-        .map((serial) => cardMap.get(serial))
-        .filter((card) => card !== undefined) as any[];
+      // Cards are already ordered by serial number ascending
+      const validCards = batchResult.items;
 
       console.log("Found Cards:", validCards.map((c: any) => c?.serialNumber || "N/A"));
-      console.log("Expected Serial Numbers:", serialNumbers);
-      console.log("Found Count:", batchResult.foundCount, "Expected Count:", batchResult.requestedCount);
+      console.log("Start Serial:", batchResult.startSerial, "End Serial:", batchResult.endSerial);
+      console.log("Found Count:", batchResult.foundCount, "Requested Count:", batchResult.requestedCount);
 
       if (validCards.length === 0) {
         toast.error("Tidak ada voucher ditemukan untuk serial numbers tersebut");
@@ -562,17 +553,8 @@ export default function CreateVoucherBulkPurchasePage({
       }
 
       if (batchResult.foundCount < batchResult.requestedCount) {
-        const missing = serialNumbers.filter(
-          (serial) => !cardMap.has(serial)
-        );
-        console.log("Missing serials:", missing);
-        const missingPreview = missing.slice(0, 10).join(", ");
-        const missingText =
-          missing.length > 10
-            ? `${missingPreview}... (dan ${missing.length - 10} lainnya)`
-            : missingPreview;
         toast(
-          `Hanya ${batchResult.foundCount} dari ${batchResult.requestedCount} voucher yang ditemukan. Missing: ${missingText}`,
+          `Hanya ${batchResult.foundCount} dari ${batchResult.requestedCount} voucher yang tersedia. Range: ${batchResult.startSerial || rangeStartSerial} - ${batchResult.endSerial || "tidak ada"}`,
           { icon: "⚠️" }
         );
       }
@@ -958,21 +940,11 @@ export default function CreateVoucherBulkPurchasePage({
                         {rangeStartSerial && rangeQuantity && (
                           <div className="mt-2 space-y-1">
                             <p className="text-xs text-blue-600">
-                              📋 Range yang akan ditambahkan:{" "}
-                              <span className="font-mono font-semibold">{rangeStartSerial}</span> -{" "}
-                              <span className="font-mono font-semibold">
-                                {(() => {
-                                  const serials = generateSerialNumbers(
-                                    rangeStartSerial,
-                                    parseInt(rangeQuantity, 10)
-                                  );
-                                  return serials[serials.length - 1] || rangeStartSerial;
-                                })()}
-                              </span>{" "}
-                              ({rangeQuantity} vouchers)
+                              📋 Mulai dari serial:{" "}
+                              <span className="font-mono font-semibold">{rangeStartSerial}</span> ({rangeQuantity} vouchers)
                             </p>
                             <p className="text-xs text-gray-500">
-                              Maksimal 10000 voucher per range. Sistem akan mencari dan menambahkan semua voucher yang tersedia dalam range tersebut.
+                              Sistem akan mencari dan menambahkan {rangeQuantity} voucher berikutnya yang tersedia, dimulai dari serial {rangeStartSerial}, diurutkan berdasarkan serial number.
                             </p>
                           </div>
                         )}
