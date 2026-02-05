@@ -173,6 +173,70 @@ Supports searching by:
 - **VOUCHER**: \`card\` field is null, \`bulkPurchaseItems\` contains array of all purchased cards`,
       },
     },
+  )
+  .get(
+    "/:id/bulk-items",
+    async (context) => {
+      const { params, query, set } = context;
+      try {
+        // Helper to safely parse integer
+        const safeParseInt = (value: any) => {
+          if (value === undefined || value === null || value === "") return undefined;
+          const parsed = parseInt(value);
+          return isNaN(parsed) ? undefined : parsed;
+        };
+
+        const result = await PurchaseService.getBulkPurchaseItems(
+          params.id,
+          safeParseInt(query.page) || 1,
+          safeParseInt(query.limit) || 100,
+        );
+        return {
+          success: true,
+          data: result,
+          message: "Bulk purchase items retrieved successfully",
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      params: t.Object({
+        id: t.String(),
+      }),
+      query: t.Object({
+        page: t.Optional(t.String()),
+        limit: t.Optional(t.String()),
+      }),
+      response: {
+        200: PurchaseModel.getBulkPurchaseItemsResponse,
+        401: PurchaseModel.errorResponse,
+        403: PurchaseModel.errorResponse,
+        404: PurchaseModel.errorResponse,
+        500: PurchaseModel.errorResponse,
+      },
+      detail: {
+        tags: ["Purchases"],
+        summary: "Get bulk purchase items with pagination",
+        description: `Retrieve bulk purchase items (vouchers) for a specific purchase with pagination.
+        
+This endpoint is optimized for purchases with large numbers of items (e.g., 10,000+ vouchers).
+Instead of loading all items at once, use pagination to fetch items in batches.
+
+**Parameters:**
+- **purchaseId**: UUID of the purchase
+- **page**: Page number (default: 1)
+- **limit**: Items per page (default: 100, max recommended: 1000)
+
+**Response includes:**
+- Array of bulk purchase items with card details (serialNumber, category, type, price)
+- Pagination metadata (total, page, limit, totalPages)`,
+      },
+    },
   );
 
 // Create routes (Create) - petugas, supervisor, admin, superadmin

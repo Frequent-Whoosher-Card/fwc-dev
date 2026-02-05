@@ -117,7 +117,7 @@ export class CardService {
         where,
         skip,
         take: limit,
-        orderBy: [{ createdAt: "desc" }, { serialNumber: "asc" }],
+        orderBy: [{ serialNumber: "asc" }],
         select: {
           id: true,
           serialNumber: true,
@@ -372,6 +372,158 @@ export class CardService {
     };
   }
 
+  // Get Cards By Serial Numbers (Batch)
+  static async getCardsBySerialNumbers(params: {
+    serialNumbers: string[];
+    categoryId?: string;
+    typeId?: string;
+    status?: string;
+    stationId?: string;
+    programType?: "FWC" | "VOUCHER";
+  }) {
+    const {
+      serialNumbers,
+      categoryId,
+      typeId,
+      status,
+      stationId,
+      programType,
+    } = params;
+
+    if (!serialNumbers || serialNumbers.length === 0) {
+      throw new ValidationError("serialNumbers array cannot be empty");
+    }
+
+    if (serialNumbers.length > 10000) {
+      throw new ValidationError(
+        "Maximum 10000 serial numbers allowed per request"
+      );
+    }
+
+    const where: any = {
+      deletedAt: null,
+      serialNumber: { in: serialNumbers },
+    };
+
+    // Filter by status
+    if (status) {
+      const statuses = status.split(",").map((s) => {
+        const trimmed = s.trim();
+        return getEnumStatus(trimmed) || trimmed.toUpperCase();
+      });
+      where.status = { in: statuses };
+    }
+
+    // Filter by Category/Type (Relations)
+    const cardProductWhere: any = {};
+
+    if (categoryId) {
+      cardProductWhere.categoryId = prismaFilter(categoryId);
+    }
+
+    if (typeId) {
+      cardProductWhere.typeId = prismaFilter(typeId);
+    }
+
+    if (programType) {
+      if (!cardProductWhere.category) cardProductWhere.category = {};
+      cardProductWhere.category.programType = programType;
+    }
+
+    if (Object.keys(cardProductWhere).length > 0) {
+      where.cardProduct = cardProductWhere;
+    }
+
+    if (stationId) {
+      where.stationId = prismaFilter(stationId);
+    }
+
+    const cards = await db.card.findMany({
+      where,
+      orderBy: [{ serialNumber: "asc" }],
+      select: {
+        id: true,
+        serialNumber: true,
+        status: true,
+        cardProductId: true,
+        quotaTicket: true,
+        purchaseDate: true,
+        expiredDate: true,
+        createdAt: true,
+        cardProduct: {
+          select: {
+            id: true,
+            category: {
+              select: {
+                id: true,
+                categoryName: true,
+              },
+            },
+            type: {
+              select: {
+                id: true,
+                typeName: true,
+              },
+            },
+          },
+        },
+        fileObject: {
+          select: {
+            id: true,
+            originalName: true,
+            relativePath: true,
+            mimeType: true,
+          },
+        },
+        station: {
+          select: {
+            id: true,
+            stationName: true,
+            stationCode: true,
+          },
+        },
+        previousStation: {
+          select: {
+            id: true,
+            stationName: true,
+            stationCode: true,
+          },
+        },
+        notes: true,
+      },
+    });
+
+    // Convert Date objects to ISO strings
+    const formattedCards = cards.map((card) => ({
+      ...card,
+      status: getFriendlyStatus(card.status),
+      createdAt: card.createdAt.toISOString(),
+      purchaseDate: card.purchaseDate?.toISOString() || null,
+      expiredDate: card.expiredDate?.toISOString() || null,
+      station: card.station
+        ? {
+            id: card.station.id,
+            stationName: card.station.stationName,
+            stationCode: card.station.stationCode,
+          }
+        : null,
+      previousStation: card.previousStation
+        ? {
+            id: card.previousStation.id,
+            stationName: card.previousStation.stationName,
+            stationCode: card.previousStation.stationCode,
+          }
+        : null,
+      notes: card.notes || null,
+    }));
+
+    return {
+      items: formattedCards,
+      foundCount: formattedCards.length,
+      requestedCount: serialNumbers.length,
+    };
+  }
+
   // Get First Available Card Serial Number
   static async getFirstAvailableCard(
     cardProductId: string,
@@ -395,6 +547,159 @@ export class CardService {
     });
 
     return card;
+  }
+
+  // Get Next Available Cards After Serial Number
+  static async getNextAvailableCards(params: {
+    startSerial: string;
+    quantity: number;
+    categoryId?: string;
+    typeId?: string;
+    status?: string;
+    stationId?: string;
+    programType?: "FWC" | "VOUCHER";
+  }) {
+    const {
+      startSerial,
+      quantity,
+      categoryId,
+      typeId,
+      status,
+      stationId,
+      programType,
+    } = params;
+
+    if (!startSerial || quantity < 1 || quantity > 10000) {
+      throw new ValidationError(
+        "startSerial is required and quantity must be between 1 and 10000"
+      );
+    }
+
+    const where: any = {
+      deletedAt: null,
+      serialNumber: { gte: startSerial }, // Greater than or equal to start serial
+    };
+
+    // Filter by status
+    if (status) {
+      const statuses = status.split(",").map((s) => {
+        const trimmed = s.trim();
+        return getEnumStatus(trimmed) || trimmed.toUpperCase();
+      });
+      where.status = { in: statuses };
+    }
+
+    // Filter by Category/Type (Relations)
+    const cardProductWhere: any = {};
+
+    if (categoryId) {
+      cardProductWhere.categoryId = prismaFilter(categoryId);
+    }
+
+    if (typeId) {
+      cardProductWhere.typeId = prismaFilter(typeId);
+    }
+
+    if (programType) {
+      if (!cardProductWhere.category) cardProductWhere.category = {};
+      cardProductWhere.category.programType = programType;
+    }
+
+    if (Object.keys(cardProductWhere).length > 0) {
+      where.cardProduct = cardProductWhere;
+    }
+
+    if (stationId) {
+      where.stationId = prismaFilter(stationId);
+    }
+
+    const cards = await db.card.findMany({
+      where,
+      take: quantity, // Limit to requested quantity
+      orderBy: [{ serialNumber: "asc" }], // Order by serial number ascending
+      select: {
+        id: true,
+        serialNumber: true,
+        status: true,
+        cardProductId: true,
+        quotaTicket: true,
+        purchaseDate: true,
+        expiredDate: true,
+        createdAt: true,
+        cardProduct: {
+          select: {
+            id: true,
+            category: {
+              select: {
+                id: true,
+                categoryName: true,
+              },
+            },
+            type: {
+              select: {
+                id: true,
+                typeName: true,
+              },
+            },
+          },
+        },
+        fileObject: {
+          select: {
+            id: true,
+            originalName: true,
+            relativePath: true,
+            mimeType: true,
+          },
+        },
+        station: {
+          select: {
+            id: true,
+            stationName: true,
+            stationCode: true,
+          },
+        },
+        previousStation: {
+          select: {
+            id: true,
+            stationName: true,
+            stationCode: true,
+          },
+        },
+        notes: true,
+      },
+    });
+
+    // Convert Date objects to ISO strings
+    const formattedCards = cards.map((card) => ({
+      ...card,
+      status: getFriendlyStatus(card.status),
+      createdAt: card.createdAt.toISOString(),
+      purchaseDate: card.purchaseDate?.toISOString() || null,
+      expiredDate: card.expiredDate?.toISOString() || null,
+      station: card.station
+        ? {
+            id: card.station.id,
+            stationName: card.station.stationName,
+            stationCode: card.station.stationCode,
+          }
+        : null,
+      previousStation: card.previousStation
+        ? {
+            id: card.previousStation.id,
+            stationName: card.previousStation.stationName,
+            stationCode: card.previousStation.stationCode,
+          }
+        : null,
+      notes: card.notes || null,
+    }));
+
+    return {
+      items: formattedCards,
+      foundCount: formattedCards.length,
+      requestedCount: quantity,
+      startSerial: formattedCards[0]?.serialNumber || null,
+      endSerial: formattedCards[formattedCards.length - 1]?.serialNumber || null,
+    };
   }
 
   // Update Card

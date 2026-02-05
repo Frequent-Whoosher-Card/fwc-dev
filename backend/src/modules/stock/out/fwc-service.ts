@@ -927,14 +927,14 @@ export class StockOutFwcService {
       notaDinasFile: item.notaDinasFile
         ? {
             id: item.notaDinasFile.id,
-            url: `${process.env.BASE_URL}:${process.env.APP_PORT}/${item.notaDinasFile.relativePath}`,
+            url: item.notaDinasFile.relativePath,
             filename: item.notaDinasFile.originalName,
           }
         : null,
       bastFile: item.bastFile
         ? {
             id: item.bastFile.id,
-            url: `${process.env.BASE_URL}:${process.env.APP_PORT}/${item.bastFile.relativePath}`,
+            url: item.bastFile.relativePath,
             filename: item.bastFile.originalName,
           }
         : null,
@@ -1022,14 +1022,14 @@ export class StockOutFwcService {
         notaDinasFile: movement.notaDinasFile
           ? {
               id: movement.notaDinasFile.id,
-              url: `${process.env.BASE_URL}:${process.env.APP_PORT}/${movement.notaDinasFile.relativePath}`,
+              url: movement.notaDinasFile.relativePath,
               filename: movement.notaDinasFile.originalName,
             }
           : null,
         bastFile: movement.bastFile
           ? {
               id: movement.bastFile.id,
-              url: `${process.env.BASE_URL}:${process.env.APP_PORT}/${movement.bastFile.relativePath}`,
+              url: movement.bastFile.relativePath,
               filename: movement.bastFile.originalName,
             }
           : null,

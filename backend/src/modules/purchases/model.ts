@@ -79,6 +79,9 @@ export namespace PurchaseModel {
       t.Null(),
     ]),
     bulkPurchaseItems: t.Array(bulkPurchaseItemData),
+    bulkPurchaseItemsCount: t.Optional(t.Number()), // Actual total count (for display when only 1 item is returned for preview)
+    firstSerialNumber: t.Optional(t.Union([t.String(), t.Null()])), // First serial number for bulk purchase
+    lastSerialNumber: t.Optional(t.Union([t.String(), t.Null()])), // Last serial number for bulk purchase
     member: t.Union([
       t.Object({
         id: t.String({ format: "uuid" }),
@@ -386,6 +389,20 @@ export namespace PurchaseModel {
   export const getDetailPurchaseResponse = t.Object({
     success: t.Boolean(),
     data: purchaseData,
+    message: t.Optional(t.String()),
+  });
+
+  export const getBulkPurchaseItemsResponse = t.Object({
+    success: t.Boolean(),
+    data: t.Object({
+      items: t.Array(bulkPurchaseItemData),
+      pagination: t.Object({
+        total: t.Number(),
+        page: t.Number(),
+        limit: t.Number(),
+        totalPages: t.Number(),
+      }),
+    }),
     message: t.Optional(t.String()),
   });
 

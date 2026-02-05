@@ -215,6 +215,66 @@ export namespace CardModel {
     ]),
   });
 
+  // Batch By Serials Request Body
+  export const batchBySerialsRequest = t.Object({
+    serialNumbers: t.Array(
+      t.String({
+        description: "Array of serial numbers to fetch",
+      }),
+      { minItems: 1, maxItems: 10000 }
+    ),
+    categoryId: t.Optional(t.String({ format: "uuid" })),
+    typeId: t.Optional(t.String({ format: "uuid" })),
+    status: t.Optional(t.String()),
+    stationId: t.Optional(t.String({ format: "uuid" })),
+    programType: t.Optional(
+      t.Union([t.Literal("FWC"), t.Literal("VOUCHER")])
+    ),
+  });
+
+  // Batch By Serials Response
+  export const batchBySerialsResponse = t.Object({
+    success: t.Boolean(),
+    message: t.String(),
+    data: t.Object({
+      items: t.Array(cardData),
+      foundCount: t.Number(),
+      requestedCount: t.Number(),
+    }),
+  });
+
+  // Get Next Available Cards Request
+  export const getNextAvailableCardsRequest = t.Object({
+    startSerial: t.String({
+      description: "Starting serial number to search from",
+    }),
+    quantity: t.Number({
+      minimum: 1,
+      maximum: 10000,
+      description: "Number of cards to fetch",
+    }),
+    categoryId: t.Optional(t.String({ format: "uuid" })),
+    typeId: t.Optional(t.String({ format: "uuid" })),
+    status: t.Optional(t.String()),
+    stationId: t.Optional(t.String({ format: "uuid" })),
+    programType: t.Optional(
+      t.Union([t.Literal("FWC"), t.Literal("VOUCHER")])
+    ),
+  });
+
+  // Get Next Available Cards Response
+  export const getNextAvailableCardsResponse = t.Object({
+    success: t.Boolean(),
+    message: t.String(),
+    data: t.Object({
+      items: t.Array(cardData),
+      foundCount: t.Number(),
+      requestedCount: t.Number(),
+      startSerial: t.Union([t.String(), t.Null()]),
+      endSerial: t.Union([t.String(), t.Null()]),
+    }),
+  });
+
   // Error Response
   export const errorResponse = t.Object({
     success: t.Boolean(),
