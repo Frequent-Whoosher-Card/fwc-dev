@@ -117,7 +117,7 @@ export class CardService {
         where,
         skip,
         take: limit,
-        orderBy: [{ createdAt: "desc" }, { serialNumber: "asc" }],
+        orderBy: [{ serialNumber: "asc" }],
         select: {
           id: true,
           serialNumber: true,
