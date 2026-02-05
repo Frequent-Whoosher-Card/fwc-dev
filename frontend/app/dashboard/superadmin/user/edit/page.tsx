@@ -210,8 +210,38 @@ export default function EditUserPage() {
       toast.success("User updated successfully");
       router.push("/dashboard/superadmin/user");
     } catch (err: any) {
-      console.error("UPDATE USER ERROR:", err);
-      toast.error(err?.response?.data?.message || "Failed update user");
+      // Parse error message
+      const msg = err?.response?.data?.message || err?.message || "Failed update user";
+      
+      // Known validation errors (Prisma Unique Constraints or Manual Validation)
+      const isUniqueError = msg.includes("Unique constraint") || msg.includes("already exists");
+      
+      if (isUniqueError) {
+         if (msg.toLowerCase().includes("username")) {
+            setErrors(prev => ({...prev, username: "Username already taken"}));
+            toast.error("Username sudah digunakan! Silakan ganti.");
+         } 
+         else if (msg.toLowerCase().includes("nip")) {
+            setErrors(prev => ({...prev, nip: "NIP already registered"}));
+            toast.error("NIP sudah terdaftar! Silakan periksa kembali.");
+         }
+         else if (msg.toLowerCase().includes("email")) {
+            setErrors(prev => ({...prev, email: "Email already registered"}));
+            toast.error("Email sudah terdaftar! Gunakan email lain.");
+         }
+         else if (msg.toLowerCase().includes("phone")) {
+            setErrors(prev => ({...prev, phone: "Phone already registered"}));
+            toast.error("Nomor HP sudah terdaftar! Gunakan nomor lain.");
+         }
+         else {
+             // Fallback for other unique errors
+            toast.error("Data duplikat ditemukan (NIP/Email/Username/Phone). Cek kembali.");
+         }
+      } else {
+         // Unknown errors -> Log full error for debugging and show message
+         console.error("UPDATE USER ERROR:", err);
+         toast.error(msg);
+      }
     } finally {
       setLoading(false);
     }

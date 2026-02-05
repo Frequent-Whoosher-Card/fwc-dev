@@ -394,9 +394,7 @@ export class UserService {
           },
         },
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: isDeleted ? { deletedAt: "desc" } : { createdAt: "desc" },
       skip,
       take: limit,
     });
