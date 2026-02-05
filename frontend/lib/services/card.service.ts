@@ -112,3 +112,31 @@ export async function getEditableCardStatuses(): Promise<
     label: status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
   }));
 }
+
+/**
+ * Get cards by serial numbers (batch)
+ * Optimized for fetching multiple cards in a single request
+ */
+export async function getCardsBySerialNumbers(params: {
+  serialNumbers: string[];
+  categoryId?: string;
+  typeId?: string;
+  status?: string;
+  stationId?: string;
+  programType?: "FWC" | "VOUCHER";
+}): Promise<{
+  items: Card[];
+  foundCount: number;
+  requestedCount: number;
+}> {
+  const response = await axios.post("/cards/batch-by-serials", {
+    serialNumbers: params.serialNumbers,
+    categoryId: params.categoryId,
+    typeId: params.typeId,
+    status: params.status,
+    stationId: params.stationId,
+    programType: params.programType,
+  });
+
+  return response.data.data;
+}

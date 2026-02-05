@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
 import axios from "@/lib/axios";
 import { cardVoucherService } from "@/lib/services/card.voucher.service";
+import { getCardsBySerialNumbers } from "@/lib/services/card.service";
 
 interface SelectedCard {
   cardId: string;
@@ -20,7 +21,9 @@ interface UseVoucherCardHandlersProps {
 
 function generateSerialNumbers(startSerial: string, quantity: number): string[] {
   const serials: string[] = [];
-  const match = startSerial.match(/^(.+?)(\d+)$/);
+  // Match all trailing digits as suffix - use greedy match on digits to capture all trailing digits
+  // This ensures we correctly parse serials like "031326020200500" -> prefix: "031326020200", suffix: "500"
+  const match = startSerial.match(/^(.+)(\d+)$/);
   
   if (!match) {
     return [startSerial];
@@ -28,11 +31,18 @@ function generateSerialNumbers(startSerial: string, quantity: number): string[] 
   
   const prefix = match[1];
   const startNumber = parseInt(match[2], 10);
-  const padding = match[2].length;
+  const originalPadding = match[2].length;
+  
+  // Calculate the maximum number we'll generate to determine required padding upfront
+  const endNumber = startNumber + quantity - 1;
+  const maxDigits = endNumber.toString().length;
+  // Use the larger of original padding or max digits needed
+  const requiredPadding = Math.max(originalPadding, maxDigits);
   
   for (let i = 0; i < quantity; i++) {
     const number = startNumber + i;
-    const paddedNumber = number.toString().padStart(padding, '0');
+    // Use consistent padding for all numbers in the batch
+    const paddedNumber = number.toString().padStart(requiredPadding, '0');
     serials.push(`${prefix}${paddedNumber}`);
   }
   
@@ -64,7 +74,6 @@ export function useVoucherCardHandlers({
   const [voucherCardSerialNumber, setVoucherCardSerialNumber] = useState<string>("");
   const [voucherCardSearchResults, setVoucherCardSearchResults] = useState<any[]>([]);
   const [isSearchingVoucherCards, setIsSearchingVoucherCards] = useState(false);
-  const [loadingVoucherCards, setLoadingVoucherCards] = useState(false);
   
   // Range input state
   const [rangeStartSerial, setRangeStartSerial] = useState<string>("");
@@ -138,33 +147,9 @@ export function useVoucherCardHandlers({
           setRangeStartSerial("");
         }
       }
-
-      setLoadingVoucherCards(true);
-      const userStationId = getUserStationId();
-
-      const params: any = {
-        categoryId: selectedVoucherCategoryId,
-        typeId: typeId,
-        status: "IN_STATION",
-        limit: 100,
-        programType: "VOUCHER",
-      };
-
-      if (userStationId) {
-        params.stationId = userStationId;
-      }
-
-      const response = await axios.get("/cards", { params });
-      const availableCards = response.data?.data?.items || [];
-
-      if (availableCards.length === 0) {
-        toast.error("Tidak ada voucher tersedia untuk tipe ini");
-      }
     } catch (error) {
       toast.error("Gagal memuat voucher");
       console.error(error);
-    } finally {
-      setLoadingVoucherCards(false);
     }
   }, [selectedVoucherCategoryId, voucherProducts, inputMode]);
 
@@ -265,7 +250,7 @@ export function useVoucherCardHandlers({
       const params: any = {
         search: query,
         status: "IN_STATION",
-        limit: 1000,
+        limit: 10,
         programType: "VOUCHER",
         categoryId: selectedVoucherCategoryId,
         typeId: selectedVoucherTypeId,
@@ -322,8 +307,8 @@ export function useVoucherCardHandlers({
     }
 
     const quantity = parseInt(rangeQuantity, 10);
-    if (isNaN(quantity) || quantity < 1 || quantity > 100) {
-      toast.error("Quantity harus antara 1-100");
+    if (isNaN(quantity) || quantity < 1 || quantity > 10000) {
+      toast.error("Quantity harus antara 1-10000");
       return;
     }
 
@@ -342,46 +327,43 @@ export function useVoucherCardHandlers({
       const pricePerCard = product ? Number(product.price) || 0 : 0;
 
       const userStationId = getUserStationId();
-      const params: any = {
+
+      // Use batch API to fetch all cards in a single request
+      const batchResult = await getCardsBySerialNumbers({
+        serialNumbers,
         status: "IN_STATION",
         programType: "VOUCHER",
         categoryId: selectedVoucherCategoryId,
         typeId: selectedVoucherTypeId,
-        limit: 1000,
-      };
-
-      if (userStationId) {
-        params.stationId = userStationId;
-      }
-
-      const searchPromises = serialNumbers.map(async (serial) => {
-        try {
-          const response = await axios.get("/cards", {
-            params: { ...params, search: serial },
-          });
-          const results = response.data?.data?.items || [];
-          const exactMatch = results.find((card: any) => card && card.serialNumber === serial);
-          return exactMatch || null;
-        } catch (error) {
-          console.error(`Error searching card ${serial}:`, error);
-          return null;
-        }
+        stationId: userStationId || undefined,
       });
 
-      const foundCards = await Promise.all(searchPromises);
-      const validCards = foundCards.filter((card) => card !== null);
+      // Create a map for quick lookup by serial number
+      const cardMap = new Map(
+        batchResult.items.map((card) => [card.serialNumber, card])
+      );
+
+      // Get cards in the same order as requested serial numbers
+      const validCards = serialNumbers
+        .map((serial) => cardMap.get(serial))
+        .filter((card) => card !== undefined) as any[];
 
       if (validCards.length === 0) {
         toast.error("Tidak ada voucher ditemukan untuk serial numbers tersebut");
         return;
       }
 
-      if (validCards.length < serialNumbers.length) {
+      if (batchResult.foundCount < batchResult.requestedCount) {
         const missing = serialNumbers.filter(
-          (serial) => !validCards.some((c: any) => c.serialNumber === serial)
+          (serial) => !cardMap.has(serial)
         );
+        const missingPreview = missing.slice(0, 10).join(", ");
+        const missingText =
+          missing.length > 10
+            ? `${missingPreview}... (dan ${missing.length - 10} lainnya)`
+            : missingPreview;
         toast.error(
-          `Hanya ${validCards.length} dari ${serialNumbers.length} voucher yang ditemukan. Missing: ${missing.join(", ")}`,
+          `Hanya ${batchResult.foundCount} dari ${batchResult.requestedCount} voucher yang ditemukan. Missing: ${missingText}`,
           { duration: 5000 }
         );
       }
@@ -449,7 +431,6 @@ export function useVoucherCardHandlers({
     voucherCardSerialNumber,
     voucherCardSearchResults,
     isSearchingVoucherCards,
-    loadingVoucherCards,
     rangeStartSerial,
     rangeQuantity,
     isAddingRange,
