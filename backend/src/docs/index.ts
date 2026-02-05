@@ -73,14 +73,15 @@ export const docsConfig = swagger({
           tags: ["Redeem"],
           summary: "Check Card by Serial Number",
           description:
-            "Get card details, member info, and status by serial number.",
+            "Get card details, member info, and redemption status by serial number. Returns card validity, quota, member data, and category.",
           parameters: [
             {
               name: "serialNumber",
               in: "path",
               required: true,
               schema: { type: "string" },
-              description: "Serial number of the card to check",
+              description: "Serial number of the card to check (e.g., 01112600001)",
+              example: "01112600001"
             },
             {
               name: "product",
@@ -91,8 +92,50 @@ export const docsConfig = swagger({
             },
           ],
           responses: {
-            200: { description: "Card data retrieved successfully" },
-            404: { description: "Card not found" },
+            200: { 
+              description: "Card data retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      message: { type: "string" },
+                      data: {
+                        type: "object",
+                        properties: {
+                          serialNumber: { type: "string" },
+                          quota: { type: "number" },
+                          isExpired: { type: "boolean" },
+                          validUntil: { type: "string", format: "date-time" },
+                          canRedeem: { type: "boolean" },
+                          category: {
+                            type: "object",
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string" },
+                              abbreviation: { type: "string" }
+                            }
+                          },
+                          member: {
+                            type: "object",
+                            properties: {
+                              id: { type: "string" },
+                              memberNumber: { type: "string" },
+                              fullName: { type: "string" },
+                              nik: { type: "string" },
+                              email: { type: "string" },
+                              phoneNumber: { type: "string" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            404: { description: "Card not found or not activated" },
             500: { description: "Internal server error" },
           },
         },
@@ -102,7 +145,7 @@ export const docsConfig = swagger({
           tags: ["Redeem"],
           summary: "Redeem Card Ticket",
           description:
-            "Redeem a ticket from the card. Type: SINGLE (1) or ROUNDTRIP (2)",
+            "Redeem a ticket from the card. Type: SINGLE (1 quota) or ROUNDTRIP (2 quota). For VOUCHER product, passengerNik and passengerName are required.",
           requestBody: {
             required: true,
             content: {
@@ -110,13 +153,35 @@ export const docsConfig = swagger({
                 schema: {
                   type: "object",
                   properties: {
-                    serialNumber: { type: "string" },
+                    serialNumber: { 
+                      type: "string",
+                      description: "Serial number of the card to redeem",
+                      example: "01112600001"
+                    },
                     redeemType: {
                       type: "string",
                       enum: ["SINGLE", "ROUNDTRIP"],
+                      description: "Type of redemption: SINGLE (1 quota) or ROUNDTRIP (2 quota)"
                     },
-                    product: { type: "string", enum: ["FWC", "VOUCHER"] },
-                    notes: { type: "string" },
+                    product: { 
+                      type: "string", 
+                      enum: ["FWC", "VOUCHER"],
+                      description: "Product type for redeem"
+                    },
+                    passengerNik: {
+                      type: "string",
+                      description: "Passenger NIK for VOUCHER redeem (16 digits, required for VOUCHER)",
+                      example: "3276123456789012"
+                    },
+                    passengerName: {
+                      type: "string",
+                      description: "Passenger name for VOUCHER redeem (required for VOUCHER)",
+                      example: "Budi Santoso"
+                    },
+                    notes: { 
+                      type: "string",
+                      description: "Optional notes for the redemption"
+                    },
                   },
                   required: ["serialNumber", "redeemType", "product"],
                 },
@@ -124,37 +189,105 @@ export const docsConfig = swagger({
             },
           },
           responses: {
-            200: { description: "Card redeemed successfully" },
-            400: { description: "Bad request" },
+            200: { 
+              description: "Card redeemed successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      message: { type: "string" },
+                      data: {
+                        type: "object",
+                        properties: {
+                          id: { 
+                            type: "string",
+                            format: "uuid",
+                            description: "Redeem transaction ID (use this for uploading last doc)"
+                          },
+                          transactionNumber: { type: "string" },
+                          remainingQuota: { type: "number" },
+                          quotaUsed: { type: "number" },
+                          redeemType: { type: "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            400: { description: "Bad request (validation failed, insufficient quota, etc.)" },
+            404: { description: "Card not found" },
             500: { description: "Internal server error" },
           },
         },
         get: {
           tags: ["Redeem"],
           summary: "List Redeem Transactions",
-          description: "Get list of redeem transactions with filters.",
+          description: "Get paginated list of redeem transactions with various filters including date range, station, card type, product type, and deleted status.",
           parameters: [
-            { name: "page", in: "query", schema: { type: "integer" } },
-            { name: "limit", in: "query", schema: { type: "integer" } },
+            { 
+              name: "page", 
+              in: "query", 
+              schema: { type: "integer", default: 1 },
+              description: "Page number for pagination"
+            },
+            { 
+              name: "limit", 
+              in: "query", 
+              schema: { type: "integer", default: 10 },
+              description: "Number of items per page"
+            },
             {
               name: "startDate",
               in: "query",
               schema: { type: "string", format: "date" },
+              description: "Filter transactions from this date (YYYY-MM-DD)",
+              example: "2024-01-01"
             },
             {
               name: "endDate",
               in: "query",
               schema: { type: "string", format: "date" },
+              description: "Filter transactions until this date (YYYY-MM-DD)",
+              example: "2024-12-31"
             },
-            { name: "stationId", in: "query", schema: { type: "string" } },
-            { name: "search", in: "query", schema: { type: "string" } },
-            { name: "category", in: "query", schema: { type: "string" } },
-            { name: "cardType", in: "query", schema: { type: "string" } },
-            { name: "redeemType", in: "query", schema: { type: "string" } },
+            { 
+              name: "stationId", 
+              in: "query", 
+              schema: { type: "string", format: "uuid" },
+              description: "Filter by station ID"
+            },
+            { 
+              name: "search", 
+              in: "query", 
+              schema: { type: "string" },
+              description: "Search by transaction number, serial number, or member name"
+            },
+            { 
+              name: "category", 
+              in: "query", 
+              schema: { type: "string" },
+              description: "Filter by card category"
+            },
+            { 
+              name: "cardType", 
+              in: "query", 
+              schema: { type: "string" },
+              description: "Filter by card type"
+            },
+            { 
+              name: "redeemType", 
+              in: "query", 
+              schema: { type: "string", enum: ["SINGLE", "ROUNDTRIP"] },
+              description: "Filter by redeem type"
+            },
             {
               name: "product",
               in: "query",
               schema: { type: "string", enum: ["FWC", "VOUCHER"] },
+              description: "Filter by product type"
             },
             {
               name: "isDeleted",
@@ -164,7 +297,53 @@ export const docsConfig = swagger({
             },
           ],
           responses: {
-            200: { description: "Redeem transactions fetched successfully" },
+            200: { 
+              description: "Redeem transactions fetched successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      message: { type: "string" },
+                      data: {
+                        type: "object",
+                        properties: {
+                          items: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              properties: {
+                                id: { type: "string", format: "uuid" },
+                                transactionNumber: { type: "string" },
+                                serialNumber: { type: "string" },
+                                redeemType: { type: "string" },
+                                quotaUsed: { type: "number" },
+                                product: { type: "string" },
+                                notes: { type: "string" },
+                                redeemDate: { type: "string", format: "date-time" },
+                                memberName: { type: "string" },
+                                stationName: { type: "string" },
+                                operatorName: { type: "string" }
+                              }
+                            }
+                          },
+                          pagination: {
+                            type: "object",
+                            properties: {
+                              total: { type: "number" },
+                              page: { type: "number" },
+                              limit: { type: "number" },
+                              totalPages: { type: "number" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
             500: { description: "Internal server error" },
           },
         },
@@ -173,33 +352,78 @@ export const docsConfig = swagger({
         get: {
           tags: ["Redeem"],
           summary: "Get Redeem Detail",
-          description: "Get detail of a redeem transaction.",
+          description: "Get comprehensive detail of a specific redeem transaction including passenger information and last documentation.",
           parameters: [
             {
               name: "id",
               in: "path",
               required: true,
-              schema: { type: "string" },
+              schema: { type: "string", format: "uuid" },
+              description: "Redeem transaction ID"
             },
           ],
           responses: {
             200: {
               description: "Redeem transaction detail fetched successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      message: { type: "string" },
+                      data: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string", format: "uuid" },
+                          transactionNumber: { type: "string" },
+                          serialNumber: { type: "string" },
+                          redeemType: { type: "string" },
+                          quotaUsed: { type: "number" },
+                          product: { type: "string" },
+                          passengerNik: { type: "string" },
+                          passengerName: { type: "string" },
+                          notes: { type: "string" },
+                          lastDoc: { type: "string", description: "URL or path to uploaded last documentation photo" },
+                          redeemDate: { type: "string", format: "date-time" },
+                          redeemBy: { type: "string" },
+                          member: {
+                            type: "object",
+                            properties: {
+                              fullName: { type: "string" },
+                              memberNumber: { type: "string" },
+                              nik: { type: "string" }
+                            }
+                          },
+                          station: {
+                            type: "object",
+                            properties: {
+                              name: { type: "string" },
+                              code: { type: "string" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             },
-            404: { description: "Not found" },
+            404: { description: "Redeem transaction not found" },
             500: { description: "Internal server error" },
           },
         },
         patch: {
           tags: ["Redeem"],
-          summary: "Update Redeem Transaction",
-          description: "Update redeem transaction (notes only)",
+          summary: "Update Redeem Notes",
+          description: "Update notes/remarks for a specific redeem transaction. Only notes field can be updated.",
           parameters: [
             {
               name: "id",
               in: "path",
               required: true,
-              schema: { type: "string" },
+              schema: { type: "string", format: "uuid" },
+              description: "Redeem transaction ID"
             },
           ],
           requestBody: {
@@ -208,34 +432,91 @@ export const docsConfig = swagger({
               "application/json": {
                 schema: {
                   type: "object",
-                  properties: { notes: { type: "string" } },
+                  properties: { 
+                    notes: { 
+                      type: "string",
+                      description: "Notes or remarks for this redeem transaction",
+                      example: "Penumpang terlambat datang"
+                    } 
+                  },
+                  required: ["notes"],
                 },
               },
             },
           },
           responses: {
-            200: { description: "Redeem transaction updated successfully" },
-            404: { description: "Not found" },
+            200: { 
+              description: "Notes updated successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      message: { type: "string" }
+                    }
+                  }
+                }
+              }
+            },
+            404: { description: "Redeem transaction not found" },
             500: { description: "Internal server error" },
           },
         },
         delete: {
           tags: ["Redeem"],
           summary: "Delete Redeem (restore quota)",
-          description: "Soft delete redeem and restore consumed quota to card.",
+          description: "Soft delete redeem and restore consumed quota to card. Optionally provide deletion notes.",
           parameters: [
             {
               name: "id",
               in: "path",
               required: true,
-              schema: { type: "string" },
+              schema: { type: "string", format: "uuid" },
+              description: "Redeem transaction ID"
             },
           ],
-          responses: {
-            200: {
-              description: "Redeem transaction deleted and quota restored",
+          requestBody: {
+            required: false,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: { 
+                    notes: { 
+                      type: "string",
+                      description: "Optional deletion reason or notes" 
+                    } 
+                  },
+                },
+              },
             },
-            404: { description: "Not found" },
+          },
+          responses: {
+            200: { 
+              description: "Redeem deleted and quota restored successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      message: { type: "string" },
+                      data: {
+                        type: "object",
+                        properties: {
+                          restoredQuota: { 
+                            type: "number",
+                            description: "Number of quota restored back to card"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            404: { description: "Redeem not found or already deleted" },
             500: { description: "Internal server error" },
           },
         },
@@ -243,23 +524,40 @@ export const docsConfig = swagger({
       "/redeem/export": {
         get: {
           tags: ["Redeem"],
-          summary: "Export daily redeem report",
+          summary: "Export Daily Redeem Report",
           description:
-            "Export today's redeem transactions for operator (CSV/XLSX/PDF/JPG)",
+            "Export redeem transactions report for a specific date. Supports multiple formats: CSV, XLSX, PDF, or JPG. Defaults to today's date if not specified.",
           parameters: [
             {
               name: "date",
               in: "query",
+              required: false,
               schema: { type: "string", format: "date" },
+              description: "Date for report export (YYYY-MM-DD). Defaults to today.",
+              example: "2024-01-15"
             },
             {
               name: "format",
               in: "query",
-              schema: { type: "string", enum: ["csv", "xlsx", "pdf", "jpg"] },
+              required: false,
+              schema: { type: "string", enum: ["csv", "xlsx", "pdf", "jpg"], default: "xlsx" },
+              description: "Export format. Defaults to xlsx."
             },
           ],
           responses: {
-            200: { description: "Exported file" },
+            200: { 
+              description: "Report file generated and downloaded",
+              content: {
+                "application/octet-stream": {
+                  schema: {
+                    type: "string",
+                    format: "binary",
+                    description: "Report file in requested format"
+                  }
+                }
+              }
+            },
+            400: { description: "Invalid date or format parameter" },
             500: { description: "Internal server error" },
           },
         },
@@ -267,15 +565,16 @@ export const docsConfig = swagger({
       "/redeem/{id}/last-doc": {
         post: {
           tags: ["Redeem"],
-          summary: "Upload last redeem documentation",
+          summary: "Upload Last Redeem Documentation",
           description:
-            "Upload a photo when performing the last redeem (prev quota 1 or 2)",
+            "Upload a photo when performing the last redeem (when previous quota is 1 or 2). Photo is saved as Base64-encoded JPEG/PNG.",
           parameters: [
             {
               name: "id",
               in: "path",
               required: true,
-              schema: { type: "string" },
+              schema: { type: "string", format: "uuid" },
+              description: "Redeem transaction ID (from POST /redeem response)"
             },
           ],
           requestBody: {
@@ -287,12 +586,15 @@ export const docsConfig = swagger({
                   properties: {
                     imageBase64: {
                       type: "string",
-                      description: "Base64-encoded image (JPEG/PNG)",
+                      description: "Base64-encoded image string (JPEG/PNG)",
+                      example: "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
                     },
                     mimeType: {
                       type: "string",
+                      enum: ["image/jpeg", "image/png"],
                       description:
-                        "Optional mimeType override (image/jpeg or image/png)",
+                        "Optional mimeType override. Auto-detected if not provided.",
+                      example: "image/jpeg"
                     },
                   },
                   required: ["imageBase64"],
@@ -301,7 +603,31 @@ export const docsConfig = swagger({
             },
           },
           responses: {
-            200: { description: "Last redeem documentation uploaded" },
+            200: { 
+              description: "Last redeem documentation uploaded successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      message: { type: "string" },
+                      data: {
+                        type: "object",
+                        properties: {
+                          lastDoc: { 
+                            type: "string",
+                            description: "URL or path to uploaded documentation"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            400: { description: "Invalid image format or missing imageBase64" },
+            404: { description: "Redeem transaction not found" },
             500: { description: "Internal server error" },
           },
         },

@@ -6,7 +6,7 @@
 
 import { useEffect, useState, useContext } from 'react';
 import toast from 'react-hot-toast';
-import { redeemService, RedeemItem, RedeemFilterParams } from '@/lib/services/redeem/redeemService';
+import { redeemService, RedeemItem, RedeemFilterParams, ProductType } from '@/lib/services/redeem/redeemService';
 import { useRedeemPermission } from '@/lib/hooks/useRedeemPermission';
 import { UserContext } from '@/app/dashboard/superadmin/dashboard/dashboard-layout';
 import CreateRedeemModal from '@/components/redeem/CreateRedeemModal';
@@ -54,6 +54,8 @@ export default function RedeemPage() {
   };
 
   // State for data
+  const [productTypes, setProductTypes] = useState<ProductType[]>([]);
+  const [selectedProductTypeId, setSelectedProductTypeId] = useState<string>('');
   const [product, setProduct] = useState<'FWC' | 'VOUCHER' | ''>('');
   const [redeems, setRedeems] = useState<RedeemItem[]>([]);
   const [stations, setStations] = useState<Station[]>([]);
@@ -114,6 +116,18 @@ export default function RedeemPage() {
   // Helper: apakah produk sudah dipilih
   const isProductSelected = product === 'FWC' || product === 'VOUCHER';
 
+  // Load product types on mount
+  useEffect(() => {
+    redeemService.getProductTypes()
+      .then(types => {
+        setProductTypes(types);
+      })
+      .catch(err => {
+        console.error('Failed to load product types:', err);
+        toast.error('Gagal mengambil tipe produk');
+      });
+  }, []);
+
   // Load data on first mount and whenever product, startDate, or endDate changes
   useEffect(() => {
     if (isProductSelected && startDate && endDate) {
@@ -130,7 +144,7 @@ export default function RedeemPage() {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [product, startDate, endDate]);
+  }, [selectedProductTypeId, product, startDate, endDate]);
 
   const loadOptionsFromProducts = async (currentProduct: 'FWC' | 'VOUCHER') => {
     try {
@@ -232,7 +246,7 @@ export default function RedeemPage() {
       ...(product === 'FWC' || product === 'VOUCHER' ? { product } : {})
     });
     setCurrentPage(1);
-  }, [startDate, endDate, category, cardType, stationId, search, product]);
+  }, [startDate, endDate, category, cardType, stationId, search, selectedProductTypeId, product]);
 
   // Trigger loadDeletedRedeems setiap deletedPage berubah
   useEffect(() => {
@@ -281,7 +295,7 @@ export default function RedeemPage() {
       loadStations();
       loadOptionsFromProducts(product);
     }
-  }, [product]);
+  }, [selectedProductTypeId, product]);
 
 
 
@@ -389,10 +403,16 @@ export default function RedeemPage() {
               <div className="flex items-center gap-2 w-full sm:w-auto">
 
                 <select
-                  value={product}
+                  value={selectedProductTypeId}
                   onChange={e => {
-                    const val = e.target.value as 'FWC' | 'VOUCHER' | '';
+                    const selectedId = e.target.value;
+                    setSelectedProductTypeId(selectedId);
+                    
+                    // Find the selected product type and set the product
+                    const selectedType = productTypes.find(pt => pt.id === selectedId);
+                    const val = selectedType?.programType as 'FWC' | 'VOUCHER' | '' || '';
                     setProduct(val);
+                    
                     setStartDate('');
                     setEndDate('');
                     setCategory('');
@@ -407,8 +427,11 @@ export default function RedeemPage() {
                   className="h-10 flex-1 sm:w-48 rounded-md border border-[#8D1231] bg-red-50 px-3 text-sm font-semibold text-[#8D1231] focus:outline-none focus:ring-2 focus:ring-[#8D1231] transition-shadow cursor-pointer"
                 >
                   <option value="">Pilih Produk</option>
-                  <option value="FWC">FWC</option>
-                  <option value="VOUCHER">VOUCHER</option>
+                  {productTypes.map(type => (
+                    <option key={type.id} value={type.id}>
+                      {type.abbreviation} - {type.description}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -561,7 +584,7 @@ export default function RedeemPage() {
                 isOpen={createModalOpen}
                 onClose={() => setCreateModalOpen(false)}
                 onSuccess={handleCreateSuccess}
-                product={product as 'FWC' | 'VOUCHER'}
+                initialProduct={product as 'FWC' | 'VOUCHER' | undefined}
               />
 
               <RedeemDetailModal
