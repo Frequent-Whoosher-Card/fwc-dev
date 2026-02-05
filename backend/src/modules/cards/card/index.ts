@@ -244,6 +244,52 @@ const baseRoutes = new Elysia()
               "Get multiple cards by their serial numbers in a single request. Supports up to 10000 serial numbers per request. Returns all matching cards with optional filters (categoryId, typeId, status, stationId, programType).",
           },
         },
+      )
+      // Get Next Available Cards After Serial Number
+      .post(
+        "/next-available",
+        async (context) => {
+          const { body, set } = context as typeof context;
+          try {
+            const result = await CardService.getNextAvailableCards({
+              startSerial: body.startSerial,
+              quantity: body.quantity,
+              categoryId: body.categoryId,
+              typeId: body.typeId,
+              status: body.status,
+              stationId: body.stationId,
+              programType: body.programType,
+            });
+
+            return {
+              success: true,
+              message: `Found ${result.foundCount} of ${result.requestedCount} requested cards`,
+              data: result,
+            };
+          } catch (error) {
+            set.status =
+              error instanceof Error && "statusCode" in error
+                ? (error as any).statusCode
+                : 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          body: CardModel.getNextAvailableCardsRequest,
+          response: {
+            200: CardModel.getNextAvailableCardsResponse,
+            400: CardModel.errorResponse,
+            401: CardModel.errorResponse,
+            403: CardModel.errorResponse,
+            500: CardModel.errorResponse,
+          },
+          detail: {
+            tags: ["Card"],
+            summary: "Get next available cards after serial number",
+            description:
+              "Get the next available cards starting from a specific serial number, ordered by serial number ascending. Returns cards that match the filters (categoryId, typeId, status, stationId, programType) and are available after the start serial number.",
+          },
+        },
       ),
   )
   .group("", (app) =>

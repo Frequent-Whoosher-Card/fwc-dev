@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
 import axios from "@/lib/axios";
 import { cardVoucherService } from "@/lib/services/card.voucher.service";
-import { getCardsBySerialNumbers } from "@/lib/services/card.service";
+import { getNextAvailableCards } from "@/lib/services/card.service";
 
 interface SelectedCard {
   cardId: string;
@@ -319,8 +319,6 @@ export function useVoucherCardHandlers({
 
     setIsAddingRange(true);
     try {
-      const serialNumbers = generateSerialNumbers(rangeStartSerial, quantity);
-      
       const product = voucherProducts.find(
         (p: any) => p.categoryId === selectedVoucherCategoryId && p.type?.id === selectedVoucherTypeId
       );
@@ -328,9 +326,10 @@ export function useVoucherCardHandlers({
 
       const userStationId = getUserStationId();
 
-      // Use batch API to fetch all cards in a single request
-      const batchResult = await getCardsBySerialNumbers({
-        serialNumbers,
+      // Get next available cards starting from rangeStartSerial
+      const batchResult = await getNextAvailableCards({
+        startSerial: rangeStartSerial,
+        quantity: quantity,
         status: "IN_STATION",
         programType: "VOUCHER",
         categoryId: selectedVoucherCategoryId,
@@ -338,15 +337,8 @@ export function useVoucherCardHandlers({
         stationId: userStationId || undefined,
       });
 
-      // Create a map for quick lookup by serial number
-      const cardMap = new Map(
-        batchResult.items.map((card) => [card.serialNumber, card])
-      );
-
-      // Get cards in the same order as requested serial numbers
-      const validCards = serialNumbers
-        .map((serial) => cardMap.get(serial))
-        .filter((card) => card !== undefined) as any[];
+      // Cards are already ordered by serial number ascending
+      const validCards = batchResult.items;
 
       if (validCards.length === 0) {
         toast.error("Tidak ada voucher ditemukan untuk serial numbers tersebut");
@@ -354,16 +346,8 @@ export function useVoucherCardHandlers({
       }
 
       if (batchResult.foundCount < batchResult.requestedCount) {
-        const missing = serialNumbers.filter(
-          (serial) => !cardMap.has(serial)
-        );
-        const missingPreview = missing.slice(0, 10).join(", ");
-        const missingText =
-          missing.length > 10
-            ? `${missingPreview}... (dan ${missing.length - 10} lainnya)`
-            : missingPreview;
         toast.error(
-          `Hanya ${batchResult.foundCount} dari ${batchResult.requestedCount} voucher yang ditemukan. Missing: ${missingText}`,
+          `Hanya ${batchResult.foundCount} dari ${batchResult.requestedCount} voucher yang tersedia. Range: ${batchResult.startSerial || rangeStartSerial} - ${batchResult.endSerial || "tidak ada"}`,
           { duration: 5000 }
         );
       }

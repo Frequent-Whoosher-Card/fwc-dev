@@ -24,6 +24,8 @@ interface VoucherTransaction {
   } | null;
   bulkPurchaseItems?: BulkPurchaseItem[];
   bulkPurchaseItemsCount?: number; // Actual total count from backend
+  firstSerialNumber?: string | null; // First serial number for bulk purchase
+  lastSerialNumber?: string | null; // Last serial number for bulk purchase
 
   member: {
     name: string;
@@ -219,6 +221,7 @@ export default function TransactionTableVoucher({
               <th className="px-4 py-3 text-left">Voucher Category</th>
               <th className="px-4 py-3 text-left">Voucher Type</th>
               <th className="px-4 py-3 text-left">Serial Number Awal / Quantity</th>
+              <th className="px-4 py-3 text-left">Serial Number Awal - Serial Number Akhir</th>
               <th className="px-4 py-3 text-left">Reference EDC</th>
               <th className="px-4 py-3 text-right">Voucher Price</th>
               <th className="px-4 py-3 text-center">Purchase Date</th>
@@ -233,13 +236,13 @@ export default function TransactionTableVoucher({
           <tbody className="text-gray-700">
             {loading ? (
               <tr>
-                <td colSpan={14} className="py-10 text-center text-gray-400">
+                <td colSpan={15} className="py-10 text-center text-gray-400">
                   Loading...
                 </td>
               </tr>
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={14} className="py-10 text-center text-gray-400">
+                <td colSpan={15} className="py-10 text-center text-gray-400">
                   No data
                 </td>
               </tr>
@@ -305,6 +308,12 @@ export default function TransactionTableVoucher({
                           {item.card?.serialNumber ?? "-"}
                         </span>
                       )}
+                    </td>
+
+                    <td className="px-4 py-3 font-mono truncate">
+                      {item.firstSerialNumber && item.lastSerialNumber
+                        ? `${item.firstSerialNumber} - ${item.lastSerialNumber}`
+                        : item.card?.serialNumber ?? "-"}
                     </td>
 
                     <td className="px-4 py-3 font-mono truncate">
