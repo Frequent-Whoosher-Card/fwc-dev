@@ -137,8 +137,10 @@ export default function EditUserPage() {
 
     if (!form.nip)
       newErrors.nip = "NIP is required";
-    else if (form.nip.length !== 8)
-      newErrors.nip = "NIP must be exactly 8 digits";
+    // NIP validation: Max 8 enforced by input maxLength (not set here but should be implied or added in UI, currently strictly just removing logic validation).
+    // Note: Render part has no maxLength prop for NIP in Edit, unlike Create. I should probably add maxLength in render separately or just trust logic.
+    // Wait, Create page had maxLength=8 in input. Edit page does NOT have maxLength in input (verified in view_file, line 268 user input). 
+    // I should probably clean up logic first.
 
     if (!form.email)
       newErrors.email = "Email is required";
@@ -146,8 +148,6 @@ export default function EditUserPage() {
       newErrors.email = "Invalid email format";
 
     if (!form.phone) newErrors.phone = "Phone number is required";
-    else if (form.phone.length < 10)
-      newErrors.phone = "Phone number must be at least 10 digits";
     else if (form.phone.length > 16)
       newErrors.phone = "Phone number cannot exceed 16 digits";
 
@@ -210,8 +210,38 @@ export default function EditUserPage() {
       toast.success("User updated successfully");
       router.push("/dashboard/superadmin/user");
     } catch (err: any) {
-      console.error("UPDATE USER ERROR:", err);
-      toast.error(err?.response?.data?.message || "Failed update user");
+      // Parse error message
+      const msg = err?.response?.data?.message || err?.message || "Failed update user";
+      
+      // Known validation errors (Prisma Unique Constraints or Manual Validation)
+      const isUniqueError = msg.includes("Unique constraint") || msg.includes("already exists");
+      
+      if (isUniqueError) {
+         if (msg.toLowerCase().includes("username")) {
+            setErrors(prev => ({...prev, username: "Username already taken"}));
+            toast.error("Username sudah digunakan! Silakan ganti.");
+         } 
+         else if (msg.toLowerCase().includes("nip")) {
+            setErrors(prev => ({...prev, nip: "NIP already registered"}));
+            toast.error("NIP sudah terdaftar! Silakan periksa kembali.");
+         }
+         else if (msg.toLowerCase().includes("email")) {
+            setErrors(prev => ({...prev, email: "Email already registered"}));
+            toast.error("Email sudah terdaftar! Gunakan email lain.");
+         }
+         else if (msg.toLowerCase().includes("phone")) {
+            setErrors(prev => ({...prev, phone: "Phone already registered"}));
+            toast.error("Nomor HP sudah terdaftar! Gunakan nomor lain.");
+         }
+         else {
+             // Fallback for other unique errors
+            toast.error("Data duplikat ditemukan (NIP/Email/Username/Phone). Cek kembali.");
+         }
+      } else {
+         // Unknown errors -> Log full error for debugging and show message
+         console.error("UPDATE USER ERROR:", err);
+         toast.error(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -267,6 +297,7 @@ export default function EditUserPage() {
                 </label>
                 <input
                 id="nip"
+                maxLength={8}
                 value={form.nip}
                 placeholder="8 Digit Angka"
                 onChange={(e) => {

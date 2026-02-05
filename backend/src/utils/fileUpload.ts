@@ -12,6 +12,11 @@ export async function uploadStockFile(
   subDir: string,
   filenameOverride?: string,
 ): Promise<string> {
+  console.log("[DEBUG uploadStockFile] Starting...", {
+    filename: file.name,
+    type: file.type,
+    size: file.size,
+  });
   const mimeType = file.type || "application/octet-stream";
   // Determine extension
   let ext = "bin";
@@ -36,7 +41,12 @@ export async function uploadStockFile(
     originalName = `${safeName}.${ext}`;
   }
 
-  const relativeDir = `storage/${subDir}`;
+  // Determine directory structure: storage/{subDir}/YYYY/MM
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+
+  const relativeDir = `storage/${subDir}/${year}/${month}`;
   const relativePath = `${relativeDir}/${storedName}`;
 
   // Ensure directory exists
