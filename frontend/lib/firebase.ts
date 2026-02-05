@@ -151,6 +151,23 @@ export async function getFcmToken(): Promise<string | null> {
   const messaging = getMessaging(firebaseApp);
 
   try {
+    // FORCE SW UPDATE: Explicitly register and update to ensure latest version
+    if ('serviceWorker' in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+        await registration.update(); // Checks for byte-difference (we added version comment)
+        console.log('[FCM] Service Worker force updated');
+        
+        const token = await getFcmTokenInternal(messaging, {
+           vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+           serviceWorkerRegistration: registration, // Explicitly use this updated reg
+        });
+        return token;
+      } catch (swError) {
+        console.warn('[FCM] SW Registration failed, falling back to default:', swError);
+      }
+    }
+
     const token = await getFcmTokenInternal(messaging, {
       vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
     });
