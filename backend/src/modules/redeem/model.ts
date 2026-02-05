@@ -57,6 +57,18 @@ export namespace RedeemModel {
     ], {
       description: "Product type for redeem (FWC or VOUCHER)",
     }),
+    passengerNik: t.Optional(
+      t.String({
+        description: "Passenger NIK for VOUCHER redeem",
+        examples: ["3276123456789012"],
+      })
+    ),
+    passengerName: t.Optional(
+      t.String({
+        description: "Passenger name for VOUCHER redeem",
+        examples: ["Budi Santoso"],
+      })
+    ),
     notes: t.Optional(
       t.String({
         description: "Optional notes for the redemption",

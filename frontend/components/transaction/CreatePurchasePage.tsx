@@ -21,6 +21,7 @@ import { usePurchaseForm } from "@/hooks/usePurchaseForm";
 import { useCardSelection } from "@/hooks/useCardSelection";
 import { useCategories } from "@/hooks/useCategories";
 import { useMemberSearch } from "@/hooks/useMemberSearch";
+import { SERIAL_PREFIX_LEN } from "@/components/membership/create-member/constants";
 
 const baseInputClass =
   "h-10 w-full rounded-md border border-gray-300 px-3 text-sm text-gray-700 focus:border-gray-400 focus:outline-none";
@@ -90,6 +91,13 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
     handleCardSelect,
   } = useCardSelection();
 
+  // Calculate serial prefix and suffix for split input display
+  const serialPrefix = serialNumber.slice(0, SERIAL_PREFIX_LEN);
+  const serialSuffix =
+    serialNumber.length > SERIAL_PREFIX_LEN
+      ? serialNumber.slice(SERIAL_PREFIX_LEN)
+      : "";
+
   // FWC price: manual mode pakai manualFwcPrice dari API, selain itu dari hook
   const displayFwcPrice =
     inputMode === "manual" && manualSerialResult === "available"
@@ -97,13 +105,11 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
       : price;
 
   useEffect(() => {
-    if (cardCategory) {
-      form.setValue("cardCategory", cardCategory as "GOLD" | "SILVER" | "KAI");
-    }
+    form.setValue("cardCategory", (cardCategory || "") as any);
   }, [cardCategory, form]);
 
   useEffect(() => {
-    form.setValue("cardTypeId", cardTypeId);
+    form.setValue("cardTypeId", cardTypeId || "");
   }, [cardTypeId, form]);
 
   useEffect(() => {
@@ -271,7 +277,7 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
             </Field>
           </SectionCard>
 
-          <SectionCard title="Card">
+          <SectionCard title="Card Information">
             <Field>
               <FieldLabel>
                 Mode Input Serial Number
@@ -298,9 +304,9 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
                   <option value="recommendation">Rekomendasi</option>
                 </select>
                 {inputMode === "" && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    Pilih mode input serial number terlebih dahulu
-                  </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  Pilih mode input serial number terlebih dahulu
+                </p>
                 )}
               </FieldContent>
             </Field>
@@ -348,10 +354,7 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
             {inputMode === "recommendation" && (
               <>
                 <Field>
-                  <FieldLabel>
-                    Card Category
-                    <span className="ml-1 text-red-500">*</span>
-                  </FieldLabel>
+                  <FieldLabel>Card Category</FieldLabel>
                   <FieldContent>
                     <select
                       className={baseInputClass}
@@ -372,7 +375,7 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
                     </select>
                     {!cardCategory && (
                       <p className="mt-1 text-xs text-gray-500">
-                        Pilih kategori kartu terlebih dahulu
+                        Pilih kategori kartu (opsional)
                       </p>
                     )}
                     <FieldError
@@ -384,16 +387,13 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
                 </Field>
 
                 <Field>
-                  <FieldLabel>
-                    Card Type
-                    <span className="ml-1 text-red-500">*</span>
-                  </FieldLabel>
+                  <FieldLabel>Card Type</FieldLabel>
                   <FieldContent>
                     <select
                       className={baseInputClass}
                       value={cardTypeId}
                       onChange={(e) => handleTypeChange(e.target.value)}
-                      disabled={!cardCategory || loadingTypes}
+                      disabled={loadingTypes}
                     >
                       <option value="">
                         {loadingTypes ? "Loading..." : "Select"}
@@ -412,7 +412,7 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
                       cardCategory &&
                       !cardTypeId && (
                         <p className="mt-1 text-xs text-gray-500">
-                          Pilih tipe kartu
+                          
                         </p>
                       )
                     )}
@@ -431,15 +431,24 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
                   </FieldLabel>
                   <FieldContent>
                     <div className="relative">
-                      <input
-                        type="text"
-                        className={baseInputClass}
-                        value={serialNumber}
-                        onChange={(e) => handleCardSearch(e.target.value)}
-                        placeholder="Masukkan 2 digit tahun kartu dibuat + nomor (min 6 karakter)..."
-                        autoComplete="off"
-                        disabled={!cardTypeId}
-                      />
+                      <div className="flex">
+                        <div className="flex h-10 items-center rounded-l-md border border-r-0 border-gray-300 bg-gray-100 px-3 text-sm font-medium text-gray-600 shrink-0">
+                          {serialPrefix || "----"}
+                        </div>
+                        <div className="flex h-10 items-center border-y border-gray-300 bg-gray-100 px-2 text-gray-400 shrink-0">
+                          |
+                        </div>
+                        <input
+                          type="text"
+                          className="h-10 w-full min-w-0 rounded-r-md border border-l-0 border-gray-300 bg-white px-3 text-sm text-gray-700 focus:border-gray-400 focus:outline-none"
+                          value={serialSuffix}
+                          onChange={(e) => {
+                            handleCardSearch(`${serialPrefix}${e.target.value}`);
+                          }}
+                          placeholder="Masukkan nomor (min 2 digit)..."
+                          autoComplete="off"
+                        />
+                      </div>
                       {isSearching && (
                         <div className="absolute right-3 top-1/2 -translate-y-1/2">
                           <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
@@ -471,8 +480,8 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
                       )}
                     {serialNumber.length > 0 && serialNumber.length < 6 && (
                       <p className="mt-1 text-xs text-gray-500">
-                        Masukkan 2 digit tahun kartu dibuat + nomor (minimal 6
-                        karakter total)
+                        Masukkan 2 digit tahun kartu dibuat untuk menampilkan
+                        rekomendasi
                       </p>
                     )}
                     <FieldError

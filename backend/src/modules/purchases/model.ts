@@ -149,10 +149,11 @@ export namespace PurchaseModel {
     }),
     edcReferenceNumber: t.String({
       minLength: 1,
-      maxLength: 100,
+      maxLength: 12,
+      pattern: "^[0-9]{1,12}$",
       description:
-        "EDC Reference Number (No. Reference EDC). Must be unique across all purchases.",
-      examples: ["EDC-20260102-001", "REF-123456"],
+        "EDC Reference Number (No. Reference EDC). Hanya angka, maksimal 12 digit, dan harus unik.",
+      examples: ["123456789012", "123456"],
     }),
     programType: t.Optional(
       t.Union([
@@ -213,9 +214,10 @@ export namespace PurchaseModel {
     edcReferenceNumber: t.Optional(
       t.String({
         minLength: 1,
-        maxLength: 100,
-        description: "Update EDC Reference Number",
-        examples: ["EDC-20260102-002"],
+        maxLength: 12,
+        pattern: "^[0-9]{1,12}$",
+        description: "Update EDC Reference Number (hanya angka, maksimal 12 digit)",
+        examples: ["123456789012"],
       }),
     ),
     price: t.Optional(
