@@ -199,6 +199,51 @@ const baseRoutes = new Elysia()
               "Get detailed card information by serial number. Useful for looking up cards when you only have the serial number. Returns card data including card product information (category and type).",
           },
         },
+      )
+      // Get Cards By Serial Numbers (Batch)
+      .post(
+        "/batch-by-serials",
+        async (context) => {
+          const { body, set } = context as typeof context;
+          try {
+            const result = await CardService.getCardsBySerialNumbers({
+              serialNumbers: body.serialNumbers,
+              categoryId: body.categoryId,
+              typeId: body.typeId,
+              status: body.status,
+              stationId: body.stationId,
+              programType: body.programType,
+            });
+
+            return {
+              success: true,
+              message: `Found ${result.foundCount} of ${result.requestedCount} requested cards`,
+              data: result,
+            };
+          } catch (error) {
+            set.status =
+              error instanceof Error && "statusCode" in error
+                ? (error as any).statusCode
+                : 500;
+            return formatErrorResponse(error);
+          }
+        },
+        {
+          body: CardModel.batchBySerialsRequest,
+          response: {
+            200: CardModel.batchBySerialsResponse,
+            400: CardModel.errorResponse,
+            401: CardModel.errorResponse,
+            403: CardModel.errorResponse,
+            500: CardModel.errorResponse,
+          },
+          detail: {
+            tags: ["Card"],
+            summary: "Get cards by serial numbers (batch)",
+            description:
+              "Get multiple cards by their serial numbers in a single request. Supports up to 10000 serial numbers per request. Returns all matching cards with optional filters (categoryId, typeId, status, stationId, programType).",
+          },
+        },
       ),
   )
   .group("", (app) =>

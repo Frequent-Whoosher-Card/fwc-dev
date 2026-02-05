@@ -215,6 +215,34 @@ export namespace CardModel {
     ]),
   });
 
+  // Batch By Serials Request Body
+  export const batchBySerialsRequest = t.Object({
+    serialNumbers: t.Array(
+      t.String({
+        description: "Array of serial numbers to fetch",
+      }),
+      { minItems: 1, maxItems: 10000 }
+    ),
+    categoryId: t.Optional(t.String({ format: "uuid" })),
+    typeId: t.Optional(t.String({ format: "uuid" })),
+    status: t.Optional(t.String()),
+    stationId: t.Optional(t.String({ format: "uuid" })),
+    programType: t.Optional(
+      t.Union([t.Literal("FWC"), t.Literal("VOUCHER")])
+    ),
+  });
+
+  // Batch By Serials Response
+  export const batchBySerialsResponse = t.Object({
+    success: t.Boolean(),
+    message: t.String(),
+    data: t.Object({
+      items: t.Array(cardData),
+      foundCount: t.Number(),
+      requestedCount: t.Number(),
+    }),
+  });
+
   // Error Response
   export const errorResponse = t.Object({
     success: t.Boolean(),
