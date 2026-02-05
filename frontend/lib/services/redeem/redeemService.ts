@@ -19,10 +19,14 @@ export interface RedeemCheckResponse {
 export interface RedeemCreateRequest {
   serialNumber: string;
   redeemType: 'SINGLE' | 'ROUNDTRIP';
+  product: 'FWC' | 'VOUCHER';
+  passengerNik?: string;
+  passengerName?: string;
   notes?: string;
 }
 
 export interface RedeemCreateResponse {
+  id: string;
   transactionNumber: string;
   remainingQuota: number;
   quotaUsed: number;
@@ -66,6 +70,11 @@ export interface RedeemItem {
     createdAt: string;
   };
   usageLogs?: Array<{ quotaUsed: number }>;
+  passengers?: Array<{
+    id: string;
+    nik: string;
+    passengerName: string;
+  }>;
 }
 
 export interface RedeemListResponse {
@@ -97,7 +106,31 @@ export interface LastDocUploadRequest {
   mimeType?: string;
 }
 
+export interface ProductType {
+  id: string;
+  programId: string;
+  description?: string;
+  abbreviation?: string;
+  programType: 'FWC' | 'VOUCHER';
+  createdAt: string;
+}
+
 export const redeemService = {
+  /**
+   * Get all product types
+   */
+  getProductTypes: async (): Promise<ProductType[]> => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('fwc_token') : null;
+    const response = await fetch(`${API_BASE_URL}/product-type`, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (!response.ok) throw new Error('Failed to fetch product types');
+    const body = await response.json();
+    return body.data || [];
+  },
+
   /**
    * Check card details by serial number
    */

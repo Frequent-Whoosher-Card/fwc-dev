@@ -18,24 +18,57 @@ export default function DeleteRedeemDialog({
   onSuccess,
 }: DeleteRedeemDialogProps) {
   /* Reason for deletion */
-  const [reason, setReason] = useState('');
+  const [reasonCategory, setReasonCategory] = useState('');
+  const [reasonCustom, setReasonCustom] = useState('');
+  const [bookingCode, setBookingCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Validation: Minimum 15 characters
-  const charCount = reason.trim().length;
-  const isReasonValid = charCount >= 15;
+  // Predefined reason options
+  const reasonOptions = [
+    { value: 'salah_seri', label: 'Salah input nomor seri kartu' },
+    { value: 'pembatalan_kereta', label: 'Pembatalan Kereta' },
+    { value: 'lainnya', label: 'Lainnya' },
+  ];
+
+  // Build final reason message
+  const getFinalReason = () => {
+    if (reasonCategory === 'lainnya') {
+      return reasonCustom.trim();
+    }
+    if (reasonCategory === 'pembatalan_kereta') {
+      return bookingCode.trim()
+        ? `Alasan : Pembatalan Kereta\nKode Booking : ${bookingCode.trim()}`
+        : '';
+    }
+    const selected = reasonOptions.find(opt => opt.value === reasonCategory);
+    return selected ? selected.label : '';
+  };
+
+  const finalReason = getFinalReason();
+  const isReasonValid =
+    reasonCategory === 'lainnya'
+      ? reasonCustom.trim().length >= 10
+      : reasonCategory === 'pembatalan_kereta'
+        ? bookingCode.trim().length > 0
+        : finalReason.length >= 3;
 
   if (!isOpen || !data) return null;
 
   const handleDelete = async () => {
     if (!isReasonValid) {
-      toast.error('Mohon isi alasan penghapusan minimal 15 karakter');
+      if (reasonCategory === 'lainnya') {
+        toast.error('Mohon isi alasan tambahan minimal 10 karakter');
+      } else if (reasonCategory === 'pembatalan_kereta') {
+        toast.error('Mohon isi Kode Booking Kereta');
+      } else {
+        toast.error('Mohon pilih alasan penghapusan');
+      }
       return;
     }
 
     setIsLoading(true);
     try {
-      const result = await redeemService.deleteRedeem(data.id, reason);
+      const result = await redeemService.deleteRedeem(data.id, finalReason);
 
       toast.custom(
         (t) => (
@@ -52,7 +85,9 @@ export default function DeleteRedeemDialog({
         { duration: 5000 }
       );
 
-      setReason(''); // Reset reason
+      setReasonCategory('');
+      setReasonCustom('');
+      setBookingCode('');
       onSuccess();
       onClose();
     } catch (error: any) {
@@ -69,30 +104,6 @@ export default function DeleteRedeemDialog({
           <h2 className="text-xl font-semibold text-gray-900">
             Hapus Redeem?
           </h2>
-        </div>
-
-        {/* Warning Box */}
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-          <div className="flex gap-3">
-            <svg
-              className="w-6 h-6 text-yellow-600 flex-shrink-0"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path
-                fillRule="evenodd"
-                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <div>
-              <p className="font-semibold text-yellow-800">Perhatian!</p>
-              <p className="text-sm text-yellow-700 mt-1">
-                Tindakan ini akan menghapus redeem dan mengembalikan kuota ke
-                kartu. Pastikan ini adalah tindakan yang benar.
-              </p>
-            </div>
-          </div>
         </div>
 
         {/* Transaction Details */}
@@ -117,31 +128,71 @@ export default function DeleteRedeemDialog({
           </div>
         </div>
 
-        {/* Reason Input */}
+        {/* Reason Selection */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
             Alasan Penghapusan <span className="text-red-500">*</span>
           </label>
-          <textarea
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Contoh: Salah input serial number / Pelanggan membatalkan"
-            className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500 resize-none h-24"
-          />
-          <div className="mt-1 flex justify-between items-center text-xs">
-            <span className={`${isReasonValid ? 'text-green-600' : 'text-red-500'}`}>
-              {charCount} / 15 karakter minimal
-            </span>
-            {!isReasonValid && reason.length > 0 && (
-              <span className="text-red-500">Belum cukup</span>
-            )}
-          </div>
+          <select
+            value={reasonCategory}
+            onChange={(e) => {
+              setReasonCategory(e.target.value);
+              if (e.target.value !== 'lainnya') {
+                setReasonCustom('');
+              }
+              if (e.target.value !== 'pembatalan_kereta') {
+                setBookingCode('');
+              }
+            }}
+            className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+          >
+            <option value="">-- Pilih Alasan --</option>
+            {reasonOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Booking code input for "Pembatalan Kereta" */}
+          {reasonCategory === 'pembatalan_kereta' && (
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Kode Booking Kereta
+              </label>
+              <input
+                type="text"
+                value={bookingCode}
+                onChange={(e) => setBookingCode(e.target.value)}
+                placeholder="Masukkan kode booking kereta"
+                className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+            </div>
+          )}
+
+          {/* Custom reason input for "Lainnya" */}
+          {reasonCategory === 'lainnya' && (
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Jelaskan Alasan Lainnya
+              </label>
+              <textarea
+                value={reasonCustom}
+                onChange={(e) => setReasonCustom(e.target.value)}
+                placeholder="Ketik alasan penghapusan..."
+                className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500 resize-none h-20"
+              />
+              <div className="mt-1 text-xs text-gray-500">
+                {reasonCustom.trim().length} karakter (minimal 10)
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}
         <div className="flex gap-3">
           <button
-            onClick={() => { setReason(''); onClose(); }} // Clear reason on cancel
+            onClick={() => { setReasonCategory(''); setReasonCustom(''); setBookingCode(''); onClose(); }}
             disabled={isLoading}
             className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 disabled:opacity-50"
           >
@@ -155,12 +206,6 @@ export default function DeleteRedeemDialog({
             {isLoading ? 'Processing...' : 'Hapus'}
           </button>
         </div>
-
-        {/* Additional Info */}
-        <p className="text-xs text-gray-500 text-center mt-4">
-          Redeem yang dihapus akan ditandai sebagai soft delete dan dapat
-          dipulihkan dari backup sistem.
-        </p>
       </div>
     </div>
   );

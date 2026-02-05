@@ -870,8 +870,15 @@ model City {
 }
 
 model PaymentMethod {
-  id   String @id @default(uuid()) @map("payment_method_id") @db.Uuid
-  name String @map("name")
+  id        String    @id @default(uuid()) @map("payment_method_id") @db.Uuid
+  name      String    @map("name")
+  notes     String?   @map("notes")
+  createdAt DateTime  @default(now()) @map("created_at")
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at")
+  deletedBy String?   @map("deleted_by") @db.Uuid
 
   // Relations
   members Member[]

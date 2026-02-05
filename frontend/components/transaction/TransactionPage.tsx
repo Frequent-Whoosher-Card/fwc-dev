@@ -211,6 +211,16 @@ export default function TransactionPage({ role }: TransactionPageProps) {
   };
 
   /* =====================
+     INITIALIZE TAB FROM URL QUERY PARAMETER
+  ===================== */
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if ((tabParam === "fwc" || tabParam === "voucher") && activeTab !== tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams, activeTab]);
+
+  /* =====================
      RESET CATEGORY & TYPE WHEN TAB CHANGES (FWC vs Voucher punya list beda)
   ===================== */
   useEffect(() => {
@@ -736,14 +746,24 @@ export default function TransactionPage({ role }: TransactionPageProps) {
       }
 
       const combo = fwcCombinations[key];
+      const serialNumber = item.card?.serialNumber || "-";
       
       if (combo.count === 0) {
-        combo.serialStart = item.card?.serialNumber || "-";
+        combo.serialStart = serialNumber;
+        combo.serialEnd = serialNumber;
+      } else {
+        // Update serialStart jika serialNumber lebih kecil (lexicographically)
+        if (serialNumber !== "-" && (combo.serialStart === "-" || serialNumber < combo.serialStart)) {
+          combo.serialStart = serialNumber;
+        }
+        // Update serialEnd jika serialNumber lebih besar (lexicographically)
+        if (serialNumber !== "-" && (combo.serialEnd === "-" || serialNumber > combo.serialEnd)) {
+          combo.serialEnd = serialNumber;
+        }
       }
 
       combo.count += 1;
       combo.nominal += nominal;
-      combo.serialEnd = item.card?.serialNumber || "-";
     });
 
     // Convert to table data with row numbers
@@ -1007,12 +1027,15 @@ export default function TransactionPage({ role }: TransactionPageProps) {
 
       if (fwcCombinations[key]) {
         const combo = fwcCombinations[key];
+        const serialNumber = item.card.serialNumber;
         if (combo.count === 0) {
-          combo.serialStart = item.card.serialNumber;
-          combo.serialEnd = item.card.serialNumber;
+          combo.serialStart = serialNumber;
+          combo.serialEnd = serialNumber;
         } else {
-          if (item.card.serialNumber < combo.serialStart) combo.serialStart = item.card.serialNumber;
-          if (item.card.serialNumber > combo.serialEnd) combo.serialEnd = item.card.serialNumber;
+          // Update serialStart jika serialNumber lebih kecil (lexicographically)
+          if (serialNumber < combo.serialStart) combo.serialStart = serialNumber;
+          // Update serialEnd jika serialNumber lebih besar (lexicographically)
+          if (serialNumber > combo.serialEnd) combo.serialEnd = serialNumber;
         }
         combo.count += 1;
         combo.nominal += nominal;
@@ -1241,12 +1264,15 @@ export default function TransactionPage({ role }: TransactionPageProps) {
 
       if (targetCombinations[key]) {
         const combo = targetCombinations[key];
+        const serialNumber = item.card.serialNumber;
         if (combo.count === 0) {
-          combo.serialStart = item.card.serialNumber;
-          combo.serialEnd = item.card.serialNumber;
+          combo.serialStart = serialNumber;
+          combo.serialEnd = serialNumber;
         } else {
-          if (item.card.serialNumber < combo.serialStart) combo.serialStart = item.card.serialNumber;
-          if (item.card.serialNumber > combo.serialEnd) combo.serialEnd = item.card.serialNumber;
+          // Update serialStart jika serialNumber lebih kecil (lexicographically)
+          if (serialNumber < combo.serialStart) combo.serialStart = serialNumber;
+          // Update serialEnd jika serialNumber lebih besar (lexicographically)
+          if (serialNumber > combo.serialEnd) combo.serialEnd = serialNumber;
         }
         combo.count += 1;
         combo.nominal += nominal;
@@ -1370,12 +1396,15 @@ export default function TransactionPage({ role }: TransactionPageProps) {
 
       if (fwcCombinations[key]) {
         const combo = fwcCombinations[key];
+        const serialNumber = item.card.serialNumber;
         if (combo.count === 0) {
-          combo.serialStart = item.card.serialNumber;
-          combo.serialEnd = item.card.serialNumber;
+          combo.serialStart = serialNumber;
+          combo.serialEnd = serialNumber;
         } else {
-          if (item.card.serialNumber < combo.serialStart) combo.serialStart = item.card.serialNumber;
-          if (item.card.serialNumber > combo.serialEnd) combo.serialEnd = item.card.serialNumber;
+          // Update serialStart jika serialNumber lebih kecil (lexicographically)
+          if (serialNumber < combo.serialStart) combo.serialStart = serialNumber;
+          // Update serialEnd jika serialNumber lebih besar (lexicographically)
+          if (serialNumber > combo.serialEnd) combo.serialEnd = serialNumber;
         }
         combo.count += 1;
         combo.nominal += nominal;

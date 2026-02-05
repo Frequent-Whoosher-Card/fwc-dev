@@ -60,7 +60,9 @@ export class RedeemService {
     operatorId: string,
     stationId: string,
     product: "FWC" | "VOUCHER",
-    notes?: string
+    notes?: string,
+    passengerNik?: string,
+    passengerName?: string
   ): Promise<{ transactionNumber: string; remainingQuota: number; quotaUsed: number; redeemType: string }> {
     return await db.$transaction(async (tx) => {
       const card = await tx.card.findUnique({ where: { serialNumber }, include: { cardProduct: true, fileObject: true } });
@@ -81,6 +83,14 @@ export class RedeemService {
           programType: product,
         },
       });
+      if (product === "VOUCHER") {
+        if (!passengerNik || !passengerName) {
+          throw new ValidationError("Passenger NIK and name are required for VOUCHER redeem");
+        }
+        if (passengerNik.length !== 16 || !/^\d{16}$/.test(passengerNik)) {
+          throw new ValidationError("Passenger NIK must be exactly 16 digits");
+        }
+      }
       let productCode = product === 'FWC' ? 'FW' : (product === 'VOUCHER' ? 'VC' : 'XX');
       const transactionNumber = `RDM-${productCode}-${dateStr}-${(count + 1).toString().padStart(4, '0')}`;
       const redeem = await tx.redeem.create({
@@ -97,6 +107,16 @@ export class RedeemService {
           programType: product,
         } as any,
       });
+      if (product === "VOUCHER") {
+        await tx.passengerInfo.create({
+          data: {
+            redeemId: redeem.id,
+            nik: passengerNik as string,
+            passengerName: passengerName as string,
+            createdBy: operatorId,
+          },
+        });
+      }
       const updatedCard = await tx.card.update({
         where: { id: card.id },
         data: { quotaTicket: { decrement: quotaUsed }, updatedAt: new Date() },
@@ -111,6 +131,7 @@ export class RedeemService {
         },
       });
       return {
+        id: redeem.id,
         transactionNumber,
         remainingQuota: updatedCard.quotaTicket,
         quotaUsed,
@@ -195,12 +216,16 @@ export class RedeemService {
         { card: { member: { name: { contains: search, mode: "insensitive" } } } },
       ];
     }
+    const orderBy = isDeleted
+      ? { deletedAt: "desc" as const }
+      : { createdAt: "desc" as const };
+
     const [items, total] = await Promise.all([
       db.redeem.findMany({
         where,
         take: limit,
         skip,
-        orderBy: { createdAt: "desc" },
+        orderBy,
         include: {
           station: { select: { id: true, stationName: true } },
           operator: { select: { id: true, fullName: true } },
@@ -220,6 +245,10 @@ export class RedeemService {
             },
           },
           fileObject: true,
+          passengers: {
+            where: isDeleted ? {} : { deletedAt: null }, // Include deleted passengers for deleted redeems
+            select: { id: true, nik: true, passengerName: true }
+          }
         },
       }),
       db.redeem.count({ where }),
@@ -227,7 +256,7 @@ export class RedeemService {
     const usageLogs = await db.cardUsageLog.findMany({ where: { redeemId: { in: items.map((it) => it.id) }, deletedAt: null } });
     const usageLogMap = new Map(usageLogs.map(log => [log.redeemId, log]));
 
-    const formattedItems = items.map((item) => {
+    const formattedItems = items.map((item: any) => {
       const fallbackMember = item.card.member || item.card.purchases?.[0]?.member || null;
       const usageLog = usageLogMap.get(item.id);
       return {
@@ -260,6 +289,7 @@ export class RedeemService {
           mimeType: item.fileObject.mimeType,
           createdAt: item.fileObject.createdAt.toISOString(),
         } : undefined,
+        passengers: item.passengers || [],
       };
     });
 
@@ -439,6 +469,12 @@ export class RedeemService {
       const quotaToRestore = usageLog.quotaUsed;
       await tx.card.update({ where: { id: redeem.cardId }, data: { quotaTicket: { increment: quotaToRestore }, updatedAt: new Date() } });
       await tx.cardUsageLog.update({ where: { id: usageLog.id }, data: { deletedAt: new Date(), deletedBy: userId || null, quotaUsed: 0 } });
+
+      // Soft delete passenger_info if it exists (for VOUCHER redeem)
+      await tx.passengerInfo.updateMany({
+        where: { redeemId: id, deletedAt: null },
+        data: { deletedAt: new Date(), deletedBy: userId || null }
+      });
 
       const deleted = await tx.redeem.update({
         where: { id },
@@ -732,6 +768,10 @@ export class RedeemService {
       },
     });
     const updated = await db.redeem.update({ where: { id }, data: { fileObjectId: file.id, updatedAt: new Date(), updatedBy: userId } });
-    return { id: updated.id, fileObjectId: file.id, path: relativePath };
+    return { 
+      id: updated.id, 
+      fileObjectId: file.id, 
+      path: `${process.env.BASE_URL}:${process.env.APP_PORT}/${relativePath}` 
+    };
   }
 }
