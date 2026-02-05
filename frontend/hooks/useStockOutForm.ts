@@ -63,6 +63,8 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
     note: "",
     notaDinas: "",
     bast: "",
+    notaDinasFile: null as File | null,
+    bastFile: null as File | null,
   });
 
   const fetchData = useCallback(async () => {
@@ -114,6 +116,8 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
           note: detail.note || "",
           notaDinas: detail.notaDinas || "",
           bast: detail.bast || "",
+          notaDinasFile: null,
+          bastFile: null,
         });
       }
     } catch (err: any) {
@@ -334,6 +338,8 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
 
         payload.notaDinas = form.notaDinas;
         payload.bast = form.bast;
+        payload.notaDinasFile = form.notaDinasFile;
+        payload.bastFile = form.bastFile;
 
         await stockService.createStockOut(payload);
         toast.success("Stock Out berhasil disimpan");

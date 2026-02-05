@@ -79,7 +79,7 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
           onExportPDF={handleExportPDF}
           onAdd={() =>
             router.push(
-              `/dashboard/superadmin/stock/${programType.toLowerCase()}/out/add`,
+              `/dashboard/superadmin/stock/out/add?type=${programType}`,
             )
           }
           showFields={{
