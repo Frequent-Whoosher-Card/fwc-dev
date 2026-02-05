@@ -1459,6 +1459,7 @@ export class PurchaseService {
 
   /**
    * Send purchase confirmation email to member
+   * Supports both FWC (single card) and VOUCHER (bulk purchase)
    */
   private static async sendPurchaseConfirmationEmail(
     purchaseData: any,
@@ -1469,8 +1470,6 @@ export class PurchaseService {
       return;
     }
 
-    // Prepare email data
-    const productType = `${purchaseData.card.cardProduct.category.categoryName} - ${purchaseData.card.cardProduct.type.typeName}`;
     const purchaseDate = new Date(purchaseData.purchaseDate).toLocaleDateString(
       "id-ID",
       {
@@ -1480,28 +1479,76 @@ export class PurchaseService {
       },
     );
 
-    const expiredDate = purchaseData.card.expiredDate
-      ? new Date(purchaseData.card.expiredDate).toLocaleDateString("id-ID", {
-          day: "2-digit",
-          month: "long",
-          year: "numeric",
-        })
-      : "N/A";
+    // Check if this is a bulk purchase (VOUCHER) or single purchase (FWC)
+    const isBulkPurchase = purchaseData.programType === "VOUCHER" && 
+                           purchaseData.bulkPurchaseItems && 
+                           purchaseData.bulkPurchaseItems.length > 0;
 
-    await EmailService.sendPurchaseConfirmation({
-      memberEmail: purchaseData.member.email,
-      memberName: purchaseData.member.name,
-      nik: purchaseData.member.identityNumber,
-      cardCategory: purchaseData.card.cardProduct.category.categoryName,
-      cardType: purchaseData.card.cardProduct.type.typeName,
-      serialNumber: purchaseData.card.serialNumber,
-      masaBerlaku: expiredDate,
-      kuota: purchaseData.card.quotaTicket,
-      serialEdc: purchaseData.edcReferenceNumber,
-      stasiunPembelian: purchaseData.station.stationName,
-      harga: Number(purchaseData.price),
-      purchaseDate: purchaseDate,
-      productType: productType,
-    });
+    if (isBulkPurchase) {
+      // VOUCHER BULK PURCHASE
+      const vouchers = purchaseData.bulkPurchaseItems.map((item: any) => {
+        const expiredDate = item.card.expiredDate
+          ? new Date(item.card.expiredDate).toLocaleDateString("id-ID", {
+              day: "2-digit",
+              month: "long",
+              year: "numeric",
+            })
+          : "N/A";
+
+        return {
+          serialNumber: item.card.serialNumber,
+          cardCategory: item.card.cardProduct.category.categoryName,
+          cardType: item.card.cardProduct.type.typeName,
+          masaBerlaku: expiredDate,
+          harga: Number(item.price),
+        };
+      });
+
+      // Calculate subtotal and discount
+      const subtotal = vouchers.reduce((sum: number, v: any) => sum + v.harga, 0);
+      const totalPrice = Number(purchaseData.price);
+      const discountAmount = subtotal - totalPrice;
+
+      await EmailService.sendVoucherBulkPurchaseConfirmation({
+        memberEmail: purchaseData.member.email,
+        memberName: purchaseData.member.name,
+        nik: purchaseData.member.identityNumber,
+        vouchers: vouchers,
+        serialEdc: purchaseData.edcReferenceNumber,
+        stasiunPembelian: purchaseData.station.stationName,
+        totalHarga: totalPrice,
+        purchaseDate: purchaseDate,
+        discountAmount: discountAmount > 0 ? discountAmount : undefined,
+        subtotal: subtotal,
+      });
+    } else {
+      // FWC SINGLE CARD PURCHASE
+      // Prepare email data
+      const productType = `${purchaseData.card.cardProduct.category.categoryName} - ${purchaseData.card.cardProduct.type.typeName}`;
+
+      const expiredDate = purchaseData.card.expiredDate
+        ? new Date(purchaseData.card.expiredDate).toLocaleDateString("id-ID", {
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+          })
+        : "N/A";
+
+      await EmailService.sendPurchaseConfirmation({
+        memberEmail: purchaseData.member.email,
+        memberName: purchaseData.member.name,
+        nik: purchaseData.member.identityNumber,
+        cardCategory: purchaseData.card.cardProduct.category.categoryName,
+        cardType: purchaseData.card.cardProduct.type.typeName,
+        serialNumber: purchaseData.card.serialNumber,
+        masaBerlaku: expiredDate,
+        kuota: purchaseData.card.quotaTicket,
+        serialEdc: purchaseData.edcReferenceNumber,
+        stasiunPembelian: purchaseData.station.stationName,
+        harga: Number(purchaseData.price),
+        purchaseDate: purchaseDate,
+        productType: productType,
+      });
+    }
   }
 }

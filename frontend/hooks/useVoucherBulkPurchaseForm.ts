@@ -2,7 +2,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { toast } from "sonner";
+import toast from "react-hot-toast";
 import { z } from "zod";
 import axios from "@/lib/axios";
 import { createVoucherPurchase } from "@/lib/services/purchase.service";
@@ -34,9 +34,8 @@ const voucherBulkPurchaseFormSchema = z.object({
   identityNumber: z
     .string()
     .min(1, "Identity Number wajib diisi")
-    .regex(/^\d+$/, "Identity Number harus berupa angka")
-    .min(6, "Identity Number minimal 6 digit")
-    .max(20, "Identity Number maksimal 20 digit"),
+    .min(6, "Identity Number minimal 6 karakter")
+    .max(20, "Identity Number maksimal 20 karakter"),
   cards: z
     .array(
       z.object({
@@ -49,7 +48,8 @@ const voucherBulkPurchaseFormSchema = z.object({
     .string()
     .min(1, "No. Reference EDC wajib diisi")
     .regex(/^\d+$/, "No. Reference EDC harus berupa angka")
-    .max(20, "No. Reference EDC maksimal 20 digit"),
+    .max(12, "No. Reference EDC maksimal 12 digit"),
+  paymentMethodId: z.string().min(1, "Payment Method wajib dipilih"),
   bulkDiscountId: z.number().optional(),
   price: z.number().min(0, "Price harus >= 0").optional(),
   notes: z.string().max(500).optional(),
@@ -78,6 +78,7 @@ export function useVoucherBulkPurchaseForm() {
       identityNumber: "",
       cards: [],
       edcReferenceNumber: "",
+      paymentMethodId: "",
       bulkDiscountId: undefined,
       price: undefined,
       notes: "",
@@ -149,7 +150,7 @@ export function useVoucherBulkPurchaseForm() {
     setSelectedCards((prevCards) => {
       // Check if card already exists using current state
       if (prevCards.find((c) => c.cardId === card.cardId)) {
-        toast.warning("Kartu sudah dipilih");
+        toast("Kartu sudah dipilih", { icon: "⚠️" });
         return prevCards; // Return unchanged state
       }
       const newCards = [...prevCards, card];
@@ -170,7 +171,7 @@ export function useVoucherBulkPurchaseForm() {
       
       if (newCardsToAdd.length === 0) {
         if (cards.length > 0) {
-          toast.warning("Semua kartu sudah dipilih");
+          toast("Semua kartu sudah dipilih", { icon: "⚠️" });
         }
         return prevCards;
       }
@@ -221,6 +222,7 @@ export function useVoucherBulkPurchaseForm() {
           price: c.price,
         })),
         edcReferenceNumber: data.edcReferenceNumber,
+        paymentMethodId: data.paymentMethodId,
         programType: "VOUCHER",
         bulkDiscountId: data.bulkDiscountId,
         price: data.price,
@@ -234,7 +236,10 @@ export function useVoucherBulkPurchaseForm() {
 
       await createVoucherPurchase(payload);
       toast.success("Voucher bulk purchase berhasil disimpan");
-      router.push("/dashboard/superadmin/transaksi");
+      // Delay redirect untuk memastikan toast sempat ditampilkan
+      setTimeout(() => {
+        router.push("/dashboard/superadmin/transaksi?tab=voucher");
+      }, 500);
     } catch (error: any) {
       toast.error(error?.message || "Gagal menyimpan transaksi");
       console.error("Voucher bulk purchase submission error:", error);
