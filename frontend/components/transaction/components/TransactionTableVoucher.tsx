@@ -1,25 +1,12 @@
 "use client";
 
-import { useState, Fragment } from "react";
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, AlertTriangle, CheckCircle } from "lucide-react";
-import { deletePurchase } from "@/lib/services/purchase.service";
+import { useState, Fragment, useEffect } from "react";
+import { ChevronLeft, ChevronRight, X, AlertTriangle, CheckCircle, Eye } from "lucide-react";
+import { deletePurchase, getBulkPurchaseItems, type BulkPurchaseItem } from "@/lib/services/purchase.service";
 
 /* ======================
    TYPES
 ====================== */
-interface BulkPurchaseItem {
-  id: string;
-  cardId: string;
-  price: number;
-  card: {
-    id: string;
-    serialNumber: string;
-    cardProduct: {
-      category: { categoryName: string };
-      type: { typeName: string };
-    };
-  };
-}
 
 interface VoucherTransaction {
   id: string;
@@ -36,6 +23,7 @@ interface VoucherTransaction {
     };
   } | null;
   bulkPurchaseItems?: BulkPurchaseItem[];
+  bulkPurchaseItemsCount?: number; // Actual total count from backend
 
   member: {
     name: string;
@@ -110,12 +98,25 @@ export default function TransactionTableVoucher({
   onDelete,
   canDelete = false,
 }: Props) {
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [openDelete, setOpenDelete] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<VoucherTransaction | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [deleteReason, setDeleteReason] = useState("");
+  
+  // Voucher list modal state
+  const [showVoucherModal, setShowVoucherModal] = useState(false);
+  const [selectedVoucherTransaction, setSelectedVoucherTransaction] = useState<VoucherTransaction | null>(null);
+  const [voucherModalPage, setVoucherModalPage] = useState(1);
+  const [voucherItems, setVoucherItems] = useState<BulkPurchaseItem[]>([]);
+  const [loadingVoucherItems, setLoadingVoucherItems] = useState(false);
+  const [voucherItemsPagination, setVoucherItemsPagination] = useState({
+    total: 0,
+    page: 1,
+    limit: 100,
+    totalPages: 1,
+  });
+  const VOUCHER_PER_PAGE = 100;
 
   const handleOpenDelete = (transaction: VoucherTransaction) => {
     setSelectedTransaction(transaction);
@@ -155,15 +156,50 @@ export default function TransactionTableVoucher({
     }
   };
 
-  const toggleRow = (id: string) => {
-    const newExpanded = new Set(expandedRows);
-    if (newExpanded.has(id)) {
-      newExpanded.delete(id);
-    } else {
-      newExpanded.add(id);
-    }
-    setExpandedRows(newExpanded);
+  const handleOpenVoucherModal = async (transaction: VoucherTransaction) => {
+    setSelectedVoucherTransaction(transaction);
+    setVoucherModalPage(1);
+    setShowVoucherModal(true);
+    // Fetch first page of voucher items
+    await fetchVoucherItems(transaction.id, 1);
   };
+
+  const handleCloseVoucherModal = () => {
+    setShowVoucherModal(false);
+    setSelectedVoucherTransaction(null);
+    setVoucherModalPage(1);
+    setVoucherItems([]);
+    setVoucherItemsPagination({
+      total: 0,
+      page: 1,
+      limit: 100,
+      totalPages: 1,
+    });
+  };
+
+  const fetchVoucherItems = async (purchaseId: string, page: number) => {
+    try {
+      setLoadingVoucherItems(true);
+      const result = await getBulkPurchaseItems(purchaseId, {
+        page,
+        limit: VOUCHER_PER_PAGE,
+      });
+      setVoucherItems(result.items);
+      setVoucherItemsPagination(result.pagination);
+    } catch (error) {
+      console.error("Error fetching voucher items:", error);
+      setVoucherItems([]);
+    } finally {
+      setLoadingVoucherItems(false);
+    }
+  };
+
+  // Fetch voucher items when page changes
+  useEffect(() => {
+    if (showVoucherModal && selectedVoucherTransaction) {
+      fetchVoucherItems(selectedVoucherTransaction.id, voucherModalPage);
+    }
+  }, [voucherModalPage, showVoucherModal, selectedVoucherTransaction]);
 
   const pageNumbers = Array.from(
     { length: pagination.totalPages },
@@ -177,13 +213,12 @@ export default function TransactionTableVoucher({
         <table className="w-full text-xs border-collapse">
           <thead className="bg-gray-100">
             <tr className="text-[11px] font-semibold text-gray-600">
-              <th className="px-4 py-3 text-left w-12"></th>
               <th className="px-4 py-3 text-left">Customer Name</th>
               <th className="px-4 py-3 text-left">Identity Number</th>
               <th className="px-4 py-3 text-left">Perusahaan</th>
               <th className="px-4 py-3 text-left">Voucher Category</th>
               <th className="px-4 py-3 text-left">Voucher Type</th>
-              <th className="px-4 py-3 text-left">Serial Number / Quantity</th>
+              <th className="px-4 py-3 text-left">Serial Number Awal / Quantity</th>
               <th className="px-4 py-3 text-left">Reference EDC</th>
               <th className="px-4 py-3 text-right">Voucher Price</th>
               <th className="px-4 py-3 text-center">Purchase Date</th>
@@ -198,13 +233,13 @@ export default function TransactionTableVoucher({
           <tbody className="text-gray-700">
             {loading ? (
               <tr>
-                <td colSpan={15} className="py-10 text-center text-gray-400">
+                <td colSpan={14} className="py-10 text-center text-gray-400">
                   Loading...
                 </td>
               </tr>
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={15} className="py-10 text-center text-gray-400">
+                <td colSpan={14} className="py-10 text-center text-gray-400">
                   No data
                 </td>
               </tr>
@@ -214,151 +249,104 @@ export default function TransactionTableVoucher({
                   item.programType === "VOUCHER" &&
                   item.bulkPurchaseItems &&
                   item.bulkPurchaseItems.length > 0;
-                const isExpanded = expandedRows.has(item.id);
+                // Use bulkPurchaseItemsCount if available (from backend), otherwise fallback to array length
                 const quantity = isBulkPurchase
-                  ? item.bulkPurchaseItems!.length
+                  ? (item.bulkPurchaseItemsCount ?? item.bulkPurchaseItems!.length)
                   : 1;
 
                 return (
-                  <Fragment key={item.id}>
-                    <tr
-                      className="border-t hover:bg-gray-50 transition"
-                    >
-                      <td className="px-2 py-3 text-center">
-                        {isBulkPurchase && (
+                  <tr
+                    key={item.id}
+                    className="border-t hover:bg-gray-50 transition"
+                  >
+                    <td className="px-4 py-3 truncate">
+                      {item.member?.name ?? "-"}
+                    </td>
+
+                    <td className="px-4 py-3 font-mono truncate">
+                      {item.member?.identityNumber ?? "-"}
+                    </td>
+
+                    <td className="px-4 py-3 truncate">
+                      {item.member?.companyName ?? "-"}
+                    </td>
+
+                    <td className="px-4 py-3">
+                      {isBulkPurchase
+                        ? item.bulkPurchaseItems![0]?.card.cardProduct.category
+                            .categoryName ?? "-"
+                        : item.card?.cardProduct?.category?.categoryName ?? "-"}
+                    </td>
+
+                    <td className="px-4 py-3">
+                      {isBulkPurchase
+                        ? item.bulkPurchaseItems![0]?.card.cardProduct.type
+                            .typeName ?? "-"
+                        : item.card?.cardProduct?.type?.typeName ?? "-"}
+                    </td>
+
+                    <td className="px-4 py-3">
+                      {isBulkPurchase ? (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono text-xs truncate max-w-[120px]">
+                            {item.bulkPurchaseItems![0]?.card.serialNumber ?? "-"}
+                          </span>
                           <button
                             type="button"
-                            onClick={() => toggleRow(item.id)}
-                            className="text-gray-500 hover:text-gray-700"
+                            onClick={() => handleOpenVoucherModal(item)}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-800 hover:bg-blue-200 transition shrink-0"
                           >
-                            {isExpanded ? (
-                              <ChevronUp size={16} />
-                            ) : (
-                              <ChevronDown size={16} />
-                            )}
+                            <Eye size={14} />
+                            {quantity} items
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="font-mono truncate">
+                          {item.card?.serialNumber ?? "-"}
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="px-4 py-3 font-mono truncate">
+                      {formatEDC(item.edcReferenceNumber)}
+                    </td>
+
+                    <td className="px-4 py-3 text-right text-[#8D1231] font-medium">
+                      {formatCurrency(item.price)}
+                    </td>
+
+                    <td className="px-3 py-2 text-center whitespace-nowrap">
+                      {formatDateTime(item.purchaseDate)}
+                    </td>
+
+                    <td className="px-3 py-2 text-center text-gray-500 text-[11px] whitespace-nowrap">
+                      {formatDate(item.shiftDate ?? item.purchaseDate)}
+                    </td>
+
+                    <td className="px-4 py-3 truncate">
+                      {item.operator.fullName}
+                    </td>
+
+                    <td className="px-4 py-3 truncate">
+                      {item.station.stationName}
+                    </td>
+                    <td className="px-4 py-3 truncate">
+                      {item.employeeType?.name ?? "-"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-2">
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDelete(item)}
+                            className="px-3 py-1 text-xs rounded bg-[#8D1231] text-white hover:bg-[#741026]"
+                          >
+                            Hapus
                           </button>
                         )}
-                      </td>
-
-                      <td className="px-4 py-3 truncate">
-                        {item.member?.name ?? "-"}
-                      </td>
-
-                      <td className="px-4 py-3 font-mono truncate">
-                        {item.member?.identityNumber ?? "-"}
-                      </td>
-
-                      <td className="px-4 py-3 truncate">
-                        {item.member?.companyName ?? "-"}
-                      </td>
-
-                      <td className="px-4 py-3">
-                        {isBulkPurchase
-                          ? item.bulkPurchaseItems![0]?.card.cardProduct.category
-                              .categoryName ?? "-"
-                          : item.card?.cardProduct?.category?.categoryName ?? "-"}
-                      </td>
-
-                      <td className="px-4 py-3">
-                        {isBulkPurchase
-                          ? item.bulkPurchaseItems![0]?.card.cardProduct.type
-                              .typeName ?? "-"
-                          : item.card?.cardProduct?.type?.typeName ?? "-"}
-                      </td>
-
-                      <td className="px-4 py-3 font-mono">
-                        {isBulkPurchase ? (
-                          <span className="inline-flex items-center gap-1">
-                            <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded">
-                              {quantity} items
-                            </span>
-                            {!isExpanded && (
-                              <span className="text-gray-500 text-[10px]">
-                                ({item.bulkPurchaseItems![0]?.card.serialNumber}
-                                {quantity > 1 ? ` +${quantity - 1}` : ""})
-                              </span>
-                            )}
-                          </span>
-                        ) : (
-                          <span className="truncate">
-                            {item.card?.serialNumber ?? "-"}
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="px-4 py-3 font-mono truncate">
-                        {formatEDC(item.edcReferenceNumber)}
-                      </td>
-
-                      <td className="px-4 py-3 text-right text-[#8D1231] font-medium">
-                        {formatCurrency(item.price)}
-                      </td>
-
-                      <td className="px-3 py-2 text-center whitespace-nowrap">
-                        {formatDateTime(item.purchaseDate)}
-                      </td>
-
-                      <td className="px-3 py-2 text-center text-gray-500 text-[11px] whitespace-nowrap">
-                        {formatDate(item.shiftDate ?? item.purchaseDate)}
-                      </td>
-
-                      <td className="px-4 py-3 truncate">
-                        {item.operator.fullName}
-                      </td>
-
-                      <td className="px-4 py-3 truncate">
-                        {item.station.stationName}
-                      </td>
-                      <td className="px-4 py-3 truncate">
-                        {item.employeeType?.name ?? "-"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-center gap-2">
-                          {canDelete && (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenDelete(item)}
-                              className="px-3 py-1 text-xs rounded bg-[#8D1231] text-white hover:bg-[#741026]"
-                            >
-                              Hapus
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-
-                    {/* Expanded bulk purchase items */}
-                    {isBulkPurchase && isExpanded && (
-                      <tr key={`${item.id}-expanded`} className="bg-gray-50">
-                        <td colSpan={15} className="px-4 py-3">
-                          <div className="space-y-2">
-                            <div className="text-xs font-semibold text-gray-600 mb-2">
-                              Voucher Items ({quantity}):
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                              {item.bulkPurchaseItems!.map((bulkItem, idx) => (
-                                <div
-                                  key={bulkItem.id}
-                                  className="bg-white border rounded p-2 text-xs"
-                                >
-                                  <div className="font-mono">
-                                    {idx + 1}. {bulkItem.card.serialNumber}
-                                  </div>
-                                  <div className="text-gray-600 mt-1">
-                                    {bulkItem.card.cardProduct.category.categoryName}{" "}
-                                    - {bulkItem.card.cardProduct.type.typeName}
-                                  </div>
-                                  <div className="text-[#8D1231] font-medium mt-1">
-                                    Rp {bulkItem.price.toLocaleString("id-ID")}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
+                      </div>
+                    </td>
+                  </tr>
                 );
               })
             )}
@@ -493,6 +481,144 @@ export default function TransactionTableVoucher({
             >
               OK
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* VOUCHER LIST MODAL */}
+      {showVoucherModal && selectedVoucherTransaction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-[90vw] max-w-4xl max-h-[90vh] rounded-xl bg-white shadow-xl flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-800">
+                  Daftar Voucher
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Total: {selectedVoucherTransaction.bulkPurchaseItemsCount ?? selectedVoucherTransaction.bulkPurchaseItems?.length ?? 0} voucher
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseVoucherModal}
+                className="p-2 hover:bg-gray-100 rounded-lg transition"
+              >
+                <X size={20} className="text-gray-500" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {loadingVoucherItems ? (
+                <div className="text-center py-10 text-gray-400">
+                  Loading voucher items...
+                </div>
+              ) : voucherItems.length > 0 ? (
+                <>
+                  {/* Info Kategori dan Tipe (sekali saja) */}
+                  <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex flex-wrap items-center gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-600 font-medium">Kategori:</span>{" "}
+                        <span className="text-gray-900">
+                          {voucherItems[0]?.card.cardProduct.category.categoryName || "-"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600 font-medium">Tipe:</span>{" "}
+                        <span className="text-gray-900">
+                          {voucherItems[0]?.card.cardProduct.type.typeName || "-"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600 font-medium">Harga:</span>{" "}
+                        <span className="text-[#8D1231] font-semibold">
+                          Rp {voucherItems[0]?.price.toLocaleString("id-ID") || "0"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* List Serial Number */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+                    {voucherItems.map((bulkItem) => (
+                      <div
+                        key={bulkItem.id}
+                        className="bg-white border border-gray-200 rounded-md p-2 hover:shadow-sm transition text-center"
+                      >
+                        <div className="font-mono text-[11px] font-semibold text-gray-900 break-all">
+                          {bulkItem.card.serialNumber}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Pagination */}
+                  {voucherItemsPagination.totalPages > 1 && (
+                    <div className="flex items-center justify-center gap-3 mt-6 pt-6 border-t">
+                      <button
+                        type="button"
+                        disabled={voucherModalPage === 1 || loadingVoucherItems}
+                        onClick={() => setVoucherModalPage(p => p - 1)}
+                        className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <ChevronLeft size={18} />
+                      </button>
+
+                      <div className="flex items-center gap-2">
+                        {Array.from({ length: voucherItemsPagination.totalPages }, (_, i) => i + 1)
+                          .filter(page => {
+                            const total = voucherItemsPagination.totalPages;
+                            return (
+                              page === 1 ||
+                              page === total ||
+                              (page >= voucherModalPage - 1 && page <= voucherModalPage + 1)
+                            );
+                          })
+                          .map((page, idx, arr) => (
+                            <Fragment key={page}>
+                              {idx > 0 && arr[idx - 1] !== page - 1 && (
+                                <span className="px-2 text-gray-400">...</span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setVoucherModalPage(page)}
+                                disabled={loadingVoucherItems}
+                                className={`px-3 py-1 rounded-lg text-sm ${
+                                  page === voucherModalPage
+                                    ? "bg-[#8D1231] text-white font-semibold"
+                                    : "border border-gray-300 hover:bg-gray-50"
+                                } disabled:opacity-50`}
+                              >
+                                {page}
+                              </button>
+                            </Fragment>
+                          ))}
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={voucherModalPage === voucherItemsPagination.totalPages || loadingVoucherItems}
+                        onClick={() => setVoucherModalPage(p => p + 1)}
+                        className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <ChevronRight size={18} />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Page Info */}
+                  <div className="text-center text-xs text-gray-500 mt-4">
+                    Menampilkan {((voucherModalPage - 1) * VOUCHER_PER_PAGE) + 1} - {Math.min(voucherModalPage * VOUCHER_PER_PAGE, voucherItemsPagination.total)} dari {voucherItemsPagination.total} voucher
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-10 text-gray-400">
+                  Tidak ada voucher
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
