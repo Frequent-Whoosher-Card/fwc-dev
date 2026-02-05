@@ -11,19 +11,51 @@ export class PushNotificationService {
 
     try {
       // Firebase Multicast Message
-      const message = {
-        notification: {
-          title,
-          body,
-        },
-        data: data || {}, // Add Data Payload
+      // Firebase Multicast Message
+      // Enforce Data-Only Protocol (Prevent Double Notification)
+      // We move title/body into 'data' so Service Worker handles display manually.
+      // FIX: Only overwrite if title/body arguments are provided (not empty strings)
+      const finalData = { ... (data || {}) };
+      
+      if (title) finalData.title = title;
+      if (body) finalData.body = body;
+
+      const message: any = {
+        data: finalData,
         tokens: tokens,
       };
 
+      // REMOVED: message.notification block
+      // By omitting it, we stop the browser's automatic display.
+
+      console.log("[FCM DEBUG] Sends:", JSON.stringify(message.data, null, 2));
+      console.log("[FCM] Sending Multicast Message Payload:", JSON.stringify(message, null, 2));
+
       const response = await firebaseAdmin.messaging().sendEachForMulticast(message as any);
       
+      // SELF-HEALING: Remove invalid tokens automatically
       if (response.failureCount > 0) {
-        console.warn(`[FCM] Failed to send ${response.failureCount} messages.`);
+        console.warn(`[FCM] Failed to send ${response.failureCount} messages. Cleaning up...`);
+        const invalidTokens: string[] = [];
+        
+        response.responses.forEach((res, idx) => {
+            if (!res.success && res.error) {
+                // Check for specific error codes for invalid tokens
+                const errorCode = res.error.code;
+                if (errorCode === 'messaging/registration-token-not-registered' || 
+                    errorCode === 'messaging/invalid-argument' ||
+                    errorCode === 'app/invalid-credential') { // Token belongs to diff project
+                    invalidTokens.push(tokens[idx]);
+                }
+            }
+        });
+
+        if (invalidTokens.length > 0) {
+            await db.fcmToken.deleteMany({
+                where: { token: { in: invalidTokens } }
+            });
+            console.log(`[FCM] Deleted ${invalidTokens.length} invalid tokens from DB.`);
+        }
       }
       
       console.log(`[FCM] Sent ${response.successCount} messages successfully.`);

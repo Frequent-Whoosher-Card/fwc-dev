@@ -56,6 +56,7 @@ import {
   type LucideIcon,
   Circle,
   ArrowLeftRight,
+  Bell,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -134,6 +135,8 @@ const resolveIcon = (iconName: string | null): LucideIcon => {
     newproduct: IdCard,
     createnewproduct: IdCard,
     buatprodukbaru: IdCard,
+    bell: Bell,
+    notification: Bell,
   };
 
   const normalized = iconName.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -334,6 +337,15 @@ export default function DashboardLayout({
             };
 
             const transformed = transformMenu(menuData);
+
+            // ➕ MANUAL ADD: NOTIFICATION TESTER (Only for Superadmin) - REMOVED per BRD
+            // if (mappedRole === "superadmin") {
+            //     transformed.push({
+            //         title: "Notification Tester",
+            //         href: "/dashboard/superadmin/notification-tester",
+            //         icon: resolveIcon("bell"), 
+            //     });
+            // }
 
             setMenuItems(transformed);
           }
