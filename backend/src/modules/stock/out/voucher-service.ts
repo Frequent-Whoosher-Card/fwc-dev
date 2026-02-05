@@ -273,6 +273,8 @@ export class StockOutVoucherService {
       cardProduct.typeId,
       null, // Office Scope
       currentStock,
+      db,
+      false, // Web Alert Only
     );
 
     // 2. Send Push Notification to Supervisor
