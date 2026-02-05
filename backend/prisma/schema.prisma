@@ -585,6 +585,8 @@ model CardPurchase {
   edcReferenceNumber String       @unique @map("edc_reference_number")
   purchaseDate       DateTime     @map("purchase_date")
   price              Decimal      @map("price")
+  subtotal           Decimal?     @map("subtotal")
+  discountAmount     Decimal?     @map("discount_amount")
   notes              String?      @map("notes")
   programType        ProgramType? @map("program_type")
   createdAt          DateTime     @default(now()) @map("created_at")

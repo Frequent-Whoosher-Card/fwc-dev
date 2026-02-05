@@ -51,360 +51,392 @@ export class PurchaseService {
 
     // Use database transaction to ensure atomicity
     // Increased timeout to handle large bulk purchases (up to 10000 items)
-    const result = await db.$transaction(async (tx) => {
-      // 1. Validate member (required)
-      if (!data.memberId) {
-        throw new ValidationError(
-          "Member ID wajib diisi. Setiap transaksi harus memiliki member.",
-        );
-      }
-
-      const member = await tx.member.findUnique({
-        where: { id: data.memberId },
-      });
-
-      if (!member || member.deletedAt) {
-        throw new NotFoundError("Member tidak ditemukan");
-      }
-
-      // 2. Validate operator exists
-      const operator = await tx.user.findUnique({
-        where: { id: operatorId },
-      });
-
-      if (!operator || operator.deletedAt) {
-        throw new NotFoundError("Operator tidak ditemukan");
-      }
-
-      // 3. Validate station exists
-      const station = await tx.station.findUnique({
-        where: { id: stationId },
-      });
-
-      if (!station || station.deletedAt) {
-        throw new NotFoundError("Stasiun tidak ditemukan");
-      }
-
-      // 4. Validate EDC reference number (ensure uniqueness)
-      const edcReferenceNumber = data.edcReferenceNumber.trim();
-
-      if (!edcReferenceNumber) {
-        throw new ValidationError("No. Reference EDC tidak boleh kosong");
-      }
-
-      // Check if EDC reference number already exists
-      const existingEdcRef = await tx.cardPurchase.findUnique({
-        where: { edcReferenceNumber },
-      });
-
-      if (existingEdcRef) {
-        throw new ValidationError(
-          `No. Reference EDC '${edcReferenceNumber}' sudah digunakan. Silakan gunakan nomor lain.`,
-        );
-      }
-
-      // 5. Purchase date = waktu simpan (tanggal + jam menit detik)
-      const purchaseDate = new Date();
-
-      let finalPrice: number;
-      let purchaseCardId: string | null = null;
-
-      if (isBulkPurchase) {
-        // === BULK PURCHASE (VOUCHER) ===
-        const cards = data.cards!;
-        const cardIds = cards.map((c) => c.cardId);
-
-        // Check for duplicate card IDs
-        const uniqueCardIds = new Set(cardIds);
-        if (uniqueCardIds.size !== cardIds.length) {
+    const result = await db.$transaction(
+      async (tx) => {
+        // 1. Validate member (required)
+        if (!data.memberId) {
           throw new ValidationError(
-            "Terdapat duplikasi card ID dalam array cards. Setiap card hanya boleh dibeli sekali.",
+            "Member ID wajib diisi. Setiap transaksi harus memiliki member.",
           );
         }
 
-        // Validate all cards exist and are available
-        const cardRecords = await tx.card.findMany({
-          where: {
-            id: { in: cardIds },
-            deletedAt: null,
-          },
-          include: {
-            cardProduct: {
-              select: {
-                id: true,
-                totalQuota: true,
-                masaBerlaku: true,
-                price: true,
-                categoryId: true,
-                typeId: true,
+        const member = await tx.member.findUnique({
+          where: { id: data.memberId },
+        });
+
+        if (!member || member.deletedAt) {
+          throw new NotFoundError("Member tidak ditemukan");
+        }
+
+        // 2. Validate operator exists
+        const operator = await tx.user.findUnique({
+          where: { id: operatorId },
+        });
+
+        if (!operator || operator.deletedAt) {
+          throw new NotFoundError("Operator tidak ditemukan");
+        }
+
+        // 3. Validate station exists
+        const station = await tx.station.findUnique({
+          where: { id: stationId },
+        });
+
+        if (!station || station.deletedAt) {
+          throw new NotFoundError("Stasiun tidak ditemukan");
+        }
+
+        // 4. Validate EDC reference number (ensure uniqueness)
+        const edcReferenceNumber = data.edcReferenceNumber.trim();
+
+        if (!edcReferenceNumber) {
+          throw new ValidationError("No. Reference EDC tidak boleh kosong");
+        }
+
+        // Check if EDC reference number already exists
+        const existingEdcRef = await tx.cardPurchase.findUnique({
+          where: { edcReferenceNumber },
+        });
+
+        if (existingEdcRef) {
+          throw new ValidationError(
+            `No. Reference EDC '${edcReferenceNumber}' sudah digunakan. Silakan gunakan nomor lain.`,
+          );
+        }
+
+        // 5. Purchase date = waktu simpan (tanggal + jam menit detik)
+        const purchaseDate = new Date();
+
+        let finalPrice: number;
+        let purchaseCardId: string | null = null;
+
+        if (isBulkPurchase) {
+          // === BULK PURCHASE (VOUCHER) ===
+          const cards = data.cards!;
+          const cardIds = cards.map((c) => c.cardId);
+
+          // Check for duplicate card IDs
+          const uniqueCardIds = new Set(cardIds);
+          if (uniqueCardIds.size !== cardIds.length) {
+            throw new ValidationError(
+              "Terdapat duplikasi card ID dalam array cards. Setiap card hanya boleh dibeli sekali.",
+            );
+          }
+
+          // Validate all cards exist and are available
+          const cardRecords = await tx.card.findMany({
+            where: {
+              id: { in: cardIds },
+              deletedAt: null,
+            },
+            include: {
+              cardProduct: {
+                select: {
+                  id: true,
+                  totalQuota: true,
+                  masaBerlaku: true,
+                  price: true,
+                  categoryId: true,
+                  typeId: true,
+                },
               },
             },
-          },
-        });
-
-        if (cardRecords.length !== cardIds.length) {
-          const foundIds = cardRecords.map((c) => c.id);
-          const missingIds = cardIds.filter((id) => !foundIds.includes(id));
-          throw new NotFoundError(
-            `Kartu tidak ditemukan: ${missingIds.join(", ")}`,
-          );
-        }
-
-        // Validate all cards are IN_STATION
-        const invalidStatusCards = cardRecords.filter(
-          (c) => c.status !== "IN_STATION",
-        );
-        if (invalidStatusCards.length > 0) {
-          throw new ValidationError(
-            `Kartu tidak dapat dibeli. Status kartu saat ini: ${invalidStatusCards.map((c) => `${c.serialNumber} (${c.status})`).join(", ")}. Semua kartu harus berstatus IN_STATION untuk dapat dibeli.`,
-          );
-        }
-
-        // Check if any card already has a purchase record
-        const existingPurchases = await tx.cardPurchase.findMany({
-          where: {
-            cardId: { in: cardIds },
-            deletedAt: null,
-          },
-        });
-
-        if (existingPurchases.length > 0) {
-          const purchasedCardIds = existingPurchases.map((p) => p.cardId);
-          throw new ValidationError(
-            `Kartu berikut sudah pernah dibeli: ${purchasedCardIds.join(", ")}. Setiap kartu hanya dapat dibeli sekali.`,
-          );
-        }
-
-        // Calculate total price for each card
-        let totalPrice = 0;
-        const bulkPurchaseItemsData: Array<{
-          cardId: string;
-          price: number;
-        }> = [];
-
-        for (const cardInput of cards) {
-          const cardRecord = cardRecords.find((c) => c.id === cardInput.cardId);
-          if (!cardRecord) continue;
-
-          // Use provided price or default to cardProduct.price
-          const itemPrice =
-            cardInput.price !== undefined && cardInput.price !== null
-              ? cardInput.price
-              : Number(cardRecord.cardProduct.price);
-
-          bulkPurchaseItemsData.push({
-            cardId: cardRecord.id,
-            price: itemPrice,
           });
 
-          totalPrice += itemPrice;
-        }
+          if (cardRecords.length !== cardIds.length) {
+            const foundIds = cardRecords.map((c) => c.id);
+            const missingIds = cardIds.filter((id) => !foundIds.includes(id));
+            throw new NotFoundError(
+              `Kartu tidak ditemukan: ${missingIds.join(", ")}`,
+            );
+          }
 
-        // Apply bulk discount if provided
-        let discountAmount = 0;
-        if (data.bulkDiscountId) {
-          const bulkDiscount = await tx.bulkDiscount.findUnique({
-            where: { id: data.bulkDiscountId },
+          // Validate all cards are IN_STATION
+          const invalidStatusCards = cardRecords.filter(
+            (c) => c.status !== "IN_STATION",
+          );
+          if (invalidStatusCards.length > 0) {
+            throw new ValidationError(
+              `Kartu tidak dapat dibeli. Status kartu saat ini: ${invalidStatusCards.map((c) => `${c.serialNumber} (${c.status})`).join(", ")}. Semua kartu harus berstatus IN_STATION untuk dapat dibeli.`,
+            );
+          }
+
+          // Check if any card already has a purchase record
+          const existingPurchases = await tx.cardPurchase.findMany({
+            where: {
+              cardId: { in: cardIds },
+              deletedAt: null,
+            },
           });
 
-          if (bulkDiscount && bulkDiscount.discount) {
-            // Validate quantity matches discount range
-            const quantity = cards.length;
-            if (
-              (bulkDiscount.minQuantity === null ||
-                quantity >= bulkDiscount.minQuantity) &&
-              (bulkDiscount.maxQuantity === null ||
-                quantity <= bulkDiscount.maxQuantity)
-            ) {
-              // Discount is stored as percentage (e.g., 10 means 10%)
-              const discountPercentage = Number(bulkDiscount.discount);
-              discountAmount = (totalPrice * discountPercentage) / 100;
-              totalPrice = totalPrice - discountAmount;
-              if (totalPrice < 0) totalPrice = 0;
+          if (existingPurchases.length > 0) {
+            const purchasedCardIds = existingPurchases.map((p) => p.cardId);
+            throw new ValidationError(
+              `Kartu berikut sudah pernah dibeli: ${purchasedCardIds.join(", ")}. Setiap kartu hanya dapat dibeli sekali.`,
+            );
+          }
+
+          // Calculate total price for each card
+          let totalPrice = 0;
+          const bulkPurchaseItemsData: Array<{
+            cardId: string;
+            price: number;
+          }> = [];
+
+          for (const cardInput of cards) {
+            const cardRecord = cardRecords.find(
+              (c) => c.id === cardInput.cardId,
+            );
+            if (!cardRecord) continue;
+
+            // Use provided price or default to cardProduct.price
+            const itemPrice =
+              cardInput.price !== undefined && cardInput.price !== null
+                ? cardInput.price
+                : Number(cardRecord.cardProduct.price);
+
+            bulkPurchaseItemsData.push({
+              cardId: cardRecord.id,
+              price: itemPrice,
+            });
+
+            totalPrice += itemPrice;
+          }
+
+          // Store subtotal BEFORE discount is applied
+          const subtotalValue = totalPrice;
+
+          // Apply bulk discount if provided
+          let discountAmount = 0;
+          if (data.bulkDiscountId) {
+            const bulkDiscount = await tx.bulkDiscount.findUnique({
+              where: { id: data.bulkDiscountId },
+            });
+
+            if (bulkDiscount && bulkDiscount.discount) {
+              // Validate quantity matches discount range
+              const quantity = cards.length;
+              if (
+                (bulkDiscount.minQuantity === null ||
+                  quantity >= bulkDiscount.minQuantity) &&
+                (bulkDiscount.maxQuantity === null ||
+                  quantity <= bulkDiscount.maxQuantity)
+              ) {
+                // Discount is stored as percentage (e.g., 10 means 10%)
+                const discountPercentage = Number(bulkDiscount.discount);
+                discountAmount = (totalPrice * discountPercentage) / 100;
+                totalPrice = totalPrice - discountAmount;
+                if (totalPrice < 0) totalPrice = 0;
+              }
             }
           }
-        }
 
-        // Use provided total price or calculated total price
-        finalPrice =
-          data.price !== undefined && data.price !== null
-            ? data.price
-            : totalPrice;
+          // Use provided total price or calculated total price (after discount)
+          finalPrice =
+            data.price !== undefined && data.price !== null
+              ? data.price
+              : totalPrice;
 
-        // Create purchase record (cardId is null for bulk purchase)
-        const purchase = await tx.cardPurchase.create({
-          data: {
-            cardId: undefined, // Null for bulk purchase
-            memberId: data.memberId,
-            operatorId: operatorId,
-            stationId: stationId,
-            bulkDiscountId: data.bulkDiscountId || null,
-            edcReferenceNumber: edcReferenceNumber,
-            purchaseDate: purchaseDate,
-            price: finalPrice,
-            notes: data.notes || null,
-            programType: "VOUCHER",
-            createdBy: userId,
-            updatedBy: userId,
-          },
-        });
+          // Store discountAmount (null if no discount applied)
+          const discountAmountValue =
+            discountAmount > 0 ? discountAmount : null;
 
-        // Batch create bulk purchase items
-        const bulkPurchaseItemsToCreate = bulkPurchaseItemsData.map((itemData) => ({
-          purchaseId: purchase.id,
-          cardId: itemData.cardId,
-          price: itemData.price,
-        }));
-
-        if (bulkPurchaseItemsToCreate.length > 0) {
-          await tx.bulkPurchaseItem.createMany({
-            data: bulkPurchaseItemsToCreate,
+          // Create purchase record (cardId is null for bulk purchase)
+          const purchase = await tx.cardPurchase.create({
+            data: {
+              cardId: undefined, // Null for bulk purchase
+              memberId: data.memberId,
+              operatorId: operatorId,
+              stationId: stationId,
+              bulkDiscountId: data.bulkDiscountId || null,
+              edcReferenceNumber: edcReferenceNumber,
+              purchaseDate: purchaseDate,
+              price: finalPrice,
+              subtotal: subtotalValue,
+              discountAmount: discountAmountValue,
+              notes: data.notes || null,
+              programType: "VOUCHER",
+              createdBy: userId,
+              updatedBy: userId,
+            },
           });
-        }
 
-        // Group cards by masaBerlaku and totalQuota for efficient batch updates
-        const cardUpdateGroups = new Map<string, Array<{ cardId: string; masaBerlaku: number; totalQuota: number }>>();
+          // Batch create bulk purchase items
+          const bulkPurchaseItemsToCreate = bulkPurchaseItemsData.map(
+            (itemData) => ({
+              purchaseId: purchase.id,
+              cardId: itemData.cardId,
+              price: itemData.price,
+            }),
+          );
 
-        for (const itemData of bulkPurchaseItemsData) {
-          const cardRecord = cardRecords.find((c) => c.id === itemData.cardId);
-          if (!cardRecord) continue;
-
-          const masaBerlaku = cardRecord.cardProduct.masaBerlaku;
-          const totalQuota = cardRecord.cardProduct.totalQuota;
-          const groupKey = `${masaBerlaku}_${totalQuota}`;
-
-          if (!cardUpdateGroups.has(groupKey)) {
-            cardUpdateGroups.set(groupKey, []);
+          if (bulkPurchaseItemsToCreate.length > 0) {
+            await tx.bulkPurchaseItem.createMany({
+              data: bulkPurchaseItemsToCreate,
+            });
           }
 
-          cardUpdateGroups.get(groupKey)!.push({
-            cardId: itemData.cardId,
-            masaBerlaku,
-            totalQuota,
-          });
-        }
+          // Group cards by masaBerlaku and totalQuota for efficient batch updates
+          const cardUpdateGroups = new Map<
+            string,
+            Array<{ cardId: string; masaBerlaku: number; totalQuota: number }>
+          >();
 
-        // Batch update cards grouped by masaBerlaku and totalQuota
-        await Promise.all(
-          Array.from(cardUpdateGroups.entries()).map(async ([groupKey, cards]) => {
-            const firstCard = cards[0];
-            const expiredDate = new Date(purchaseDate);
-            expiredDate.setDate(expiredDate.getDate() + firstCard.masaBerlaku);
+          for (const itemData of bulkPurchaseItemsData) {
+            const cardRecord = cardRecords.find(
+              (c) => c.id === itemData.cardId,
+            );
+            if (!cardRecord) continue;
 
-            await tx.card.updateMany({
-              where: {
-                id: { in: cards.map((c) => c.cardId) },
-              },
-              data: {
-                status: "SOLD_ACTIVE",
-                purchaseDate: purchaseDate,
-                memberId: data.memberId,
-                expiredDate: expiredDate,
-                quotaTicket: firstCard.totalQuota,
-                updatedBy: userId,
-              },
+            const masaBerlaku = cardRecord.cardProduct.masaBerlaku;
+            const totalQuota = cardRecord.cardProduct.totalQuota;
+            const groupKey = `${masaBerlaku}_${totalQuota}`;
+
+            if (!cardUpdateGroups.has(groupKey)) {
+              cardUpdateGroups.set(groupKey, []);
+            }
+
+            cardUpdateGroups.get(groupKey)!.push({
+              cardId: itemData.cardId,
+              masaBerlaku,
+              totalQuota,
             });
-          })
-        );
+          }
 
-        return purchase;
-      } else {
-        // === SINGLE CARD PURCHASE (FWC) ===
-        if (!data.cardId) {
-          throw new ValidationError("cardId wajib diisi untuk pembelian FWC");
-        }
+          // Batch update cards grouped by masaBerlaku and totalQuota
+          await Promise.all(
+            Array.from(cardUpdateGroups.entries()).map(
+              async ([groupKey, cards]) => {
+                const firstCard = cards[0];
+                const expiredDate = new Date(purchaseDate);
+                expiredDate.setDate(
+                  expiredDate.getDate() + firstCard.masaBerlaku,
+                );
 
-        // Validate card exists and is available for purchase
-        const card = await tx.card.findUnique({
-          where: { id: data.cardId },
-          include: {
-            cardProduct: {
-              select: {
-                id: true,
-                totalQuota: true,
-                masaBerlaku: true,
-                price: true,
-                categoryId: true,
-                typeId: true,
+                await tx.card.updateMany({
+                  where: {
+                    id: { in: cards.map((c) => c.cardId) },
+                  },
+                  data: {
+                    status: "SOLD_ACTIVE",
+                    purchaseDate: purchaseDate,
+                    memberId: data.memberId,
+                    expiredDate: expiredDate,
+                    quotaTicket: firstCard.totalQuota,
+                    updatedBy: userId,
+                  },
+                });
+              },
+            ),
+          );
+
+          return purchase;
+        } else {
+          // === SINGLE CARD PURCHASE (FWC) ===
+          if (!data.cardId) {
+            throw new ValidationError("cardId wajib diisi untuk pembelian FWC");
+          }
+
+          // Validate card exists and is available for purchase
+          const card = await tx.card.findUnique({
+            where: { id: data.cardId },
+            include: {
+              cardProduct: {
+                select: {
+                  id: true,
+                  totalQuota: true,
+                  masaBerlaku: true,
+                  price: true,
+                  categoryId: true,
+                  typeId: true,
+                },
               },
             },
-          },
-        });
+          });
 
-        if (!card || card.deletedAt) {
-          throw new NotFoundError("Kartu tidak ditemukan");
+          if (!card || card.deletedAt) {
+            throw new NotFoundError("Kartu tidak ditemukan");
+          }
+
+          // Validate card status - must be IN_STATION to be purchased
+          if (card.status !== "IN_STATION") {
+            throw new ValidationError(
+              `Kartu tidak dapat dibeli. Status kartu saat ini: ${card.status}. Kartu harus berstatus IN_STATION untuk dapat dibeli.`,
+            );
+          }
+
+          // Check if card already has a purchase record
+          const existingPurchase = await tx.cardPurchase.findFirst({
+            where: {
+              cardId: data.cardId,
+              deletedAt: null,
+            },
+          });
+
+          if (existingPurchase) {
+            throw new ValidationError(
+              "Kartu ini sudah pernah dibeli. Setiap kartu hanya dapat dibeli sekali.",
+            );
+          }
+
+          // Calculate expired date based on masaBerlaku
+          const masaBerlaku = card.cardProduct.masaBerlaku;
+          const expiredDate = new Date(purchaseDate);
+          expiredDate.setDate(expiredDate.getDate() + masaBerlaku);
+
+          // Determine final price: use input price or default to cardProduct.price
+          finalPrice =
+            data.price !== undefined && data.price !== null
+              ? data.price
+              : Number(card.cardProduct.price);
+
+          purchaseCardId = data.cardId;
+
+          // For FWC purchase, subtotal equals price (no bulk discount typically)
+          // discountAmount is null for single card purchases
+          const subtotalValue = finalPrice;
+          const discountAmountValue = null;
+
+          // Create purchase record
+          const purchase = await tx.cardPurchase.create({
+            data: {
+              cardId: purchaseCardId,
+              memberId: data.memberId,
+              operatorId: operatorId,
+              stationId: stationId,
+              edcReferenceNumber: edcReferenceNumber,
+              purchaseDate: purchaseDate,
+              price: finalPrice,
+              subtotal: subtotalValue,
+              discountAmount: discountAmountValue,
+              notes: data.notes || null,
+              programType: programType,
+              createdBy: userId,
+              updatedBy: userId,
+            },
+          });
+
+          // Update card: set status to SOLD_ACTIVE
+          await tx.card.update({
+            where: { id: data.cardId },
+            data: {
+              status: "SOLD_ACTIVE",
+              purchaseDate: purchaseDate,
+              memberId: data.memberId,
+              expiredDate: expiredDate,
+              quotaTicket: card.cardProduct.totalQuota, // Initialize quota from product
+              updatedBy: userId,
+            },
+          });
+
+          return purchase;
         }
-
-        // Validate card status - must be IN_STATION to be purchased
-        if (card.status !== "IN_STATION") {
-          throw new ValidationError(
-            `Kartu tidak dapat dibeli. Status kartu saat ini: ${card.status}. Kartu harus berstatus IN_STATION untuk dapat dibeli.`,
-          );
-        }
-
-        // Check if card already has a purchase record
-        const existingPurchase = await tx.cardPurchase.findFirst({
-          where: {
-            cardId: data.cardId,
-            deletedAt: null,
-          },
-        });
-
-        if (existingPurchase) {
-          throw new ValidationError(
-            "Kartu ini sudah pernah dibeli. Setiap kartu hanya dapat dibeli sekali.",
-          );
-        }
-
-        // Calculate expired date based on masaBerlaku
-        const masaBerlaku = card.cardProduct.masaBerlaku;
-        const expiredDate = new Date(purchaseDate);
-        expiredDate.setDate(expiredDate.getDate() + masaBerlaku);
-
-        // Determine final price: use input price or default to cardProduct.price
-        finalPrice =
-          data.price !== undefined && data.price !== null
-            ? data.price
-            : Number(card.cardProduct.price);
-
-        purchaseCardId = data.cardId;
-
-        // Create purchase record
-        const purchase = await tx.cardPurchase.create({
-          data: {
-            cardId: purchaseCardId,
-            memberId: data.memberId,
-            operatorId: operatorId,
-            stationId: stationId,
-            edcReferenceNumber: edcReferenceNumber,
-            purchaseDate: purchaseDate,
-            price: finalPrice,
-            notes: data.notes || null,
-            programType: programType,
-            createdBy: userId,
-            updatedBy: userId,
-          },
-        });
-
-        // Update card: set status to SOLD_ACTIVE
-        await tx.card.update({
-          where: { id: data.cardId },
-          data: {
-            status: "SOLD_ACTIVE",
-            purchaseDate: purchaseDate,
-            memberId: data.memberId,
-            expiredDate: expiredDate,
-            quotaTicket: card.cardProduct.totalQuota, // Initialize quota from product
-            updatedBy: userId,
-          },
-        });
-
-        return purchase;
-      }
-    }, {
-      maxWait: 10000, // Maximum time to wait for transaction to start (10 seconds)
-      timeout: 30000, // Maximum time transaction can run (30 seconds) - increased for large bulk purchases
-    });
+      },
+      {
+        maxWait: 10000, // Maximum time to wait for transaction to start (10 seconds)
+        timeout: 30000, // Maximum time transaction can run (30 seconds) - increased for large bulk purchases
+      },
+    );
 
     // Fetch complete purchase data with relations
     const purchaseData = await this.getById(result.id);
@@ -482,12 +514,16 @@ export class PurchaseService {
     startDate?: string;
     endDate?: string;
     stationId?: string;
+    stationIds?: string[];
     categoryId?: string;
+    categoryIds?: string[];
     typeId?: string;
+    typeIds?: string[];
     operatorId?: string;
     search?: string;
     transactionType?: "fwc" | "voucher";
     employeeTypeId?: string;
+    employeeTypeIds?: string[];
     isDeleted?: boolean;
     userRole?: string;
     userId?: string;
@@ -499,12 +535,16 @@ export class PurchaseService {
       startDate,
       endDate,
       stationId,
+      stationIds,
       categoryId,
+      categoryIds,
       typeId,
+      typeIds,
       operatorId,
       search,
       transactionType,
       employeeTypeId,
+      employeeTypeIds,
       isDeleted = false,
       userRole,
       userId,
@@ -551,21 +591,37 @@ export class PurchaseService {
     }
 
     // Station filter (only apply if not already set by role-based filter)
-    if (!where.stationId && stationId) {
-      where.stationId = stationId;
+    // Support both single and array filters (backward compatibility)
+    if (!where.stationId) {
+      if (stationIds && stationIds.length > 0) {
+        where.stationId = { in: stationIds };
+      } else if (stationId) {
+        where.stationId = stationId;
+      }
     }
 
     // Card Category and Type filter (nested in card.cardProduct)
-    if (categoryId || typeId) {
+    // Support both single and array filters (backward compatibility)
+    // Build cardProduct filter object explicitly to avoid overwriting
+    const cardProductFilter: any = {};
+
+    if (categoryIds && categoryIds.length > 0) {
+      cardProductFilter.categoryId = { in: categoryIds };
+    } else if (categoryId) {
+      cardProductFilter.categoryId = categoryId;
+    }
+
+    if (typeIds && typeIds.length > 0) {
+      cardProductFilter.typeId = { in: typeIds };
+    } else if (typeId) {
+      cardProductFilter.typeId = typeId;
+    }
+
+    // Only set where.card if we have at least one filter
+    if (Object.keys(cardProductFilter).length > 0) {
       where.card = {
-        cardProduct: {},
+        cardProduct: cardProductFilter,
       };
-      if (categoryId) {
-        where.card.cardProduct.categoryId = categoryId;
-      }
-      if (typeId) {
-        where.card.cardProduct.typeId = typeId;
-      }
     }
 
     // Operator filter (only apply if not already set by role-based filter)
@@ -574,7 +630,10 @@ export class PurchaseService {
     }
 
     // Employee type filter (via member - employee type is stored in membership)
-    if (employeeTypeId) {
+    // Support both single and array filters (backward compatibility)
+    if (employeeTypeIds && employeeTypeIds.length > 0) {
+      where.member = { employeeTypeId: { in: employeeTypeIds } };
+    } else if (employeeTypeId) {
       where.member = { employeeTypeId };
     }
 
@@ -732,6 +791,12 @@ export class PurchaseService {
               stationName: true,
             },
           },
+          bulkDiscount: {
+            select: {
+              id: true,
+              discount: true,
+            },
+          },
           _count: {
             select: {
               bulkPurchaseItems: true,
@@ -765,6 +830,17 @@ export class PurchaseService {
       edcReferenceNumber: item.edcReferenceNumber,
       purchaseDate: item.purchaseDate.toISOString(),
       price: Number(item.price),
+      subtotal:
+        item.subtotal !== null && item.subtotal !== undefined
+          ? Number(item.subtotal)
+          : null,
+      discountAmount:
+        item.discountAmount !== null && item.discountAmount !== undefined
+          ? Number(item.discountAmount)
+          : null,
+      discountPercentage: item.bulkDiscount?.discount
+        ? Number(item.bulkDiscount.discount)
+        : null,
       notes: item.notes,
       programType: item.programType,
       createdAt: item.createdAt.toISOString(),
@@ -797,29 +873,32 @@ export class PurchaseService {
       // Optimize: For list view, only return first item for preview (to avoid loading thousands of items)
       // Full list can be fetched via /purchases/:id/bulk-items endpoint
       // Use _count to get actual total count for display
-      bulkPurchaseItems: item.bulkPurchaseItems.length > 0
-        ? [
-            {
-              id: item.bulkPurchaseItems[0].id,
-              purchaseId: item.bulkPurchaseItems[0].purchaseId,
-              cardId: item.bulkPurchaseItems[0].cardId,
-              price: Number(item.bulkPurchaseItems[0].price),
-              createdAt: item.bulkPurchaseItems[0].createdAt.toISOString(),
-              updatedAt: item.bulkPurchaseItems[0].updatedAt.toISOString(),
-              card: {
-                ...item.bulkPurchaseItems[0].card,
-                expiredDate: item.bulkPurchaseItems[0].card.expiredDate
-                  ? item.bulkPurchaseItems[0].card.expiredDate.toISOString()
-                  : null,
-                cardProduct: {
-                  ...item.bulkPurchaseItems[0].card.cardProduct,
-                  totalQuota: item.bulkPurchaseItems[0].card.cardProduct.totalQuota,
-                  masaBerlaku: item.bulkPurchaseItems[0].card.cardProduct.masaBerlaku,
+      bulkPurchaseItems:
+        item.bulkPurchaseItems.length > 0
+          ? [
+              {
+                id: item.bulkPurchaseItems[0].id,
+                purchaseId: item.bulkPurchaseItems[0].purchaseId,
+                cardId: item.bulkPurchaseItems[0].cardId,
+                price: Number(item.bulkPurchaseItems[0].price),
+                createdAt: item.bulkPurchaseItems[0].createdAt.toISOString(),
+                updatedAt: item.bulkPurchaseItems[0].updatedAt.toISOString(),
+                card: {
+                  ...item.bulkPurchaseItems[0].card,
+                  expiredDate: item.bulkPurchaseItems[0].card.expiredDate
+                    ? item.bulkPurchaseItems[0].card.expiredDate.toISOString()
+                    : null,
+                  cardProduct: {
+                    ...item.bulkPurchaseItems[0].card.cardProduct,
+                    totalQuota:
+                      item.bulkPurchaseItems[0].card.cardProduct.totalQuota,
+                    masaBerlaku:
+                      item.bulkPurchaseItems[0].card.cardProduct.masaBerlaku,
+                  },
                 },
               },
-            },
-          ]
-        : [],
+            ]
+          : [],
       // Add count for bulk purchase items (actual total, not just preview)
       bulkPurchaseItemsCount: item._count?.bulkPurchaseItems || 0,
       member: item.member,
@@ -831,10 +910,16 @@ export class PurchaseService {
 
     // Fetch serial number ranges for bulk purchases (optimized batch query)
     const bulkPurchaseIds = mappedItems
-      .filter((item) => item.bulkPurchaseItemsCount && item.bulkPurchaseItemsCount > 0)
+      .filter(
+        (item) =>
+          item.bulkPurchaseItemsCount && item.bulkPurchaseItemsCount > 0,
+      )
       .map((item) => item.id);
 
-    let serialRangeMap = new Map<string, { firstSerialNumber: string | null; lastSerialNumber: string | null }>();
+    let serialRangeMap = new Map<
+      string,
+      { firstSerialNumber: string | null; lastSerialNumber: string | null }
+    >();
 
     if (bulkPurchaseIds.length > 0) {
       // Batch query: Get all bulkPurchaseItems with serial numbers, then group by purchaseId in memory
@@ -1102,6 +1187,12 @@ export class PurchaseService {
             stationName: true,
           },
         },
+        bulkDiscount: {
+          select: {
+            id: true,
+            discount: true,
+          },
+        },
       },
     });
 
@@ -1134,6 +1225,18 @@ export class PurchaseService {
       edcReferenceNumber: purchase.edcReferenceNumber,
       purchaseDate: purchase.purchaseDate.toISOString(),
       price: Number(purchase.price),
+      subtotal:
+        purchase.subtotal !== null && purchase.subtotal !== undefined
+          ? Number(purchase.subtotal)
+          : null,
+      discountAmount:
+        purchase.discountAmount !== null &&
+        purchase.discountAmount !== undefined
+          ? Number(purchase.discountAmount)
+          : null,
+      discountPercentage: purchase.bulkDiscount?.discount
+        ? Number(purchase.bulkDiscount.discount)
+        : null,
       notes: purchase.notes,
       programType: purchase.programType,
       createdAt: purchase.createdAt.toISOString(),

@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { API_BASE_URL } from '@/lib/apiConfig';
 import { onForegroundMessage } from '@/lib/firebase';
+import toast from "react-hot-toast";
 
 interface UnreadCounts {
   total: number;
@@ -53,6 +54,20 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     onForegroundMessage((payload) => {
       console.log("[InboxContext] Notification received:", payload);
       
+      // SHOW TOAST (Foreground Notification)
+      if (payload.data && payload.data.title) {
+          toast(payload.data.title + "\n" + (payload.data.body || ''), {
+              icon: '🔔',
+              duration: 5000,
+              position: 'top-right',
+              style: {
+                  background: '#333',
+                  color: '#fff',
+                  border: '1px solid #8D1231'
+              }
+          });
+      }
+
       // Option A: Smart Increment (If payload has data)
       if (payload.data && payload.data.type) {
          setUnreadCounts(prev => {

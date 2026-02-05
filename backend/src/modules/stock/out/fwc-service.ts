@@ -736,14 +736,8 @@ export class StockOutFwcService {
           });
         }
 
-        // --- PUSH NOTIFICATION TO ADMINS ---
-        const { PushNotificationService } =
-          await import("../../notification/push-service");
-        PushNotificationService.sendToRole(
-          ["admin", "superadmin"],
-          title,
-          message,
-        );
+        // --- PUSH NOTIFICATION TO ADMINS (Moved Outside) ---
+        // Just return the data needed to trigger it later
         // -----------------------------------
 
         return {
@@ -752,6 +746,12 @@ export class StockOutFwcService {
           receivedCount: finalReceived.length,
           lostCount: finalLost.length,
           damagedCount: finalDamaged.length,
+          // metadata for notification
+          notification: {
+             trigger: true,
+             title,
+             message
+          }
         };
       },
       {
@@ -759,6 +759,16 @@ export class StockOutFwcService {
         timeout: 10000,
       },
     );
+
+
+    // --- POST-TRANSACTION NOTIFICATION ---
+    if ((transaction as any).notification?.trigger) {
+      const { title, message } = (transaction as any).notification;
+      // Fire and forget, but safer now
+      const { PushNotificationService } = await import("../../notification/push-service");
+      PushNotificationService.sendToRole(["admin", "superadmin"], title, message);
+    }
+    // -------------------------------------
 
     await ActivityLogService.createActivityLog(
       validatorUserId,

@@ -3,9 +3,12 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { countries } from "countries-list";
 import toast from "react-hot-toast";
-import { API_BASE_URL } from "@/lib/apiConfig";
+import { apiFetch } from "@/lib/apiConfig";
+import axios from "@/lib/axios";
 import { getEmployeeTypes, type EmployeeType } from "@/lib/services/employee-type.service";
 import { getCities, type CityItem } from "@/lib/services/city.service";
+import { getPaymentMethods } from "@/lib/services/payment-method.service";
+import { getStationById } from "@/lib/services/station.service";
 import {
   getTodayLocalDate,
 } from "./constants";
@@ -101,16 +104,11 @@ export function useCreateMemberForm() {
       setChecking((p) => ({ ...p, [field]: true }));
 
       try {
-        const token = localStorage.getItem("fwc_token");
         const url =
           field === "nik"
-            ? `${API_BASE_URL}/members?identityNumber=${value}`
-            : `${API_BASE_URL}/purchases?edcReferenceNumber=${value}`;
-        const res = await fetch(url, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) return;
-        const data = await res.json();
+            ? `/members?identityNumber=${value}`
+            : `/purchases?edcReferenceNumber=${value}`;
+        const data = await apiFetch(url);
         if (lastCheckRef.current[field] !== value) return;
         const items = data.data?.items || [];
         const isExactMatch = items.some((item: any) => {
@@ -174,14 +172,8 @@ export function useCreateMemberForm() {
 
           setLoadingPaymentMethods(true);
           try {
-            const paymentMethodRes = await fetch(
-              `${API_BASE_URL}/payment-methods`,
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
-            if (paymentMethodRes.ok) {
-              const paymentMethodData = await paymentMethodRes.json();
-              setPaymentMethods(paymentMethodData.data || []);
-            }
+            const paymentMethodData = await getPaymentMethods();
+            setPaymentMethods(paymentMethodData.data || []);
           } catch (error) {
             console.error("Failed to load payment methods:", error);
           } finally {
@@ -190,26 +182,18 @@ export function useCreateMemberForm() {
 
           if (user.stationId) {
             try {
-              const stationRes = await fetch(
-                `${API_BASE_URL}/station/${user.stationId}`,
-                { headers: { Authorization: `Bearer ${token}` } }
-              );
-              if (stationRes.ok) {
-                const stationData = await stationRes.json();
-                const stationName = stationData.data?.stationName || "";
-                setForm((prev) => ({ ...prev, station: stationName }));
-              }
+              const stationData = await getStationById(user.stationId);
+              const stationName = stationData.data?.stationName || "";
+              setForm((prev) => ({ ...prev, station: stationName }));
             } catch (error) {
               console.error("Failed to load station data:", error);
             }
           }
         }
 
-        const productsRes = await fetch(`${API_BASE_URL}/card/product`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (productsRes.ok) {
-          const productsData = await productsRes.json();
+        try {
+          const productsRes = await axios.get("/card/product");
+          const productsData = productsRes.data;
           const sortedProducts = (productsData.data || []).sort(
             (a: CardProduct, b: CardProduct) => {
               const nameA = `${a.category.categoryName} - ${a.type.typeName}`;
@@ -218,6 +202,8 @@ export function useCreateMemberForm() {
             }
           );
           setCardProducts(sortedProducts);
+        } catch (error) {
+          console.error("Failed to load card products:", error);
         }
 
         const todayStr = getTodayLocalDate();

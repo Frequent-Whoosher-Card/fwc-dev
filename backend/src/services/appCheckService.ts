@@ -32,8 +32,6 @@ export async function verifyAppCheckToken(token: string): Promise<boolean> {
     if (error instanceof AuthenticationError) {
       throw error;
     }
-
-    // Handle Firebase App Check errors
     console.error('[App Check] ❌ Verification error:', error);
     throw new AuthenticationError('Invalid app verification');
   }
