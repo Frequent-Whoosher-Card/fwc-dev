@@ -166,8 +166,10 @@ const handleSubmit = async () => {
 ## 4. Lokasi Penyimpanan
 
 File yang berhasil diupload akan tersimpan di server backend pada folder:
-`backend/storage/stock-out/`
+`backend/storage/stock-out/{YYYY}/{MM}/`
 
-Format nama file otomatis digenerate menjadi:
+Format nama file:
 `{TIMESTAMP}-{SANITIZED_FILENAME}`
-Contoh: `1707123456789-Nota-Dinas-001.pdf`
+Contoh: `backend/storage/stock-out/2026/02/1707123456789-Nota-Dinas-001.pdf`
+
+URL yang dikembalikan oleh API hanyalah **path relatif** (contoh: `storage/stock-out/2026/02/file.pdf`). Frontend bertugas menambahkan Base URL API sebelum membukanya.
