@@ -23,6 +23,7 @@ import { useTypesVoucher } from "@/hooks/useTypesVoucher";
 import { useMemberSearch } from "@/hooks/useMemberSearch";
 import { cardVoucherService } from "@/lib/services/card.voucher.service";
 import { getPaymentMethods, type PaymentMethod } from "@/lib/services/payment-method.service";
+import { getNextAvailableCards } from "@/lib/services/card.service";
 import axios from "@/lib/axios";
 import toast from "react-hot-toast";
 
@@ -457,7 +458,9 @@ export default function CreateVoucherBulkPurchasePage({
   // Generate serial numbers from range
   const generateSerialNumbers = (startSerial: string, quantity: number): string[] => {
     const serials: string[] = [];
-    const match = startSerial.match(/^(.+?)(\d+)$/);
+    // Match all trailing digits as suffix - use greedy match on digits to capture all trailing digits
+    // This ensures we correctly parse serials like "031326020200500" -> prefix: "031326020200", suffix: "500"
+    const match = startSerial.match(/^(.+)(\d+)$/);
     
     if (!match) {
       return [startSerial]; // If no number suffix, return as is
@@ -465,11 +468,18 @@ export default function CreateVoucherBulkPurchasePage({
     
     const prefix = match[1];
     const startNumber = parseInt(match[2], 10);
-    const padding = match[2].length; // Preserve padding length
+    const originalPadding = match[2].length;
+    
+    // Calculate the maximum number we'll generate to determine required padding upfront
+    const endNumber = startNumber + quantity - 1;
+    const maxDigits = endNumber.toString().length;
+    // Use the larger of original padding or max digits needed
+    const requiredPadding = Math.max(originalPadding, maxDigits);
     
     for (let i = 0; i < quantity; i++) {
       const number = startNumber + i;
-      const paddedNumber = number.toString().padStart(padding, '0');
+      // Use consistent padding for all numbers in the batch
+      const paddedNumber = number.toString().padStart(requiredPadding, '0');
       serials.push(`${prefix}${paddedNumber}`);
     }
     
@@ -484,8 +494,8 @@ export default function CreateVoucherBulkPurchasePage({
     }
 
     const quantity = parseInt(rangeQuantity, 10);
-    if (isNaN(quantity) || quantity < 1 || quantity > 100) {
-      toast.error("Quantity harus antara 1-100");
+    if (isNaN(quantity) || quantity < 1 || quantity > 10000) {
+      toast.error("Quantity harus antara 1-10000");
       return;
     }
 
@@ -496,12 +506,9 @@ export default function CreateVoucherBulkPurchasePage({
 
     setIsAddingRange(true);
     try {
-      const serialNumbers = generateSerialNumbers(rangeStartSerial, quantity);
-      
       console.log("=== RANGE ADD DEBUG ===");
       console.log("Start Serial:", rangeStartSerial);
       console.log("Quantity:", quantity);
-      console.log("Generated Serial Numbers:", serialNumbers);
       
       // Get price from product
       const product = voucherProducts.find(
@@ -522,84 +529,32 @@ export default function CreateVoucherBulkPurchasePage({
         }
       }
 
-      const params: any = {
+      // Get next available cards starting from rangeStartSerial
+      const batchResult = await getNextAvailableCards({
+        startSerial: rangeStartSerial,
+        quantity: quantity,
         status: "IN_STATION",
         programType: "VOUCHER",
         categoryId: selectedCategoryId,
         typeId: selectedTypeId,
-        limit: 1000, // Increase limit to ensure we get all cards
-      };
-
-      // Only filter by stationId for non-superadmin roles
-      // Superadmin can purchase vouchers from any station
-      if (userStationId && role !== "superadmin") {
-        params.stationId = userStationId;
-      }
-
-      // Search for all serial numbers - use exact match search
-      const searchPromises = serialNumbers.map(async (serial) => {
-        try {
-          // First, search with filters (status IN_STATION, category, type, station)
-          const response = await axios.get("/cards", {
-            params: { ...params, search: serial },
-          });
-          const results = response.data?.data?.items || [];
-          // Find exact match by serial number
-          let exactMatch = results.find((card: any) => card && card.serialNumber === serial);
-          
-          // If not found with filters, check if card exists at all (without status filter)
-          if (!exactMatch) {
-            try {
-              const searchWithoutStatus = await axios.get("/cards", {
-                params: {
-                  search: serial,
-                  programType: "VOUCHER",
-                  categoryId: selectedCategoryId,
-                  typeId: selectedTypeId,
-                  limit: 100,
-                },
-              });
-              const allResults = searchWithoutStatus.data?.data?.items || [];
-              const cardExists = allResults.find((card: any) => card && card.serialNumber === serial);
-              
-              if (cardExists) {
-                console.log(`Searching ${serial}: Card exists but doesn't meet filters. Status: ${cardExists.status}, Station: ${cardExists.stationId || 'N/A'}`);
-              } else {
-                console.log(`Searching ${serial}: Card not found in database`);
-              }
-            } catch (err) {
-              // Ignore error for secondary search
-            }
-          } else {
-            console.log(`Searching ${serial}: Found exact match with status ${exactMatch.status}`);
-          }
-          
-          return exactMatch || null;
-        } catch (error) {
-          console.error(`Error searching card ${serial}:`, error);
-          return null;
-        }
+        stationId: userStationId && role !== "superadmin" ? userStationId : undefined,
       });
 
-      const foundCards = await Promise.all(searchPromises);
-      const validCards = foundCards.filter((card) => card !== null);
+      // Cards are already ordered by serial number ascending
+      const validCards = batchResult.items;
 
       console.log("Found Cards:", validCards.map((c: any) => c?.serialNumber || "N/A"));
-      console.log("Expected Serial Numbers:", serialNumbers);
-      console.log("Found Count:", validCards.length, "Expected Count:", serialNumbers.length);
+      console.log("Start Serial:", batchResult.startSerial, "End Serial:", batchResult.endSerial);
+      console.log("Found Count:", batchResult.foundCount, "Requested Count:", batchResult.requestedCount);
 
       if (validCards.length === 0) {
         toast.error("Tidak ada voucher ditemukan untuk serial numbers tersebut");
         return;
       }
 
-      if (validCards.length < serialNumbers.length) {
-        const missing = serialNumbers.filter(
-          (serial) => !validCards.some((c: any) => c.serialNumber === serial)
-        );
-        console.log("Missing serials:", missing);
+      if (batchResult.foundCount < batchResult.requestedCount) {
         toast(
-          `Hanya ${validCards.length} dari ${serialNumbers.length} voucher yang ditemukan. Missing: ${missing.join(", ")}`,
+          `Hanya ${batchResult.foundCount} dari ${batchResult.requestedCount} voucher yang tersedia. Range: ${batchResult.startSerial || rangeStartSerial} - ${batchResult.endSerial || "tidak ada"}`,
           { icon: "⚠️" }
         );
       }
@@ -949,13 +904,13 @@ export default function CreateVoucherBulkPurchasePage({
                             value={rangeQuantity}
                             onChange={(e) => {
                               const val = e.target.value.replace(/\D/g, "");
-                              if (val === "" || (parseInt(val, 10) >= 1 && parseInt(val, 10) <= 100)) {
+                              if (val === "" || (parseInt(val, 10) >= 1 && parseInt(val, 10) <= 10000)) {
                                 setRangeQuantity(val);
                               }
                             }}
                             placeholder="Contoh: 10"
                             min="1"
-                            max="100"
+                            max="10000"
                             disabled={!selectedTypeId || !rangeStartSerial}
                           />
                           <Button
@@ -985,21 +940,11 @@ export default function CreateVoucherBulkPurchasePage({
                         {rangeStartSerial && rangeQuantity && (
                           <div className="mt-2 space-y-1">
                             <p className="text-xs text-blue-600">
-                              📋 Range yang akan ditambahkan:{" "}
-                              <span className="font-mono font-semibold">{rangeStartSerial}</span> -{" "}
-                              <span className="font-mono font-semibold">
-                                {(() => {
-                                  const serials = generateSerialNumbers(
-                                    rangeStartSerial,
-                                    parseInt(rangeQuantity, 10)
-                                  );
-                                  return serials[serials.length - 1] || rangeStartSerial;
-                                })()}
-                              </span>{" "}
-                              ({rangeQuantity} vouchers)
+                              📋 Mulai dari serial:{" "}
+                              <span className="font-mono font-semibold">{rangeStartSerial}</span> ({rangeQuantity} vouchers)
                             </p>
                             <p className="text-xs text-gray-500">
-                              Maksimal 100 voucher per range. Sistem akan mencari dan menambahkan semua voucher yang tersedia dalam range tersebut.
+                              Sistem akan mencari dan menambahkan {rangeQuantity} voucher berikutnya yang tersedia, dimulai dari serial {rangeStartSerial}, diurutkan berdasarkan serial number.
                             </p>
                           </div>
                         )}

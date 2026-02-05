@@ -426,159 +426,159 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
               {/* Left Column - All Input Fields */}
               <div className="flex flex-col gap-4 w-full">
+            <Field>
+              <FieldLabel>
+                Mode Input Serial Number
+                <span className="ml-1 text-red-500">*</span>
+              </FieldLabel>
+              <FieldContent>
+                <select
+                  className={baseInputClass}
+                  value={inputMode}
+                  onChange={(e) => {
+                    const mode = e.target.value as
+                      | ""
+                      | "manual"
+                      | "recommendation";
+                    setInputMode(mode);
+                    setSerialNumber("");
+                    setManualSerialResult(null);
+                    setManualSerialMessage("");
+                    setManualFwcPrice(0);
+                  }}
+                >
+                  <option value="">Pilih Mode Input</option>
+                  <option value="manual">Input Manual / Scan Barcode</option>
+                  <option value="recommendation">Rekomendasi</option>
+                </select>
+                {inputMode === "" && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Pilih mode input serial number terlebih dahulu
+                </p>
+                )}
+              </FieldContent>
+            </Field>
+
+            {inputMode === "manual" && (
+              <Field>
+                <FieldLabel>
+                  Serial Number
+                  <span className="ml-1 text-red-500">*</span>
+                </FieldLabel>
+                <FieldContent>
+                  <input
+                    type="text"
+                    className={baseInputClass}
+                    value={serialNumber}
+                    onChange={(e) => setSerialNumber(e.target.value)}
+                    placeholder="Masukkan atau scan serial number lengkap..."
+                    autoComplete="off"
+                  />
+                  {manualSerialChecking && (
+                    <p className="mt-1 flex items-center gap-1 text-xs text-gray-500">
+                      <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" size={14} />
+                      Mengecek ketersediaan kartu...
+                    </p>
+                  )}
+                  {!manualSerialChecking && manualSerialResult === "available" && (
+                    <p className="mt-1 flex items-center gap-1 text-xs text-green-600">
+                      <CheckCircle size={14} />
+                      {manualSerialMessage}
+                    </p>
+                  )}
+                  {!manualSerialChecking &&
+                    (manualSerialResult === "unavailable" || manualSerialResult === "not_found") && (
+                      <p className="mt-1 text-xs text-red-600">
+                        {manualSerialMessage}
+                      </p>
+                    )}
+                  <FieldError
+                    errors={errors.cardId ? [errors.cardId] : undefined}
+                  />
+                </FieldContent>
+              </Field>
+            )}
+
+            {inputMode === "recommendation" && (
+              <>
                 <Field>
-                  <FieldLabel>
-                    Mode Input Serial Number
-                    <span className="ml-1 text-red-500">*</span>
-                  </FieldLabel>
+                      <FieldLabel>Card Category</FieldLabel>
                   <FieldContent>
                     <select
                       className={baseInputClass}
-                      value={inputMode}
-                      onChange={(e) => {
-                        const mode = e.target.value as
-                          | ""
-                          | "manual"
-                          | "recommendation";
-                        setInputMode(mode);
-                        setSerialNumber("");
-                        setManualSerialResult(null);
-                        setManualSerialMessage("");
-                        setManualFwcPrice(0);
-                      }}
+                      value={cardCategory}
+                      onChange={(e) =>
+                        handleCategoryChange(e.target.value as any)
+                      }
+                      disabled={loadingCategories}
                     >
-                      <option value="">Pilih Mode Input</option>
-                      <option value="manual">Input Manual / Scan Barcode</option>
-                      <option value="recommendation">Rekomendasi</option>
+                      <option value="">
+                        {loadingCategories ? "Loading..." : "Select"}
+                      </option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.value}>
+                          {cat.label}
+                        </option>
+                      ))}
                     </select>
-                    {inputMode === "" && (
-                    <p className="mt-1 text-xs text-gray-500">
-                      Pilih mode input serial number terlebih dahulu
-                    </p>
+                    {!cardCategory && (
+                      <p className="mt-1 text-xs text-gray-500">
+                            Pilih kategori kartu (opsional)
+                      </p>
                     )}
+                    <FieldError
+                      errors={
+                        errors.cardCategory ? [errors.cardCategory] : undefined
+                      }
+                    />
                   </FieldContent>
                 </Field>
 
-                {inputMode === "manual" && (
-                  <Field>
-                    <FieldLabel>
-                      Serial Number
-                      <span className="ml-1 text-red-500">*</span>
-                    </FieldLabel>
-                    <FieldContent>
-                      <input
-                        type="text"
-                        className={baseInputClass}
-                        value={serialNumber}
-                        onChange={(e) => setSerialNumber(e.target.value)}
-                        placeholder="Masukkan atau scan serial number lengkap..."
-                        autoComplete="off"
-                      />
-                      {manualSerialChecking && (
-                        <p className="mt-1 flex items-center gap-1 text-xs text-gray-500">
-                          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" size={14} />
-                          Mengecek ketersediaan kartu...
-                        </p>
-                      )}
-                      {!manualSerialChecking && manualSerialResult === "available" && (
-                        <p className="mt-1 flex items-center gap-1 text-xs text-green-600">
-                          <CheckCircle size={14} />
-                          {manualSerialMessage}
-                        </p>
-                      )}
-                      {!manualSerialChecking &&
-                        (manualSerialResult === "unavailable" || manualSerialResult === "not_found") && (
-                          <p className="mt-1 text-xs text-red-600">
-                            {manualSerialMessage}
-                          </p>
-                        )}
-                      <FieldError
-                        errors={errors.cardId ? [errors.cardId] : undefined}
-                      />
-                    </FieldContent>
-                  </Field>
-                )}
-
-                {inputMode === "recommendation" && (
-                  <>
-                    <Field>
-                      <FieldLabel>Card Category</FieldLabel>
-                      <FieldContent>
-                        <select
-                          className={baseInputClass}
-                          value={cardCategory}
-                          onChange={(e) =>
-                            handleCategoryChange(e.target.value as any)
-                          }
-                          disabled={loadingCategories}
-                        >
-                          <option value="">
-                            {loadingCategories ? "Loading..." : "Select"}
-                          </option>
-                          {categories.map((cat) => (
-                            <option key={cat.id} value={cat.value}>
-                              {cat.label}
-                            </option>
-                          ))}
-                        </select>
-                        {!cardCategory && (
-                          <p className="mt-1 text-xs text-gray-500">
-                            Pilih kategori kartu (opsional)
-                          </p>
-                        )}
-                        <FieldError
-                          errors={
-                            errors.cardCategory ? [errors.cardCategory] : undefined
-                          }
-                        />
-                      </FieldContent>
-                    </Field>
-
-                    <Field>
+                <Field>
                       <FieldLabel>Card Type</FieldLabel>
-                      <FieldContent>
-                        <select
-                          className={baseInputClass}
-                          value={cardTypeId}
-                          onChange={(e) => handleTypeChange(e.target.value)}
+                  <FieldContent>
+                    <select
+                      className={baseInputClass}
+                      value={cardTypeId}
+                      onChange={(e) => handleTypeChange(e.target.value)}
                           disabled={loadingTypes}
-                        >
-                          <option value="">
-                            {loadingTypes ? "Loading..." : "Select"}
-                          </option>
-                          {cardTypes.map((t) => (
-                            <option key={t.id} value={t.id}>
-                              {t.typeName}
-                            </option>
-                          ))}
-                        </select>
-                        {!cardCategory ? (
-                          <p className="mt-1 text-xs text-amber-600">
-                            ⚠ Pilih Card Category terlebih dahulu
-                          </p>
-                        ) : (
-                          cardCategory &&
-                          !cardTypeId && (
-                            <p className="mt-1 text-xs text-gray-500">
+                    >
+                      <option value="">
+                        {loadingTypes ? "Loading..." : "Select"}
+                      </option>
+                      {cardTypes.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.typeName}
+                        </option>
+                      ))}
+                    </select>
+                    {!cardCategory ? (
+                      <p className="mt-1 text-xs text-amber-600">
+                        ⚠ Pilih Card Category terlebih dahulu
+                      </p>
+                    ) : (
+                      cardCategory &&
+                      !cardTypeId && (
+                        <p className="mt-1 text-xs text-gray-500">
                               
-                            </p>
-                          )
-                        )}
-                        <FieldError
-                          errors={
-                            errors.cardTypeId ? [errors.cardTypeId] : undefined
-                          }
-                        />
-                      </FieldContent>
-                    </Field>
+                        </p>
+                      )
+                    )}
+                    <FieldError
+                      errors={
+                        errors.cardTypeId ? [errors.cardTypeId] : undefined
+                      }
+                    />
+                  </FieldContent>
+                </Field>
 
-                    <Field>
-                      <FieldLabel>
-                        Serial Number
-                        <span className="ml-1 text-red-500">*</span>
-                      </FieldLabel>
-                      <FieldContent>
-                        <div className="relative">
+                <Field>
+                  <FieldLabel>
+                    Serial Number
+                    <span className="ml-1 text-red-500">*</span>
+                  </FieldLabel>
+                  <FieldContent>
+                    <div className="relative">
                           <div className="flex">
                             <div className="flex h-10 items-center rounded-l-md border border-r-0 border-gray-300 bg-gray-100 px-3 text-sm font-medium text-gray-600 shrink-0">
                               {serialPrefix || "----"}
@@ -586,76 +586,76 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
                             <div className="flex h-10 items-center border-y border-gray-300 bg-gray-100 px-2 text-gray-400 shrink-0">
                               |
                             </div>
-                            <input
-                              type="text"
+                      <input
+                        type="text"
                               className="h-10 w-full min-w-0 rounded-r-md border border-l-0 border-gray-300 bg-white px-3 text-sm text-gray-700 focus:border-gray-400 focus:outline-none"
                               value={serialSuffix}
                               onChange={(e) => {
                                 handleCardSearch(`${serialPrefix}${e.target.value}`);
                               }}
                               placeholder="Masukkan nomor (min 2 digit)..."
-                              autoComplete="off"
-                            />
+                        autoComplete="off"
+                      />
                           </div>
-                          {isSearching && (
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
-                            </div>
-                          )}
-                          {searchResults.length > 0 && (
-                            <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
-                              {searchResults.map((card) => (
-                                <button
-                                  key={card.id}
-                                  type="button"
-                                  onClick={() => handleCardSelect(card)}
-                                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
-                                >
-                                  {card.serialNumber}
-                                </button>
-                              ))}
-                            </div>
-                          )}
+                      {isSearching && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
                         </div>
+                      )}
+                      {searchResults.length > 0 && (
+                        <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
+                          {searchResults.map((card) => (
+                            <button
+                              key={card.id}
+                              type="button"
+                              onClick={() => handleCardSelect(card)}
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                            >
+                              {card.serialNumber}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                         {cardId && serialNumber && (
                           <p className="mt-1 text-xs text-green-600 flex items-center gap-1">
                             <CheckCircle size={14} />
                             Kartu tersedia untuk dibeli
                           </p>
                         )}
-                        {serialNumber &&
-                          searchResults.length === 0 &&
-                          !isSearching &&
-                          serialNumber.length >= 6 &&
-                          !cardId && (
-                            <p className="mt-1 text-xs text-red-600">
-                              Tidak ada kartu ditemukan dengan serial number ini
-                            </p>
-                          )}
+                    {serialNumber &&
+                      searchResults.length === 0 &&
+                      !isSearching &&
+                      serialNumber.length >= 6 &&
+                      !cardId && (
+                        <p className="mt-1 text-xs text-red-600">
+                          Tidak ada kartu ditemukan dengan serial number ini
+                        </p>
+                      )}
                         {serialNumber.length > 0 && serialNumber.length < 6 && !cardId && (
-                          <p className="mt-1 text-xs text-gray-500">
+                      <p className="mt-1 text-xs text-gray-500">
                             Masukkan 2 digit tahun kartu dibuat untuk menampilkan
                             rekomendasi
-                          </p>
-                        )}
-                        <FieldError
-                          errors={errors.cardId ? [errors.cardId] : undefined}
-                        />
-                      </FieldContent>
-                    </Field>
-                  </>
-                )}
-
-                <Field>
-                  <FieldLabel>FWC Price</FieldLabel>
-                  <FieldContent>
-                    <Input
-                      className={`${baseInputClass} bg-gray-50`}
-                      readOnly
-                      value={displayFwcPrice}
+                      </p>
+                    )}
+                    <FieldError
+                      errors={errors.cardId ? [errors.cardId] : undefined}
                     />
                   </FieldContent>
                 </Field>
+              </>
+            )}
+
+            <Field>
+              <FieldLabel>FWC Price</FieldLabel>
+              <FieldContent>
+                <Input
+                  className={`${baseInputClass} bg-gray-50`}
+                  readOnly
+                  value={displayFwcPrice}
+                />
+              </FieldContent>
+            </Field>
               </div>
 
               {/* Right Column - Card Info */}
@@ -692,32 +692,32 @@ export default function CreatePurchasePage({ role }: CreatePurchasePageProps) {
           {/* Payment Information Section */}
           <SectionCard title="Payment Information" gridCols={1}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
-              <Field>
-                <FieldLabel>
-                  No. Reference EDC
-                  <span className="ml-1 text-red-500">*</span>
-                </FieldLabel>
-                <FieldContent>
-                  <Input
-                    {...register("edcReferenceNumber")}
-                    className={baseInputClass}
+          <Field>
+            <FieldLabel>
+              No. Reference EDC
+              <span className="ml-1 text-red-500">*</span>
+            </FieldLabel>
+            <FieldContent>
+              <Input
+                {...register("edcReferenceNumber")}
+                className={baseInputClass}
                     maxLength={12}
                     placeholder="No. Reference EDC (max 12 digit)"
-                    onInput={(e) => {
-                      e.currentTarget.value = e.currentTarget.value
-                        .replace(/\D/g, "")
+                onInput={(e) => {
+                  e.currentTarget.value = e.currentTarget.value
+                    .replace(/\D/g, "")
                         .slice(0, 12);
-                    }}
-                  />
-                  <FieldError
-                    errors={
-                      errors.edcReferenceNumber
-                        ? [errors.edcReferenceNumber]
-                        : undefined
-                    }
-                  />
-                </FieldContent>
-              </Field>
+                }}
+              />
+              <FieldError
+                errors={
+                  errors.edcReferenceNumber
+                    ? [errors.edcReferenceNumber]
+                    : undefined
+                }
+              />
+            </FieldContent>
+          </Field>
 
               <Field>
                 <FieldLabel>

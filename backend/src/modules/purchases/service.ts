@@ -48,6 +48,7 @@ export class PurchaseService {
       }
 
     // Use database transaction to ensure atomicity
+    // Increased timeout to handle large bulk purchases (up to 10000 items)
     const result = await db.$transaction(async (tx) => {
       // 1. Validate member (required)
       if (!data.memberId) {
@@ -246,37 +247,63 @@ export class PurchaseService {
           },
         });
 
-        // Create bulk purchase items
+        // Batch create bulk purchase items
+        const bulkPurchaseItemsToCreate = bulkPurchaseItemsData.map((itemData) => ({
+          purchaseId: purchase.id,
+          cardId: itemData.cardId,
+          price: itemData.price,
+        }));
+
+        if (bulkPurchaseItemsToCreate.length > 0) {
+          await tx.bulkPurchaseItem.createMany({
+            data: bulkPurchaseItemsToCreate,
+          });
+        }
+
+        // Group cards by masaBerlaku and totalQuota for efficient batch updates
+        const cardUpdateGroups = new Map<string, Array<{ cardId: string; masaBerlaku: number; totalQuota: number }>>();
+
         for (const itemData of bulkPurchaseItemsData) {
           const cardRecord = cardRecords.find((c) => c.id === itemData.cardId);
           if (!cardRecord) continue;
 
           const masaBerlaku = cardRecord.cardProduct.masaBerlaku;
-          const expiredDate = new Date(purchaseDate);
-          expiredDate.setDate(expiredDate.getDate() + masaBerlaku);
+          const totalQuota = cardRecord.cardProduct.totalQuota;
+          const groupKey = `${masaBerlaku}_${totalQuota}`;
 
-          // Create bulk purchase item
-          await tx.bulkPurchaseItem.create({
-            data: {
-              purchaseId: purchase.id,
-              cardId: itemData.cardId,
-              price: itemData.price,
-            },
-          });
+          if (!cardUpdateGroups.has(groupKey)) {
+            cardUpdateGroups.set(groupKey, []);
+          }
 
-          // Update card: set status to SOLD_ACTIVE
-          await tx.card.update({
-            where: { id: itemData.cardId },
-            data: {
-              status: "SOLD_ACTIVE",
-              purchaseDate: purchaseDate,
-              memberId: data.memberId,
-              expiredDate: expiredDate,
-              quotaTicket: cardRecord.cardProduct.totalQuota, // Initialize quota from product
-              updatedBy: userId,
-            },
+          cardUpdateGroups.get(groupKey)!.push({
+            cardId: itemData.cardId,
+            masaBerlaku,
+            totalQuota,
           });
         }
+
+        // Batch update cards grouped by masaBerlaku and totalQuota
+        await Promise.all(
+          Array.from(cardUpdateGroups.entries()).map(async ([groupKey, cards]) => {
+            const firstCard = cards[0];
+            const expiredDate = new Date(purchaseDate);
+            expiredDate.setDate(expiredDate.getDate() + firstCard.masaBerlaku);
+
+            await tx.card.updateMany({
+              where: {
+                id: { in: cards.map((c) => c.cardId) },
+              },
+              data: {
+                status: "SOLD_ACTIVE",
+                purchaseDate: purchaseDate,
+                memberId: data.memberId,
+                expiredDate: expiredDate,
+                quotaTicket: firstCard.totalQuota,
+                updatedBy: userId,
+              },
+            });
+          })
+        );
 
         return purchase;
       } else {
@@ -372,6 +399,9 @@ export class PurchaseService {
 
       return purchase;
       }
+    }, {
+      maxWait: 10000, // Maximum time to wait for transaction to start (10 seconds)
+      timeout: 30000, // Maximum time transaction can run (30 seconds) - increased for large bulk purchases
     });
 
     // Fetch complete purchase data with relations
@@ -586,7 +616,10 @@ export class PurchaseService {
               },
             },
           },
+          // Optimize: Only fetch first bulkPurchaseItem for preview (to avoid loading thousands)
+          // Full list can be fetched via /purchases/:id/bulk-items endpoint
           bulkPurchaseItems: {
+            take: 1, // Only get first item for preview
             include: {
               card: {
                 select: {
@@ -651,6 +684,11 @@ export class PurchaseService {
               stationName: true,
             },
           },
+          _count: {
+            select: {
+              bulkPurchaseItems: true,
+            },
+          },
         },
       }),
       db.cardPurchase.count({ where }),
@@ -706,30 +744,198 @@ export class PurchaseService {
         },
         }
         : null,
-      bulkPurchaseItems: item.bulkPurchaseItems.map((bulkItem: any) => ({
-        id: bulkItem.id,
-        purchaseId: bulkItem.purchaseId,
-        cardId: bulkItem.cardId,
-        price: Number(bulkItem.price),
-        createdAt: bulkItem.createdAt.toISOString(),
-        updatedAt: bulkItem.updatedAt.toISOString(),
-        card: {
-          ...bulkItem.card,
-          expiredDate: bulkItem.card.expiredDate
-            ? bulkItem.card.expiredDate.toISOString()
-            : null,
-          cardProduct: {
-            ...bulkItem.card.cardProduct,
-            totalQuota: bulkItem.card.cardProduct.totalQuota,
-            masaBerlaku: bulkItem.card.cardProduct.masaBerlaku,
-          },
-        },
-      })),
+      // Optimize: For list view, only return first item for preview (to avoid loading thousands of items)
+      // Full list can be fetched via /purchases/:id/bulk-items endpoint
+      // Use _count to get actual total count for display
+      bulkPurchaseItems: item.bulkPurchaseItems.length > 0
+        ? [
+            {
+              id: item.bulkPurchaseItems[0].id,
+              purchaseId: item.bulkPurchaseItems[0].purchaseId,
+              cardId: item.bulkPurchaseItems[0].cardId,
+              price: Number(item.bulkPurchaseItems[0].price),
+              createdAt: item.bulkPurchaseItems[0].createdAt.toISOString(),
+              updatedAt: item.bulkPurchaseItems[0].updatedAt.toISOString(),
+              card: {
+                ...item.bulkPurchaseItems[0].card,
+                expiredDate: item.bulkPurchaseItems[0].card.expiredDate
+                  ? item.bulkPurchaseItems[0].card.expiredDate.toISOString()
+                  : null,
+                cardProduct: {
+                  ...item.bulkPurchaseItems[0].card.cardProduct,
+                  totalQuota: item.bulkPurchaseItems[0].card.cardProduct.totalQuota,
+                  masaBerlaku: item.bulkPurchaseItems[0].card.cardProduct.masaBerlaku,
+                },
+              },
+            },
+          ]
+        : [],
+      // Add count for bulk purchase items (actual total, not just preview)
+      bulkPurchaseItemsCount: item._count?.bulkPurchaseItems || 0,
       member: item.member,
       operator: item.operator,
       station: item.station,
       employeeTypeId: item.member?.employeeTypeId ?? null,
       employeeType: item.member?.employeeType ?? null,
+    }));
+
+    // Fetch serial number ranges for bulk purchases (optimized batch query)
+    const bulkPurchaseIds = mappedItems
+      .filter((item) => item.bulkPurchaseItemsCount && item.bulkPurchaseItemsCount > 0)
+      .map((item) => item.id);
+
+    let serialRangeMap = new Map<string, { firstSerialNumber: string | null; lastSerialNumber: string | null }>();
+
+    if (bulkPurchaseIds.length > 0) {
+      // Batch query: Get all bulkPurchaseItems with serial numbers, then group by purchaseId in memory
+      const allBulkItems = await db.bulkPurchaseItem.findMany({
+        where: {
+          purchaseId: { in: bulkPurchaseIds },
+        },
+        select: {
+          purchaseId: true,
+          card: {
+            select: {
+              serialNumber: true,
+            },
+          },
+        },
+        orderBy: {
+          card: {
+            serialNumber: "asc",
+          },
+        },
+      });
+
+      // Group by purchaseId and find MIN/MAX serialNumber
+      const groupedByPurchase = new Map<string, string[]>();
+      allBulkItems.forEach((item) => {
+        if (!item.card?.serialNumber) return;
+        if (!groupedByPurchase.has(item.purchaseId)) {
+          groupedByPurchase.set(item.purchaseId, []);
+        }
+        groupedByPurchase.get(item.purchaseId)!.push(item.card.serialNumber);
+      });
+
+      // Build serial range map
+      groupedByPurchase.forEach((serialNumbers, purchaseId) => {
+        if (serialNumbers.length > 0) {
+          serialRangeMap.set(purchaseId, {
+            firstSerialNumber: serialNumbers[0], // First (MIN) after sorting
+            lastSerialNumber: serialNumbers[serialNumbers.length - 1], // Last (MAX) after sorting
+          });
+        }
+      });
+    }
+
+    // Add serial number ranges to mapped items
+    const finalMappedItems = mappedItems.map((item) => {
+      const range = serialRangeMap.get(item.id);
+      return {
+        ...item,
+        firstSerialNumber: range?.firstSerialNumber || null,
+        lastSerialNumber: range?.lastSerialNumber || null,
+      };
+    });
+
+    return {
+      items: finalMappedItems,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
+   * Get bulk purchase items with pagination
+   * Used to fetch voucher items separately to avoid loading all items at once
+   */
+  static async getBulkPurchaseItems(
+    purchaseId: string,
+    page: number = 1,
+    limit: number = 100,
+  ) {
+    // Validate purchase exists
+    const purchase = await db.cardPurchase.findUnique({
+      where: { id: purchaseId },
+      select: { id: true, programType: true },
+    });
+
+    if (!purchase) {
+      throw new NotFoundError("Purchase not found");
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await Promise.all([
+      db.bulkPurchaseItem.findMany({
+        where: {
+          purchaseId: purchaseId,
+        },
+        skip,
+        take: limit,
+        orderBy: { createdAt: "asc" },
+        include: {
+          card: {
+            select: {
+              id: true,
+              serialNumber: true,
+              status: true,
+              expiredDate: true,
+              quotaTicket: true,
+              cardProduct: {
+                select: {
+                  id: true,
+                  totalQuota: true,
+                  masaBerlaku: true,
+                  category: {
+                    select: {
+                      id: true,
+                      categoryCode: true,
+                      categoryName: true,
+                    },
+                  },
+                  type: {
+                    select: {
+                      id: true,
+                      typeCode: true,
+                      typeName: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      }),
+      db.bulkPurchaseItem.count({
+        where: {
+          purchaseId: purchaseId,
+        },
+      }),
+    ]);
+
+    const mappedItems = items.map((item: any) => ({
+      id: item.id,
+      purchaseId: item.purchaseId,
+      cardId: item.cardId,
+      price: Number(item.price),
+      createdAt: item.createdAt.toISOString(),
+      updatedAt: item.updatedAt.toISOString(),
+      card: {
+        ...item.card,
+        expiredDate: item.card.expiredDate
+          ? item.card.expiredDate.toISOString()
+          : null,
+        cardProduct: {
+          ...item.card.cardProduct,
+          totalQuota: item.card.cardProduct.totalQuota,
+          masaBerlaku: item.card.cardProduct.masaBerlaku,
+        },
+      },
     }));
 
     return {

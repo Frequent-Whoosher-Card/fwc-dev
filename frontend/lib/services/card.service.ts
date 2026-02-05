@@ -65,3 +65,63 @@ export async function getCardById(cardId: string): Promise<Card> {
   const response = await axios.get(`/cards/${cardId}`);
   return response.data.data;
 }
+
+/**
+ * Get cards by serial numbers (batch)
+ * Optimized for fetching multiple cards in a single request
+ */
+export async function getCardsBySerialNumbers(params: {
+  serialNumbers: string[];
+  categoryId?: string;
+  typeId?: string;
+  status?: string;
+  stationId?: string;
+  programType?: "FWC" | "VOUCHER";
+}): Promise<{
+  items: Card[];
+  foundCount: number;
+  requestedCount: number;
+}> {
+  const response = await axios.post("/cards/batch-by-serials", {
+    serialNumbers: params.serialNumbers,
+    categoryId: params.categoryId,
+    typeId: params.typeId,
+    status: params.status,
+    stationId: params.stationId,
+    programType: params.programType,
+  });
+
+  return response.data.data;
+}
+
+/**
+ * Get next available cards after a specific serial number
+ * Returns cards ordered by serial number ascending, starting from startSerial
+ */
+export async function getNextAvailableCards(params: {
+  startSerial: string;
+  quantity: number;
+  categoryId?: string;
+  typeId?: string;
+  status?: string;
+  stationId?: string;
+  programType?: "FWC" | "VOUCHER";
+}): Promise<{
+  items: Card[];
+  foundCount: number;
+  requestedCount: number;
+  startSerial: string | null;
+  endSerial: string | null;
+}> {
+  const response = await axios.post("/cards/next-available", {
+    startSerial: params.startSerial,
+    quantity: params.quantity,
+    categoryId: params.categoryId,
+    typeId: params.typeId,
+    status: params.status,
+    stationId: params.stationId,
+    programType: params.programType,
+  });
+
+  return response.data.data;
+}

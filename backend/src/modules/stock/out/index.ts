@@ -116,6 +116,12 @@ const stockOutFwc = new Elysia({ prefix: "/fwc" })
       "/",
       async (context) => {
         const { body, set, user } = context as typeof context & AuthContextUser;
+        console.log("[DEBUG FWC StockOut]", {
+          hasNotaFile: !!body.notaDinasFile,
+          notaFileType: typeof body.notaDinasFile,
+          hasBastFile: !!body.bastFile,
+          bastFileType: typeof body.bastFile,
+        });
         try {
           const result = await StockOutFwcService.stockOutDistribution(
             new Date(body.movementAt),
@@ -406,6 +412,12 @@ const stockOutVoucher = new Elysia({ prefix: "/voucher" })
         async (context) => {
           const { body, set, user } = context as typeof context &
             AuthContextUser;
+          console.log("[DEBUG Voucher StockOut]", {
+            hasNotaFile: !!body.notaDinasFile,
+            notaFileType: typeof body.notaDinasFile,
+            hasBastFile: !!body.bastFile,
+            bastFileType: typeof body.bastFile,
+          });
           try {
             const result = await StockOutVoucherService.stockOutDistribution(
               new Date(body.movementAt),
