@@ -12,6 +12,11 @@ export async function uploadStockFile(
   subDir: string,
   filenameOverride?: string,
 ): Promise<string> {
+  console.log("[DEBUG uploadStockFile] Starting...", {
+    filename: file.name,
+    type: file.type,
+    size: file.size,
+  });
   const mimeType = file.type || "application/octet-stream";
   // Determine extension
   let ext = "bin";
