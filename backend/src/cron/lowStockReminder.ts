@@ -12,8 +12,8 @@ export class LowStockCron {
 
     try {
       // 0. Perform Full Inventory Scan first (to create new alerts if any)
-      // console.log("[LowStockCron] Scanning inventory for new low stock...");
-      // await LowStockService.scanAllInventory();
+      console.log("[LowStockCron] Scanning inventory for new low stock...");
+      await LowStockService.scanAllInventory();
 
       // 1. Fetch all active alerts (including newly created ones)
       console.log("[LowStockCron] Fetching active alerts from DB...");
@@ -67,8 +67,8 @@ export class LowStockCron {
             );
             const currentHourWIB = dateInWIB.getHours();
 
-            const START_HOUR = 8;
-            const END_HOUR = 18; // Until 18:00
+            const START_HOUR = 7;
+            const END_HOUR = 21; // Until 21:00
 
             if (currentHourWIB < START_HOUR || currentHourWIB >= END_HOUR) {
               console.log(
