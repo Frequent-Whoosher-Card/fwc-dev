@@ -8,6 +8,8 @@ import { ValidationError } from "../../../utils/errors";
 import { parseSmartSerial } from "../../../utils/serialHelper";
 import { ActivityLogService } from "../../activity-log/service";
 import { LowStockService } from "../../../services/lowStockService";
+import { uploadStockFile } from "../../../utils/fileUpload";
+import { FilePurpose } from "@prisma/client";
 
 export class StockInFwcService {
   /**
@@ -20,6 +22,11 @@ export class StockInFwcService {
     endSerial: string,
     userId: string,
     note?: string | null,
+    vendorName?: string,
+    vcrSettle?: string,
+    vcrSettleFileId?: string,
+    vcrSettleFile?: File,
+    costs?: string, // [NEW]
   ) {
     // 1. Validasi Input: Pastikan HANYA angka (bukan full serial number) - Relaxed for Smart Parsing
     if (!/^\d+$/.test(startSerial) || !/^\d+$/.test(endSerial)) {
@@ -28,6 +35,18 @@ export class StockInFwcService {
       }
       throw new ValidationError(
         "startSerial dan endSerial harus berupa digit string (angka saja).",
+      );
+    }
+
+    // --- HANDLE FILE UPLOAD ---
+    let finalFileId = vcrSettleFileId;
+    if (vcrSettleFile) {
+      finalFileId = await uploadStockFile(
+        vcrSettleFile,
+        userId,
+        FilePurpose.STOCK_IN_VOUCHER_SETTLE, // Using same purpose for now or add STOCK_IN_FWC_SETTLE
+        "stock-in",
+        vcrSettle,
       );
     }
 
@@ -181,6 +200,10 @@ export class StockInFwcService {
             note:
               note ??
               `Batch ${product.serialTemplate}${yearSuffix}${formattedStartSerial} - ${product.serialTemplate}${yearSuffix}${endSerialFormatted} (Partial/Full)`,
+            vendorName,
+            vcrSettle,
+            vcrSettleFileId: finalFileId,
+            costs, // [NEW]
             createdAt: new Date(),
             createdBy: userId,
             updatedAt: new Date(),
@@ -276,11 +299,11 @@ export class StockInFwcService {
       },
       ...parseSmartSearch(params.search || "", [
         "note",
-        "station.stationName",
+        "vendorName",
+        "vcrSettle",
+        "costs", // [NEW]
         "category.categoryName",
         "type.typeName",
-        "notaDinas",
-        "bast",
         "category.categoryCode",
         "type.typeCode",
       ]),
@@ -386,6 +409,10 @@ export class StockInFwcService {
       status: item.status,
       batchId: item.batchId,
       note: item.note,
+      vendorName: item.vendorName,
+      vcrSettle: item.vcrSettle,
+      vcrSettleFileId: item.vcrSettleFileId,
+      costs: item.costs, // [NEW]
       createdByName: item.createdBy
         ? userMap.get(item.createdBy) || null
         : null,
@@ -422,6 +449,7 @@ export class StockInFwcService {
       include: {
         category: true,
         type: true,
+        vcrSettleFile: true,
       },
     });
 
@@ -451,6 +479,11 @@ export class StockInFwcService {
         status: movement.status,
         batchId: movement.batchId,
         note: movement.note,
+        vendorName: movement.vendorName,
+        vcrSettle: movement.vcrSettle,
+        vcrSettleFileId: movement.vcrSettleFileId,
+        vcrSettleFile: movement.vcrSettleFile,
+        costs: movement.costs, // [NEW]
         createdAt: movement.createdAt.toISOString(),
         createdByName,
         cardCategory: {
@@ -505,10 +538,23 @@ export class StockInFwcService {
       startSerial: string;
       endSerial: string;
       note?: string;
+      vendorName?: string;
+      vcrSettle?: string;
+      vcrSettleFileId?: string;
+      costs?: string; // [NEW]
     },
     userId: string,
   ) {
-    const { startSerial, endSerial, movementAt, note } = body;
+    const {
+      startSerial,
+      endSerial,
+      movementAt,
+      note,
+      vendorName,
+      vcrSettle,
+      vcrSettleFileId,
+      costs, // [NEW]
+    } = body;
 
     // 1. Validasi Input Dasar
     // 1. Validasi Input Dasar
@@ -701,6 +747,10 @@ export class StockInFwcService {
           note:
             note ??
             `Batch ${product.serialTemplate}${yearSuffix}${formattedStartSerial} - ${product.serialTemplate}${yearSuffix}${endSerialFormatted}`,
+          vendorName: vendorName,
+          vcrSettle: vcrSettle,
+          vcrSettleFileId: vcrSettleFileId,
+          costs: costs, // [NEW]
           updatedBy: userId,
           updatedAt: new Date(),
         },

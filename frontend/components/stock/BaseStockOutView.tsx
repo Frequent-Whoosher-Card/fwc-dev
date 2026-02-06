@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useStockOutView } from "@/hooks/useStockOutView";
@@ -19,6 +20,32 @@ export default function BaseStockOutView({
   const router = useRouter();
 
   const { data, loading } = useStockOutView(id, programType || "FWC");
+  const [viewingFile, setViewingFile] = useState(false);
+
+  const handleViewFile = async (url: string) => {
+    try {
+      setViewingFile(true);
+      // Construct full URL if needed, usually backend returns relative or full.
+      // If relative, axios base URL handles it if we strip the prefix or just use it as is if valid endpoint.
+      // But typically we need the backend to serve it.
+      // Assuming 'url' from backend is like '/uploads/...' or full http.
+
+      // Use service to fetch blob with auth
+      const blob = await import("@/lib/services/stock.service").then((m) =>
+        m.default.downloadFile(url),
+      );
+
+      const objectUrl = window.URL.createObjectURL(blob);
+      window.open(objectUrl, "_blank");
+    } catch (error) {
+      console.error("Failed to view file", error);
+      import("react-hot-toast").then((m) =>
+        m.default.error("Gagal membuka file"),
+      );
+    } finally {
+      setViewingFile(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -75,10 +102,8 @@ export default function BaseStockOutView({
             <div className="space-y-1">
               <p className="font-medium">{data.notaDinas || "-"}</p>
               {data.notaDinasFile && (
-                <a
-                  href={data.notaDinasFile.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  onClick={() => handleViewFile(data.notaDinasFile!.url)}
                   className="inline-flex items-center gap-2 text-xs text-blue-600 hover:text-blue-700 hover:underline bg-blue-50 px-2 py-1.5 rounded-md border border-blue-100 transition-colors"
                 >
                   <svg
@@ -96,7 +121,7 @@ export default function BaseStockOutView({
                     <polyline points="14 2 14 8 20 8" />
                   </svg>
                   Lihat File
-                </a>
+                </button>
               )}
             </div>
           </div>
@@ -105,10 +130,8 @@ export default function BaseStockOutView({
             <div className="space-y-1">
               <p className="font-medium">{data.bast || "-"}</p>
               {data.bastFile && (
-                <a
-                  href={data.bastFile.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  onClick={() => handleViewFile(data.bastFile!.url)}
                   className="inline-flex items-center gap-2 text-xs text-blue-600 hover:text-blue-700 hover:underline bg-blue-50 px-2 py-1.5 rounded-md border border-blue-100 transition-colors"
                 >
                   <svg
@@ -126,7 +149,7 @@ export default function BaseStockOutView({
                     <polyline points="14 2 14 8 20 8" />
                   </svg>
                   Lihat File
-                </a>
+                </button>
               )}
             </div>
           </div>

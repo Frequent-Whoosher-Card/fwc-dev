@@ -1,6 +1,7 @@
 import { apiFetch } from "@/lib/apiConfig";
 import axios from "@/lib/axios";
-import type { Card, CardType, CardStatus } from "@/types/purchase";
+import type { Card, CardStatus } from "@/types/card";
+import type { CardType } from "@/types/purchase";
 
 export const getCards = async (params?: {
   page?: number;
@@ -10,6 +11,7 @@ export const getCards = async (params?: {
   categoryId?: string;
   typeId?: string;
   stationId?: string;
+  cardProductId?: string;
 }) => {
   const query = new URLSearchParams();
 
@@ -21,6 +23,8 @@ export const getCards = async (params?: {
   if (params?.categoryId) query.append("categoryId", params.categoryId);
   if (params?.typeId) query.append("typeId", params.typeId);
   if (params?.stationId) query.append("stationId", params.stationId);
+  if (params?.cardProductId)
+    query.append("cardProductId", params.cardProductId);
 
   return apiFetch(`/cards?${query.toString()}`, {
     method: "GET",
@@ -64,6 +68,49 @@ export async function getCardsByType(
 export async function getCardById(cardId: string): Promise<Card> {
   const response = await axios.get(`/cards/${cardId}`);
   return response.data.data;
+}
+
+/**
+ * Update card status and note
+ */
+export async function updateCard(
+  cardId: string,
+  payload: { status?: CardStatus; notes?: string },
+): Promise<Card> {
+  const response = await axios.patch(`/cards/${cardId}`, payload);
+  return response.data.data;
+}
+
+/**
+ * Get available card statuses
+ */
+export async function getCardStatuses(): Promise<
+  { id: string; label: string; code: string }[]
+> {
+  const response = await axios.get("/card/statuses");
+  const statuses: string[] = response.data.data || [];
+
+  return statuses.map((status) => ({
+    id: status,
+    code: status,
+    label: status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+  }));
+}
+
+/**
+ * Get editable card statuses
+ */
+export async function getEditableCardStatuses(): Promise<
+  { id: string; label: string; code: string }[]
+> {
+  const response = await axios.get("/card/statuses/editable");
+  const statuses: string[] = response.data.data || [];
+
+  return statuses.map((status) => ({
+    id: status,
+    code: status,
+    label: status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+  }));
 }
 
 /**

@@ -7,6 +7,7 @@ import CardGenerateService, {
   GenerateHistoryItem,
   Pagination,
 } from "@/lib/services/card.generate";
+import { getCards } from "@/lib/services/card.service";
 
 export interface SerialItem {
   serial: string;
@@ -204,19 +205,35 @@ export function useGenerateNumber({
     }
   }, []);
 
-  const handleSelectProduct = (id: string) => {
+  const handleSelectProduct = async (id: string) => {
     setSelectedProductId(id);
     const p = products.find((x) => x.id === id) || null;
-    setSelectedProduct(p);
+
     if (p) {
+      let currentGeneratedCount = p.generatedCount || 0;
+
+      // FETCH REAL COUNT for accurate quota
+      try {
+        const res: any = await getCards({ cardProductId: p.id, limit: 1 });
+        if (res?.data?.pagination?.total !== undefined) {
+          currentGeneratedCount = res.data.pagination.total;
+        }
+      } catch (error) {
+        console.error("Failed to fetch generated count", error);
+      }
+
+      const updatedProduct = { ...p, generatedCount: currentGeneratedCount };
+      setSelectedProduct(updatedProduct);
+
       fetchNextSerial(p.id);
       if (programType === "VOUCHER" && p.maxQuantity) {
-        const remaining = p.maxQuantity - (p.generatedCount || 0);
+        const remaining = p.maxQuantity - currentGeneratedCount;
         setQuantity(String(remaining > 0 ? remaining : 0));
       } else {
         setQuantity("");
       }
     } else {
+      setSelectedProduct(null);
       setStartNumber("");
       setQuantity("");
     }

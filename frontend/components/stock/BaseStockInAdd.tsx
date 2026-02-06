@@ -22,6 +22,9 @@ export default function BaseStockInAdd({ programType }: BaseStockInAddProps) {
     maxAvailableSerial,
     handleQuantityChange,
     handleEndSerialChange,
+    isOverLimit,
+    vcrSettleFile, // [NEW]
+    setVcrSettleFile, // [NEW]
   } = useStockInForm({ programType });
 
   const sopItems = [
@@ -117,6 +120,7 @@ export default function BaseStockInAdd({ programType }: BaseStockInAddProps) {
                 onChange={(e) => handleQuantityChange(e.target.value)}
                 placeholder="Masukkan jumlah kartu"
                 disabled={!form.productId}
+                max={10000}
               />
             </div>
           </div>
@@ -125,13 +129,20 @@ export default function BaseStockInAdd({ programType }: BaseStockInAddProps) {
             <div>
               <label className="text-sm font-medium">Last Serial</label>
               <input
-                className="w-full rounded-lg border px-4 py-2"
+                className={`w-full rounded-lg border px-4 py-2 ${
+                  isOverLimit ? "border-red-500 bg-red-50 text-red-700" : ""
+                }`}
                 value={form.lastSerial}
                 onChange={(e) => handleEndSerialChange(e.target.value)}
                 disabled={!form.productId}
                 placeholder="Masukkan full serial atau suffix"
               />
-              {maxAvailableSerial && (
+              {isOverLimit && (
+                <p className="mt-1 text-xs text-red-600 font-medium">
+                  Last serial melebihi ketersediaan.
+                </p>
+              )}
+              {maxAvailableSerial && !isOverLimit && (
                 <p className="mt-1 text-xs text-gray-500">
                   Tersedia sampai serial:{" "}
                   <span className="font-mono">{maxAvailableSerial}</span>
@@ -140,11 +151,81 @@ export default function BaseStockInAdd({ programType }: BaseStockInAddProps) {
             </div>
           </div>
 
+          {/* NEW FIELDS SEPARATOR */}
+          <div className="border-t pt-4"></div>
+
+          {/* VENDOR NAME */}
+          <div>
+            <label className="text-sm font-medium">Vendor Name</label>
+            <input
+              className="w-full rounded-lg border px-4 py-2"
+              value={form.vendorName}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, vendorName: e.target.value }))
+              }
+              placeholder="Masukkan nama vendor (Optional)"
+            />
+          </div>
+
+          {/* VCR SETTLE & COSTS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium">VCR Settle Number</label>
+              <input
+                className="w-full rounded-lg border px-4 py-2"
+                value={form.vcrSettle}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, vcrSettle: e.target.value }))
+                }
+                placeholder="Nomor VCR Settle"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Biaya Produksi (Rp)</label>
+              <input
+                type="number"
+                className="w-full rounded-lg border px-4 py-2"
+                value={form.costs}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, costs: e.target.value }))
+                }
+                placeholder="0"
+              />
+            </div>
+          </div>
+
+          {/* FILE UPLOAD FOR VCR SETTLE */}
+          <div>
+            <label className="text-sm font-medium">
+              Bukti VCR Settle (PDF/Image)
+            </label>
+            <div className="mt-1 flex items-center gap-2">
+              <input
+                type="file"
+                accept=".pdf,image/*"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    setVcrSettleFile(e.target.files[0]);
+                  }
+                }}
+                className="w-full rounded-lg border px-4 py-2 file:mr-4 file:rounded-full file:border-0 file:bg-[#8D1231]/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[#8D1231] hover:file:bg-[#8D1231]/20"
+              />
+              {vcrSettleFile && (
+                <button
+                  onClick={() => setVcrSettleFile(null)}
+                  className="text-xs text-red-600 hover:underline"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* SUBMIT */}
           <div className="flex justify-end pt-4">
             <button
               onClick={handleSubmit}
-              disabled={saving}
+              disabled={saving || isOverLimit}
               className="rounded-lg bg-[#8D1231] px-8 py-2 text-white hover:opacity-90 disabled:opacity-50"
             >
               {saving ? "Loading..." : "Add Stock"}

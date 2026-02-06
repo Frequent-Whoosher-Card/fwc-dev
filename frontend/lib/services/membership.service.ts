@@ -64,6 +64,8 @@ export const getMembers = async (params?: {
   hasNippKai?: boolean;
   employeeTypeId?: string;
   isDeleted?: boolean;
+  programType?: "FWC" | "VOUCHER"; // Added
+  productTypeId?: string; // Added
 }) => {
   const query = new URLSearchParams();
 
@@ -98,6 +100,14 @@ export const getMembers = async (params?: {
     query.append("isDeleted", "true");
   }
 
+  if (params?.programType) {
+    query.append("programType", params.programType);
+  }
+
+  if (params?.productTypeId) {
+    query.append("productTypeId", params.productTypeId);
+  }
+
   const res = await apiFetch(`/members?${query.toString()}`, { method: "GET" });
 
   const data = res?.data ?? {};
@@ -126,7 +136,10 @@ export const getMembers = async (params?: {
               employeeTypeId: item.employeeTypeId ?? null,
               employeeType: item.employeeType ?? null,
               cityId: item.cityId ?? null,
-              city: item.city ?? null,
+              city:
+                typeof item.city === "object" && item.city !== null
+                  ? item.city.name
+                  : (item.city ?? null),
               deletedAt: item.deletedAt ?? null,
               deletedByName: item.deletedByName ?? null,
               notes: item.notes ?? null,
@@ -247,22 +260,29 @@ export async function resolveMemberByIdentity(
 }
 
 /**
- * GET MEMBER BY IDENTITY NUMBER
+ * BLOCK MEMBER CARD
  */
-export async function getMemberByIdentity(
-  identityNumber: string,
-): Promise<Member | null> {
-  try {
-    const response = await axios.get("/members", {
-      params: { identityNumber },
-    });
+export const blockCard = (
+  memberId: string | number,
+  cardId: string | number,
+  notes: string,
+) => {
+  return apiFetch(`/members/${memberId}/cards/${cardId}/block`, {
+    method: "POST",
+    body: JSON.stringify({ notes }),
+  });
+};
 
-    if (response.data?.data?.items?.length > 0) {
-      return response.data.data.items[0];
-    }
-
-    return null;
-  } catch (error) {
-    return null;
-  }
-}
+/**
+ * UNBLOCK MEMBER CARD
+ */
+export const unblockCard = (
+  memberId: string | number,
+  cardId: string | number,
+  notes: string,
+) => {
+  return apiFetch(`/members/${memberId}/cards/${cardId}/unblock`, {
+    method: "POST",
+    body: JSON.stringify({ notes }),
+  });
+};

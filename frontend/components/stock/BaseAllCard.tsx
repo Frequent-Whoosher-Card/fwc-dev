@@ -69,7 +69,7 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
             if (newValues.startDate !== undefined)
               setStartDate(newValues.startDate);
             if (newValues.endDate !== undefined) setEndDate(newValues.endDate);
-            setPagination((p) => ({ ...p, page: 1 }));
+            // setPagination((p) => ({ ...p, page: 1 }));
           }}
           onReset={() => {
             setStatus([]);
@@ -193,7 +193,7 @@ export default function BaseAllCard({ programType }: BaseAllCardProps) {
                         <button
                           onClick={() =>
                             router.push(
-                              `/dashboard/${role}/stock/${programType.toLowerCase()}/all/${row.id}/edit`,
+                              `/dashboard/${role}/stock/all/${row.id}/edit?type=${programType}`,
                             )
                           }
                           className="h-8 px-3 rounded-md border text-xs font-medium border-blue-500 text-blue-600 hover:bg-blue-500 hover:text-white transition-colors duration-200 flex items-center justify-center"
