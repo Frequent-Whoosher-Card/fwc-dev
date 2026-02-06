@@ -11,7 +11,12 @@ export class LowStockCron {
     console.log("[LowStockCron] Starting check...");
 
     try {
-      // 1. Fetch all active alerts
+      // 0. Perform Full Inventory Scan first (to create new alerts if any)
+      // console.log("[LowStockCron] Scanning inventory for new low stock...");
+      // await LowStockService.scanAllInventory();
+
+      // 1. Fetch all active alerts (including newly created ones)
+      console.log("[LowStockCron] Fetching active alerts from DB...");
       const activeAlerts = await db.lowStockAlert.findMany({
         include: {
           category: true,
