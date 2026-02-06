@@ -1,4 +1,4 @@
-import { CardStatus } from "../../../../prisma/generated/client/client";
+import { CardStatus } from "@prisma/client";
 
 export class CardStatusService {
   static getAllStatuses() {
