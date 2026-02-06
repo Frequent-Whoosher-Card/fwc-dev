@@ -65,8 +65,8 @@ export function MultiSelect({
 
   const getDisplayValue = () => {
     if (value.length === 0) return placeholder;
-    if (value.length === options.length) return "Semua Role";
-    if (value.length > 2) return `${value.length} Role Terpilih`;
+    if (value.length === options.length) return "Semua Filter";
+    if (value.length > 2) return `${value.length} Filter Terpilih`;
 
     return value
       .map((v) => options.find((opt) => opt.code === v)?.name || v)

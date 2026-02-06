@@ -98,6 +98,8 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
         <div className="flex items-center justify-end px-4 py-3 border-b bg-gray-50">
           <span className="inline-flex items-center gap-2 rounded-lg border border-[#8D1231]/20 bg-[#8D1231]/5 px-3 py-1 text-sm font-medium text-[#8D1231]">
             {t("total_data")}: <b>{pagination.total || 0}</b>
+            <span className="text-gray-400 mx-1">|</span>
+            Total Qty: <b>{pagination.totalQuantity || 0}</b>
           </span>
         </div>
         <div className="overflow-x-auto">
@@ -111,6 +113,8 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
                 <th className="px-3 py-2 text-center">{t("batch")}</th>
                 <th className="px-3 py-2 text-center">{t("nota_dinas")}</th>
                 <th className="px-3 py-2 text-center">{t("bast")}</th>
+                <th className="px-3 py-2 text-center">Pemohon</th>
+                <th className="px-3 py-2 text-center">Penerima</th>
                 <th className="px-3 py-2 text-center">{t("stasiun")}</th>
                 <th className="px-3 py-2 text-center">{t("quantity")}</th>
                 <th className="px-3 py-2 text-center whitespace-nowrap">
@@ -163,9 +167,21 @@ export default function BaseStockOut({ programType }: BaseStockOutProps) {
                       {row.batchId || "-"}
                     </td>
                     <td className="px-3 py-2 text-center">
-                      {row.notaDinas || "-"}
+                      <div className="flex items-center justify-center gap-2">
+                        <span>{row.notaDinas || "-"}</span>
+                      </div>
                     </td>
-                    <td className="px-3 py-2 text-center">{row.bast || "-"}</td>
+                    <td className="px-3 py-2 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <span>{row.bast || "-"}</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      {(row as any).requesterName || "-"}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      {(row as any).receiverName || "-"}
+                    </td>
                     <td className="px-3 py-2 text-center">
                       {row.stationName ? (
                         <span className="rounded px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700">

@@ -4,16 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import axiosInstance from "@/lib/axios";
 import toast from "react-hot-toast";
 import CardGenerateService from "@/lib/services/card.generate";
-
-export type CardStatus =
-  | "ON_REQUEST"
-  | "IN_OFFICE"
-  | "IN_TRANSIT"
-  | "IN_STATION"
-  | "LOST"
-  | "DAMAGED"
-  | "SOLD_ACTIVE"
-  | "SOLD_INACTIVE";
+import { CardStatus } from "@/types/card";
 
 export interface AllCardItem {
   id: string;

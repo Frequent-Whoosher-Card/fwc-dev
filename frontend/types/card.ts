@@ -3,6 +3,30 @@
 /* ======================
    ENTITY (FROM BACKEND)
 ====================== */
+export type CardStatus =
+  | "ON_REQUEST"
+  | "IN_OFFICE"
+  | "IN_TRANSIT"
+  | "IN_STATION"
+  | "LOST"
+  | "DAMAGED"
+  | "SOLD_ACTIVE"
+  | "SOLD_INACTIVE";
+
+export interface Card {
+  id: string;
+  serialNumber: string;
+  status: CardStatus;
+  cardTypeId: string;
+  cardType?: {
+    id: string;
+    typeName: string;
+    typeCode?: string;
+  };
+  stationId?: string;
+  notes?: string;
+}
+
 export interface CardProduct {
   id: string;
   categoryId: string;

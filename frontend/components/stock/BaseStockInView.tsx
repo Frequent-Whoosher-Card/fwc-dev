@@ -63,7 +63,7 @@ export default function BaseStockInView({
       </div>
 
       <div className="px-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 rounded-xl border bg-white p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 rounded-xl border bg-white p-6 mb-4">
           <div>
             <p className="text-sm text-gray-500">Category</p>
             <p className="font-medium">{data.cardCategory.name}</p>
@@ -86,11 +86,30 @@ export default function BaseStockInView({
                 : "-"}
             </p>
           </div>
+        </div>
 
-          <div>
-            <p className="text-sm text-gray-500 mb-1">Status</p>
-            <StatusBadge status={data.status} />
-          </div>
+        {/* SUMMARY COUNT BY STATUS */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mb-6">
+          {Object.entries(
+            data.serialItems.reduce(
+              (acc, item) => {
+                const status = item.status || "Unknown";
+                acc[status] = (acc[status] || 0) + 1;
+                return acc;
+              },
+              {} as Record<string, number>,
+            ),
+          ).map(([status, count]) => (
+            <div
+              key={status}
+              className="flex flex-col items-center justify-center rounded-lg border bg-white p-3 shadow-sm"
+            >
+              <span className="text-xs font-medium text-gray-500 mb-1">
+                {status.replace(/_/g, " ")}
+              </span>
+              <span className="text-lg font-bold text-gray-800">{count}</span>
+            </div>
+          ))}
         </div>
       </div>
 

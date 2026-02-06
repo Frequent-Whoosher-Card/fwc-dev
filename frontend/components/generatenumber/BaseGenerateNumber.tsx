@@ -103,26 +103,25 @@ export default function BaseGenerateNumber({
             {programType === "VOUCHER" && selectedProduct && (
               <div className="text-xs text-gray-500 px-1">
                 {selectedProduct.maxQuantity ? (
-                  <div className="flex flex-col gap-1">
-                    <span>
-                      Max Limit:{" "}
-                      <b>{selectedProduct.maxQuantity.toLocaleString()}</b>
-                    </span>
-                    <span>
-                      Terpakai:{" "}
-                      <b>
-                        {(selectedProduct.generatedCount || 0).toLocaleString()}
-                      </b>
-                    </span>
-                    <span>
-                      Sisa Quota:{" "}
-                      <b className="text-[#8D1231]">
-                        {(
-                          selectedProduct.maxQuantity -
-                          (selectedProduct.generatedCount || 0)
-                        ).toLocaleString()}
-                      </b>
-                    </span>
+                  <div className="grid grid-cols-[70px_10px_1fr] gap-y-1">
+                    <span className="text-gray-600">Max Limit</span>
+                    <span>:</span>
+                    <b>{selectedProduct.maxQuantity.toLocaleString()}</b>
+
+                    <span className="text-gray-600">Terpakai</span>
+                    <span>:</span>
+                    <b>
+                      {(selectedProduct.generatedCount || 0).toLocaleString()}
+                    </b>
+
+                    <span className="text-gray-600">Sisa Quota</span>
+                    <span>:</span>
+                    <b className="text-[#8D1231]">
+                      {(
+                        selectedProduct.maxQuantity -
+                        (selectedProduct.generatedCount || 0)
+                      ).toLocaleString()}
+                    </b>
                   </div>
                 ) : (
                   "No limit: diisi manual"

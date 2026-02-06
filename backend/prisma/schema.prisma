@@ -58,6 +58,7 @@ enum FilePurpose {
   GENERATION_DOCUMENT
   STOCK_OUT_NOTA
   STOCK_OUT_BAST
+  STOCK_IN_VOUCHER_SETTLE
 }
 
 enum Gender {
@@ -419,6 +420,7 @@ model FileObject {
   generateFile  CardStockMovement[] @relation("generateFile")
   notaDinasFile CardStockMovement[] @relation("notaDinasFile")
   bastFile      CardStockMovement[] @relation("bastFile")
+  vcrSettleFile CardStockMovement[] @relation("vcrSettleFile")
 
   @@map("file_object")
 }
@@ -503,6 +505,8 @@ model CardStockMovement {
   // Khusus stock in
   vendorName            String?             @map("vendor_name")
   vcrSettle             String?             @map("vcr_settle")
+  vcrSettleFileId       String?             @map("vcr_settle_file_id") @db.Uuid
+  costs                 String?             @map("costs")
   // Khusus stock out
   batchId               String?             @map("batch_id")
   notaDinas             String?             @map("nota_dinas")
@@ -531,6 +535,7 @@ model CardStockMovement {
   fileObject    FileObject?  @relation("generateFile", fields: [fileObjectId], references: [id])
   notaDinasFile FileObject?  @relation("notaDinasFile", fields: [notaDinasFileId], references: [id])
   bastFile      FileObject?  @relation("bastFile", fields: [bastFileId], references: [id])
+  vcrSettleFile FileObject?  @relation("vcrSettleFile", fields: [vcrSettleFileId], references: [id])
 
   @@map("card_stock_movements")
 }
