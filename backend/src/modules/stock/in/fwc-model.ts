@@ -29,6 +29,7 @@ export namespace StockInFwcModel {
     vcrSettle: t.Optional(t.String()),
     vcrSettleFileId: t.Optional(t.String({ format: "uuid" })),
     vcrSettleFile: t.Optional(t.File()),
+    costs: t.Optional(t.String()),
   });
 
   // Stock In Response
@@ -78,6 +79,7 @@ export namespace StockInFwcModel {
           vendorName: t.Union([t.String(), t.Null()]),
           vcrSettle: t.Union([t.String(), t.Null()]),
           vcrSettleFileId: t.Union([t.String(), t.Null()]),
+          costs: t.Union([t.String(), t.Null()]),
           createdByName: t.Union([t.String(), t.Null(), t.Undefined()]),
           cardCategory: t.Object({
             id: t.String(),
@@ -116,6 +118,7 @@ export namespace StockInFwcModel {
         vendorName: t.Union([t.String(), t.Null()]),
         vcrSettle: t.Union([t.String(), t.Null()]),
         vcrSettleFileId: t.Union([t.String(), t.Null()]),
+        costs: t.Union([t.String(), t.Null()]),
         vcrSettleFile: t.Optional(
           t.Nullable(
             t.Object({

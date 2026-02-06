@@ -1,29 +1,39 @@
-'use client';
+"use client";
 
-import Image from 'next/image';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { API_BASE_URL } from '../lib/apiConfig';
-import { setupAppCheck, getAppCheckToken, isAppCheckEnabled } from '../lib/firebase';
-import { executeTurnstile, isTurnstileEnabled, initializeTurnstile, resetTurnstile } from '../lib/turnstile';
-import toast from 'react-hot-toast';
-import { Eye, EyeOff, XCircle } from 'lucide-react';
+import Image from "next/image";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { API_BASE_URL } from "../lib/apiConfig";
+import {
+  setupAppCheck,
+  getAppCheckToken,
+  isAppCheckEnabled,
+} from "../lib/firebase";
+import {
+  executeTurnstile,
+  isTurnstileEnabled,
+  initializeTurnstile,
+  resetTurnstile,
+} from "../lib/turnstile";
+import toast from "react-hot-toast";
+import { Eye, EyeOff, XCircle } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
 
   const [showPassword, setShowPassword] = useState(false);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
 
-  const [usernameError, setUsernameError] = useState('');
-  const [passwordError, setPasswordError] = useState('');
+  const [usernameError, setUsernameError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
 
   const [showAuthError, setShowAuthError] = useState(false);
   const [authErrorMessage, setAuthErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  const delay = (ms: number) =>
+    new Promise((resolve) => setTimeout(resolve, ms));
 
   /* =====================
      INIT SECURITY
@@ -38,7 +48,7 @@ export default function LoginPage() {
       }
 
       if (isTurnstileEnabled()) {
-        await initializeTurnstile('turnstile-container');
+        await initializeTurnstile("turnstile-container");
       }
     };
 
@@ -49,18 +59,18 @@ export default function LoginPage() {
      LOGIN HANDLER
   ===================== */
   const handleLogin = async () => {
-    setUsernameError('');
-    setPasswordError('');
+    setUsernameError("");
+    setPasswordError("");
     setAuthErrorMessage(null);
     setShowAuthError(false);
 
     if (!username.trim()) {
-      setUsernameError('Please enter your username');
+      setUsernameError("Please enter your username");
       return;
     }
 
     if (!password.trim()) {
-      setPasswordError('Please enter your password');
+      setPasswordError("Please enter your password");
       return;
     }
 
@@ -68,23 +78,23 @@ export default function LoginPage() {
 
     try {
       // App Check
-      let appCheckToken = 'disabled';
+      let appCheckToken = "disabled";
       if (isAppCheckEnabled()) {
-        appCheckToken = (await getAppCheckToken()) ?? '';
-        if (!appCheckToken) throw new Error('AppCheck failed');
+        appCheckToken = (await getAppCheckToken()) ?? "";
+        if (!appCheckToken) throw new Error("AppCheck failed");
       }
 
       // Turnstile
       if (!isTurnstileEnabled()) {
-        throw new Error('Turnstile disabled');
+        throw new Error("Turnstile disabled");
       }
 
       const turnstileToken = await executeTurnstile();
-      if (!turnstileToken) throw new Error('Turnstile failed');
+      if (!turnstileToken) throw new Error("Turnstile failed");
 
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           username,
           password,
@@ -96,16 +106,17 @@ export default function LoginPage() {
       const json = await response.json();
 
       if (!response.ok || !json?.success) {
-        const rawMsg = json?.error?.message || 'Login gagal';
-        
+        const rawMsg = json?.error?.message || "Login gagal";
+
         // Sanitize technical errors only in production
         const isTechnical = /prisma|database|invocation|connect/i.test(rawMsg);
-        const isDev = process.env.NODE_ENV === 'development';
-        
+        const isDev = process.env.NODE_ENV === "development";
+
         // Show raw message in dev or if it's not a technical error (e.g. wrong password)
-        const displayMsg = (isDev || !isTechnical) 
-          ? rawMsg 
-          : 'Terjadi kesalahan sistem. Silakan coba lagi.';
+        const displayMsg =
+          isDev || !isTechnical
+            ? rawMsg
+            : "Terjadi kesalahan sistem. Silakan coba lagi.";
 
         setAuthErrorMessage(displayMsg);
         setShowAuthError(true);
@@ -141,13 +152,13 @@ export default function LoginPage() {
       /* =====================
          SIMPAN TOKEN
       ===================== */
-      localStorage.setItem('fwc_token', token);
+      localStorage.setItem("fwc_token", token);
 
       /* =====================
          USER BASIC
       ===================== */
       localStorage.setItem(
-        'fwc_user',
+        "fwc_user",
         JSON.stringify({
           id: user.id,
           username: user.username,
@@ -155,14 +166,14 @@ export default function LoginPage() {
           email: user.email,
           role: user.role.roleCode,
           stationId: user.station?.id || null,
-        })
+        }),
       );
 
       /* =====================
          USER DETAIL (EXTENDABLE)
       ===================== */
       localStorage.setItem(
-        'fwc_users',
+        "fwc_users",
         JSON.stringify({
           id: user.id,
           username: user.username,
@@ -177,53 +188,50 @@ export default function LoginPage() {
           nip: null,
           phone: null,
           station: user.station || null,
-        })
+        }),
       );
 
-      toast.success('Login berhasil');
+      toast.success("Login berhasil");
       await delay(1000);
 
       const role = user.role.roleCode.toLowerCase();
 
       switch (role) {
-        case 'superadmin':
-          router.push('/dashboard/superadmin/dashboard');
+        case "superadmin":
+          router.push("/dashboard/superadmin/dashboard");
           break;
-        case 'admin':
-          router.push('/dashboard/admin');
+        case "admin":
+          router.push("/dashboard/admin");
           break;
-        case 'petugas':
-          router.push('/dashboard/petugas');
+        case "petugas":
+          router.push("/dashboard/petugas");
           break;
-        case 'supervisor':
-        case 'spv':
-          router.push('/dashboard/supervisor/membership');
+        case "supervisor":
+        case "spv":
+          router.push("/dashboard/supervisor/membership");
           break;
         default:
-          router.push('/dashboard');
+          router.push("/dashboard");
       }
     } catch (err) {
-      const rawMsg = err instanceof Error ? err.message : 'Terjadi kesalahan sistem';
+      const rawMsg =
+        err instanceof Error ? err.message : "Terjadi kesalahan sistem";
 
       // Jangan console.error jika cuma turnstile failed (biar ga merah di Next.js)
-      if (rawMsg === 'Turnstile failed') {
-        console.warn('[Login] Turnstile verification required/pending');
+      if (rawMsg === "Turnstile failed") {
+        console.warn("[Login] Turnstile verification required/pending");
       } else {
         console.error(err);
       }
 
-      const isDev = process.env.NODE_ENV === 'development';
+      const isDev = process.env.NODE_ENV === "development";
 
-      if (rawMsg === 'Turnstile failed') {
+      if (rawMsg === "Turnstile failed") {
         // Pesan yang lebih natural dan umum di telinga pengguna Indonesia
-        const msg = 'Mohon selesaikan verifikasi Captcha terlebih dahulu!';
+        const msg = "Mohon selesaikan verifikasi Captcha terlebih dahulu!";
         setAuthErrorMessage(msg);
       } else {
-        setAuthErrorMessage(
-          isDev 
-            ? rawMsg 
-            : 'Terjadi kesalahan sistem'
-        );
+        setAuthErrorMessage(isDev ? rawMsg : "Terjadi kesalahan sistem");
       }
       setShowAuthError(true);
       if (isTurnstileEnabled()) resetTurnstile(); // Reset on caught error
@@ -238,7 +246,13 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex bg-white">
       <div className="hidden md:flex w-1/2 bg-[var(--kcic)] items-center justify-center">
-        <Image src="/assets/images/login3-bg.png" alt="Whoosh" width={420} height={160} priority />
+        <Image
+          src="/assets/images/logo-login1.png"
+          alt="Whoosh"
+          width={420}
+          height={160}
+          priority
+        />
       </div>
 
       <div className="flex w-full md:w-1/2">
@@ -259,30 +273,32 @@ export default function LoginPage() {
               >
                 {/* USERNAME */}
                 <div className="space-y-1">
-                  <input 
-                    className="h-12 w-full rounded-md border border-gray-300 bg-gray-50 px-3 text-sm focus:border-[var(--kcic)] focus:outline-none focus:ring-1 focus:ring-[var(--kcic)]" 
-                    placeholder="Username" 
-                    value={username} 
+                  <input
+                    className="h-12 w-full rounded-md border border-gray-300 bg-gray-50 px-3 text-sm focus:border-[var(--kcic)] focus:outline-none focus:ring-1 focus:ring-[var(--kcic)]"
+                    placeholder="Username"
+                    value={username}
                     onChange={(e) => {
                       setUsername(e.target.value);
-                      if (usernameError) setUsernameError('');
-                    }} 
+                      if (usernameError) setUsernameError("");
+                    }}
                   />
-                  {usernameError && <p className="text-xs text-red-500">{usernameError}</p>}
+                  {usernameError && (
+                    <p className="text-xs text-red-500">{usernameError}</p>
+                  )}
                 </div>
 
                 {/* PASSWORD */}
                 <div className="space-y-1">
                   <div className="relative">
-                    <input 
-                      type={showPassword ? 'text' : 'password'} 
-                      className="h-12 w-full rounded-md border border-gray-300 bg-gray-50 px-3 pr-10 text-sm focus:border-[var(--kcic)] focus:outline-none focus:ring-1 focus:ring-[var(--kcic)]" 
-                      placeholder="Password" 
-                      value={password} 
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      className="h-12 w-full rounded-md border border-gray-300 bg-gray-50 px-3 pr-10 text-sm focus:border-[var(--kcic)] focus:outline-none focus:ring-1 focus:ring-[var(--kcic)]"
+                      placeholder="Password"
+                      value={password}
                       onChange={(e) => {
                         setPassword(e.target.value);
-                        if (passwordError) setPasswordError('');
-                      }} 
+                        if (passwordError) setPasswordError("");
+                      }}
                     />
                     <button
                       type="button"
@@ -292,7 +308,9 @@ export default function LoginPage() {
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
                   </div>
-                  {passwordError && <p className="text-xs text-red-500">{passwordError}</p>}
+                  {passwordError && (
+                    <p className="text-xs text-red-500">{passwordError}</p>
+                  )}
                 </div>
 
                 {/* BUTTON */}
@@ -307,7 +325,7 @@ export default function LoginPage() {
                       <span>Signing In...</span>
                     </>
                   ) : (
-                    'Sign In'
+                    "Sign In"
                   )}
                 </button>
 
@@ -321,7 +339,9 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <p className="text-xs text-gray-400 text-center">© 2026 PT KCIC | All rights reserved</p>
+          <p className="text-xs text-gray-400 text-center">
+            © 2026 PT KCIC | All rights reserved
+          </p>
         </div>
       </div>
 
@@ -332,9 +352,11 @@ export default function LoginPage() {
               <XCircle className="h-10 w-10 text-[var(--kcic)]" />
             </div>
             <h3 className="text-xl font-bold text-gray-900">Login Gagal</h3>
-            <p className="text-sm text-gray-500 mt-2 mb-6">{authErrorMessage}</p>
-            <button 
-              onClick={() => setShowAuthError(false)} 
+            <p className="text-sm text-gray-500 mt-2 mb-6">
+              {authErrorMessage}
+            </p>
+            <button
+              onClick={() => setShowAuthError(false)}
               className="w-full bg-black text-white hover:bg-gray-800 font-semibold h-11 rounded-lg transition-colors"
             >
               Kembali

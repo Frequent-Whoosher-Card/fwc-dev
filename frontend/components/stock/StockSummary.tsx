@@ -1,65 +1,62 @@
-"use client";
-
 import { useStockSummary } from "@/hooks/useStockSummary";
+import { InventoryParams } from "@/lib/services/inventory.service";
 
 const safeNumber = (value?: number) => (value ?? 0).toLocaleString();
 
-export function StockSummary({ programType }: { programType?: string }) {
-  const { summary, loading } = useStockSummary(programType);
+interface StockSummaryProps {
+  programType?: "FWC" | "VOUCHER";
+  filters?: InventoryParams;
+}
+
+export function StockSummary({ programType, filters }: StockSummaryProps) {
+  const { summary, loading } = useStockSummary(programType, filters);
 
   const getStockStatus = (label: string, value: number) => {
-    if (label !== "Stock In") return null;
-
-    if (value > 200) {
-      return {
-        color: "bg-green-100 text-green-800 border-green-200",
-        message: "Stock Aman",
-      };
-    } else if (value >= 100 && value <= 200) {
-      return {
-        color: "bg-yellow-100 text-yellow-800 border-yellow-200",
-        message: "Stock Peringatan",
-      };
-    } else {
-      return {
-        color: "bg-red-100 text-red-800 border-red-200",
-        message: "Stock Menipis Segera Generate Kartu",
-      };
-    }
+    // Customize status logic if needed, e.g. based on low stock threshold
+    return null; // Disabled status color for detailed breakdown for now unless requested
   };
 
   const items = [
-    { label: "All Stock", value: summary.totalCards },
-    { label: "Stock In", value: summary.totalIn },
-    { label: "Stock Out", value: summary.totalOut },
+    {
+      label: "Total Stock",
+      value: summary.totalStock,
+      color: "bg-blue-50 text-blue-900 border-blue-200",
+    },
+    {
+      label: "In Office",
+      value: summary.totalInOffice,
+      color: "bg-gray-50 text-gray-900 border-gray-200",
+    },
+    {
+      label: "In Station",
+      value: summary.totalInStation,
+      color: "bg-indigo-50 text-indigo-900 border-indigo-200",
+    },
+    {
+      label: "In Transit",
+      value: summary.totalInTransfer,
+      color: "bg-orange-50 text-orange-900 border-orange-200",
+    },
+    {
+      label: "Sold / Active",
+      value: summary.totalSold,
+      color: "bg-green-50 text-green-900 border-green-200",
+    },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
       {items.map((item) => {
-        const status = getStockStatus(item.label, item.value || 0);
-
         return (
           <div
             key={item.label}
-            className={`rounded-lg border p-4 shadow-sm transition-colors ${
-              status ? status.color : "bg-white border-gray-200 text-black"
-            }`}
+            className={`rounded-lg border p-4 shadow-sm transition-colors ${item.color}`}
           >
-            <p
-              className={`text-sm ${status ? "text-current" : "text-gray-500"}`}
-            >
-              {item.label}
-            </p>
+            <p className="text-sm font-medium opacity-80 mb-1">{item.label}</p>
             <div className="flex items-baseline justify-between gap-2">
-              <p className="text-2xl font-semibold">
+              <p className="text-2xl font-bold">
                 {loading ? "…" : safeNumber(item.value)}
               </p>
-              {status && !loading && (
-                <span className="text-[10px] font-bold uppercase tracking-wider text-right italic">
-                  {status.message}
-                </span>
-              )}
             </div>
           </div>
         );

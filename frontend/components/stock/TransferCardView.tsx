@@ -140,7 +140,8 @@ export default function TransferCardView({
       !toStation ||
       !selectedCategory ||
       !selectedType ||
-      selectedCards.length === 0
+      selectedCards.length === 0 ||
+      !note.trim()
     ) {
       toast.error("Mohon lengkapi semua data");
       return;
@@ -308,7 +309,9 @@ export default function TransferCardView({
 
           {/* Note */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Catatan</label>
+            <label className="text-sm font-medium text-gray-700">
+              Catatan <span className="text-red-500">*</span>
+            </label>
             <textarea
               className="w-full rounded-lg border px-4 py-2 text-sm focus:ring-1 focus:ring-[#8D1231] outline-none"
               value={note}

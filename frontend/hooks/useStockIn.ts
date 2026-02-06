@@ -145,7 +145,17 @@ export const useStockIn = ({ programType }: UseStockInProps) => {
         startY: startY,
         margin: { left: 15, right: 15 },
         head: [
-          ["No", "Tanggal", "Category", "Type", "Stock Masuk", "Serial Number"],
+          [
+            "No",
+            "Tanggal",
+            "Category",
+            "Type",
+            "Stock Masuk",
+            "Serial Number",
+            "Vendor",
+            "VCR Settle",
+            "Costs",
+          ],
         ],
         body: allData.map((item: any, index: number) => {
           let serialDisplay = "-";
@@ -169,6 +179,11 @@ export const useStockIn = ({ programType }: UseStockInProps) => {
             item.type ?? "-",
             item.stock?.toLocaleString() ?? "0",
             serialDisplay,
+            item.vendorName ?? "-",
+            item.vcrSettle ?? "-",
+            item.costs
+              ? `Rp ${Number(item.costs).toLocaleString("id-ID")}`
+              : "-",
           ];
         }),
         styles: {

@@ -65,6 +65,8 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
     bast: "",
     notaDinasFile: null as File | null,
     bastFile: null as File | null,
+    requesterName: "",
+    receiverName: "",
   });
 
   const fetchData = useCallback(async () => {
@@ -116,6 +118,8 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
           note: detail.note || "",
           notaDinas: detail.notaDinas || "",
           bast: detail.bast || "",
+          requesterName: detail.requesterName || "",
+          receiverName: detail.receiverName || "",
           notaDinasFile: null,
           bastFile: null,
         });
@@ -181,7 +185,17 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
           toast.error("Serial Number Belum Tersedia");
         }
       } catch (error: any) {
-        console.error("Failed to fetch available serials", error);
+        // If it's just out of stock, warn in console, don't error track
+        const msg = error?.message || "";
+        if (
+          msg.toLowerCase().includes("habis") ||
+          msg.toLowerCase().includes("tidak tersedia")
+        ) {
+          console.warn("Stock not available:", msg);
+        } else {
+          console.error("Failed to fetch available serials", error);
+        }
+
         setMaxAvailableSerial("");
         if (!id) {
           setForm((prev) => ({
@@ -191,7 +205,7 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
             quantity: "",
           }));
         }
-        toast.error(error.message || "Gagal mengambil data serial stok.");
+        toast.error(msg || "Gagal mengambil data serial stok.");
       }
     };
     fetchSerial();
@@ -250,103 +264,75 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
   };
 
   const handleSubmit = async () => {
-    // Validation
-    if (id && status !== "PENDING") {
-      toast.error("Hanya transaksi PENDING yang dapat diubah");
-      return;
-    }
-
-    const isEdit = !!id;
-    const requiredFields = isEdit
-      ? [form.movementAt, form.stationId, form.startSerial, form.endSerial]
-      : [
-          form.movementAt,
-          form.movementAt,
-          form.productId,
-          form.stationId,
-          form.quantity,
-        ];
-
-    if (requiredFields.some((field) => !field)) {
-      toast.error("Mohon lengkapi semua field wajib");
-      return;
+    // 1. Validation for Create
+    if (!id) {
+      if (!form.productId || !form.stationId) {
+        toast.error("Data belum lengkap (Product/Station)");
+        return;
+      }
+    } else {
+      // Validation for Edit
+      if (status !== "PENDING") {
+        toast.error("Hanya transaksi PENDING yang dapat diubah");
+        return;
+      }
     }
 
     try {
       setSaving(true);
-      const payload: any = {
-        movementAt: new Date(form.movementAt).toISOString(),
-        stationId: form.stationId,
-        note: form.note,
-      };
+      const isEdit = !!id;
 
       if (isEdit) {
-        payload.startSerial = form.startSerial;
-        payload.endSerial = form.endSerial;
-        // payload.batchId = form.batchId; // Auto/Immutable
-        payload.notaDinas = form.notaDinas;
-        payload.bast = form.bast;
+        // Edit flow usually stays JSON unless we also want to support file update (not requested yet but good practice, currently adhering to old json style for update to be safe)
+        const payload: any = {
+          movementAt: new Date(form.movementAt).toISOString(),
+          stationId: form.stationId,
+          note: form.note,
+          startSerial: form.startSerial,
+          endSerial: form.endSerial,
+          notaDinas: form.notaDinas,
+          bast: form.bast,
+        };
         await stockService.updateStockOut(id, payload);
         toast.success("Stock out berhasil diperbarui");
       } else {
-        const selectedProduct = products.find((p) => p.id === form.productId);
-        if (!selectedProduct) {
-          toast.error("Invalid Product");
-          setSaving(false);
-          return;
-        }
+        // Create Flow with Object
+        let finalStart = form.startSerial;
+        let finalEnd = form.endSerial;
+        let serialDate: string | undefined;
 
-        // Fix Payload for Create
-        payload.cardProductId = form.productId;
-        payload.startSerial = form.startSerial;
-        payload.endSerial = form.endSerial;
-        payload.quantity = Number(form.quantity);
-        payload.programType = programType;
-
-        // Add serialDate for Voucher (required by validation)
         if (programType === "VOUCHER") {
-          // Heuristic: If startSerial is a full serial (length > 10), extract the date and suffix.
-          // Voucher Format: Template + YYMMDD + Suffix(5)
-          // We assume suffix is last 5 digits and date is 6 digits before that.
+          serialDate = new Date(form.movementAt).toISOString();
+
+          // Jika user input serial panjang, ambil suffix
           if (form.startSerial && form.startSerial.length > 10) {
-            const suffix = form.startSerial.slice(-5);
-            const datePart = form.startSerial.slice(-11, -5); // YYMMDD
-            // Reconstruct Date: 20YY-MM-DD
-            // Note: This matches the format used in backend (YY year suffix)
-            const year = `20${datePart.slice(0, 2)}`;
-            const month = datePart.slice(2, 4);
-            const day = datePart.slice(4, 6);
-            const parsedDate = new Date(`${year}-${month}-${day}`);
-
-            if (!isNaN(parsedDate.getTime())) {
-              payload.serialDate = parsedDate.toISOString();
-              payload.startSerial = suffix; // Send only suffix
-            } else {
-              // Fallback if parsing fails
-              payload.serialDate = form.movementAt;
-            }
-
-            // Also handle endSerial if it's full
-            if (form.endSerial && form.endSerial.length > 10) {
-              payload.endSerial = form.endSerial.slice(-5);
-            }
-          } else {
-            // Fallback for manual short input
-            payload.serialDate = form.movementAt;
+            finalStart = form.startSerial.slice(-5);
+          }
+          if (form.endSerial && form.endSerial.length > 10) {
+            finalEnd = form.endSerial.slice(-5);
           }
         }
 
-        payload.notaDinas = form.notaDinas;
-        payload.bast = form.bast;
-        payload.notaDinasFile = form.notaDinasFile;
-        payload.bastFile = form.bastFile;
-
-        await stockService.createStockOut(payload);
+        await stockService.createStockOut({
+          programType,
+          movementAt: new Date(form.movementAt).toISOString(),
+          stationId: form.stationId,
+          cardProductId: form.productId,
+          note: form.note,
+          startSerial: finalStart,
+          endSerial: finalEnd,
+          serialDate: serialDate,
+          notaDinas: form.notaDinas,
+          bast: form.bast,
+          notaDinasFile: form.notaDinasFile,
+          bastFile: form.bastFile,
+        });
         toast.success("Stock Out berhasil disimpan");
       }
 
       router.push("/dashboard/superadmin/stock/out");
     } catch (error: any) {
+      console.error(error);
       toast.error(error?.message || "Gagal menyimpan stock out");
     } finally {
       setSaving(false);
