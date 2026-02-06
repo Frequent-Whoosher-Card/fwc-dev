@@ -511,7 +511,7 @@ export class StockOutFwcService {
     let message = `Laporan dari ${stationName}: Validasi Stock Out Berhasil.`;
     const type = hasIssues ? "STOCK_ISSUE_APPROVAL" : "STOCK_OUT_REPORT";
 
-    const msgParts = [];
+    const msgParts: string[] = [];
     if (finalReceived.length) msgParts.push(`${finalReceived.length} DITERIMA`);
     if (finalLost.length) msgParts.push(`${finalLost.length} HILANG`);
     if (finalDamaged.length) msgParts.push(`${finalDamaged.length} RUSAK`);
@@ -700,7 +700,7 @@ export class StockOutFwcService {
             type = "STOCK_DISTRIBUTION_SUCCESS"; // Different type for informational
             statusLabel = "COMPLETED";
           } else {
-            const issueDetails = [];
+            const issueDetails: string[] = [];
             if (finalLost.length)
               issueDetails.push(`${finalLost.length} Hilang`);
             if (finalDamaged.length)
@@ -748,10 +748,10 @@ export class StockOutFwcService {
           damagedCount: finalDamaged.length,
           // metadata for notification
           notification: {
-             trigger: true,
-             title,
-             message
-          }
+            trigger: true,
+            title,
+            message,
+          },
         };
       },
       {
@@ -760,13 +760,17 @@ export class StockOutFwcService {
       },
     );
 
-
     // --- POST-TRANSACTION NOTIFICATION ---
     if ((transaction as any).notification?.trigger) {
       const { title, message } = (transaction as any).notification;
       // Fire and forget, but safer now
-      const { PushNotificationService } = await import("../../notification/push-service");
-      PushNotificationService.sendToRole(["admin", "superadmin"], title, message);
+      const { PushNotificationService } =
+        await import("../../notification/push-service");
+      PushNotificationService.sendToRole(
+        ["admin", "superadmin"],
+        title,
+        message,
+      );
     }
     // -------------------------------------
 
@@ -1261,8 +1265,8 @@ export class StockOutFwcService {
             invalidCards.map((c) => [c.serialNumber, c.status]),
           );
 
-          const alreadyDistributed = [];
-          const notFound = [];
+          const alreadyDistributed: string[] = [];
+          const notFound: string[] = [];
 
           for (const sn of missing) {
             const status = statusMap.get(sn);

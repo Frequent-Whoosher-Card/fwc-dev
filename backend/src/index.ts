@@ -1,5 +1,5 @@
 import path from "path";
-import { config } from "dotenv";
+
 import { Elysia } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { cron } from "@elysiajs/cron";
@@ -33,7 +33,7 @@ import { permissions } from "./modules/permissions";
 import { menuAccess } from "./modules/menu-access";
 import { notificationRoutes } from "./modules/notification";
 
-config();
+// config();
 const PORT = process.env.APP_PORT ? Number(process.env.APP_PORT) : 3001;
 
 const app = new Elysia()
