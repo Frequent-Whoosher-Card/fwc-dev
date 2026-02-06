@@ -141,6 +141,33 @@ export default function BaseStockOutAdd({ programType }: BaseStockOutAddProps) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
+              <label className="text-sm font-medium">Nama Pemohon</label>
+              <input
+                type="text"
+                className="w-full rounded-lg border px-4 py-2"
+                value={form.requesterName || ""}
+                onChange={(e) =>
+                  setForm({ ...form, requesterName: e.target.value })
+                }
+                placeholder="Masukkan Nama Pemohon"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Nama Penerima</label>
+              <input
+                type="text"
+                className="w-full rounded-lg border px-4 py-2"
+                value={form.receiverName || ""}
+                onChange={(e) =>
+                  setForm({ ...form, receiverName: e.target.value })
+                }
+                placeholder="Masukkan Nama Penerima"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
               <label className="text-sm font-medium">BAST</label>
               <input
                 type="text"

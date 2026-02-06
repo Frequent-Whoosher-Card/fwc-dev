@@ -107,6 +107,9 @@ export default function BaseStockIn({ programType }: BaseStockInProps) {
                 <th className="p-3">{t("date")}</th>
                 <th className="p-3">{t("category")}</th>
                 <th className="p-3">{t("type")}</th>
+                <th className="p-3">Vendor</th>
+                <th className="p-3">VCR Settle</th>
+                <th className="p-3">Biaya Produksi</th>
                 <th className="p-3">{t("quantity")}</th>
                 <th className="p-3">{t("serial_number")}</th>
                 <th className="p-3">View</th>
@@ -139,6 +142,15 @@ export default function BaseStockIn({ programType }: BaseStockInProps) {
                     </td>
                     <td className="px-3 py-2 text-center">{row.category}</td>
                     <td className="px-3 py-2 text-center">{row.type}</td>
+                    <td className="px-3 py-2 text-center">
+                      {row.vendorName || "-"}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      {row.vcrSettle || "-"}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      {row.costs || "-"}
+                    </td>
                     <td className="px-3 py-2 text-center font-medium">
                       {row.stock.toLocaleString()}
                     </td>

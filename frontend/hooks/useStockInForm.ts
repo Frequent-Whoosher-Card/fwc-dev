@@ -35,10 +35,16 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
     initialSerial: "",
     lastSerial: "",
     quantity: "",
+    vendorName: "",
+    vcrSettle: "",
+    costs: "",
   });
 
   const [maxAvailableSerial, setMaxAvailableSerial] = useState<string>("");
   const [fullStartSerial, setFullStartSerial] = useState<string>("");
+
+  /* New File State */
+  const [vcrSettleFile, setVcrSettleFile] = useState<File | null>(null);
 
   const fetchProducts = useCallback(async () => {
     try {
@@ -54,6 +60,7 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
   }, [fetchProducts]);
 
   useEffect(() => {
+    // Reset secondary states when product changes
     if (!form.productId) {
       setMaxAvailableSerial("");
       setFullStartSerial("");
@@ -136,7 +143,13 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
 
   const handleQuantityChange = (val: string) => {
     setForm((prev) => {
-      const qty = parseInt(val);
+      let qty = parseInt(val);
+      if (!isNaN(qty) && qty > 10000) {
+        toast.error("Maksimal quantity adalah 10.000");
+        qty = 10000;
+        val = "10000";
+      }
+
       let newEnd = prev.lastSerial;
       if (!isNaN(qty) && qty > 0 && prev.initialSerial) {
         newEnd = calculateEndSerial(prev.initialSerial, qty);
@@ -158,6 +171,11 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
             : val;
 
         const qty = calculateQuantity(prev.initialSerial, fullEnd);
+
+        if (qty > 10000) {
+          toast.error("Maksimal quantity adalah 10.000");
+        }
+
         newQty = qty > 0 ? String(qty) : "";
       } else {
         newQty = "";
@@ -211,6 +229,10 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
         startSerial: getSuffix(form.initialSerial),
         endSerial: getSuffix(form.lastSerial),
         note: "",
+        vendorName: form.vendorName,
+        vcrSettle: form.vcrSettle,
+        costs: form.costs,
+        vcrSettleFile: vcrSettleFile || undefined,
         programType,
         serialDate,
       });
@@ -224,6 +246,21 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
     }
   };
 
+  // Check if last serial exceeds max available
+  let isOverLimit = false;
+  if (form.lastSerial && maxAvailableSerial) {
+    const lastMatch = form.lastSerial.match(/^(.*?)(\d+)$/);
+    const maxMatch = maxAvailableSerial.match(/^(.*?)(\d+)$/);
+
+    if (lastMatch && maxMatch) {
+      const lastNum = parseInt(lastMatch[2], 10);
+      const maxNum = parseInt(maxMatch[2], 10);
+      if (lastNum > maxNum) {
+        isOverLimit = true;
+      }
+    }
+  }
+
   return {
     form,
     setForm,
@@ -236,5 +273,8 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
     maxAvailableSerial,
     handleQuantityChange,
     handleEndSerialChange,
+    isOverLimit,
+    vcrSettleFile, // [NEW]
+    setVcrSettleFile, // [NEW]
   };
 };

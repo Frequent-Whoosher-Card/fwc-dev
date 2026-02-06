@@ -342,6 +342,61 @@ const createInventoryRoutes = (app: Elysia) =>
         },
       },
     )
+    // Get Combined Summary (Total + Category/Type)
+    .get(
+      "/combined-summary",
+      async (context) => {
+        const { set, query } = context;
+        const {
+          stationId,
+          categoryId,
+          typeId,
+          startDate,
+          endDate,
+          categoryName,
+          typeName,
+          stationName,
+          search,
+          programType,
+        } = query as any;
+
+        try {
+          const result = await CardInventoryService.getCombinedSummary({
+            stationId,
+            categoryId,
+            typeId,
+            startDate: startDate ? new Date(startDate) : undefined,
+            endDate: endDate ? new Date(endDate) : undefined,
+            categoryName,
+            typeName,
+            stationName,
+            search,
+            programType: programType as "FWC" | "VOUCHER" | undefined,
+          });
+          return {
+            success: true,
+            data: result,
+          };
+        } catch (error) {
+          set.status = 500;
+          return formatErrorResponse(error);
+        }
+      },
+      {
+        query: CardInventoryModel.getCategoryTypeSummaryQuery,
+        response: {
+          200: CardInventoryModel.getCombinedSummaryResponse,
+          400: CardInventoryModel.errorResponse,
+          500: CardInventoryModel.errorResponse,
+        },
+        detail: {
+          tags: ["Stock All & Inventory"],
+          summary: "Get Combined Summary",
+          description:
+            "Mendapatkan rekapitulasi total dan per kategori/tipe dengan pemisahan In Transfer. Gunakan ?programType=FWC atau VOUCHER untuk filter.",
+        },
+      },
+    )
     // Get Inventory Detail
     .get(
       "/:id",

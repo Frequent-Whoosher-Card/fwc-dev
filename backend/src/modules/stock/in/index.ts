@@ -38,6 +38,10 @@ const stockInFwc = new Elysia({ prefix: "/fwc" })
               body.endSerial,
               user.id,
               body.note,
+              body.vendorName,
+              body.vcrSettle,
+              body.vcrSettleFileId,
+              body.vcrSettleFile,
             );
 
             return result;
@@ -51,6 +55,7 @@ const stockInFwc = new Elysia({ prefix: "/fwc" })
         },
         {
           body: StockInFwcModel.stockInBatchBody,
+          type: "multipart/form-data",
           response: {
             200: StockInFwcModel.stockInBatchResponse,
             400: StockInFwcModel.errorResponse,
@@ -65,7 +70,7 @@ const stockInFwc = new Elysia({ prefix: "/fwc" })
             tags: ["Stock In FWC"],
             summary: "Stock In Batch (Produksi Office)",
             description:
-              "Menyimpan kartu produksi ke tabel cards dengan serialNumber = serialTemplate + suffix berurutan. Role: superadmin/admin.",
+              "Menyimpan kartu produksi ke tabel cards dengan serialNumber = serialTemplate + suffix berurutan. Role: superadmin/admin. Supports Multipart/Form-Data for file uploads.",
           },
         },
       )
@@ -387,6 +392,10 @@ const stockInVoucher = new Elysia({ prefix: "/voucher" })
             user.id,
             body.serialDate,
             body.note,
+            body.vendorName,
+            body.vcrSettle,
+            body.vcrSettleFileId,
+            body.vcrSettleFile,
           );
           return result;
         } catch (error) {
@@ -396,6 +405,7 @@ const stockInVoucher = new Elysia({ prefix: "/voucher" })
       },
       {
         body: StockInVoucherModel.createStockInVoucherBody,
+        type: "multipart/form-data",
         response: {
           200: StockInVoucherModel.stockInVoucherResponse,
           400: StockInVoucherModel.errorResponse,
@@ -405,6 +415,8 @@ const stockInVoucher = new Elysia({ prefix: "/voucher" })
         detail: {
           tags: ["Stock In Voucher"],
           summary: "Create Stock In Voucher",
+          description:
+            "Creates stock in voucher. Supports Multipart/Form-Data for file uploads (vcrSettleFile).",
         },
       },
     ),

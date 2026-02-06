@@ -1130,6 +1130,243 @@ export class CardInventoryService {
     return result;
   }
 
+  /**
+   * Get Combined Summary (Total + Category/Type)
+   * Separates In Transfer from Stock In (In Station/Office)
+   * Provides Global Total and Per-Category/Type Breakdown
+   */
+  static async getCombinedSummary(
+    options: InventoryMonitorOptions | string = {},
+  ) {
+    const opts: InventoryMonitorOptions =
+      typeof options === "string" ? { stationId: options } : options;
+
+    const {
+      stationId,
+      categoryId,
+      typeId,
+      startDate,
+      endDate,
+      categoryName,
+      typeName,
+      stationName,
+      programType,
+      search,
+    } = opts;
+
+    // 1. Build Product Link Filters (Category/Type info)
+    const productWhere: any = {};
+
+    // Apply smart search to Product fields
+    if (search) {
+      const searchConditions = parseSmartSearch(search, [
+        "category.categoryName",
+        "type.typeName",
+        "category.categoryCode",
+        "type.typeCode",
+      ]);
+      Object.assign(productWhere, searchConditions);
+    }
+
+    if (programType) {
+      productWhere.category = {
+        ...productWhere.category,
+        programType: programType,
+      };
+    }
+    if (categoryId) productWhere.categoryId = prismaFilter(categoryId);
+    if (typeId) productWhere.typeId = prismaFilter(typeId);
+
+    if (categoryName) {
+      const names = categoryName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      productWhere.category = {
+        ...productWhere.category,
+        OR: names.map((name) => ({
+          categoryName: { contains: name, mode: "insensitive" },
+        })),
+      };
+    }
+
+    if (typeName) {
+      const names = typeName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      productWhere.type = {
+        OR: names.map((name) => ({
+          typeName: { contains: name, mode: "insensitive" },
+        })),
+      };
+    }
+
+    // Fetch Products
+    const products = await db.cardProduct.findMany({
+      where: productWhere,
+      select: {
+        id: true,
+        categoryId: true,
+        typeId: true,
+        category: { select: { categoryName: true } },
+        type: { select: { typeName: true } },
+      },
+    });
+
+    const productMap = new Map(products.map((p) => [p.id, p]));
+    const productIds = products.map((p) => p.id);
+
+    // 2. Build Card Filter
+    const cardWhere: any = {
+      cardProductId: { in: productIds },
+      status: {
+        in: [
+          "IN_OFFICE",
+          "IN_STATION",
+          "IN_TRANSIT",
+          "ON_TRANSFER",
+          "SOLD_ACTIVE",
+          "SOLD_INACTIVE",
+          "LOST",
+          "DAMAGED",
+          "BLOCKED",
+          "LOST_BY_PASSANGER",
+        ],
+      },
+      deletedAt: null,
+    };
+
+    // Apply smart search to Card fields
+    if (search) {
+      const cardSearch = parseSmartSearch(search, [
+        "serialNumber",
+        "station.stationName",
+        "station.stationCode",
+      ]);
+      Object.assign(cardWhere, cardSearch);
+    }
+
+    if (stationId) {
+      cardWhere.stationId = prismaFilter(stationId);
+    }
+
+    if (stationName) {
+      const names = stationName
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      cardWhere.station = {
+        OR: names.map((name) => ({
+          stationName: { contains: name, mode: "insensitive" },
+        })),
+      };
+    }
+
+    if (startDate || endDate) {
+      const dateFilter: any = {};
+      if (startDate) dateFilter.gte = startDate;
+      if (endDate) dateFilter.lte = endDate;
+      cardWhere.updatedAt = dateFilter;
+    }
+
+    // 3. Aggregate Cards
+    const cardCounts = await db.card.groupBy({
+      by: ["cardProductId", "status"],
+      where: cardWhere,
+      _count: { _all: true },
+    });
+
+    // 4. Initialize Totals
+    const totalSummary = {
+      totalStock: 0,
+      totalInOffice: 0,
+      totalInStation: 0,
+      totalInTransfer: 0,
+      totalSold: 0,
+      totalDamaged: 0,
+    };
+
+    const itemsMap = new Map<string, any>();
+
+    const getInitItem = (p: any) => ({
+      categoryId: p.categoryId,
+      categoryName: p.category.categoryName,
+      typeId: p.typeId,
+      typeName: p.type.typeName,
+      totalStock: 0,
+      totalInOffice: 0,
+      totalInStation: 0,
+      totalInTransfer: 0,
+      totalSold: 0,
+      totalDamaged: 0,
+    });
+
+    // 5. Process Counts
+    for (const c of cardCounts) {
+      const product = productMap.get(c.cardProductId);
+      // If product not in our filtered list (e.g. searched out), skip
+      // (Actually cardWhere filters by productIds so this overlap is safe,
+      // but if cardWhere had OR logic for search, this check is vital)
+      if (!product) continue;
+
+      const count = c._count._all;
+      const status = c.status;
+
+      // Determine Category
+      let isOffice = status === "IN_OFFICE";
+      let isStation = status === "IN_STATION";
+      let isTransfer = status === "IN_TRANSIT" || status === "ON_TRANSFER"; // SEPARATED FROM STATION
+      let isSold = status === "SOLD_ACTIVE" || status === "SOLD_INACTIVE";
+      let isDamaged =
+        status === "LOST" ||
+        status === "DAMAGED" ||
+        status === "BLOCKED" ||
+        status === "LOST_BY_PASSANGER";
+
+      // Global Sum
+      if (isOffice) totalSummary.totalInOffice += count;
+      else if (isStation) totalSummary.totalInStation += count;
+      else if (isTransfer) totalSummary.totalInTransfer += count;
+      else if (isSold) totalSummary.totalSold += count;
+      else if (isDamaged) totalSummary.totalDamaged += count;
+
+      // Item Sum
+      const key = `${product.categoryId}-${product.typeId}`;
+      if (!itemsMap.has(key)) itemsMap.set(key, getInitItem(product));
+      const item = itemsMap.get(key);
+
+      if (isOffice) item.totalInOffice += count;
+      else if (isStation) item.totalInStation += count;
+      else if (isTransfer) item.totalInTransfer += count;
+      else if (isSold) item.totalSold += count;
+      else if (isDamaged) item.totalDamaged += count;
+    }
+
+    // 6. Final Calculation
+    const categoryTypeSummary = Array.from(itemsMap.values()).map((item) => {
+      item.totalStock =
+        item.totalInOffice + item.totalInStation + item.totalInTransfer;
+      return item;
+    });
+
+    totalSummary.totalStock =
+      totalSummary.totalInOffice +
+      totalSummary.totalInStation +
+      totalSummary.totalInTransfer;
+
+    return {
+      totalSummary,
+      categoryTypeSummary,
+    };
+  }
+
+  // Activity Logs...
+  static async getAlerts() {
+    // ... implementation
+    return [];
+  }
+
   // Get Low Stock Alerts (Mirroring StockService for convenience)
   static async getLowStockAlerts() {
     const alerts = await db.inbox.findMany({

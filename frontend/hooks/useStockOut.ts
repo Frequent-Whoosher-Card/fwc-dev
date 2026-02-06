@@ -159,6 +159,8 @@ export const useStockOut = ({ programType }: UseStockOutProps) => {
             "Stasiun",
             "Nota Dinas",
             "BAST",
+            "Pemohon",
+            "Penerima",
             "Qty",
             "Serial Number",
             "Status",
@@ -175,6 +177,8 @@ export const useStockOut = ({ programType }: UseStockOutProps) => {
           item.stationName ?? "-",
           item.notaDinas ?? "-",
           item.bast ?? "-",
+          item.requesterName ?? "-",
+          item.receiverName ?? "-",
           item.quantity ?? 0,
           item.sentSerialNumbers?.length > 0
             ? `${item.sentSerialNumbers[0]} - ${item.sentSerialNumbers[item.sentSerialNumbers.length - 1]}`
