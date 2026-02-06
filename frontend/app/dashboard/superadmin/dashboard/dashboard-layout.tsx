@@ -302,7 +302,6 @@ export default function DashboardLayout({
           } else {
             const menuData = await MenuService.getUserMenu();
 
-
             // Transform API menu to UI menu structure
             const transformMenu = (items: MenuItem[]): any[] => {
               return items.map((item) => {
@@ -422,7 +421,12 @@ export default function DashboardLayout({
       >
         <div className="flex h-full flex-col">
           <div className="flex h-16 items-center px-6 border-b border-white/10">
-            <Image src="/logo-putih.svg" alt="logo" width={160} height={40} />
+            <Image
+              src="/assets/images/logo-login1.png"
+              alt="logo"
+              width={160}
+              height={40}
+            />
             <Button
               variant="ghost"
               size="icon"

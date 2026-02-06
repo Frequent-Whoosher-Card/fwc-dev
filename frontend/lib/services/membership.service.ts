@@ -64,6 +64,8 @@ export const getMembers = async (params?: {
   hasNippKai?: boolean;
   employeeTypeId?: string;
   isDeleted?: boolean;
+  programType?: "FWC" | "VOUCHER"; // Added
+  productTypeId?: string; // Added
 }) => {
   const query = new URLSearchParams();
 
@@ -96,6 +98,14 @@ export const getMembers = async (params?: {
 
   if (params?.isDeleted === true) {
     query.append("isDeleted", "true");
+  }
+
+  if (params?.programType) {
+    query.append("programType", params.programType);
+  }
+
+  if (params?.productTypeId) {
+    query.append("productTypeId", params.productTypeId);
   }
 
   const res = await apiFetch(`/members?${query.toString()}`, { method: "GET" });

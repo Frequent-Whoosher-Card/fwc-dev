@@ -23,6 +23,7 @@ interface MembershipFilterProps {
   onStartDateChange: (value: string) => void;
   onEndDateChange: (value: string) => void;
   onReset: () => void;
+  actions?: React.ReactNode;
 }
 
 export default function MembershipFilter({
@@ -39,6 +40,7 @@ export default function MembershipFilter({
   onStartDateChange,
   onEndDateChange,
   onReset,
+  actions,
 }: MembershipFilterProps) {
   const [employeeTypes, setEmployeeTypes] = useState<EmployeeTypeItem[]>([]);
 
@@ -169,6 +171,9 @@ export default function MembershipFilter({
       >
         <RotateCcw size={16} />
       </button>
+
+      {/* Actions (Export PDF, etc.) */}
+      {actions && <div className="ml-auto">{actions}</div>}
     </div>
   );
 }
