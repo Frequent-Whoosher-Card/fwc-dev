@@ -3,6 +3,7 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 import type { Dispatch, SetStateAction } from "react";
+import axios from "@/lib/axios";
 import type { CreateMemberFormState } from "./types";
 
 interface UseKtpOcrProps {
@@ -16,26 +17,17 @@ export function useKtpOcr({ setForm, setIdentityType }: UseKtpOcrProps) {
   const handleExtractOCR = async (sessionId: string) => {
     setIsExtractingOCR(true);
     try {
-      const token = localStorage.getItem("fwc_token");
-      if (!token) {
-        throw new Error("Session expired. Silakan login kembali.");
-      }
-
       const formData = new FormData();
       formData.append("session_id", sessionId);
 
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
-      const response = await fetch(`${API_BASE_URL}/members/ocr-extract`, {
-        method: "POST",
+      const response = await axios.post("/members/ocr-extract", formData, {
         headers: {
-          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
         },
-        body: formData,
       });
 
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
+      const result = response.data;
+      if (!result.success) {
         throw new Error(
           result.error?.message || result.error || "Gagal mengekstrak data KTP"
         );

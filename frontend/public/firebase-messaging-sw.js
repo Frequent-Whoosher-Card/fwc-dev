@@ -1,4 +1,5 @@
 /* eslint-disable no-undef */
+// VERSION: 3.0 (Force Update for Double Notification Fix)
 
 importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js');
@@ -13,16 +14,33 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
+// Force SW Update to fix double notification issue
+self.addEventListener('install', function(event) {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', function(event) {
+  event.waitUntil(self.clients.claim());
+});
+
 messaging.onBackgroundMessage(function (payload) {
   console.log('[firebase-messaging-sw.js] Background message', payload);
 
-  const notificationTitle = payload.notification?.title || 'Notification';
-  const notificationOptions = {
-    body: payload.notification?.body,
-    icon: '/assets/images/icon-light-32x32.png', // optional
-  };
+  // Handle Data-Only Notification
+  if (payload.data) {
+     console.log('[SW DEBUG] Payload Data Received:', payload.data); // DEBUG LOG
+     const title = payload.data.title || 'Notification';
+     const body = payload.data.body || ''; 
+     const icon = '/assets/images/icon-light-32x32.png';
 
-  self.registration.showNotification(notificationTitle, notificationOptions);
+     return self.registration.showNotification(title, {
+        body: body,
+        icon: icon,
+        data: payload.data, // Pass data for click handling
+        tag: 'unique-fcm-message', // FORCE DEDUPLICATION
+        renotify: true // Vibrate again if replaced
+     });
+  }
 });
 
 // Handle Notification Click

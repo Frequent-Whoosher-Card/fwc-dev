@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle } from "lucide-react";
+import { deletePurchase } from "@/lib/services/purchase.service";
 
 /* ======================
    TYPES
@@ -72,6 +73,7 @@ const formatDateTime = (iso?: string | null) =>
         year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
+        second: "2-digit",
       })
     : "-";
 
@@ -147,23 +149,7 @@ export default function TransactionTable({
     try {
       setDeleteLoading(true);
 
-      const token = localStorage.getItem("fwc_token");
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-      const response = await fetch(`${API_URL}/purchases/${selectedTransaction.id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ notes: trimmed }),
-      });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        const msg = errData?.error?.message || errData?.message || "Gagal menghapus transaksi";
-        throw new Error(msg);
-      }
+      await deletePurchase(selectedTransaction.id, trimmed);
 
       setOpenDelete(false);
       setSelectedTransaction(null);
@@ -274,14 +260,14 @@ export default function TransactionTable({
                         </button>
                       )}
 
-                      {canDelete && (
+                      {/* {canDelete && (
                         <button
                           onClick={() => handleOpenDelete(item)}
                           className="px-3 py-1 text-xs rounded bg-[#8D1231] text-white hover:bg-[#741026]"
                         >
                           Hapus
                         </button>
-                      )}
+                      )} */}
                     </div>
                   </td>
                 </tr>

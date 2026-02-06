@@ -13,6 +13,9 @@ interface VoucherTransaction {
   purchaseDate: string;
   shiftDate?: string | null;
   price: number;
+  subtotal?: number | null;
+  discountAmount?: number | null;
+  discountPercentage?: number | null;
   edcReferenceNumber: string;
   programType?: "FWC" | "VOUCHER" | null;
   card: {
@@ -24,6 +27,8 @@ interface VoucherTransaction {
   } | null;
   bulkPurchaseItems?: BulkPurchaseItem[];
   bulkPurchaseItemsCount?: number; // Actual total count from backend
+  firstSerialNumber?: string | null; // First serial number for bulk purchase
+  lastSerialNumber?: string | null; // Last serial number for bulk purchase
 
   member: {
     name: string;
@@ -74,6 +79,7 @@ const formatDateTime = (iso?: string | null) =>
         year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
+        second: "2-digit",
       })
     : "-";
 
@@ -219,7 +225,10 @@ export default function TransactionTableVoucher({
               <th className="px-4 py-3 text-left">Voucher Category</th>
               <th className="px-4 py-3 text-left">Voucher Type</th>
               <th className="px-4 py-3 text-left">Serial Number Awal / Quantity</th>
+              <th className="px-4 py-3 text-left">Serial Number Awal - Serial Number Akhir</th>
               <th className="px-4 py-3 text-left">Reference EDC</th>
+              <th className="px-4 py-3 text-right">Subtotal</th>
+              <th className="px-4 py-3 text-right">Discount</th>
               <th className="px-4 py-3 text-right">Voucher Price</th>
               <th className="px-4 py-3 text-center">Purchase Date</th>
               <th className="px-4 py-3 text-center">Shift Date</th>
@@ -233,13 +242,13 @@ export default function TransactionTableVoucher({
           <tbody className="text-gray-700">
             {loading ? (
               <tr>
-                <td colSpan={14} className="py-10 text-center text-gray-400">
+                <td colSpan={17} className="py-10 text-center text-gray-400">
                   Loading...
                 </td>
               </tr>
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={14} className="py-10 text-center text-gray-400">
+                <td colSpan={17} className="py-10 text-center text-gray-400">
                   No data
                 </td>
               </tr>
@@ -308,7 +317,32 @@ export default function TransactionTableVoucher({
                     </td>
 
                     <td className="px-4 py-3 font-mono truncate">
+                      {item.firstSerialNumber && item.lastSerialNumber
+                        ? `${item.firstSerialNumber} - ${item.lastSerialNumber}`
+                        : item.card?.serialNumber ?? "-"}
+                    </td>
+
+                    <td className="px-4 py-3 font-mono truncate">
                       {formatEDC(item.edcReferenceNumber)}
+                    </td>
+
+                    <td className="px-4 py-3 text-right text-gray-700">
+                      {item.subtotal ? formatCurrency(item.subtotal) : "-"}
+                    </td>
+
+                    <td className="px-4 py-3 text-right text-red-600 font-medium">
+                      {item.discountAmount && item.discountAmount > 0 ? (
+                        <div>
+                          <div>{formatCurrency(item.discountAmount)}</div>
+                          {item.discountPercentage && (
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              ({item.discountPercentage}%)
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        "-"
+                      )}
                     </td>
 
                     <td className="px-4 py-3 text-right text-[#8D1231] font-medium">
@@ -335,7 +369,7 @@ export default function TransactionTableVoucher({
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-2">
-                        {canDelete && (
+                        {/* {canDelete && (
                           <button
                             type="button"
                             onClick={() => handleOpenDelete(item)}
@@ -343,7 +377,7 @@ export default function TransactionTableVoucher({
                           >
                             Hapus
                           </button>
-                        )}
+                        )} */}
                       </div>
                     </td>
                   </tr>
@@ -434,9 +468,30 @@ export default function TransactionTableVoucher({
                   {selectedTransaction?.bulkPurchaseItems?.length ?? 0} items
                 </span>
               </div>
+              {selectedTransaction?.subtotal && (
+                <div className="mt-1 flex justify-between gap-3">
+                  <span className="text-gray-500">Subtotal</span>
+                  <span className="max-w-[240px] truncate font-medium text-gray-800">
+                    {formatCurrency(selectedTransaction.subtotal)}
+                  </span>
+                </div>
+              )}
+              {selectedTransaction?.discountAmount && selectedTransaction.discountAmount > 0 && (
+                <div className="mt-1 flex justify-between gap-3">
+                  <span className="text-gray-500">Discount</span>
+                  <span className="max-w-[240px] truncate font-medium text-red-600">
+                    <div>{formatCurrency(selectedTransaction.discountAmount)}</div>
+                    {selectedTransaction.discountPercentage && (
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        ({selectedTransaction.discountPercentage}%)
+                      </div>
+                    )}
+                  </span>
+                </div>
+              )}
               <div className="mt-1 flex justify-between gap-3">
-                <span className="text-gray-500">Total Price</span>
-                <span className="max-w-[240px] truncate font-medium text-gray-800">
+                <span className="text-gray-500 font-semibold">Total Price</span>
+                <span className="max-w-[240px] truncate font-semibold text-[#8D1231]">
                   {selectedTransaction ? formatCurrency(selectedTransaction.price) : "-"}
                 </span>
               </div>
