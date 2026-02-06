@@ -220,6 +220,8 @@ export class StockOutVoucherService {
                 movementId: movement.id,
                 cardProductId,
                 quantity: sentCount,
+                batchId: movement.batchId,
+                cardType: productName,
                 status: "PENDING",
                 serialDate: d.toISOString(),
                 serials: finalSerials, // CORRECTED: Use actual serials
@@ -327,6 +329,10 @@ export class StockOutVoucherService {
     // Fetch Movement
     const movement = await db.cardStockMovement.findUnique({
       where: { id: movementId },
+      include: {
+        category: true,
+        type: true,
+      },
     });
     if (!movement) throw new ValidationError("Movement not found");
     if (movement.movementType !== "OUT" || movement.status !== "PENDING") {
@@ -555,6 +561,8 @@ export class StockOutVoucherService {
               movementId,
               stationId: validatorStationId,
               reporterName: localReporterName,
+              batchId: movement.batchId,
+              cardType: `${movement.category?.categoryName || "-"} - ${movement.type?.typeName || "-"}`,
               lostCount: finalLost.length,
               damagedCount: finalDamaged.length,
               receivedCount: finalReceived.length,

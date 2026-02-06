@@ -144,7 +144,17 @@ export default function FormNoted() {
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error("Failed to submit");
+      if (!res.ok) {
+          const errorText = await res.text();
+          console.warn("Submit note failed:", errorText);
+          
+          if (res.status === 403) {
+              alert("Akses Ditolak: Anda tidak memiliki izin untuk menyimpan catatan ini.");
+          } else {
+              alert(`Gagal menyimpan: ${errorText || "Server error"}`);
+          }
+          return;
+      }
 
       alert("Data successfully saved!");
       router.push("/noted"); // redirect kalau mau
