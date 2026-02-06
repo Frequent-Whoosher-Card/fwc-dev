@@ -290,7 +290,10 @@ export namespace UserModel {
   export const userMenuResponse = t.Object({
     success: t.Boolean(),
     message: t.String(),
-    data: t.Array(t.Any()), // Array of menu items
+    data: t.Object({
+      menu: t.Array(t.Any()), // Array of menu items
+      permissions: t.Array(t.String()), // Array of permission action codes
+    }),
   });
 
   // ========== ROLE PERMISSION SCHEMAS ==========
