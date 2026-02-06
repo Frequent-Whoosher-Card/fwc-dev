@@ -206,14 +206,17 @@ export class LowStockService {
 
             console.log(`[LowStock] Sending Telegram message to ${chatId}...`);
 
-            TelegramService.sendMessage(token, chatId, telegramMsg)
-              .then(() => console.log(`[LowStock] Telegram sent successfully.`))
-              .catch((err) =>
-                console.error(
-                  `[LowStock] Telegram alert failed for ${stationName}:`,
-                  err,
-                ),
+            try {
+              await TelegramService.sendMessage(token, chatId, telegramMsg);
+              console.log(`[LowStock] Telegram sent successfully.`);
+              // Rate limit delay ONLY after sending
+              await new Promise((resolve) => setTimeout(resolve, 300));
+            } catch (err) {
+              console.error(
+                `[LowStock] Telegram alert failed for ${stationName}:`,
+                err,
               );
+            }
           } else {
             console.warn(
               `[LowStock] Telegram skipped. Missing config for TELEGRAM_BOT_TOKEN_${configSuffix} or CHAT_ID.`,
