@@ -29,6 +29,7 @@ enum CardStatus {
   DELETED
   SOLD_ACTIVE
   SOLD_INACTIVE
+  SOLD_REDEEMED
   LOST_BY_PASSANGER
 }
 
@@ -827,13 +828,19 @@ model temp_fwc_reconciliation {
 }
 
 model MenuAccess {
-  id          String  @id @default(uuid()) @map("menu_access_id") @db.Uuid
-  label       String  @map("label") // e.g. "Stock Kartu"
-  route       String? @map("route") // e.g. "/dashboard/stock" (nullable for parent menus)
-  icon        String? @map("icon")
-  ordering    Int     @default(0)
-  parentId    String? @map("parent_id") @db.Uuid
-  description String? @map("description")
+  id          String    @id @default(uuid()) @map("menu_access_id") @db.Uuid
+  label       String    @map("label") // e.g. "Stock Kartu"
+  route       String?   @map("route") // e.g. "/dashboard/stock" (nullable for parent menus)
+  icon        String?   @map("icon")
+  ordering    Int       @default(0)
+  parentId    String?   @map("parent_id") @db.Uuid
+  description String?   @map("description")
+  createdAt   DateTime? @default(now()) @map("created_at")
+  createdBy   String?   @map("created_by") @db.Uuid
+  updatedAt   DateTime? @updatedAt @map("updated_at")
+  updatedBy   String?   @map("updated_by") @db.Uuid
+  deletedAt   DateTime? @map("deleted_at")
+  deletedBy   String?   @map("deleted_by") @db.Uuid
 
   // Relations
   parent      MenuAccess?  @relation("MenuHierarchy", fields: [parentId], references: [id])
@@ -844,10 +851,16 @@ model MenuAccess {
 }
 
 model Permission {
-  id           String  @id @default(uuid()) @map("permission_id") @db.Uuid
-  menuAccessId String? @map("menu_access_id") @db.Uuid // Nullable for global permissions
-  actionCode   String  @unique @map("action_code") // e.g. "stock.view"
-  actionName   String  @map("action_name") // e.g. "View Stock Data"
+  id           String    @id @default(uuid()) @map("permission_id") @db.Uuid
+  menuAccessId String?   @map("menu_access_id") @db.Uuid // Nullable for global permissions
+  actionCode   String    @unique @map("action_code") // e.g. "stock.view"
+  actionName   String    @map("action_name") // e.g. "View Stock Data"
+  createdAt    DateTime? @default(now()) @map("created_at")
+  createdBy    String?   @map("created_by") @db.Uuid
+  updatedAt    DateTime? @updatedAt @map("updated_at")
+  updatedBy    String?   @map("updated_by") @db.Uuid
+  deletedAt    DateTime? @map("deleted_at")
+  deletedBy    String?   @map("deleted_by") @db.Uuid
 
   // Relations
   menuAccess MenuAccess?      @relation(fields: [menuAccessId], references: [id])
@@ -857,9 +870,15 @@ model Permission {
 }
 
 model RolePermission {
-  id           String @id @default(uuid()) @map("role_permission_id") @db.Uuid
-  roleId       String @map("role_id") @db.Uuid
-  permissionId String @map("permission_id") @db.Uuid
+  id           String    @id @default(uuid()) @map("role_permission_id") @db.Uuid
+  roleId       String    @map("role_id") @db.Uuid
+  permissionId String    @map("permission_id") @db.Uuid
+  createdAt    DateTime? @default(now()) @map("created_at")
+  createdBy    String?   @map("created_by") @db.Uuid
+  updatedAt    DateTime? @updatedAt @map("updated_at")
+  updatedBy    String?   @map("updated_by") @db.Uuid
+  deletedAt    DateTime? @map("deleted_at")
+  deletedBy    String?   @map("deleted_by") @db.Uuid
 
   // Relations
   role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
