@@ -11,6 +11,9 @@ export interface FWCPurchaseListItem {
   purchaseDate: string;
   shiftDate?: string | null;
   price: number;
+  subtotal?: number | null;
+  discountAmount?: number | null;
+  discountPercentage?: number | null;
   programType?: "FWC" | "VOUCHER" | null;
 
   card: {
@@ -57,6 +60,9 @@ export interface VoucherTransactionListItem {
   purchaseDate: string;
   shiftDate?: string | null;
   price: number;
+  subtotal?: number | null;
+  discountAmount?: number | null;
+  discountPercentage?: number | null;
   programType?: "FWC" | "VOUCHER" | null;
 
   card: {
@@ -139,6 +145,9 @@ export interface PurchaseDetail {
   edcReferenceNumber: string;
   purchaseDate: string;
   price: number;
+  subtotal?: number | null;
+  discountAmount?: number | null;
+  discountPercentage?: number | null;
   notes?: string | null;
   programType?: "FWC" | "VOUCHER" | null;
   createdAt: string;
@@ -204,10 +213,14 @@ export interface GetPurchasesParams {
   startDate?: string;
   endDate?: string;
   categoryId?: string;
+  categoryIds?: string[];
   typeId?: string;
+  typeIds?: string[];
   stationId?: string;
+  stationIds?: string[];
   transactionType?: TransactionType;
   employeeTypeId?: string;
+  employeeTypeIds?: string[];
   isDeleted?: boolean;
 }
 
@@ -233,13 +246,37 @@ export const getPurchases = async (params?: GetPurchasesParams) => {
   if (params?.search) query.append("search", params.search);
   if (params?.startDate) query.append("startDate", params.startDate);
   if (params?.endDate) query.append("endDate", params.endDate);
-  if (params?.categoryId) query.append("categoryId", params.categoryId);
-  if (params?.typeId) query.append("typeId", params.typeId);
-  if (params?.stationId) query.append("stationId", params.stationId);
+  
+  // Support both single and multiple filters (backward compatibility)
+  // Use comma-separated format for arrays
+  if (params?.categoryIds && params.categoryIds.length > 0) {
+    query.append("categoryIds", params.categoryIds.join(","));
+  } else if (params?.categoryId) {
+    query.append("categoryId", params.categoryId);
+  }
+  
+  if (params?.typeIds && params.typeIds.length > 0) {
+    query.append("typeIds", params.typeIds.join(","));
+  } else if (params?.typeId) {
+    query.append("typeId", params.typeId);
+  }
+  
+  if (params?.stationIds && params.stationIds.length > 0) {
+    query.append("stationIds", params.stationIds.join(","));
+  } else if (params?.stationId) {
+    query.append("stationId", params.stationId);
+  }
+  
   if (params?.transactionType) {
     query.append("transactionType", params.transactionType);
   }
-  if (params?.employeeTypeId) query.append("employeeTypeId", params.employeeTypeId);
+  
+  if (params?.employeeTypeIds && params.employeeTypeIds.length > 0) {
+    query.append("employeeTypeIds", params.employeeTypeIds.join(","));
+  } else if (params?.employeeTypeId) {
+    query.append("employeeTypeId", params.employeeTypeId);
+  }
+  
   if (params?.isDeleted === true) query.append("isDeleted", "true");
 
   const response = await apiFetch(`/purchases?${query.toString()}`, {

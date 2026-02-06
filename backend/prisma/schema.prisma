@@ -159,10 +159,12 @@ model User {
 
 model Shift {
   id        String    @id @default(uuid()) @map("shift_id") @db.Uuid
+  shiftName String?   @map("shift_name")
   userId    String    @map("user_id") @db.Uuid
   startDate DateTime  @map("start_date")
   endDate   DateTime  @map("end_date")
   notes     String?
+  stationId String    @map("station_id") @db.Uuid
   createdAt DateTime  @default(now()) @map("created_at")
   createdBy String?   @map("created_by") @db.Uuid
   updatedAt DateTime  @default(now()) @map("updated_at")
@@ -170,7 +172,8 @@ model Shift {
   deletedAt DateTime? @map("deleted_at")
   deletedBy String?   @map("deleted_by") @db.Uuid
 
-  user User @relation(fields: [userId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+  station Station @relation(fields: [stationId], references: [id])
 
   @@map("shifts")
 }
@@ -246,6 +249,7 @@ model Station {
   inboxes              Inbox[]
   users                User[]
   lowStockAlerts       LowStockAlert[]
+  shifts               Shift[]
 
   @@map("stations")
 }
@@ -322,6 +326,7 @@ model ProductType {
   id           String       @id @default(uuid()) @map("product_type_id") @db.Uuid
   programId    String       @map("program_id") // 2 serial awal
   description  String?
+  prefix       String?      @map("prefix")
   abbreviation String?
   programType  ProgramType? @map("program_type")
   notes        String?
@@ -331,6 +336,8 @@ model ProductType {
   updatedBy    String?      @map("updated_by") @db.Uuid
   deletedAt    DateTime?    @map("deleted_at")
   deletedBy    String?      @map("deleted_by") @db.Uuid
+
+  members Member[]
 
   @@map("product_types")
 }
@@ -376,6 +383,7 @@ model Member {
   employeeTypeId  String?      @map("employee_type_id") @db.Uuid
   cityId          String?      @map("city_id") @db.Uuid
   paymentMethodId String?      @map("payment_method_id") @db.Uuid
+  productTypeId   String?      @map("product_type_id") @db.Uuid
   programType     ProgramType? @map("program_type")
 
   // Relations
@@ -384,6 +392,7 @@ model Member {
   cards         Card[]
   city          City?          @relation(fields: [cityId], references: [id])
   paymentMethod PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
+  productType   ProductType?   @relation(fields: [productTypeId], references: [id])
 
   @@map("members")
 }
@@ -585,6 +594,8 @@ model CardPurchase {
   edcReferenceNumber String       @unique @map("edc_reference_number")
   purchaseDate       DateTime     @map("purchase_date")
   price              Decimal      @map("price")
+  subtotal           Decimal?     @map("subtotal")
+  discountAmount     Decimal?     @map("discount_amount")
   notes              String?      @map("notes")
   programType        ProgramType? @map("program_type")
   createdAt          DateTime     @default(now()) @map("created_at")

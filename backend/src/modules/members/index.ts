@@ -27,24 +27,33 @@ const baseRoutes = new Elysia()
     async (context) => {
       const { query, set } = context;
       try {
-        const { page, limit, search, startDate, endDate, gender, hasNippKai, employeeTypeId } = query;
+        const {
+          page,
+          limit,
+          search,
+          startDate,
+          endDate,
+          gender,
+          hasNippKai,
+          employeeTypeId,
+        } = query;
         // Validate dates if provided
         if (startDate && isNaN(new Date(startDate).getTime())) {
           set.status = 400;
           return formatErrorResponse(
-            new Error("Invalid startDate format. Please use YYYY-MM-DD.")
+            new Error("Invalid startDate format. Please use YYYY-MM-DD."),
           );
         }
         if (endDate && isNaN(new Date(endDate).getTime())) {
           set.status = 400;
           return formatErrorResponse(
-            new Error("Invalid endDate format. Please use YYYY-MM-DD.")
+            new Error("Invalid endDate format. Please use YYYY-MM-DD."),
           );
         }
         if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
           set.status = 400;
           return formatErrorResponse(
-            new Error("Start date cannot be after end date.")
+            new Error("Start date cannot be after end date."),
           );
         }
 
@@ -58,6 +67,7 @@ const baseRoutes = new Elysia()
           hasNippKai,
           employeeTypeId: employeeTypeId || undefined,
           isDeleted: query.isDeleted === "true",
+          programType: query.programType,
         });
         return {
           success: true,
@@ -80,9 +90,10 @@ const baseRoutes = new Elysia()
       detail: {
         tags: ["Members"],
         summary: "Get all members",
-        description: "Retrieve all members with pagination, search, membership date filter, gender filter, and NIPKAI filter. Search supports: name, identity number, email, phone, and updated by (user name). Optional startDate, endDate, gender, and hasNippKai parameters can be used to filter members.",
+        description:
+          "Retrieve all members with pagination, search, membership date filter, gender filter, and NIPKAI filter. Search supports: name, identity number, email, phone, and updated by (user name). Optional startDate, endDate, gender, and hasNippKai parameters can be used to filter members.",
       },
-    }
+    },
   )
   .get(
     "/:id",
@@ -119,48 +130,46 @@ const baseRoutes = new Elysia()
         summary: "Get member by ID",
         description: "Retrieve a specific member by ID",
       },
-    }
+    },
   );
 
 // Write routes (Create) - petugas, supervisor, admin, superadmin
-const writeRoutes = new Elysia()
-  .use(permissionMiddleware("member.view"))
-  .post(
-    "/",
-    async (context) => {
-      const { body, set, user } = context as typeof context & AuthContextUser;
-      try {
-        const result = await MemberService.create(body, user.id);
-        return {
-          success: true,
-          message: "Member created successfully",
-          data: result,
-        };
-      } catch (error) {
-        set.status =
-          error instanceof Error && "statusCode" in error
-            ? (error as any).statusCode
-            : 500;
-        return formatErrorResponse(error);
-      }
-    },
-    {
-      body: MemberModel.createMemberBody,
-      response: {
-        200: MemberModel.createMemberResponse,
-        400: MemberModel.errorResponse,
-        401: MemberModel.errorResponse,
-        403: MemberModel.errorResponse,
-        500: MemberModel.errorResponse,
-      },
-      detail: {
-        tags: ["Members"],
-        summary: "Create new member",
-        description:
-          "Create a new member (petugas, supervisor, admin, superadmin)",
-      },
+const writeRoutes = new Elysia().use(permissionMiddleware("member.view")).post(
+  "/",
+  async (context) => {
+    const { body, set, user } = context as typeof context & AuthContextUser;
+    try {
+      const result = await MemberService.create(body, user.id);
+      return {
+        success: true,
+        message: "Member created successfully",
+        data: result,
+      };
+    } catch (error) {
+      set.status =
+        error instanceof Error && "statusCode" in error
+          ? (error as any).statusCode
+          : 500;
+      return formatErrorResponse(error);
     }
-  );
+  },
+  {
+    body: MemberModel.createMemberBody,
+    response: {
+      200: MemberModel.createMemberResponse,
+      400: MemberModel.errorResponse,
+      401: MemberModel.errorResponse,
+      403: MemberModel.errorResponse,
+      500: MemberModel.errorResponse,
+    },
+    detail: {
+      tags: ["Members"],
+      summary: "Create new member",
+      description:
+        "Create a new member (petugas, supervisor, admin, superadmin)",
+    },
+  },
+);
 
 // Update routes - petugas, supervisor, superadmin only
 const updateRoutes = new Elysia()
@@ -201,10 +210,9 @@ const updateRoutes = new Elysia()
       detail: {
         tags: ["Members"],
         summary: "Update member",
-        description:
-          "Update a member (petugas, supervisor, superadmin only)",
+        description: "Update a member (petugas, supervisor, superadmin only)",
       },
-    }
+    },
   );
 
 // Delete routes - admin and superadmin only
@@ -213,9 +221,14 @@ const deleteRoutes = new Elysia()
   .delete(
     "/:id",
     async (context) => {
-      const { params, set, user, body } = context as typeof context & AuthContextUser & { body: { notes: string } };
+      const { params, set, user, body } = context as typeof context &
+        AuthContextUser & { body: { notes: string } };
       try {
-        const result = await MemberService.delete(params.id, user.id, body.notes);
+        const result = await MemberService.delete(
+          params.id,
+          user.id,
+          body.notes,
+        );
         return result;
       } catch (error) {
         set.status =
@@ -242,9 +255,10 @@ const deleteRoutes = new Elysia()
       detail: {
         tags: ["Members"],
         summary: "Delete member (Soft Delete)",
-        description: "Soft delete a member. Alasan penghapusan wajib diisi (admin, superadmin only)",
+        description:
+          "Soft delete a member. Alasan penghapusan wajib diisi (admin, superadmin only)",
       },
-    }
+    },
   );
 
 // KTP Detection routes - petugas, supervisor, admin, superadmin
@@ -268,7 +282,7 @@ const detectionRoutes = new Elysia()
         if (!file) {
           set.status = 400;
           return formatErrorResponse(
-            new Error("Image file is required. Please upload a KTP image.")
+            new Error("Image file is required. Please upload a KTP image."),
           );
         }
 
@@ -284,16 +298,23 @@ const detectionRoutes = new Elysia()
         } else {
           set.status = 400;
           return formatErrorResponse(
-            new Error("Invalid file format. Please upload a valid image file.")
+            new Error("Invalid file format. Please upload a valid image file."),
           );
         }
 
         // Validate file type
-        const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+        const allowedTypes = [
+          "image/jpeg",
+          "image/jpg",
+          "image/png",
+          "image/webp",
+        ];
         if (!allowedTypes.includes(fileObj.type)) {
           set.status = 400;
           return formatErrorResponse(
-            new Error("Invalid file type. Please upload a JPEG, PNG, or WebP image.")
+            new Error(
+              "Invalid file type. Please upload a JPEG, PNG, or WebP image.",
+            ),
           );
         }
 
@@ -302,7 +323,7 @@ const detectionRoutes = new Elysia()
         if (fileObj.size > maxSize) {
           set.status = 400;
           return formatErrorResponse(
-            new Error("File size too large. Maximum size is 10MB.")
+            new Error("File size too large. Maximum size is 10MB."),
           );
         }
 
@@ -310,11 +331,15 @@ const detectionRoutes = new Elysia()
         if (minConfidence < 0 || minConfidence > 1) {
           set.status = 400;
           return formatErrorResponse(
-            new Error("min_confidence must be between 0 and 1.")
+            new Error("min_confidence must be between 0 and 1."),
           );
         }
 
-        const result = await MemberService.detectKTP(fileObj, returnMultiple, minConfidence);
+        const result = await MemberService.detectKTP(
+          fileObj,
+          returnMultiple,
+          minConfidence,
+        );
         return result;
       } catch (error) {
         set.status =
@@ -330,10 +355,18 @@ const detectionRoutes = new Elysia()
           type: ["image/jpeg", "image/jpg", "image/png", "image/webp"],
         }),
       }),
-      query: t.Optional(t.Object({
-        return_multiple: t.Optional(t.String({ description: "Set to 'true' to return all detections" })),
-        min_confidence: t.Optional(t.String({ description: "Minimum confidence threshold (0-1), default: 0.5" })),
-      })),
+      query: t.Optional(
+        t.Object({
+          return_multiple: t.Optional(
+            t.String({ description: "Set to 'true' to return all detections" }),
+          ),
+          min_confidence: t.Optional(
+            t.String({
+              description: "Minimum confidence threshold (0-1), default: 0.5",
+            }),
+          ),
+        }),
+      ),
       response: {
         200: MemberModel.ktpDetectionResponse,
         400: MemberModel.errorResponse,
@@ -386,7 +419,8 @@ POST /members/ktp-detect?return_multiple=true&min_confidence=0.6
                   image: {
                     type: "string",
                     format: "binary",
-                    description: "KTP image file (JPEG, PNG, or WebP, max 10MB)",
+                    description:
+                      "KTP image file (JPEG, PNG, or WebP, max 10MB)",
                   },
                 },
               },
@@ -399,7 +433,7 @@ POST /members/ktp-detect?return_multiple=true&min_confidence=0.6
           },
         },
       },
-    }
+    },
   );
 
 // OCR Extract routes - petugas, supervisor, admin, superadmin
@@ -421,7 +455,9 @@ const ocrRoutes = new Elysia()
         if (!file && !croppedImageBase64 && !sessionId) {
           set.status = 400;
           return formatErrorResponse(
-            new Error("Either image file, cropped_image (base64), or session_id is required.")
+            new Error(
+              "Either image file, cropped_image (base64), or session_id is required.",
+            ),
           );
         }
 
@@ -431,7 +467,9 @@ const ocrRoutes = new Elysia()
           if (typeof sessionId !== "string" || sessionId.length === 0) {
             set.status = 400;
             return formatErrorResponse(
-              new Error("Invalid session_id format. Must be a valid session ID string.")
+              new Error(
+                "Invalid session_id format. Must be a valid session ID string.",
+              ),
             );
           }
 
@@ -442,14 +480,20 @@ const ocrRoutes = new Elysia()
         // If cropped_image is provided, use it directly
         if (croppedImageBase64) {
           // Validate base64 format
-          if (typeof croppedImageBase64 !== "string" || croppedImageBase64.length === 0) {
+          if (
+            typeof croppedImageBase64 !== "string" ||
+            croppedImageBase64.length === 0
+          ) {
             set.status = 400;
             return formatErrorResponse(
-              new Error("Invalid cropped_image format. Must be a base64 string.")
+              new Error(
+                "Invalid cropped_image format. Must be a base64 string.",
+              ),
             );
           }
 
-          const result = await MemberService.extractKTPFields(croppedImageBase64);
+          const result =
+            await MemberService.extractKTPFields(croppedImageBase64);
           return result;
         }
 
@@ -457,7 +501,9 @@ const ocrRoutes = new Elysia()
         if (!file) {
           set.status = 400;
           return formatErrorResponse(
-            new Error("Image file is required when cropped_image or session_id is not provided.")
+            new Error(
+              "Image file is required when cropped_image or session_id is not provided.",
+            ),
           );
         }
 
@@ -474,16 +520,23 @@ const ocrRoutes = new Elysia()
         } else {
           set.status = 400;
           return formatErrorResponse(
-            new Error("Invalid file format. Please upload a valid image file.")
+            new Error("Invalid file format. Please upload a valid image file."),
           );
         }
 
         // Validate file type
-        const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+        const allowedTypes = [
+          "image/jpeg",
+          "image/jpg",
+          "image/png",
+          "image/webp",
+        ];
         if (!allowedTypes.includes(fileObj.type)) {
           set.status = 400;
           return formatErrorResponse(
-            new Error("Invalid file type. Please upload a JPEG, PNG, or WebP image.")
+            new Error(
+              "Invalid file type. Please upload a JPEG, PNG, or WebP image.",
+            ),
           );
         }
 
@@ -492,7 +545,7 @@ const ocrRoutes = new Elysia()
         if (fileObj.size > maxSize) {
           set.status = 400;
           return formatErrorResponse(
-            new Error("File size too large. Maximum size is 10MB.")
+            new Error("File size too large. Maximum size is 10MB."),
           );
         }
 
@@ -511,17 +564,19 @@ const ocrRoutes = new Elysia()
         image: t.Optional(
           t.File({
             type: ["image/jpeg", "image/jpg", "image/png", "image/webp"],
-          })
+          }),
         ),
         cropped_image: t.Optional(
           t.String({
-            description: "Base64 encoded cropped KTP image (from /members/ktp-detect endpoint). If provided, this will be used instead of uploaded file.",
-          })
+            description:
+              "Base64 encoded cropped KTP image (from /members/ktp-detect endpoint). If provided, this will be used instead of uploaded file.",
+          }),
         ),
         session_id: t.Optional(
           t.String({
-            description: "Session ID from /members/ktp-detect endpoint. If provided, cropped image will be retrieved from temporary storage.",
-          })
+            description:
+              "Session ID from /members/ktp-detect endpoint. If provided, cropped image will be retrieved from temporary storage.",
+          }),
         ),
       }),
       response: {
@@ -598,7 +653,8 @@ const ocrRoutes = new Elysia()
                   image: {
                     type: "string",
                     format: "binary",
-                    description: "KTP image file (JPEG, PNG, or WebP, max 10MB)",
+                    description:
+                      "KTP image file (JPEG, PNG, or WebP, max 10MB)",
                   },
                 },
               },
@@ -611,7 +667,96 @@ const ocrRoutes = new Elysia()
           },
         },
       },
-    }
+    },
+  );
+
+// Card Status Routes - petugas, supervisor, superadmin
+const cardStatusRoutes = new Elysia()
+  .use(permissionMiddleware("member.update"))
+  .post(
+    "/:id/cards/:cardId/block",
+    async (context) => {
+      const { params, body, set, user } = context as typeof context &
+        AuthContextUser;
+      try {
+        const result = await MemberService.blockCard(
+          params.id,
+          params.cardId,
+          user.id,
+          body.notes,
+        );
+        return result;
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      params: t.Object({
+        id: t.String(),
+        cardId: t.String(),
+      }),
+      body: MemberModel.blockCardBody,
+      response: {
+        200: MemberModel.genericResponse,
+        400: MemberModel.errorResponse,
+        401: MemberModel.errorResponse,
+        403: MemberModel.errorResponse,
+        404: MemberModel.errorResponse,
+        500: MemberModel.errorResponse,
+      },
+      detail: {
+        tags: ["Members"],
+        summary: "Block Member Card",
+        description: "Block a specific card belonging to a member.",
+      },
+    },
+  )
+  .post(
+    "/:id/cards/:cardId/unblock",
+    async (context) => {
+      const { params, body, set, user } = context as typeof context &
+        AuthContextUser;
+      try {
+        const result = await MemberService.unblockCard(
+          params.id,
+          params.cardId,
+          user.id,
+          body.notes,
+        );
+        return result;
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      params: t.Object({
+        id: t.String(),
+        cardId: t.String(),
+      }),
+      body: MemberModel.unblockCardBody,
+      response: {
+        200: MemberModel.genericResponse,
+        400: MemberModel.errorResponse,
+        401: MemberModel.errorResponse,
+        403: MemberModel.errorResponse,
+        404: MemberModel.errorResponse,
+        500: MemberModel.errorResponse,
+      },
+      detail: {
+        tags: ["Members"],
+        summary: "Unblock Member Card",
+        description:
+          "Unblock (restore to SOLD_ACTIVE) a specific card belonging to a member.",
+      },
+    },
   );
 
 // Combine all routes
@@ -621,4 +766,5 @@ export const members = new Elysia({ prefix: "/members" })
   .use(updateRoutes)
   .use(deleteRoutes)
   .use(detectionRoutes)
-  .use(ocrRoutes);
+  .use(ocrRoutes)
+  .use(cardStatusRoutes);

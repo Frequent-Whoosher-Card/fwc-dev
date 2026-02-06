@@ -14,6 +14,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
 import html2canvas from "html2canvas";
+import axios from "@/lib/axios";
 
 /* ======================
    TYPES
@@ -67,12 +68,12 @@ export default function TransactionPage({ role }: TransactionPageProps) {
      FILTER STATE
   ===================== */
   const [search, setSearch] = useState("");
-  const [stationId, setStationId] = useState<string | undefined>();
+  const [stationIds, setStationIds] = useState<string[] | undefined>();
   const [purchasedDate, setPurchasedDate] = useState<string | undefined>();
   const [shiftDate, setShiftDate] = useState<string | undefined>();
-  const [cardCategoryId, setCardCategoryId] = useState<string | undefined>();
-  const [cardTypeId, setCardTypeId] = useState<string | undefined>();
-  const [employeeTypeId, setEmployeeTypeId] = useState<string | undefined>();
+  const [cardCategoryIds, setCardCategoryIds] = useState<string[] | undefined>();
+  const [cardTypeIds, setCardTypeIds] = useState<string[] | undefined>();
+  const [employeeTypeIds, setEmployeeTypeIds] = useState<string[] | undefined>();
 
   /* =====================
      DATA STATE (DIPISAH!)
@@ -116,12 +117,12 @@ export default function TransactionPage({ role }: TransactionPageProps) {
      RESET FILTER
   ===================== */
   const resetFilter = () => {
-    setStationId(undefined);
+    setStationIds(undefined);
     setPurchasedDate(undefined);
     setShiftDate(undefined);
-    setCardCategoryId(undefined);
-    setCardTypeId(undefined);
-    setEmployeeTypeId(undefined);
+    setCardCategoryIds(undefined);
+    setCardTypeIds(undefined);
+    setEmployeeTypeIds(undefined);
     setPagination((p) => ({ ...p, page: 1 }));
   };
 
@@ -137,12 +138,12 @@ export default function TransactionPage({ role }: TransactionPageProps) {
       page: pagination.page,
       limit: pagination.limit,
       search,
-      stationId,
+      stationIds,
       startDate: purchasedDate,
       endDate: shiftDate,
-      categoryId: cardCategoryId,
-      typeId: cardTypeId,
-      employeeTypeId,
+      categoryIds: cardCategoryIds,
+      typeIds: cardTypeIds,
+      employeeTypeIds,
     };
 
     try {
@@ -181,12 +182,12 @@ export default function TransactionPage({ role }: TransactionPageProps) {
         page: deletedPage,
         limit: 10,
         search,
-        stationId,
+        stationIds,
         startDate: purchasedDate,
         endDate: shiftDate,
-        categoryId: cardCategoryId,
-        typeId: cardTypeId,
-        employeeTypeId,
+        categoryIds: cardCategoryIds,
+        typeIds: cardTypeIds,
+        employeeTypeIds,
         transactionType: activeTab,
         isDeleted: true,
       });
@@ -224,8 +225,8 @@ export default function TransactionPage({ role }: TransactionPageProps) {
      RESET CATEGORY & TYPE WHEN TAB CHANGES (FWC vs Voucher punya list beda)
   ===================== */
   useEffect(() => {
-    setCardCategoryId(undefined);
-    setCardTypeId(undefined);
+    setCardCategoryIds(undefined);
+    setCardTypeIds(undefined);
   }, [activeTab]);
 
   /* =====================
@@ -237,12 +238,12 @@ export default function TransactionPage({ role }: TransactionPageProps) {
   }, [
     activeTab,
     search,
-    stationId,
+    stationIds,
     purchasedDate,
     shiftDate,
-    cardCategoryId,
-    cardTypeId,
-    employeeTypeId,
+    cardCategoryIds,
+    cardTypeIds,
+    employeeTypeIds,
     pagination.page,
     searchParams.get("refresh"),
   ]);
@@ -254,12 +255,12 @@ export default function TransactionPage({ role }: TransactionPageProps) {
   }, [
     activeTab,
     search,
-    stationId,
+    stationIds,
     purchasedDate,
     shiftDate,
-    cardCategoryId,
-    cardTypeId,
-    employeeTypeId,
+    cardCategoryIds,
+    cardTypeIds,
+    employeeTypeIds,
   ]);
 
   /* Load riwayat penghapusan when tab, deletedPage, or filters change */
@@ -271,12 +272,12 @@ export default function TransactionPage({ role }: TransactionPageProps) {
     activeTab,
     deletedPage,
     search,
-    stationId,
+    stationIds,
     purchasedDate,
     shiftDate,
-    cardCategoryId,
-    cardTypeId,
-    employeeTypeId,
+    cardCategoryIds,
+    cardTypeIds,
+    employeeTypeIds,
   ]);
 
   /* =====================
@@ -299,12 +300,12 @@ export default function TransactionPage({ role }: TransactionPageProps) {
   const openTransactionExportModal = async () => {
     const res = await getPurchases({
       search,
-      stationId,
+      stationIds,
       startDate: purchasedDate,
       endDate: shiftDate,
-      categoryId: cardCategoryId,
-      typeId: cardTypeId,
-      employeeTypeId,
+      categoryIds: cardCategoryIds,
+      typeIds: cardTypeIds,
+      employeeTypeIds,
       transactionType: activeTab === "voucher" ? "voucher" : "fwc",
       limit: 1000,
     });
@@ -320,6 +321,8 @@ export default function TransactionPage({ role }: TransactionPageProps) {
 
   /** Generate Laporan Transaksi PDF from items */
   const generateTransactionPDF = (items: any[]) => {
+    const isVoucher = activeTab === "voucher";
+    
     const doc = new jsPDF({
       orientation: "landscape",
       unit: "mm",
@@ -331,40 +334,99 @@ export default function TransactionPage({ role }: TransactionPageProps) {
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.text("Laporan Transaksi", pageWidth / 2, margin, { align: "center" });
+    doc.text(isVoucher ? "Laporan Transaksi Voucher" : "Laporan Transaksi", pageWidth / 2, margin, { align: "center" });
 
-    const tableData = items.map((item: any, idx: number) => [
-      idx + 1,
-      item.member?.name || "-",
-      item.member?.identityNumber ? `FWC${item.member.identityNumber}` : "-",
-      item.card?.cardProduct?.category?.categoryName ?? "-",
-      item.card?.cardProduct?.type?.typeName ?? "-",
-      item.card?.serialNumber ?? "-",
-      item.edcReferenceNumber ? `EDC${item.edcReferenceNumber}` : "-",
-      `Rp ${Number(item.price || 0).toLocaleString("id-ID")}`,
-      formatDateID(item.purchaseDate),
-      formatDateID(item.shiftDate ?? item.purchaseDate),
-      item.operator?.fullName ?? "-",
-      item.station?.stationName ?? "-",
-    ]);
+    let tableData: any[];
+    let headers: string[];
+
+    if (isVoucher) {
+      // Format untuk Voucher
+      tableData = items.map((item: any, idx: number) => {
+        const isBulkPurchase = item.programType === "VOUCHER" && item.bulkPurchaseItems && item.bulkPurchaseItems.length > 0;
+        const quantity = isBulkPurchase ? (item.bulkPurchaseItemsCount ?? item.bulkPurchaseItems?.length ?? 0) : 1;
+        const firstSerial = isBulkPurchase && item.bulkPurchaseItems?.[0]?.card?.serialNumber 
+          ? item.bulkPurchaseItems[0].card.serialNumber 
+          : item.card?.serialNumber ?? "-";
+        const serialRange = item.firstSerialNumber && item.lastSerialNumber
+          ? `${item.firstSerialNumber} - ${item.lastSerialNumber}`
+          : item.card?.serialNumber ?? "-";
+        const serialWithQuantity = isBulkPurchase ? `${firstSerial} (${quantity})` : firstSerial;
+        
+        return [
+          idx + 1,
+          item.member?.name || "-",
+          item.member?.identityNumber ?? "-",
+          item.member?.companyName ?? "-",
+          isBulkPurchase
+            ? item.bulkPurchaseItems?.[0]?.card?.cardProduct?.category?.categoryName ?? "-"
+            : item.card?.cardProduct?.category?.categoryName ?? "-",
+          isBulkPurchase
+            ? item.bulkPurchaseItems?.[0]?.card?.cardProduct?.type?.typeName ?? "-"
+            : item.card?.cardProduct?.type?.typeName ?? "-",
+          serialWithQuantity,
+          serialRange,
+          item.edcReferenceNumber ? `EDC${item.edcReferenceNumber}` : "-",
+          `Rp ${Number(item.price || 0).toLocaleString("id-ID")}`,
+          formatDateID(item.purchaseDate),
+          formatDateID(item.shiftDate ?? item.purchaseDate),
+          item.operator?.fullName ?? "-",
+          item.station?.stationName ?? "-",
+          item.employeeType?.name ?? "-",
+        ];
+      });
+
+      headers = [
+        "No",
+        "Customer Name",
+        "Identity Number",
+        "Perusahaan",
+        "Voucher Category",
+        "Voucher Type",
+        "Serial Number Awal / Quantity",
+        "Serial Number Awal - Serial Number Akhir",
+        "Reference EDC",
+        "Voucher Price",
+        "Purchase Date",
+        "Shift Date",
+        "Operator Name",
+        "Station",
+        "Tipe Karyawan",
+      ];
+    } else {
+      // Format untuk FWC
+      tableData = items.map((item: any, idx: number) => [
+        idx + 1,
+        item.member?.name || "-",
+        item.member?.identityNumber ? `FWC${item.member.identityNumber}` : "-",
+        item.card?.cardProduct?.category?.categoryName ?? "-",
+        item.card?.cardProduct?.type?.typeName ?? "-",
+        item.card?.serialNumber ?? "-",
+        item.edcReferenceNumber ? `EDC${item.edcReferenceNumber}` : "-",
+        `Rp ${Number(item.price || 0).toLocaleString("id-ID")}`,
+        formatDateID(item.purchaseDate),
+        formatDateID(item.shiftDate ?? item.purchaseDate),
+        item.operator?.fullName ?? "-",
+        item.station?.stationName ?? "-",
+      ]);
+
+      headers = [
+        "No",
+        "Customer Name",
+        "Identity Number",
+        "Card Category",
+        "Card Type",
+        "Serial Number",
+        "Reference EDC",
+        "FWC Price",
+        "Purchase Date",
+        "Shift Date",
+        "Operator Name",
+        "Station",
+      ];
+    }
 
     autoTable(doc, {
-      head: [
-        [
-          "No",
-          "Customer Name",
-          "Identity Number",
-          "Card Category",
-          "Card Type",
-          "Serial Number",
-          "Reference EDC",
-          "FWC Price",
-          "Purchase Date",
-          "Shift Date",
-          "Operator Name",
-          "Station",
-        ],
-      ],
+      head: [headers],
       body: tableData,
       startY: margin + 8,
       styles: {
@@ -385,31 +447,89 @@ export default function TransactionPage({ role }: TransactionPageProps) {
 
     const today = new Date();
     const dateStr = today.toISOString().split("T")[0].replace(/-/g, "");
-    doc.save(`Transaction_Report_FWC_${dateStr}.pdf`);
+    const filename = isVoucher ? `Transaction_Report_Voucher_${dateStr}.pdf` : `Transaction_Report_FWC_${dateStr}.pdf`;
+    doc.save(filename);
   };
 
   /** Generate Laporan Transaksi Excel from items */
   const generateTransactionExcel = (items: any[]) => {
+    const isVoucher = activeTab === "voucher";
+    
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "FWC System";
     workbook.created = new Date();
 
-    const worksheet = workbook.addWorksheet("Laporan Transaksi");
+    const worksheet = workbook.addWorksheet(isVoucher ? "Laporan Transaksi Voucher" : "Laporan Transaksi");
 
-    const headers = [
-      "No",
-      "Customer Name",
-      "Identity Number",
-      "Card Category",
-      "Card Type",
-      "Serial Number",
-      "Reference EDC",
-      "FWC Price",
-      "Purchase Date",
-      "Shift Date",
-      "Operator Name",
-      "Station",
-    ];
+    let headers: string[];
+    let columnWidths: { width: number }[];
+
+    if (isVoucher) {
+      headers = [
+        "No",
+        "Customer Name",
+        "Identity Number",
+        "Perusahaan",
+        "Voucher Category",
+        "Voucher Type",
+        "Serial Number Awal / Quantity",
+        "Serial Number Awal - Serial Number Akhir",
+        "Reference EDC",
+        "Voucher Price",
+        "Purchase Date",
+        "Shift Date",
+        "Operator Name",
+        "Station",
+        "Tipe Karyawan",
+      ];
+      columnWidths = [
+        { width: 6 },
+        { width: 22 },
+        { width: 18 },
+        { width: 18 },
+        { width: 18 },
+        { width: 18 },
+        { width: 25 },
+        { width: 35 },
+        { width: 16 },
+        { width: 14 },
+        { width: 14 },
+        { width: 12 },
+        { width: 18 },
+        { width: 18 },
+        { width: 18 },
+      ];
+    } else {
+      headers = [
+        "No",
+        "Customer Name",
+        "Identity Number",
+        "Card Category",
+        "Card Type",
+        "Serial Number",
+        "Reference EDC",
+        "FWC Price",
+        "Purchase Date",
+        "Shift Date",
+        "Operator Name",
+        "Station",
+      ];
+      columnWidths = [
+        { width: 6 },
+        { width: 22 },
+        { width: 18 },
+        { width: 18 },
+        { width: 18 },
+        { width: 18 },
+        { width: 16 },
+        { width: 14 },
+        { width: 14 },
+        { width: 12 },
+        { width: 18 },
+        { width: 18 },
+      ];
+    }
+
     const headerRow = worksheet.getRow(1);
     headerRow.values = headers;
     headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
@@ -423,37 +543,59 @@ export default function TransactionPage({ role }: TransactionPageProps) {
 
     items.forEach((item: any, idx: number) => {
       const row = worksheet.getRow(idx + 2);
-      row.values = [
-        idx + 1,
-        item.member?.name || "-",
-        item.member?.identityNumber ? `FWC${item.member.identityNumber}` : "-",
-        item.card?.cardProduct?.category?.categoryName ?? "-",
-        item.card?.cardProduct?.type?.typeName ?? "-",
-        item.card?.serialNumber ?? "-",
-        item.edcReferenceNumber ? `EDC${item.edcReferenceNumber}` : "-",
-        Number(item.price || 0),
-        formatDateID(item.purchaseDate),
-        formatDateID(item.shiftDate ?? item.purchaseDate),
-        item.operator?.fullName ?? "-",
-        item.station?.stationName ?? "-",
-      ];
+      
+      if (isVoucher) {
+        const isBulkPurchase = item.programType === "VOUCHER" && item.bulkPurchaseItems && item.bulkPurchaseItems.length > 0;
+        const quantity = isBulkPurchase ? (item.bulkPurchaseItemsCount ?? item.bulkPurchaseItems?.length ?? 0) : 1;
+        const firstSerial = isBulkPurchase && item.bulkPurchaseItems?.[0]?.card?.serialNumber 
+          ? item.bulkPurchaseItems[0].card.serialNumber 
+          : item.card?.serialNumber ?? "-";
+        const serialRange = item.firstSerialNumber && item.lastSerialNumber
+          ? `${item.firstSerialNumber} - ${item.lastSerialNumber}`
+          : item.card?.serialNumber ?? "-";
+        const serialWithQuantity = isBulkPurchase ? `${firstSerial} (${quantity})` : firstSerial;
+        
+        row.values = [
+          idx + 1,
+          item.member?.name || "-",
+          item.member?.identityNumber ?? "-",
+          item.member?.companyName ?? "-",
+          isBulkPurchase
+            ? item.bulkPurchaseItems?.[0]?.card?.cardProduct?.category?.categoryName ?? "-"
+            : item.card?.cardProduct?.category?.categoryName ?? "-",
+          isBulkPurchase
+            ? item.bulkPurchaseItems?.[0]?.card?.cardProduct?.type?.typeName ?? "-"
+            : item.card?.cardProduct?.type?.typeName ?? "-",
+          serialWithQuantity,
+          serialRange,
+          item.edcReferenceNumber ? `EDC${item.edcReferenceNumber}` : "-",
+          Number(item.price || 0),
+          formatDateID(item.purchaseDate),
+          formatDateID(item.shiftDate ?? item.purchaseDate),
+          item.operator?.fullName ?? "-",
+          item.station?.stationName ?? "-",
+          item.employeeType?.name ?? "-",
+        ];
+      } else {
+        row.values = [
+          idx + 1,
+          item.member?.name || "-",
+          item.member?.identityNumber ? `FWC${item.member.identityNumber}` : "-",
+          item.card?.cardProduct?.category?.categoryName ?? "-",
+          item.card?.cardProduct?.type?.typeName ?? "-",
+          item.card?.serialNumber ?? "-",
+          item.edcReferenceNumber ? `EDC${item.edcReferenceNumber}` : "-",
+          Number(item.price || 0),
+          formatDateID(item.purchaseDate),
+          formatDateID(item.shiftDate ?? item.purchaseDate),
+          item.operator?.fullName ?? "-",
+          item.station?.stationName ?? "-",
+        ];
+      }
       row.alignment = { horizontal: "left", vertical: "middle" };
     });
 
-    worksheet.columns = [
-      { width: 6 },
-      { width: 22 },
-      { width: 18 },
-      { width: 18 },
-      { width: 18 },
-      { width: 18 },
-      { width: 16 },
-      { width: 14 },
-      { width: 14 },
-      { width: 12 },
-      { width: 18 },
-      { width: 18 },
-    ];
+    worksheet.columns = columnWidths;
 
     workbook.xlsx.writeBuffer().then((buffer) => {
       const blob = new Blob([buffer], {
@@ -463,7 +605,8 @@ export default function TransactionPage({ role }: TransactionPageProps) {
       const link = document.createElement("a");
       link.href = url;
       const dateStr = new Date().toISOString().split("T")[0].replace(/-/g, "");
-      link.download = `Transaction_Report_FWC_${dateStr}.xlsx`;
+      const filename = isVoucher ? `Transaction_Report_Voucher_${dateStr}.xlsx` : `Transaction_Report_FWC_${dateStr}.xlsx`;
+      link.download = filename;
       link.click();
       URL.revokeObjectURL(url);
     });
@@ -471,20 +614,45 @@ export default function TransactionPage({ role }: TransactionPageProps) {
 
   /** Generate Laporan Transaksi CSV from items */
   const generateTransactionCSV = (items: any[]) => {
-    const headers = [
-      "No",
-      "Customer Name",
-      "Identity Number",
-      "Card Category",
-      "Card Type",
-      "Serial Number",
-      "Reference EDC",
-      "FWC Price",
-      "Purchase Date",
-      "Shift Date",
-      "Operator Name",
-      "Station",
-    ];
+    const isVoucher = activeTab === "voucher";
+    
+    let headers: string[];
+    
+    if (isVoucher) {
+      headers = [
+        "No",
+        "Customer Name",
+        "Identity Number",
+        "Perusahaan",
+        "Voucher Category",
+        "Voucher Type",
+        "Serial Number Awal / Quantity",
+        "Serial Number Awal - Serial Number Akhir",
+        "Reference EDC",
+        "Voucher Price",
+        "Purchase Date",
+        "Shift Date",
+        "Operator Name",
+        "Station",
+        "Tipe Karyawan",
+      ];
+    } else {
+      headers = [
+        "No",
+        "Customer Name",
+        "Identity Number",
+        "Card Category",
+        "Card Type",
+        "Serial Number",
+        "Reference EDC",
+        "FWC Price",
+        "Purchase Date",
+        "Shift Date",
+        "Operator Name",
+        "Station",
+      ];
+    }
+    
     const escapeCsv = (v: string | number) => {
       const s = String(v ?? "");
       if (/[,"\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
@@ -492,20 +660,56 @@ export default function TransactionPage({ role }: TransactionPageProps) {
     };
     let csv = headers.map(escapeCsv).join(",") + "\n";
     items.forEach((item: any, idx: number) => {
-      const row = [
-        idx + 1,
-        item.member?.name || "-",
-        item.member?.identityNumber ? `FWC${item.member.identityNumber}` : "-",
-        item.card?.cardProduct?.category?.categoryName ?? "-",
-        item.card?.cardProduct?.type?.typeName ?? "-",
-        item.card?.serialNumber ?? "-",
-        item.edcReferenceNumber ? `EDC${item.edcReferenceNumber}` : "-",
-        Number(item.price || 0),
-        formatDateID(item.purchaseDate),
-        formatDateID(item.shiftDate ?? item.purchaseDate),
-        item.operator?.fullName ?? "-",
-        item.station?.stationName ?? "-",
-      ];
+      let row: any[];
+      
+      if (isVoucher) {
+        const isBulkPurchase = item.programType === "VOUCHER" && item.bulkPurchaseItems && item.bulkPurchaseItems.length > 0;
+        const quantity = isBulkPurchase ? (item.bulkPurchaseItemsCount ?? item.bulkPurchaseItems?.length ?? 0) : 1;
+        const firstSerial = isBulkPurchase && item.bulkPurchaseItems?.[0]?.card?.serialNumber 
+          ? item.bulkPurchaseItems[0].card.serialNumber 
+          : item.card?.serialNumber ?? "-";
+        const serialRange = item.firstSerialNumber && item.lastSerialNumber
+          ? `${item.firstSerialNumber} - ${item.lastSerialNumber}`
+          : item.card?.serialNumber ?? "-";
+        const serialWithQuantity = isBulkPurchase ? `${firstSerial} (${quantity})` : firstSerial;
+        
+        row = [
+          idx + 1,
+          item.member?.name || "-",
+          item.member?.identityNumber ?? "-",
+          item.member?.companyName ?? "-",
+          isBulkPurchase
+            ? item.bulkPurchaseItems?.[0]?.card?.cardProduct?.category?.categoryName ?? "-"
+            : item.card?.cardProduct?.category?.categoryName ?? "-",
+          isBulkPurchase
+            ? item.bulkPurchaseItems?.[0]?.card?.cardProduct?.type?.typeName ?? "-"
+            : item.card?.cardProduct?.type?.typeName ?? "-",
+          serialWithQuantity,
+          serialRange,
+          item.edcReferenceNumber ? `EDC${item.edcReferenceNumber}` : "-",
+          Number(item.price || 0),
+          formatDateID(item.purchaseDate),
+          formatDateID(item.shiftDate ?? item.purchaseDate),
+          item.operator?.fullName ?? "-",
+          item.station?.stationName ?? "-",
+          item.employeeType?.name ?? "-",
+        ];
+      } else {
+        row = [
+          idx + 1,
+          item.member?.name || "-",
+          item.member?.identityNumber ? `FWC${item.member.identityNumber}` : "-",
+          item.card?.cardProduct?.category?.categoryName ?? "-",
+          item.card?.cardProduct?.type?.typeName ?? "-",
+          item.card?.serialNumber ?? "-",
+          item.edcReferenceNumber ? `EDC${item.edcReferenceNumber}` : "-",
+          Number(item.price || 0),
+          formatDateID(item.purchaseDate),
+          formatDateID(item.shiftDate ?? item.purchaseDate),
+          item.operator?.fullName ?? "-",
+          item.station?.stationName ?? "-",
+        ];
+      }
       csv += row.map(escapeCsv).join(",") + "\n";
     });
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
@@ -513,13 +717,16 @@ export default function TransactionPage({ role }: TransactionPageProps) {
     const link = document.createElement("a");
     link.href = url;
     const dateStr = new Date().toISOString().split("T")[0].replace(/-/g, "");
-    link.download = `Transaction_Report_FWC_${dateStr}.csv`;
+    const filename = isVoucher ? `Transaction_Report_Voucher_${dateStr}.csv` : `Transaction_Report_FWC_${dateStr}.csv`;
+    link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
   };
 
   /** Generate Laporan Transaksi Image from items - render in iframe to avoid lab() color from main page */
   const generateTransactionImage = async (items: any[]) => {
+    const isVoucher = activeTab === "voucher";
+    
     const escapeHtml = (text: string) => {
       const div = document.createElement("div");
       div.textContent = text;
@@ -527,42 +734,100 @@ export default function TransactionPage({ role }: TransactionPageProps) {
     };
 
     let rowsHtml = "";
-    items.forEach((item: any, idx: number) => {
-      rowsHtml += `
-        <tr>
-          <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; text-align: center; color: rgb(0, 0, 0);">${idx + 1}</td>
-          <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.member?.name || "-")}</td>
-          <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.member?.identityNumber ? `FWC${item.member.identityNumber}` : "-")}</td>
-          <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.card?.cardProduct?.category?.categoryName ?? "-")}</td>
-          <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.card?.cardProduct?.type?.typeName ?? "-")}</td>
-          <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.card?.serialNumber ?? "-")}</td>
-          <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.edcReferenceNumber ? `EDC${item.edcReferenceNumber}` : "-")}</td>
-          <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">Rp ${Number(item.price || 0).toLocaleString("id-ID")}</td>
-          <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${formatDateID(item.purchaseDate)}</td>
-          <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${formatDateID(item.shiftDate ?? item.purchaseDate)}</td>
-          <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.operator?.fullName ?? "-")}</td>
-          <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.station?.stationName ?? "-")}</td>
-        </tr>
+    let headersHtml = "";
+    
+    if (isVoucher) {
+      headersHtml = `
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">No</th>
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Customer Name</th>
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Identity Number</th>
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Perusahaan</th>
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Voucher Category</th>
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Voucher Type</th>
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Serial Number Awal / Quantity</th>
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Serial Number Awal - Serial Number Akhir</th>
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Reference EDC</th>
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Voucher Price</th>
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Purchase Date</th>
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Shift Date</th>
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Operator</th>
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Station</th>
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Tipe Karyawan</th>
       `;
-    });
+      
+      items.forEach((item: any, idx: number) => {
+        const isBulkPurchase = item.programType === "VOUCHER" && item.bulkPurchaseItems && item.bulkPurchaseItems.length > 0;
+        const quantity = isBulkPurchase ? (item.bulkPurchaseItemsCount ?? item.bulkPurchaseItems?.length ?? 0) : 1;
+        const firstSerial = isBulkPurchase && item.bulkPurchaseItems?.[0]?.card?.serialNumber 
+          ? item.bulkPurchaseItems[0].card.serialNumber 
+          : item.card?.serialNumber ?? "-";
+        const serialRange = item.firstSerialNumber && item.lastSerialNumber
+          ? `${item.firstSerialNumber} - ${item.lastSerialNumber}`
+          : item.card?.serialNumber ?? "-";
+        const serialWithQuantity = isBulkPurchase ? `${firstSerial} (${quantity})` : firstSerial;
+        
+        rowsHtml += `
+          <tr>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; text-align: center; color: rgb(0, 0, 0);">${idx + 1}</td>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.member?.name || "-")}</td>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.member?.identityNumber ?? "-")}</td>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.member?.companyName ?? "-")}</td>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(isBulkPurchase ? (item.bulkPurchaseItems?.[0]?.card?.cardProduct?.category?.categoryName ?? "-") : (item.card?.cardProduct?.category?.categoryName ?? "-"))}</td>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(isBulkPurchase ? (item.bulkPurchaseItems?.[0]?.card?.cardProduct?.type?.typeName ?? "-") : (item.card?.cardProduct?.type?.typeName ?? "-"))}</td>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(serialWithQuantity)}</td>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(serialRange)}</td>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.edcReferenceNumber ? `EDC${item.edcReferenceNumber}` : "-")}</td>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">Rp ${Number(item.price || 0).toLocaleString("id-ID")}</td>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${formatDateID(item.purchaseDate)}</td>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${formatDateID(item.shiftDate ?? item.purchaseDate)}</td>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.operator?.fullName ?? "-")}</td>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.station?.stationName ?? "-")}</td>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.employeeType?.name ?? "-")}</td>
+          </tr>
+        `;
+      });
+    } else {
+      headersHtml = `
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">No</th>
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Customer Name</th>
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Identity Number</th>
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Card Category</th>
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Card Type</th>
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Serial Number</th>
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Reference EDC</th>
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">FWC Price</th>
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Purchase Date</th>
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Shift Date</th>
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Operator</th>
+        <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Station</th>
+      `;
+      
+      items.forEach((item: any, idx: number) => {
+        rowsHtml += `
+          <tr>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; text-align: center; color: rgb(0, 0, 0);">${idx + 1}</td>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.member?.name || "-")}</td>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.member?.identityNumber ? `FWC${item.member.identityNumber}` : "-")}</td>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.card?.cardProduct?.category?.categoryName ?? "-")}</td>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.card?.cardProduct?.type?.typeName ?? "-")}</td>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.card?.serialNumber ?? "-")}</td>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.edcReferenceNumber ? `EDC${item.edcReferenceNumber}` : "-")}</td>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">Rp ${Number(item.price || 0).toLocaleString("id-ID")}</td>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${formatDateID(item.purchaseDate)}</td>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${formatDateID(item.shiftDate ?? item.purchaseDate)}</td>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.operator?.fullName ?? "-")}</td>
+            <td style="border: 1px solid rgb(221, 221, 221); padding: 8px; color: rgb(0, 0, 0);">${escapeHtml(item.station?.stationName ?? "-")}</td>
+          </tr>
+        `;
+      });
+    }
 
     const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:40px;background-color:rgb(255,255,255);color:rgb(0,0,0);font-family:Arial,sans-serif;font-size:14px;">
-      <h2 style="text-align:center;margin:0 0 20px 0;font-size:24px;color:rgb(141,18,49);">Laporan Transaksi</h2>
+      <h2 style="text-align:center;margin:0 0 20px 0;font-size:24px;color:rgb(141,18,49);">${isVoucher ? "Laporan Transaksi Voucher" : "Laporan Transaksi"}</h2>
       <table style="width:100%;border-collapse:collapse;">
         <thead>
           <tr style="background-color:rgb(141,18,49);color:rgb(255,255,255);">
-            <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">No</th>
-            <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Customer Name</th>
-            <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Identity Number</th>
-            <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Card Category</th>
-            <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Card Type</th>
-            <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Serial Number</th>
-            <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Reference EDC</th>
-            <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">FWC Price</th>
-            <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Purchase Date</th>
-            <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Shift Date</th>
-            <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Operator</th>
-            <th style="border:1px solid rgb(221,221,221);padding:10px;text-align:center;">Station</th>
+            ${headersHtml}
           </tr>
         </thead>
         <tbody>${rowsHtml}</tbody>
@@ -606,7 +871,8 @@ export default function TransactionPage({ role }: TransactionPageProps) {
           const link = document.createElement("a");
           link.href = url;
           const dateStr = new Date().toISOString().split("T")[0].replace(/-/g, "");
-          link.download = `Transaction_Report_FWC_${dateStr}.png`;
+          const filename = isVoucher ? `Transaction_Report_Voucher_${dateStr}.png` : `Transaction_Report_FWC_${dateStr}.png`;
+          link.download = filename;
           link.click();
           URL.revokeObjectURL(url);
         }
@@ -620,27 +886,23 @@ export default function TransactionPage({ role }: TransactionPageProps) {
   };
 
   const handleExportShiftPDF = async () => {
-    if (activeTab === "voucher") {
-      alert("Export voucher belum tersedia");
-      return;
-    }
-
-    // Fetch data first - hanya data FWC
+    // Fetch data first - sesuai dengan activeTab (FWC atau Voucher)
     const token = localStorage.getItem("fwc_token");
     if (!token) {
       alert("Session expired. Silakan login kembali.");
       return;
     }
 
+    const transactionType = activeTab === "voucher" ? "voucher" : "fwc";
     const res = await getPurchases({
       search,
-      stationId,
+      stationIds,
       startDate: purchasedDate,
       endDate: shiftDate,
-      categoryId: cardCategoryId,
-      typeId: cardTypeId,
-      employeeTypeId,
-      transactionType: "fwc",
+      categoryIds: cardCategoryIds,
+      typeIds: cardTypeIds,
+      employeeTypeIds,
+      transactionType,
       limit: 1000,
     });
 
@@ -659,6 +921,8 @@ export default function TransactionPage({ role }: TransactionPageProps) {
   };
 
   const generateShiftPDF = async () => {
+    const isVoucher = activeTab === "voucher";
+    
     // Close modal
     setShowExportModal(false);
 
@@ -670,34 +934,33 @@ export default function TransactionPage({ role }: TransactionPageProps) {
     }
 
     // Fetch all card products to get all category-type combinations
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-    const productsRes = await fetch(`${API_URL}/card/product`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    if (!productsRes.ok) {
+    // Use axios instance which automatically includes token via interceptor
+    let allProducts: any[] = [];
+    try {
+      const productsRes = await axios.get("/card/product");
+      allProducts = productsRes.data?.data || [];
+    } catch (error) {
+      console.error("Error fetching card products:", error);
       alert("Gagal mengambil data card products");
       return;
     }
-    const productsData = await productsRes.json();
-    const allProducts = productsData.data || [];
 
-    // Initialize combinations from FWC products only
-    const fwcCombinations: any = {};
+    // Initialize combinations based on program type
+    const combinations: any = {};
 
     allProducts.forEach((product: any) => {
       const programType = product.programType || "FWC";
       
-      // Only include FWC products (including null as FWC)
-      if (programType !== "FWC") return;
+      // Filter by program type
+      if (isVoucher && programType !== "VOUCHER") return;
+      if (!isVoucher && programType !== "FWC") return;
       
       const category = product.category?.categoryName || "-";
       const type = product.type?.typeName || "-";
       const key = `${category}|${type}`;
 
-      if (!fwcCombinations[key]) {
-        fwcCombinations[key] = {
+      if (!combinations[key]) {
+        combinations[key] = {
           category,
           type,
           serialStart: "-",
@@ -708,34 +971,79 @@ export default function TransactionPage({ role }: TransactionPageProps) {
       }
     });
 
+    const transactionType = isVoucher ? "voucher" : "fwc";
     const res = await getPurchases({
       search,
-      stationId,
+      stationIds,
       startDate: purchasedDate,
       endDate: shiftDate,
-      categoryId: cardCategoryId,
-      typeId: cardTypeId,
-      employeeTypeId,
-      transactionType: "fwc",
+      categoryIds: cardCategoryIds,
+      typeIds: cardTypeIds,
+      employeeTypeIds,
+      transactionType,
       limit: 1000,
     });
 
     const items = res.success && res.data?.items ? res.data.items : [];
 
-    // Merge transaction data into combinations (FWC only)
+    // Merge transaction data into combinations
     items.forEach((item: any) => {
-      const programType = item.card?.cardProduct?.programType || "FWC";
+      const programType = item.programType || (item.card?.cardProduct?.programType || "FWC");
       
-      // Only process FWC transactions
-      if (programType !== "FWC") return;
+      // Filter by program type
+      if (isVoucher && programType !== "VOUCHER") return;
+      if (!isVoucher && programType !== "FWC") return;
       
-      const category = item.card?.cardProduct?.category?.categoryName || "-";
-      const type = item.card?.cardProduct?.type?.typeName || "-";
+      // For voucher, handle bulk purchases
+      let category: string;
+      let type: string;
+      let serialStart: string = "-";
+      let serialEnd: string = "-";
+      let count: number = 0;
+      
+      if (isVoucher) {
+        const isBulkPurchase = item.bulkPurchaseItems && item.bulkPurchaseItems.length > 0;
+        
+        if (isBulkPurchase) {
+          category = item.bulkPurchaseItems[0]?.card?.cardProduct?.category?.categoryName || "-";
+          type = item.bulkPurchaseItems[0]?.card?.cardProduct?.type?.typeName || "-";
+          count = item.bulkPurchaseItemsCount ?? item.bulkPurchaseItems?.length ?? 0;
+          
+          // Use firstSerialNumber and lastSerialNumber if available, otherwise calculate from bulkPurchaseItems
+          if (item.firstSerialNumber && item.lastSerialNumber) {
+            serialStart = item.firstSerialNumber;
+            serialEnd = item.lastSerialNumber;
+          } else if (item.bulkPurchaseItems && item.bulkPurchaseItems.length > 0) {
+            const serials = item.bulkPurchaseItems
+              .map((bi: any) => bi.card?.serialNumber)
+              .filter((s: string) => s)
+              .sort();
+            if (serials.length > 0) {
+              serialStart = serials[0];
+              serialEnd = serials[serials.length - 1];
+            }
+          }
+        } else {
+          category = item.card?.cardProduct?.category?.categoryName || "-";
+          type = item.card?.cardProduct?.type?.typeName || "-";
+          count = 1;
+          serialStart = item.card?.serialNumber || "-";
+          serialEnd = item.card?.serialNumber || "-";
+        }
+      } else {
+        // FWC logic
+        category = item.card?.cardProduct?.category?.categoryName || "-";
+        type = item.card?.cardProduct?.type?.typeName || "-";
+        count = 1;
+        serialStart = item.card?.serialNumber || "-";
+        serialEnd = item.card?.serialNumber || "-";
+      }
+      
       const nominal = item.price || 0;
       const key = `${category}|${type}`;
 
-      if (!fwcCombinations[key]) {
-        fwcCombinations[key] = {
+      if (!combinations[key]) {
+        combinations[key] = {
           category,
           type,
           serialStart: "-",
@@ -745,29 +1053,26 @@ export default function TransactionPage({ role }: TransactionPageProps) {
         };
       }
 
-      const combo = fwcCombinations[key];
-      const serialNumber = item.card?.serialNumber || "-";
+      const combo = combinations[key];
       
-      if (combo.count === 0) {
-        combo.serialStart = serialNumber;
-        combo.serialEnd = serialNumber;
-      } else {
-        // Update serialStart jika serialNumber lebih kecil (lexicographically)
-        if (serialNumber !== "-" && (combo.serialStart === "-" || serialNumber < combo.serialStart)) {
-          combo.serialStart = serialNumber;
+      // Update serialStart and serialEnd
+      if (serialStart !== "-") {
+        if (combo.serialStart === "-" || serialStart < combo.serialStart) {
+          combo.serialStart = serialStart;
         }
-        // Update serialEnd jika serialNumber lebih besar (lexicographically)
-        if (serialNumber !== "-" && (combo.serialEnd === "-" || serialNumber > combo.serialEnd)) {
-          combo.serialEnd = serialNumber;
+      }
+      if (serialEnd !== "-") {
+        if (combo.serialEnd === "-" || serialEnd > combo.serialEnd) {
+          combo.serialEnd = serialEnd;
         }
       }
 
-      combo.count += 1;
+      combo.count += count;
       combo.nominal += nominal;
     });
 
     // Convert to table data with row numbers
-    const fwcTableData: any[] = Object.values(fwcCombinations).map(
+    const tableData: any[] = Object.values(combinations).map(
       (combo: any, index: number) => [
         index + 1,
         combo.category,
@@ -782,11 +1087,11 @@ export default function TransactionPage({ role }: TransactionPageProps) {
     );
 
     // Calculate totals
-    const fwcTotalCount = (Object.values(fwcCombinations) as any[]).reduce(
+    const totalCount = (Object.values(combinations) as any[]).reduce(
       (sum: number, combo: any) => sum + (combo.count || 0),
       0,
     ) as number;
-    const fwcTotalNominal = (Object.values(fwcCombinations) as any[]).reduce(
+    const totalNominal = (Object.values(combinations) as any[]).reduce(
       (sum: number, combo: any) => sum + (combo.nominal || 0),
       0,
     ) as number;
@@ -803,7 +1108,7 @@ export default function TransactionPage({ role }: TransactionPageProps) {
     // Title
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.text("LAPORAN TRANSAKSI HARIAN", pageWidth / 2, margin, {
+    doc.text(isVoucher ? "LAPORAN TRANSAKSI HARIAN VOUCHER" : "LAPORAN TRANSAKSI HARIAN", pageWidth / 2, margin, {
       align: "center",
     });
 
@@ -856,7 +1161,7 @@ export default function TransactionPage({ role }: TransactionPageProps) {
 
     let currentY = boxY + boxHeight + 3;
 
-    // FWC Table
+    // Table
     autoTable(doc, {
         head: [
           [
@@ -869,20 +1174,20 @@ export default function TransactionPage({ role }: TransactionPageProps) {
             "Nominal",
           ],
         ],
-        body: fwcTableData,
+        body: tableData,
         foot: [
           [
             {
-              content: "Total FWC",
+              content: isVoucher ? "Total Voucher" : "Total FWC",
               colSpan: 5,
               styles: { fontStyle: "bold", halign: "center" },
             },
             {
-              content: fwcTotalCount.toString(),
+              content: totalCount.toString(),
               styles: { fontStyle: "bold", halign: "center" },
             },
             {
-              content: `Rp ${new Intl.NumberFormat("id-ID").format(fwcTotalNominal)}`,
+              content: `Rp ${new Intl.NumberFormat("id-ID").format(totalNominal)}`,
               styles: { fontStyle: "bold", halign: "center" },
             },
           ],
@@ -953,7 +1258,8 @@ export default function TransactionPage({ role }: TransactionPageProps) {
 
     const today = new Date();
     const dateStr = today.toISOString().split("T")[0].replace(/-/g, "");
-    doc.save(`Shift_Report_FWC_${dateStr}.pdf`);
+    const filename = isVoucher ? `Shift_Report_Voucher_${dateStr}.pdf` : `Shift_Report_FWC_${dateStr}.pdf`;
+    doc.save(filename);
     setKeteranganGangguan("");
   };
 
@@ -961,6 +1267,8 @@ export default function TransactionPage({ role }: TransactionPageProps) {
      EXCEL EXPORT FUNCTION
   ===================== */
   const generateExcelReport = async (items: any[]) => {
+    const isVoucher = activeTab === "voucher";
+    
     if (!items || items.length === 0) {
       alert("Tidak ada data untuk diekspor");
       return;
@@ -973,34 +1281,33 @@ export default function TransactionPage({ role }: TransactionPageProps) {
       return;
     }
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-    const productsRes = await fetch(`${API_URL}/card/product`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    
-    if (!productsRes.ok) {
+    // Use axios instance which automatically includes token via interceptor
+    let allProducts: any[] = [];
+    try {
+      const productsRes = await axios.get("/card/product");
+      allProducts = productsRes.data?.data || [];
+    } catch (error) {
+      console.error("Error fetching card products:", error);
       alert("Gagal mengambil data card products");
       return;
     }
-    
-    const productsData = await productsRes.json();
-    const allProducts = productsData.data || [];
 
-    // Initialize from FWC products only
-    const fwcCombinations: any = {};
+    // Initialize combinations based on program type
+    const combinations: any = {};
 
     allProducts.forEach((product: any) => {
       const programType = product.programType || "FWC";
       
-      // Only include FWC products
-      if (programType !== "FWC") return;
+      // Filter by program type
+      if (isVoucher && programType !== "VOUCHER") return;
+      if (!isVoucher && programType !== "FWC") return;
 
       const category = product.category?.categoryName || "Unknown";
       const type = product.type?.typeName || "Unknown";
       const key = `${category}-${type}`;
 
-      if (!fwcCombinations[key]) {
-        fwcCombinations[key] = {
+      if (!combinations[key]) {
+        combinations[key] = {
           category,
           type,
           serialStart: "-",
@@ -1011,33 +1318,79 @@ export default function TransactionPage({ role }: TransactionPageProps) {
       }
     });
 
-    // Merge with actual transaction data (FWC only)
+    // Merge with actual transaction data
     items.forEach((item: any) => {
-      if (!item.card?.cardProduct) return;
-
-      const programType = item.card.cardProduct.programType || "FWC";
+      const programType = item.programType || (item.card?.cardProduct?.programType || "FWC");
       
-      // Only process FWC
-      if (programType !== "FWC") return;
+      // Filter by program type
+      if (isVoucher && programType !== "VOUCHER") return;
+      if (!isVoucher && programType !== "FWC") return;
 
-      const category = item.card.cardProduct.category?.categoryName || "Unknown";
-      const type = item.card.cardProduct.type?.typeName || "Unknown";
+      // For voucher, handle bulk purchases
+      let category: string;
+      let type: string;
+      let serialStart: string = "-";
+      let serialEnd: string = "-";
+      let count: number = 0;
+      
+      if (isVoucher) {
+        const isBulkPurchase = item.bulkPurchaseItems && item.bulkPurchaseItems.length > 0;
+        
+        if (isBulkPurchase) {
+          category = item.bulkPurchaseItems[0]?.card?.cardProduct?.category?.categoryName || "Unknown";
+          type = item.bulkPurchaseItems[0]?.card?.cardProduct?.type?.typeName || "Unknown";
+          count = item.bulkPurchaseItemsCount ?? item.bulkPurchaseItems?.length ?? 0;
+          
+          // Use firstSerialNumber and lastSerialNumber if available
+          if (item.firstSerialNumber && item.lastSerialNumber) {
+            serialStart = item.firstSerialNumber;
+            serialEnd = item.lastSerialNumber;
+          } else if (item.bulkPurchaseItems && item.bulkPurchaseItems.length > 0) {
+            const serials = item.bulkPurchaseItems
+              .map((bi: any) => bi.card?.serialNumber)
+              .filter((s: string) => s)
+              .sort();
+            if (serials.length > 0) {
+              serialStart = serials[0];
+              serialEnd = serials[serials.length - 1];
+            }
+          }
+        } else {
+          category = item.card?.cardProduct?.category?.categoryName || "Unknown";
+          type = item.card?.cardProduct?.type?.typeName || "Unknown";
+          count = 1;
+          serialStart = item.card?.serialNumber || "-";
+          serialEnd = item.card?.serialNumber || "-";
+        }
+      } else {
+        // FWC logic
+        if (!item.card?.cardProduct) return;
+        category = item.card.cardProduct.category?.categoryName || "Unknown";
+        type = item.card.cardProduct.type?.typeName || "Unknown";
+        count = 1;
+        serialStart = item.card.serialNumber || "-";
+        serialEnd = item.card.serialNumber || "-";
+      }
+      
       const key = `${category}-${type}`;
       const nominal = item.price || 0;
 
-      if (fwcCombinations[key]) {
-        const combo = fwcCombinations[key];
-        const serialNumber = item.card.serialNumber;
-        if (combo.count === 0) {
-          combo.serialStart = serialNumber;
-          combo.serialEnd = serialNumber;
-        } else {
-          // Update serialStart jika serialNumber lebih kecil (lexicographically)
-          if (serialNumber < combo.serialStart) combo.serialStart = serialNumber;
-          // Update serialEnd jika serialNumber lebih besar (lexicographically)
-          if (serialNumber > combo.serialEnd) combo.serialEnd = serialNumber;
+      if (combinations[key]) {
+        const combo = combinations[key];
+        
+        // Update serialStart and serialEnd
+        if (serialStart !== "-") {
+          if (combo.serialStart === "-" || serialStart < combo.serialStart) {
+            combo.serialStart = serialStart;
+          }
         }
-        combo.count += 1;
+        if (serialEnd !== "-") {
+          if (combo.serialEnd === "-" || serialEnd > combo.serialEnd) {
+            combo.serialEnd = serialEnd;
+          }
+        }
+        
+        combo.count += count;
         combo.nominal += nominal;
       }
     });
@@ -1061,12 +1414,12 @@ export default function TransactionPage({ role }: TransactionPageProps) {
         : "-";
 
     // Create worksheet
-    const worksheet = workbook.addWorksheet("Laporan Transaksi");
+    const worksheet = workbook.addWorksheet(isVoucher ? "Laporan Transaksi Voucher" : "Laporan Transaksi");
 
     // Title
     worksheet.mergeCells("A1:G1");
     const titleCell = worksheet.getCell("A1");
-    titleCell.value = "LAPORAN TRANSAKSI HARIAN";
+    titleCell.value = isVoucher ? "LAPORAN TRANSAKSI HARIAN VOUCHER" : "LAPORAN TRANSAKSI HARIAN";
     titleCell.font = { bold: true, size: 14 };
     titleCell.alignment = { horizontal: "center", vertical: "middle" };
     worksheet.getRow(1).height = 25;
@@ -1086,24 +1439,24 @@ export default function TransactionPage({ role }: TransactionPageProps) {
 
     let currentRow = 4;
 
-    // FWC Table
-    const fwcTableData = Object.values(fwcCombinations);
+    // Table
+    const tableData = Object.values(combinations);
     
-    // FWC Header
-    const fwcHeaderRow = worksheet.getRow(currentRow);
-      fwcHeaderRow.values = ["No", "Kategori", "Type", "Serial Start", "Serial End", "Jumlah", "Nominal"];
-      fwcHeaderRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
-      fwcHeaderRow.fill = {
+    // Header
+    const headerRow = worksheet.getRow(currentRow);
+      headerRow.values = ["No", "Kategori", "Type", "Serial Start", "Serial End", "Jumlah", "Nominal"];
+      headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      headerRow.fill = {
         type: "pattern",
         pattern: "solid",
         fgColor: { argb: "FF8D1231" },
       };
-      fwcHeaderRow.alignment = { horizontal: "center", vertical: "middle" };
-      fwcHeaderRow.height = 20;
+      headerRow.alignment = { horizontal: "center", vertical: "middle" };
+      headerRow.height = 20;
       currentRow++;
 
-      // FWC Data
-      fwcTableData.forEach((combo: any, index: number) => {
+      // Data
+      tableData.forEach((combo: any, index: number) => {
         const dataRow = worksheet.getRow(currentRow);
         dataRow.values = [
           index + 1,
@@ -1118,23 +1471,23 @@ export default function TransactionPage({ role }: TransactionPageProps) {
         currentRow++;
       });
 
-      // FWC Total
-      const fwcTotalCount = fwcTableData.reduce((sum: number, combo: any) => sum + combo.count, 0) as number;
-      const fwcTotalNominal = fwcTableData.reduce((sum: number, combo: any) => sum + combo.nominal, 0) as number;
+      // Total
+      const totalCount = tableData.reduce((sum: number, combo: any) => sum + combo.count, 0) as number;
+      const totalNominal = tableData.reduce((sum: number, combo: any) => sum + combo.nominal, 0) as number;
       
-      const fwcTotalRow = worksheet.getRow(currentRow);
+      const totalRow = worksheet.getRow(currentRow);
       worksheet.mergeCells(`A${currentRow}:E${currentRow}`);
-      fwcTotalRow.getCell(1).value = "Total FWC";
-      fwcTotalRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
-      fwcTotalRow.getCell(6).value = fwcTotalCount;
-      fwcTotalRow.getCell(7).value = fwcTotalNominal;
-      fwcTotalRow.font = { bold: true };
-      fwcTotalRow.fill = {
+      totalRow.getCell(1).value = isVoucher ? "Total Voucher" : "Total FWC";
+      totalRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
+      totalRow.getCell(6).value = totalCount;
+      totalRow.getCell(7).value = totalNominal;
+      totalRow.font = { bold: true };
+      totalRow.fill = {
         type: "pattern",
         pattern: "solid",
         fgColor: { argb: "FFF0F0F0" },
       };
-      fwcTotalRow.alignment = { horizontal: "center", vertical: "middle" };
+      totalRow.alignment = { horizontal: "center", vertical: "middle" };
       currentRow += 2;
 
     // Keterangan Gangguan
@@ -1180,7 +1533,8 @@ export default function TransactionPage({ role }: TransactionPageProps) {
     link.href = url;
     const today = new Date();
     const dateStr = today.toISOString().split("T")[0].replace(/-/g, "");
-    link.download = `Shift_Report_FWC_${dateStr}.xlsx`;
+    const filename = isVoucher ? `Shift_Report_Voucher_${dateStr}.xlsx` : `Shift_Report_FWC_${dateStr}.xlsx`;
+    link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
     setKeteranganGangguan("");
@@ -1190,6 +1544,8 @@ export default function TransactionPage({ role }: TransactionPageProps) {
      CSV EXPORT FUNCTION
   ===================== */
   const generateCSVReport = async (items: any[]) => {
+    const isVoucher = activeTab === "voucher";
+    
     if (!items || items.length === 0) {
       alert("Tidak ada data untuk diekspor");
       return;
@@ -1202,79 +1558,116 @@ export default function TransactionPage({ role }: TransactionPageProps) {
       return;
     }
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-    const productsRes = await fetch(`${API_URL}/card/product`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    
-    if (!productsRes.ok) {
+    // Use axios instance which automatically includes token via interceptor
+    let allProducts: any[] = [];
+    try {
+      const productsRes = await axios.get("/card/product");
+      allProducts = productsRes.data?.data || [];
+    } catch (error) {
+      console.error("Error fetching card products:", error);
       alert("Gagal mengambil data card products");
       return;
     }
-    
-    const productsData = await productsRes.json();
-    const allProducts = productsData.data || [];
 
-    // Initialize all combinations
-    const fwcCombinations: any = {};
-    const voucherCombinations: any = {};
+    // Initialize combinations based on program type
+    const combinations: any = {};
 
     allProducts.forEach((product: any) => {
       const programType = product.programType || "FWC";
+      
+      // Filter by program type
+      if (isVoucher && programType !== "VOUCHER") return;
+      if (!isVoucher && programType !== "FWC") return;
+      
       const category = product.category?.categoryName || "Unknown";
       const type = product.type?.typeName || "Unknown";
       const key = `${category}-${type}`;
 
-      if (programType === "FWC" || programType === null) {
-        if (!fwcCombinations[key]) {
-          fwcCombinations[key] = {
-            category,
-            type,
-            serialStart: "-",
-            serialEnd: "-",
-            count: 0,
-            nominal: 0,
-          };
-        }
-      } else if (programType === "VOUCHER") {
-        if (!voucherCombinations[key]) {
-          voucherCombinations[key] = {
-            category,
-            type,
-            serialStart: "-",
-            serialEnd: "-",
-            count: 0,
-            nominal: 0,
-          };
-        }
+      if (!combinations[key]) {
+        combinations[key] = {
+          category,
+          type,
+          serialStart: "-",
+          serialEnd: "-",
+          count: 0,
+          nominal: 0,
+        };
       }
     });
 
     // Merge with actual transaction data
     items.forEach((item: any) => {
-      if (!item.card?.cardProduct) return;
+      const programType = item.programType || (item.card?.cardProduct?.programType || "FWC");
+      
+      // Filter by program type
+      if (isVoucher && programType !== "VOUCHER") return;
+      if (!isVoucher && programType !== "FWC") return;
 
-      const programType = item.card.cardProduct.programType || "FWC";
-      const category = item.card.cardProduct.category?.categoryName || "Unknown";
-      const type = item.card.cardProduct.type?.typeName || "Unknown";
+      // For voucher, handle bulk purchases
+      let category: string;
+      let type: string;
+      let serialStart: string = "-";
+      let serialEnd: string = "-";
+      let count: number = 0;
+      
+      if (isVoucher) {
+        const isBulkPurchase = item.bulkPurchaseItems && item.bulkPurchaseItems.length > 0;
+        
+        if (isBulkPurchase) {
+          category = item.bulkPurchaseItems[0]?.card?.cardProduct?.category?.categoryName || "Unknown";
+          type = item.bulkPurchaseItems[0]?.card?.cardProduct?.type?.typeName || "Unknown";
+          count = item.bulkPurchaseItemsCount ?? item.bulkPurchaseItems?.length ?? 0;
+          
+          // Use firstSerialNumber and lastSerialNumber if available
+          if (item.firstSerialNumber && item.lastSerialNumber) {
+            serialStart = item.firstSerialNumber;
+            serialEnd = item.lastSerialNumber;
+          } else if (item.bulkPurchaseItems && item.bulkPurchaseItems.length > 0) {
+            const serials = item.bulkPurchaseItems
+              .map((bi: any) => bi.card?.serialNumber)
+              .filter((s: string) => s)
+              .sort();
+            if (serials.length > 0) {
+              serialStart = serials[0];
+              serialEnd = serials[serials.length - 1];
+            }
+          }
+        } else {
+          category = item.card?.cardProduct?.category?.categoryName || "Unknown";
+          type = item.card?.cardProduct?.type?.typeName || "Unknown";
+          count = 1;
+          serialStart = item.card?.serialNumber || "-";
+          serialEnd = item.card?.serialNumber || "-";
+        }
+      } else {
+        // FWC logic
+        if (!item.card?.cardProduct) return;
+        category = item.card.cardProduct.category?.categoryName || "Unknown";
+        type = item.card.cardProduct.type?.typeName || "Unknown";
+        count = 1;
+        serialStart = item.card.serialNumber || "-";
+        serialEnd = item.card.serialNumber || "-";
+      }
+      
       const key = `${category}-${type}`;
       const nominal = item.price || 0;
 
-      const targetCombinations = (programType === "FWC" || programType === null) ? fwcCombinations : voucherCombinations;
-
-      if (targetCombinations[key]) {
-        const combo = targetCombinations[key];
-        const serialNumber = item.card.serialNumber;
-        if (combo.count === 0) {
-          combo.serialStart = serialNumber;
-          combo.serialEnd = serialNumber;
-        } else {
-          // Update serialStart jika serialNumber lebih kecil (lexicographically)
-          if (serialNumber < combo.serialStart) combo.serialStart = serialNumber;
-          // Update serialEnd jika serialNumber lebih besar (lexicographically)
-          if (serialNumber > combo.serialEnd) combo.serialEnd = serialNumber;
+      if (combinations[key]) {
+        const combo = combinations[key];
+        
+        // Update serialStart and serialEnd
+        if (serialStart !== "-") {
+          if (combo.serialStart === "-" || serialStart < combo.serialStart) {
+            combo.serialStart = serialStart;
+          }
         }
-        combo.count += 1;
+        if (serialEnd !== "-") {
+          if (combo.serialEnd === "-" || serialEnd > combo.serialEnd) {
+            combo.serialEnd = serialEnd;
+          }
+        }
+        
+        combo.count += count;
         combo.nominal += nominal;
       }
     });
@@ -1293,20 +1686,20 @@ export default function TransactionPage({ role }: TransactionPageProps) {
         : "-";
 
     // Build CSV string
-    let csv = "LAPORAN TRANSAKSI HARIAN\n";
+    let csv = isVoucher ? "LAPORAN TRANSAKSI HARIAN VOUCHER\n" : "LAPORAN TRANSAKSI HARIAN\n";
     csv += `Petugas: ${operatorName}, Tanggal: ${purchaseDateStr}, Shift: ${shiftDateStr}\n\n`;
 
-    // FWC Table
-    const fwcTableData = Object.values(fwcCombinations);
+    // Table
+    const tableData = Object.values(combinations);
     csv += "No,Kategori,Type,Serial Start,Serial End,Jumlah,Nominal\n";
     
-    fwcTableData.forEach((combo: any, index: number) => {
+    tableData.forEach((combo: any, index: number) => {
       csv += `${index + 1},${combo.category},${combo.type},${combo.serialStart},${combo.serialEnd},${combo.count},${combo.nominal}\n`;
     });
 
-    const fwcTotalCount = fwcTableData.reduce((sum: number, combo: any) => sum + combo.count, 0);
-    const fwcTotalNominal = fwcTableData.reduce((sum: number, combo: any) => sum + combo.nominal, 0);
-    csv += `,,,,Total FWC,${fwcTotalCount},${fwcTotalNominal}\n\n`;
+    const totalCount = tableData.reduce((sum: number, combo: any) => sum + combo.count, 0);
+    const totalNominal = tableData.reduce((sum: number, combo: any) => sum + combo.nominal, 0);
+    csv += `,,,,${isVoucher ? "Total Voucher" : "Total FWC"},${totalCount},${totalNominal}\n\n`;
 
     // Keterangan Gangguan
     if (keteranganGangguan) {
@@ -1314,13 +1707,14 @@ export default function TransactionPage({ role }: TransactionPageProps) {
     }
 
     // Download
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
     const today = new Date();
     const dateStr = today.toISOString().split("T")[0].replace(/-/g, "");
-    link.download = `Shift_Report_FWC_${dateStr}.csv`;
+    const filename = isVoucher ? `Shift_Report_Voucher_${dateStr}.csv` : `Shift_Report_FWC_${dateStr}.csv`;
+    link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
     setKeteranganGangguan("");
@@ -1330,6 +1724,8 @@ export default function TransactionPage({ role }: TransactionPageProps) {
      IMAGE EXPORT FUNCTION
   ===================== */
   const generateImageReport = async (items: any[]) => {
+    const isVoucher = activeTab === "voucher";
+    
     if (!items || items.length === 0) {
       alert("Tidak ada data untuk diekspor");
       return;
@@ -1342,34 +1738,33 @@ export default function TransactionPage({ role }: TransactionPageProps) {
       return;
     }
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-    const productsRes = await fetch(`${API_URL}/card/product`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    
-    if (!productsRes.ok) {
+    // Use axios instance which automatically includes token via interceptor
+    let allProducts: any[] = [];
+    try {
+      const productsRes = await axios.get("/card/product");
+      allProducts = productsRes.data?.data || [];
+    } catch (error) {
+      console.error("Error fetching card products:", error);
       alert("Gagal mengambil data card products");
       return;
     }
-    
-    const productsData = await productsRes.json();
-    const allProducts = productsData.data || [];
 
-    // Initialize from FWC products only
-    const fwcCombinations: any = {};
+    // Initialize combinations based on program type
+    const combinations: any = {};
 
     allProducts.forEach((product: any) => {
       const programType = product.programType || "FWC";
       
-      // Only include FWC products
-      if (programType !== "FWC") return;
+      // Filter by program type
+      if (isVoucher && programType !== "VOUCHER") return;
+      if (!isVoucher && programType !== "FWC") return;
 
       const category = product.category?.categoryName || "Unknown";
       const type = product.type?.typeName || "Unknown";
       const key = `${category}-${type}`;
 
-      if (!fwcCombinations[key]) {
-        fwcCombinations[key] = {
+      if (!combinations[key]) {
+        combinations[key] = {
           category,
           type,
           serialStart: "-",
@@ -1380,33 +1775,79 @@ export default function TransactionPage({ role }: TransactionPageProps) {
       }
     });
 
-    // Merge with actual transaction data (FWC only)
+    // Merge with actual transaction data
     items.forEach((item: any) => {
-      if (!item.card?.cardProduct) return;
-
-      const programType = item.card.cardProduct.programType || "FWC";
+      const programType = item.programType || (item.card?.cardProduct?.programType || "FWC");
       
-      // Only process FWC
-      if (programType !== "FWC") return;
+      // Filter by program type
+      if (isVoucher && programType !== "VOUCHER") return;
+      if (!isVoucher && programType !== "FWC") return;
 
-      const category = item.card.cardProduct.category?.categoryName || "Unknown";
-      const type = item.card.cardProduct.type?.typeName || "Unknown";
+      // For voucher, handle bulk purchases
+      let category: string;
+      let type: string;
+      let serialStart: string = "-";
+      let serialEnd: string = "-";
+      let count: number = 0;
+      
+      if (isVoucher) {
+        const isBulkPurchase = item.bulkPurchaseItems && item.bulkPurchaseItems.length > 0;
+        
+        if (isBulkPurchase) {
+          category = item.bulkPurchaseItems[0]?.card?.cardProduct?.category?.categoryName || "Unknown";
+          type = item.bulkPurchaseItems[0]?.card?.cardProduct?.type?.typeName || "Unknown";
+          count = item.bulkPurchaseItemsCount ?? item.bulkPurchaseItems?.length ?? 0;
+          
+          // Use firstSerialNumber and lastSerialNumber if available
+          if (item.firstSerialNumber && item.lastSerialNumber) {
+            serialStart = item.firstSerialNumber;
+            serialEnd = item.lastSerialNumber;
+          } else if (item.bulkPurchaseItems && item.bulkPurchaseItems.length > 0) {
+            const serials = item.bulkPurchaseItems
+              .map((bi: any) => bi.card?.serialNumber)
+              .filter((s: string) => s)
+              .sort();
+            if (serials.length > 0) {
+              serialStart = serials[0];
+              serialEnd = serials[serials.length - 1];
+            }
+          }
+        } else {
+          category = item.card?.cardProduct?.category?.categoryName || "Unknown";
+          type = item.card?.cardProduct?.type?.typeName || "Unknown";
+          count = 1;
+          serialStart = item.card?.serialNumber || "-";
+          serialEnd = item.card?.serialNumber || "-";
+        }
+      } else {
+        // FWC logic
+        if (!item.card?.cardProduct) return;
+        category = item.card.cardProduct.category?.categoryName || "Unknown";
+        type = item.card.cardProduct.type?.typeName || "Unknown";
+        count = 1;
+        serialStart = item.card.serialNumber || "-";
+        serialEnd = item.card.serialNumber || "-";
+      }
+      
       const key = `${category}-${type}`;
       const nominal = item.price || 0;
 
-      if (fwcCombinations[key]) {
-        const combo = fwcCombinations[key];
-        const serialNumber = item.card.serialNumber;
-        if (combo.count === 0) {
-          combo.serialStart = serialNumber;
-          combo.serialEnd = serialNumber;
-        } else {
-          // Update serialStart jika serialNumber lebih kecil (lexicographically)
-          if (serialNumber < combo.serialStart) combo.serialStart = serialNumber;
-          // Update serialEnd jika serialNumber lebih besar (lexicographically)
-          if (serialNumber > combo.serialEnd) combo.serialEnd = serialNumber;
+      if (combinations[key]) {
+        const combo = combinations[key];
+        
+        // Update serialStart and serialEnd
+        if (serialStart !== "-") {
+          if (combo.serialStart === "-" || serialStart < combo.serialStart) {
+            combo.serialStart = serialStart;
+          }
         }
-        combo.count += 1;
+        if (serialEnd !== "-") {
+          if (combo.serialEnd === "-" || serialEnd > combo.serialEnd) {
+            combo.serialEnd = serialEnd;
+          }
+        }
+        
+        combo.count += count;
         combo.nominal += nominal;
       }
     });
@@ -1461,7 +1902,7 @@ export default function TransactionPage({ role }: TransactionPageProps) {
     // Build HTML content with explicit rgb colors only
     let html = `
       <div style="margin-bottom: 20px; color: rgb(0, 0, 0);">
-        <h2 style="text-align: center; margin: 0; font-size: 24px; color: rgb(141, 18, 49); font-family: Arial, sans-serif;">LAPORAN TRANSAKSI HARIAN</h2>
+        <h2 style="text-align: center; margin: 0; font-size: 24px; color: rgb(141, 18, 49); font-family: Arial, sans-serif;">${isVoucher ? "LAPORAN TRANSAKSI HARIAN VOUCHER" : "LAPORAN TRANSAKSI HARIAN"}</h2>
         <div style="background: rgb(245, 245, 245); padding: 15px; margin-top: 15px; border-radius: 5px; text-align: center; color: rgb(0, 0, 0); font-family: Arial, sans-serif;">
           <strong style="color: rgb(0, 0, 0);">Petugas:</strong> ${operatorName} &nbsp;|&nbsp; 
           <strong style="color: rgb(0, 0, 0);">Tanggal:</strong> ${purchaseDateStr} &nbsp;|&nbsp; 
@@ -1470,8 +1911,8 @@ export default function TransactionPage({ role }: TransactionPageProps) {
       </div>
     `;
 
-    // FWC Table
-    const fwcTableData = Object.values(fwcCombinations);
+    // Table
+    const tableData = Object.values(combinations);
     html += `
       <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
         <thead>
@@ -1488,28 +1929,28 @@ export default function TransactionPage({ role }: TransactionPageProps) {
         <tbody>
     `;
 
-    fwcTableData.forEach((combo: any, index: number) => {
+    tableData.forEach((combo: any, index: number) => {
       html += `
         <tr>
           <td style="border: 1px solid rgb(221, 221, 221); padding: 10px; text-align: center; color: rgb(0, 0, 0);">${index + 1}</td>
-          <td style="border: 1px solid rgb(221, 221, 221); padding: 10px; text-align: center; color: rgb(0, 0, 0);">${combo.category}</td>
-          <td style="border: 1px solid rgb(221, 221, 221); padding: 10px; text-align: center; color: rgb(0, 0, 0);">${combo.type}</td>
-          <td style="border: 1px solid rgb(221, 221, 221); padding: 10px; text-align: center; color: rgb(0, 0, 0);">${combo.serialStart}</td>
-          <td style="border: 1px solid rgb(221, 221, 221); padding: 10px; text-align: center; color: rgb(0, 0, 0);">${combo.serialEnd}</td>
+          <td style="border: 1px solid rgb(221, 221, 221); padding: 10px; text-align: center; color: rgb(0, 0, 0);">${escapeHtml(combo.category)}</td>
+          <td style="border: 1px solid rgb(221, 221, 221); padding: 10px; text-align: center; color: rgb(0, 0, 0);">${escapeHtml(combo.type)}</td>
+          <td style="border: 1px solid rgb(221, 221, 221); padding: 10px; text-align: center; color: rgb(0, 0, 0);">${escapeHtml(combo.serialStart)}</td>
+          <td style="border: 1px solid rgb(221, 221, 221); padding: 10px; text-align: center; color: rgb(0, 0, 0);">${escapeHtml(combo.serialEnd)}</td>
           <td style="border: 1px solid rgb(221, 221, 221); padding: 10px; text-align: center; color: rgb(0, 0, 0);">${combo.count}</td>
           <td style="border: 1px solid rgb(221, 221, 221); padding: 10px; text-align: center; color: rgb(0, 0, 0);">Rp ${new Intl.NumberFormat("id-ID").format(combo.nominal)}</td>
         </tr>
       `;
     });
 
-    const fwcTotalCount = fwcTableData.reduce((sum: number, combo: any) => sum + combo.count, 0) as number;
-    const fwcTotalNominal = fwcTableData.reduce((sum: number, combo: any) => sum + combo.nominal, 0) as number;
+    const totalCount = tableData.reduce((sum: number, combo: any) => sum + combo.count, 0) as number;
+    const totalNominal = tableData.reduce((sum: number, combo: any) => sum + combo.nominal, 0) as number;
 
     html += `
         <tr style="background: rgb(240, 240, 240); font-weight: bold;">
-          <td colspan="5" style="border: 1px solid rgb(221, 221, 221); padding: 10px; text-align: center; color: rgb(0, 0, 0);">Total FWC</td>
-          <td style="border: 1px solid rgb(221, 221, 221); padding: 10px; text-align: center; color: rgb(0, 0, 0);">${fwcTotalCount}</td>
-          <td style="border: 1px solid rgb(221, 221, 221); padding: 10px; text-align: center; color: rgb(0, 0, 0);">Rp ${new Intl.NumberFormat("id-ID").format(fwcTotalNominal)}</td>
+          <td colspan="5" style="border: 1px solid rgb(221, 221, 221); padding: 10px; text-align: center; color: rgb(0, 0, 0);">${isVoucher ? "Total Voucher" : "Total FWC"}</td>
+          <td style="border: 1px solid rgb(221, 221, 221); padding: 10px; text-align: center; color: rgb(0, 0, 0);">${totalCount}</td>
+          <td style="border: 1px solid rgb(221, 221, 221); padding: 10px; text-align: center; color: rgb(0, 0, 0);">Rp ${new Intl.NumberFormat("id-ID").format(totalNominal)}</td>
         </tr>
         </tbody>
       </table>
@@ -1598,7 +2039,8 @@ export default function TransactionPage({ role }: TransactionPageProps) {
               link.href = url;
               const today = new Date();
               const dateStr = today.toISOString().split("T")[0].replace(/-/g, "");
-              link.download = `Shift_Report_FWC_${dateStr}.png`;
+              const filename = isVoucher ? `Shift_Report_Voucher_${dateStr}.png` : `Shift_Report_FWC_${dateStr}.png`;
+              link.download = filename;
               link.click();
               
               // Cleanup after short delay
@@ -1663,14 +2105,14 @@ export default function TransactionPage({ role }: TransactionPageProps) {
               resetFilter();
             }}
             role={role}
-            stationId={stationId}
+            stationIds={stationIds}
             purchasedDate={purchasedDate}
             shiftDate={shiftDate}
-            cardCategoryId={cardCategoryId}
-            cardTypeId={cardTypeId}
-            employeeTypeId={employeeTypeId}
+            cardCategoryIds={cardCategoryIds}
+            cardTypeIds={cardTypeIds}
+            employeeTypeIds={employeeTypeIds}
             onStationChange={(v) => {
-              setStationId(v);
+              setStationIds(v);
               setPagination((p) => ({ ...p, page: 1 }));
             }}
             onPurchasedDateChange={(v) => {
@@ -1682,16 +2124,16 @@ export default function TransactionPage({ role }: TransactionPageProps) {
               setPagination((p) => ({ ...p, page: 1 }));
             }}
             onCardCategoryChange={(v) => {
-              setCardCategoryId(v);
-              setCardTypeId(undefined);
+              setCardCategoryIds(v);
+              setCardTypeIds(undefined);
               setPagination((p) => ({ ...p, page: 1 }));
             }}
             onCardTypeChange={(v) => {
-              setCardTypeId(v);
+              setCardTypeIds(v);
               setPagination((p) => ({ ...p, page: 1 }));
             }}
             onEmployeeTypeChange={(v) => {
-              setEmployeeTypeId(v);
+              setEmployeeTypeIds(v);
               setPagination((p) => ({ ...p, page: 1 }));
             }}
             onReset={resetFilter}
@@ -1730,7 +2172,7 @@ export default function TransactionPage({ role }: TransactionPageProps) {
           )}
 
           {/* Riwayat Penghapusan - sama seperti di Redeem */}
-          {activeTab === "fwc" || activeTab === "voucher" ? (
+          {/* {activeTab === "fwc" || activeTab === "voucher" ? (
             <DeletedPurchaseTable
               data={deletedPurchases}
               isLoading={isLoadingDeleted}
@@ -1740,7 +2182,7 @@ export default function TransactionPage({ role }: TransactionPageProps) {
               totalCount={deletedPagination.total}
               onPageChange={setDeletedPage}
             />
-          ) : null}
+          ) : null} */}
         </>
       )}
 
