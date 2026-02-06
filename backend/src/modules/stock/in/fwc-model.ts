@@ -25,6 +25,10 @@ export namespace StockInFwcModel {
     }),
 
     note: t.Optional(t.String({ maxLength: 500 })),
+    vendorName: t.Optional(t.String()),
+    vcrSettle: t.Optional(t.String()),
+    vcrSettleFileId: t.Optional(t.String({ format: "uuid" })),
+    vcrSettleFile: t.Optional(t.File()),
   });
 
   // Stock In Response
@@ -71,6 +75,9 @@ export namespace StockInFwcModel {
           status: t.String(),
           batchId: t.Union([t.String(), t.Null()]),
           note: t.Union([t.String(), t.Null()]),
+          vendorName: t.Union([t.String(), t.Null()]),
+          vcrSettle: t.Union([t.String(), t.Null()]),
+          vcrSettleFileId: t.Union([t.String(), t.Null()]),
           createdByName: t.Union([t.String(), t.Null(), t.Undefined()]),
           cardCategory: t.Object({
             id: t.String(),
@@ -106,6 +113,18 @@ export namespace StockInFwcModel {
         status: t.String(),
         batchId: t.Union([t.String(), t.Null()]),
         note: t.Union([t.String(), t.Null()]),
+        vendorName: t.Union([t.String(), t.Null()]),
+        vcrSettle: t.Union([t.String(), t.Null()]),
+        vcrSettleFileId: t.Union([t.String(), t.Null()]),
+        vcrSettleFile: t.Optional(
+          t.Nullable(
+            t.Object({
+              id: t.String(),
+              originalName: t.String(),
+              relativePath: t.String(),
+            }),
+          ),
+        ),
         createdAt: t.String(),
         createdByName: t.Union([t.String(), t.Null(), t.Undefined()]),
         cardCategory: t.Object({
@@ -152,6 +171,9 @@ export namespace StockInFwcModel {
       pattern: "^[0-9]+$",
       description: "Nomor serial akhir (digit).",
     }),
+    vendorName: t.Optional(t.String()),
+    vcrSettle: t.Optional(t.String()),
+    vcrSettleFileId: t.Optional(t.String({ format: "uuid" })),
   });
 
   // Update Batch Status Body

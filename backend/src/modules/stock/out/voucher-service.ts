@@ -575,12 +575,12 @@ export class StockOutVoucherService {
           receivedCount: finalReceived.length,
           lostCount: finalLost.length,
           damagedCount: finalDamaged.length,
-           // metadata for notification
-           notification: {
-             trigger: true,
-             title,
-             message
-          }
+          // metadata for notification
+          notification: {
+            trigger: true,
+            title,
+            message,
+          },
         };
       }
 
@@ -597,8 +597,13 @@ export class StockOutVoucherService {
     if ((transaction as any).notification?.trigger) {
       const { title, message } = (transaction as any).notification;
       // Fire and forget
-      const { PushNotificationService } = await import("../../notification/push-service");
-      PushNotificationService.sendToRole(["admin", "superadmin"], title, message);
+      const { PushNotificationService } =
+        await import("../../notification/push-service");
+      PushNotificationService.sendToRole(
+        ["admin", "superadmin"],
+        title,
+        message,
+      );
     }
     // -------------------------------------
 
@@ -719,7 +724,7 @@ export class StockOutVoucherService {
       where.movementAt = { lte: endDate };
     }
 
-    const [items, total] = await Promise.all([
+    const [items, total, agg] = await Promise.all([
       db.cardStockMovement.findMany({
         where,
         skip,
@@ -734,6 +739,12 @@ export class StockOutVoucherService {
         },
       }),
       db.cardStockMovement.count({ where }),
+      db.cardStockMovement.aggregate({
+        where,
+        _sum: {
+          quantity: true,
+        },
+      }),
     ]);
 
     const userIds = [
@@ -789,7 +800,13 @@ export class StockOutVoucherService {
 
     return {
       items: mapped,
-      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        totalQuantity: agg._sum.quantity || 0,
+      },
     };
   }
 

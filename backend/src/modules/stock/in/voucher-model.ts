@@ -8,11 +8,18 @@ export namespace StockInVoucherModel {
     movementAt: t.String(), // ISO Date Date
     serialDate: t.Optional(t.String()), // Date string YYYY-MM-DD for serial reconstruction
     note: t.Optional(t.String()),
+    vendorName: t.Optional(t.String()),
+    vcrSettle: t.Optional(t.String()),
+    vcrSettleFileId: t.Optional(t.String({ format: "uuid" })),
+    vcrSettleFile: t.Optional(t.File()),
   });
 
   export const updateStockInBody = t.Object({
     movementAt: t.Optional(t.String()),
     note: t.Optional(t.String()),
+    vendorName: t.Optional(t.String()),
+    vcrSettle: t.Optional(t.String()),
+    vcrSettleFileId: t.Optional(t.String({ format: "uuid" })),
   });
 
   export const updateBatchStatusBody = t.Object({
@@ -57,6 +64,9 @@ export namespace StockInVoucherModel {
           status: t.String(),
           batchId: t.Union([t.String(), t.Null()]),
           note: t.Union([t.String(), t.Null()]),
+          vendorName: t.Union([t.String(), t.Null()]),
+          vcrSettle: t.Union([t.String(), t.Null()]),
+          vcrSettleFileId: t.Union([t.String(), t.Null()]),
           createdByName: t.Union([t.String(), t.Null(), t.Undefined()]),
           cardCategory: t.Object({
             id: t.String(),
@@ -113,6 +123,18 @@ export namespace StockInVoucherModel {
         status: t.String(),
         batchId: t.Union([t.String(), t.Null()]),
         note: t.Union([t.String(), t.Null()]),
+        vendorName: t.Union([t.String(), t.Null()]),
+        vcrSettle: t.Union([t.String(), t.Null()]),
+        vcrSettleFileId: t.Union([t.String(), t.Null()]),
+        vcrSettleFile: t.Optional(
+          t.Nullable(
+            t.Object({
+              id: t.String(),
+              originalName: t.String(),
+              relativePath: t.String(),
+            }),
+          ),
+        ),
         createdAt: t.String(),
         createdByName: t.Union([t.String(), t.Null(), t.Undefined()]),
         cardCategory: t.Object({
