@@ -53,6 +53,7 @@ export function MemberPersonalSection({
         <MemberFormField label="Membership Name" required>
           <input
             name="name"
+            id="field-name"
             value={form.name}
             onChange={handleChange}
             placeholder="Masukkan nama member"
@@ -79,6 +80,7 @@ export function MemberPersonalSection({
         <div className="relative">
           <select
             name="gender"
+            id="field-gender"
             value={form.gender}
             onChange={handleChange}
             className={`${base} appearance-none pr-10`}
@@ -115,6 +117,7 @@ export function MemberPersonalSection({
             ref={birthDateInputRef}
             type="date"
             name="birthDate"
+            id="field-birthDate"
             value={form.birthDate}
             onChange={handleChange}
             className={`${base} pr-10 cursor-pointer`}
@@ -127,6 +130,7 @@ export function MemberPersonalSection({
         <div className="relative">
           <select
             name="employeeTypeId"
+            id="field-employeeTypeId"
             value={form.employeeTypeId}
             onChange={handleChange}
             className={`${base} appearance-none pr-10`}
@@ -156,6 +160,7 @@ export function MemberPersonalSection({
             <input
               ref={nippKaiRef}
               name="nippKai"
+              id="field-nippKai"
               value={form.nippKai}
               onChange={handleChange}
               onInput={onlyNumber}

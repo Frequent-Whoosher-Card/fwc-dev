@@ -9,8 +9,10 @@ export class PushNotificationService {
   static async sendMulticast(tokens: string[], title: string, body: string, data?: { [key: string]: string }) {
     if (!isFirebaseEnabled || tokens.length === 0) return;
 
+    // FIX: Deduplicate tokens to prevent "Duplicate Token" errors and wasted quota
+    tokens = [...new Set(tokens)];
+
     try {
-      // Firebase Multicast Message
       // Firebase Multicast Message
       // Enforce Data-Only Protocol (Prevent Double Notification)
       // We move title/body into 'data' so Service Worker handles display manually.
@@ -33,13 +35,16 @@ export class PushNotificationService {
 
       const response = await firebaseAdmin.messaging().sendEachForMulticast(message as any);
       
-      // SELF-HEALING: Remove invalid tokens automatically
+      // LOGGING & SELF-HEALING
       if (response.failureCount > 0) {
-        console.warn(`[FCM] Failed to send ${response.failureCount} messages. Cleaning up...`);
+        console.warn(`[FCM] Failed to send ${response.failureCount} messages. Analyzing errors...`);
         const invalidTokens: string[] = [];
         
         response.responses.forEach((res, idx) => {
             if (!res.success && res.error) {
+                // LOGGING REQUESTED BY DEVOPS: Full Error Dump
+                console.error(`[FCM Detail] Token: ${tokens[idx].substring(0, 15)}... \nError: ${JSON.stringify(res.error, null, 2)}`);
+
                 // Check for specific error codes for invalid tokens
                 const errorCode = res.error.code;
                 if (errorCode === 'messaging/registration-token-not-registered' || 
@@ -54,11 +59,12 @@ export class PushNotificationService {
             await db.fcmToken.deleteMany({
                 where: { token: { in: invalidTokens } }
             });
-            console.log(`[FCM] Deleted ${invalidTokens.length} invalid tokens from DB.`);
+            console.log(`[FCM] Auto-removed ${invalidTokens.length} dead tokens from DB.`);
         }
       }
       
       console.log(`[FCM] Sent ${response.successCount} messages successfully.`);
+      console.log("[FCM Full Response Dump]:", JSON.stringify(response, null, 2)); // REQUESTED BY USER
       return response;
     } catch (error) {
       console.error("[FCM] Error sending multicast:", error);
