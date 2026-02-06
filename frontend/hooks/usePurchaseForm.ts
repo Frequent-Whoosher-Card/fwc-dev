@@ -74,14 +74,19 @@ export function usePurchaseForm() {
     }
   };
 
+  const onError = (errors: any) => {
+    toast.error("Mohon lengkapi field yang wajib diisi");
+    console.error("Validation errors:", errors);
+  };
+
   const handleConfirm = () => {
-    form.handleSubmit(onSubmit)();
+    form.handleSubmit(onSubmit, onError)();
   };
 
   const openConfirmDialog = () => {
     form.handleSubmit(() => {
       setShowConfirm(true);
-    })();
+    }, onError)();
   };
 
   return {

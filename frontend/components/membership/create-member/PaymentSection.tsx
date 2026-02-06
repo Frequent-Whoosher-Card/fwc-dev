@@ -59,6 +59,7 @@ export function PaymentSection({
           {programType === "FWC" ? (
             <input
               name="edcReferenceNumber"
+              id="field-edcReferenceNumber"
               value={edcReferenceNumber}
               onChange={onEdcChange}
               onInput={onEdcInput}
@@ -74,6 +75,7 @@ export function PaymentSection({
             voucherEdcRegister && (
               <input
                 {...voucherEdcRegister}
+                id="field-edcReferenceNumber-voucher"
                 onInput={(e) => {
                   e.currentTarget.value = e.currentTarget.value
                     .replace(/\D/g, "")
@@ -102,6 +104,7 @@ export function PaymentSection({
         <div className="relative">
           <select
             name="paymentMethodId"
+            id="field-paymentMethodId"
             value={paymentMethodId}
             onChange={onPaymentMethodChange}
             disabled={loadingPaymentMethods}

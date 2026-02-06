@@ -18,6 +18,9 @@ interface SuccessModalProps {
 
   /** OK / Confirm */
   onConfirm?: () => void;
+
+  /** Loading state for async actions */
+  loading?: boolean;
 }
 
 export default function SuccessModal({
@@ -27,6 +30,7 @@ export default function SuccessModal({
   data,
   onClose,
   onConfirm,
+  loading = false,
 }: SuccessModalProps) {
   /* ======================
      ESC + SCROLL LOCK
@@ -123,7 +127,8 @@ export default function SuccessModal({
           {onClose && (
             <button
               onClick={onClose}
-              className="flex-1 rounded-md border px-4 py-2 text-sm"
+              disabled={loading}
+              className="flex-1 rounded-md border px-4 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isReviewMode ? "Back" : "Close"}
             </button>
@@ -131,12 +136,21 @@ export default function SuccessModal({
 
           <button
             onClick={onConfirm ?? onClose}
+            disabled={loading}
             className="
               flex-1 rounded-md bg-[#8B1538] px-4 py-2 text-sm text-white
-              transition hover:bg-[#73122E] active:scale-95
+              transition hover:bg-[#73122E] active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed
+              flex items-center justify-center gap-2
             "
           >
-            OK
+            {loading ? (
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                <span>Processing...</span>
+              </>
+            ) : (
+              "OK"
+            )}
           </button>
         </div>
       </div>
