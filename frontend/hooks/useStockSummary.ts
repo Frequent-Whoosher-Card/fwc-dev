@@ -1,19 +1,23 @@
-"use client";
-
 import { useEffect, useState, useCallback } from "react";
-import axios from "@/lib/axios";
+import {
+  getCombinedSummary,
+  InventoryParams,
+  CombinedSummaryResponse,
+} from "@/lib/services/inventory.service";
 
-interface SummaryData {
-  totalCards: number;
-  totalIn: number;
-  totalOut: number;
-}
-
-export const useStockSummary = (programType?: string) => {
-  const [summary, setSummary] = useState<SummaryData>({
-    totalCards: 0,
-    totalIn: 0,
-    totalOut: 0,
+export const useStockSummary = (
+  programType?: "FWC" | "VOUCHER",
+  filters?: InventoryParams,
+) => {
+  const [summary, setSummary] = useState<
+    CombinedSummaryResponse["totalSummary"]
+  >({
+    totalStock: 0,
+    totalInOffice: 0,
+    totalInStation: 0,
+    totalInTransfer: 0,
+    totalSold: 0,
+    totalDamaged: 0,
   });
 
   const [loading, setLoading] = useState(true);
@@ -21,16 +25,20 @@ export const useStockSummary = (programType?: string) => {
   const fetchSummary = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await axios.get("/inventory/total-summary", {
-        params: { programType },
+      const res = await getCombinedSummary({
+        programType,
+        ...filters,
       });
-      const data = res.data?.data;
+      const data = res.data?.totalSummary;
 
       if (data) {
         setSummary({
-          totalCards: Number(data.totalCards || 0),
-          totalIn: Number(data.totalIn || 0),
-          totalOut: Number(data.totalOut || 0),
+          totalStock: Number(data.totalStock || 0),
+          totalInOffice: Number(data.totalInOffice || 0),
+          totalInStation: Number(data.totalInStation || 0),
+          totalInTransfer: Number(data.totalInTransfer || 0),
+          totalSold: Number(data.totalSold || 0),
+          totalDamaged: Number(data.totalDamaged || 0),
         });
       }
     } catch (err) {
@@ -38,7 +46,7 @@ export const useStockSummary = (programType?: string) => {
     } finally {
       setLoading(false);
     }
-  }, [programType]);
+  }, [programType, JSON.stringify(filters)]);
 
   useEffect(() => {
     fetchSummary();

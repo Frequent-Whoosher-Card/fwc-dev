@@ -40,6 +40,7 @@ interface Membership {
 
 interface BulkCardItem {
   serialNumber: string;
+  cardId: string; // Added for action
   categoryName: string;
   typeName: string;
   totalQuota: number;
@@ -226,6 +227,7 @@ export default function MembershipDetailPage() {
         const bulkItemsMapped: BulkCardItem[] = hasBulk
           ? bulkItems.map((b: any) => ({
               serialNumber: b.card?.serialNumber ?? "-",
+              cardId: b.card?.id,
               categoryName: b.card?.cardProduct?.category?.categoryName ?? "-",
               typeName: b.card?.cardProduct?.type?.typeName ?? "-",
               totalQuota: b.card?.cardProduct?.totalQuota ?? 0,
@@ -719,17 +721,39 @@ export default function MembershipDetailPage() {
                                     <span className="text-gray-500">
                                       Status
                                     </span>
-                                    <span
-                                      className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
-                                        card.status === "Active"
-                                          ? "bg-green-100 text-green-700"
-                                          : card.status === "Expired"
-                                            ? "bg-red-100 text-red-700"
-                                            : "bg-gray-100 text-gray-600"
-                                      }`}
-                                    >
-                                      {card.status}
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                      <span
+                                        className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                                          card.status === "Active"
+                                            ? "bg-green-100 text-green-700"
+                                            : card.status === "Expired"
+                                              ? "bg-red-100 text-red-700"
+                                              : "bg-gray-100 text-gray-600"
+                                        }`}
+                                      >
+                                        {card.status}
+                                      </span>
+                                      {/* Action Button for Voucher Item */}
+                                      {card.cardId && (
+                                        <button
+                                          onClick={() =>
+                                            handleAction(
+                                              card.cardId,
+                                              card.status,
+                                            )
+                                          }
+                                          className={`rounded px-1.5 py-0.5 text-[10px] font-semibold text-white transition-colors duration-200 ${
+                                            card.status === "Blocked"
+                                              ? "bg-green-600 hover:bg-green-700"
+                                              : "bg-red-600 hover:bg-red-700"
+                                          }`}
+                                        >
+                                          {card.status === "Blocked"
+                                            ? "Unblock"
+                                            : "Block"}
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
                                   <div className="mt-1 font-medium text-[#8D1231]">
                                     Rp {card.price}

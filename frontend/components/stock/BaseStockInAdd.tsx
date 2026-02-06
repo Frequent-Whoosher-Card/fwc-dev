@@ -22,7 +22,9 @@ export default function BaseStockInAdd({ programType }: BaseStockInAddProps) {
     maxAvailableSerial,
     handleQuantityChange,
     handleEndSerialChange,
-    isOverLimit, // Get flag
+    isOverLimit,
+    vcrSettleFile, // [NEW]
+    setVcrSettleFile, // [NEW]
   } = useStockInForm({ programType });
 
   const sopItems = [
@@ -145,6 +147,76 @@ export default function BaseStockInAdd({ programType }: BaseStockInAddProps) {
                   Tersedia sampai serial:{" "}
                   <span className="font-mono">{maxAvailableSerial}</span>
                 </p>
+              )}
+            </div>
+          </div>
+
+          {/* NEW FIELDS SEPARATOR */}
+          <div className="border-t pt-4"></div>
+
+          {/* VENDOR NAME */}
+          <div>
+            <label className="text-sm font-medium">Vendor Name</label>
+            <input
+              className="w-full rounded-lg border px-4 py-2"
+              value={form.vendorName}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, vendorName: e.target.value }))
+              }
+              placeholder="Masukkan nama vendor (Optional)"
+            />
+          </div>
+
+          {/* VCR SETTLE & COSTS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium">VCR Settle Number</label>
+              <input
+                className="w-full rounded-lg border px-4 py-2"
+                value={form.vcrSettle}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, vcrSettle: e.target.value }))
+                }
+                placeholder="Nomor VCR Settle"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Biaya Produksi (Rp)</label>
+              <input
+                type="number"
+                className="w-full rounded-lg border px-4 py-2"
+                value={form.costs}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, costs: e.target.value }))
+                }
+                placeholder="0"
+              />
+            </div>
+          </div>
+
+          {/* FILE UPLOAD FOR VCR SETTLE */}
+          <div>
+            <label className="text-sm font-medium">
+              Bukti VCR Settle (PDF/Image)
+            </label>
+            <div className="mt-1 flex items-center gap-2">
+              <input
+                type="file"
+                accept=".pdf,image/*"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    setVcrSettleFile(e.target.files[0]);
+                  }
+                }}
+                className="w-full rounded-lg border px-4 py-2 file:mr-4 file:rounded-full file:border-0 file:bg-[#8D1231]/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[#8D1231] hover:file:bg-[#8D1231]/20"
+              />
+              {vcrSettleFile && (
+                <button
+                  onClick={() => setVcrSettleFile(null)}
+                  className="text-xs text-red-600 hover:underline"
+                >
+                  Remove
+                </button>
               )}
             </div>
           </div>

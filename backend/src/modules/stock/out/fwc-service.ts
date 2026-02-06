@@ -41,6 +41,8 @@ export class StockOutFwcService {
     bast?: string,
     notaDinasFile?: File,
     bastFile?: File,
+    sender?: string, // [NEW] User Name
+    receiver?: string, // [NEW] User Name
   ) {
     // 1. Validate Input - Basic Regex Only
     if (!/^\d+$/.test(startSerial) || !/^\d+$/.test(endSerial)) {
@@ -215,6 +217,29 @@ export class StockOutFwcService {
               bast: bast ?? null,
               notaDinasFileId, // New
               bastFileId, // New
+              sender: sender
+                ? (
+                    await tx.user.findFirst({
+                      where: {
+                        fullName: {
+                          equals: sender,
+                          mode: "insensitive",
+                        },
+                      },
+                      select: { id: true },
+                    })
+                  )?.id
+                : null,
+              receiver: receiver
+                ? (
+                    await tx.user.findFirst({
+                      where: {
+                        fullName: { equals: receiver, mode: "insensitive" },
+                      },
+                      select: { id: true },
+                    })
+                  )?.id
+                : null,
               sentSerialNumbers: finalSerials, // CORRECTED: Use actual serials
               receivedSerialNumbers: [],
               lostSerialNumbers: [],
@@ -920,7 +945,13 @@ export class StockOutFwcService {
     ]);
 
     const userIds = [
-      ...new Set(items.map((i) => i.createdBy).filter(Boolean)),
+      ...new Set(
+        [
+          ...items.map((i) => i.createdBy),
+          ...items.map((i) => i.sender),
+          ...items.map((i) => i.receiver),
+        ].filter(Boolean),
+      ),
     ] as string[];
     const users = await db.user.findMany({
       where: { id: { in: userIds } },
@@ -938,6 +969,8 @@ export class StockOutFwcService {
       note: item.note,
       notaDinas: item.notaDinas,
       bast: item.bast,
+      requesterName: item.sender ? userMap.get(item.sender) || null : null, // [NEW] maps sender ID to Name
+      receiverName: item.receiver ? userMap.get(item.receiver) || null : null, // [NEW] maps receiver ID to Name
       notaDinasFile: item.notaDinasFile
         ? {
             id: item.notaDinasFile.id,
@@ -1024,6 +1057,24 @@ export class StockOutFwcService {
       validatedByName = user?.fullName || null;
     }
 
+    const requesterName = movement.sender
+      ? (
+          await db.user.findUnique({
+            where: { id: movement.sender },
+            select: { fullName: true },
+          })
+        )?.fullName || null
+      : null;
+
+    const receiverName = movement.receiver
+      ? (
+          await db.user.findUnique({
+            where: { id: movement.receiver },
+            select: { fullName: true },
+          })
+        )?.fullName || null
+      : null;
+
     return {
       movement: {
         id: movement.id,
@@ -1034,6 +1085,8 @@ export class StockOutFwcService {
         note: movement.note,
         notaDinas: movement.notaDinas,
         bast: movement.bast,
+        requesterName, // [NEW]
+        receiverName, // [NEW]
         notaDinasFile: movement.notaDinasFile
           ? {
               id: movement.notaDinasFile.id,
@@ -1089,6 +1142,10 @@ export class StockOutFwcService {
       note?: string;
       startSerial?: string;
       endSerial?: string;
+      notaDinas?: string;
+      bast?: string;
+      sender?: string;
+      receiver?: string;
     },
     userId: string,
   ) {
@@ -1113,8 +1170,34 @@ export class StockOutFwcService {
         dataToUpdate.movementAt = new Date(body.movementAt);
       }
 
-      if (body.note !== undefined) {
-        dataToUpdate.note = body.note;
+      if (body.note !== undefined) dataToUpdate.note = body.note;
+      if (body.notaDinas !== undefined) dataToUpdate.notaDinas = body.notaDinas;
+      if (body.bast !== undefined) dataToUpdate.bast = body.bast;
+
+      if (body.sender !== undefined) {
+        dataToUpdate.sender = body.sender
+          ? (
+              await db.user.findFirst({
+                where: {
+                  fullName: { equals: body.sender, mode: "insensitive" },
+                },
+                select: { id: true },
+              })
+            )?.id
+          : null;
+      }
+
+      if (body.receiver !== undefined) {
+        dataToUpdate.receiver = body.receiver
+          ? (
+              await db.user.findFirst({
+                where: {
+                  fullName: { equals: body.receiver, mode: "insensitive" },
+                },
+                select: { id: true },
+              })
+            )?.id
+          : null;
       }
 
       // Station Check

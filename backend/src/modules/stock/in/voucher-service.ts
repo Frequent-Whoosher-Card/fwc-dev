@@ -26,6 +26,7 @@ export class StockInVoucherService {
     vcrSettle?: string,
     vcrSettleFileId?: string,
     vcrSettleFile?: File,
+    costs?: string, // [NEW]
   ) {
     // 1. Validate Input: Digits only
     if (!/^\d+$/.test(startSerial) || !/^\d+$/.test(endSerial)) {
@@ -169,6 +170,7 @@ export class StockInVoucherService {
             vendorName: vendorName,
             vcrSettle: vcrSettle,
             vcrSettleFileId: finalFileId,
+            costs: costs, // [NEW]
             status: "APPROVED", // "APPROVED" is the correct enum for valid/completed stock-in
           },
           include: {
@@ -261,6 +263,7 @@ export class StockInVoucherService {
         "note",
         "vendorName",
         "vcrSettle",
+        "costs", // [NEW]
         "category.categoryName",
         "type.typeName",
         "category.categoryCode",
@@ -372,6 +375,7 @@ export class StockInVoucherService {
           vendorName: item.vendorName,
           vcrSettle: item.vcrSettle,
           vcrSettleFileId: item.vcrSettleFileId,
+          costs: item.costs, // [NEW]
           createdByName: item.createdBy ? userMap.get(item.createdBy) : null,
           cardCategory: {
             id: item.category.id,
@@ -446,6 +450,7 @@ export class StockInVoucherService {
         vcrSettle: movement.vcrSettle,
         vcrSettleFileId: movement.vcrSettleFileId,
         vcrSettleFile: movement.vcrSettleFile,
+        costs: movement.costs, // [NEW]
         createdAt: movement.createdAt.toISOString(),
         createdByName: null, // Placeholder or fetch if needed
         cardCategory: {
@@ -551,6 +556,7 @@ export class StockInVoucherService {
       vendorName?: string;
       vcrSettle?: string;
       vcrSettleFileId?: string;
+      costs?: string; // [NEW]
     },
     userId: string,
   ) {
@@ -570,6 +576,7 @@ export class StockInVoucherService {
         vendorName: updates.vendorName,
         vcrSettle: updates.vcrSettle,
         vcrSettleFileId: updates.vcrSettleFileId,
+        costs: updates.costs, // [NEW]
         updatedAt: new Date(),
       },
     });

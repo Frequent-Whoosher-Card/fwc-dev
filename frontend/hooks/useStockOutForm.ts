@@ -65,6 +65,8 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
     bast: "",
     notaDinasFile: null as File | null,
     bastFile: null as File | null,
+    requesterName: "",
+    receiverName: "",
   });
 
   const fetchData = useCallback(async () => {
@@ -116,6 +118,8 @@ export const useStockOutForm = ({ programType, id }: UseStockOutFormProps) => {
           note: detail.note || "",
           notaDinas: detail.notaDinas || "",
           bast: detail.bast || "",
+          requesterName: detail.requesterName || "",
+          receiverName: detail.receiverName || "",
           notaDinasFile: null,
           bastFile: null,
         });

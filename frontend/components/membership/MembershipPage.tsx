@@ -188,8 +188,8 @@ export default function MembershipPage({ role }: MembershipPageProps) {
         startDate: startDate || undefined,
         endDate: endDate || undefined,
         hasNippKai: cardCategory === "NIPKAI" ? true : undefined,
-        // programType: programTypeParam,
-        productTypeId: productTypeId || undefined,
+        programType: programTypeParam,
+        // productTypeId: productTypeId || undefined, // Replaced by programType per request
       });
 
       const mapped: Membership[] = res.data.items.map((item: any) => ({

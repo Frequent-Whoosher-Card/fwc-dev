@@ -26,6 +26,7 @@ export class StockInFwcService {
     vcrSettle?: string,
     vcrSettleFileId?: string,
     vcrSettleFile?: File,
+    costs?: string, // [NEW]
   ) {
     // 1. Validasi Input: Pastikan HANYA angka (bukan full serial number) - Relaxed for Smart Parsing
     if (!/^\d+$/.test(startSerial) || !/^\d+$/.test(endSerial)) {
@@ -202,6 +203,7 @@ export class StockInFwcService {
             vendorName,
             vcrSettle,
             vcrSettleFileId: finalFileId,
+            costs, // [NEW]
             createdAt: new Date(),
             createdBy: userId,
             updatedAt: new Date(),
@@ -299,6 +301,7 @@ export class StockInFwcService {
         "note",
         "vendorName",
         "vcrSettle",
+        "costs", // [NEW]
         "category.categoryName",
         "type.typeName",
         "category.categoryCode",
@@ -409,6 +412,7 @@ export class StockInFwcService {
       vendorName: item.vendorName,
       vcrSettle: item.vcrSettle,
       vcrSettleFileId: item.vcrSettleFileId,
+      costs: item.costs, // [NEW]
       createdByName: item.createdBy
         ? userMap.get(item.createdBy) || null
         : null,
@@ -479,6 +483,7 @@ export class StockInFwcService {
         vcrSettle: movement.vcrSettle,
         vcrSettleFileId: movement.vcrSettleFileId,
         vcrSettleFile: movement.vcrSettleFile,
+        costs: movement.costs, // [NEW]
         createdAt: movement.createdAt.toISOString(),
         createdByName,
         cardCategory: {
@@ -536,6 +541,7 @@ export class StockInFwcService {
       vendorName?: string;
       vcrSettle?: string;
       vcrSettleFileId?: string;
+      costs?: string; // [NEW]
     },
     userId: string,
   ) {
@@ -547,6 +553,7 @@ export class StockInFwcService {
       vendorName,
       vcrSettle,
       vcrSettleFileId,
+      costs, // [NEW]
     } = body;
 
     // 1. Validasi Input Dasar
@@ -743,6 +750,7 @@ export class StockInFwcService {
           vendorName: vendorName,
           vcrSettle: vcrSettle,
           vcrSettleFileId: vcrSettleFileId,
+          costs: costs, // [NEW]
           updatedBy: userId,
           updatedAt: new Date(),
         },

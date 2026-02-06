@@ -35,10 +35,16 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
     initialSerial: "",
     lastSerial: "",
     quantity: "",
+    vendorName: "",
+    vcrSettle: "",
+    costs: "",
   });
 
   const [maxAvailableSerial, setMaxAvailableSerial] = useState<string>("");
   const [fullStartSerial, setFullStartSerial] = useState<string>("");
+
+  /* New File State */
+  const [vcrSettleFile, setVcrSettleFile] = useState<File | null>(null);
 
   const fetchProducts = useCallback(async () => {
     try {
@@ -54,6 +60,7 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
   }, [fetchProducts]);
 
   useEffect(() => {
+    // Reset secondary states when product changes
     if (!form.productId) {
       setMaxAvailableSerial("");
       setFullStartSerial("");
@@ -167,8 +174,6 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
 
         if (qty > 10000) {
           toast.error("Maksimal quantity adalah 10.000");
-          // Optionally clamp logic here, but for end serial usually we just warn or let user correct
-          // If we enforce, we'd have to recalculate end serial based on max qty
         }
 
         newQty = qty > 0 ? String(qty) : "";
@@ -224,6 +229,10 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
         startSerial: getSuffix(form.initialSerial),
         endSerial: getSuffix(form.lastSerial),
         note: "",
+        vendorName: form.vendorName,
+        vcrSettle: form.vcrSettle,
+        costs: form.costs,
+        vcrSettleFile: vcrSettleFile || undefined,
         programType,
         serialDate,
       });
@@ -264,6 +273,8 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
     maxAvailableSerial,
     handleQuantityChange,
     handleEndSerialChange,
-    isOverLimit, // Export flag
+    isOverLimit,
+    vcrSettleFile, // [NEW]
+    setVcrSettleFile, // [NEW]
   };
 };

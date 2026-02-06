@@ -12,6 +12,9 @@ export interface StockInItem {
   type: string;
   stock: number;
   sentSerialNumbers?: string[];
+  vendorName?: string | null;
+  vcrSettle?: string | null;
+  costs?: string | null;
 }
 
 export interface StockOutItem {
@@ -105,6 +108,7 @@ export interface StockPaginationMeta {
   page: number;
   limit: number;
   totalPages: number;
+  totalQuantity?: number;
 }
 
 export interface StockInListResponse {
@@ -376,6 +380,7 @@ const stockService = {
         page: data.pagination.page ?? data.pagination.currentPage ?? 1,
         limit: data.pagination.limit ?? data.pagination.limitNum ?? 10,
         totalPages: data.pagination.totalPages ?? 0,
+        totalQuantity: data.pagination.totalQuantity ?? 0,
       },
     };
   },
@@ -394,13 +399,20 @@ const stockService = {
     serialDate?: string; // Added
     notaDinas?: string;
     bast?: string;
+    requesterName?: string;
+    receiverName?: string;
     notaDinasFile?: File | null;
     bastFile?: File | null;
   }) => {
     const { programType = "fwc", ...rest } = payload;
 
     const formData = new FormData();
-    Object.entries(rest).forEach(([key, value]) => {
+    // Map requesterName -> sender, receiverName -> receiver
+    const apiPayload: any = { ...rest };
+    if (rest.requesterName) apiPayload.sender = rest.requesterName;
+    if (rest.receiverName) apiPayload.receiver = rest.receiverName;
+
+    Object.entries(apiPayload).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== "") {
         formData.append(key, value as any);
       }
@@ -455,6 +467,8 @@ const stockService = {
       batchId: item.batchId,
       notaDinas: item.notaDinas,
       bast: item.bast,
+      requesterName: item.requesterName,
+      receiverName: item.receiverName,
       notaDinasFile: item.notaDinasFile
         ? {
             id: item.notaDinasFile.id,

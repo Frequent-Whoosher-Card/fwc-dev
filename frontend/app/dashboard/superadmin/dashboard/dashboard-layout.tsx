@@ -270,7 +270,7 @@ export default function DashboardLayout({
                 children: [
                   {
                     title: "Summary Stok",
-                    href: "/dashboard/admin/stock/all", // a. Stok all stock/Staiun
+                    href: "/dashboard/admin/stock/summary", // a. Stok all stock/Staiun
                     icon: resolveIcon("circle"),
                   },
                   {
@@ -342,7 +342,7 @@ export default function DashboardLayout({
             //     transformed.push({
             //         title: "Notification Tester",
             //         href: "/dashboard/superadmin/notification-tester",
-            //         icon: resolveIcon("bell"), 
+            //         icon: resolveIcon("bell"),
             //     });
             // }
 
