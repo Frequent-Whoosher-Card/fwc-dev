@@ -465,6 +465,7 @@ export default function AddMemberPage({ programType: programTypeProp }: CreateMe
         })}
         onClose={() => setShowSuccess(false)}
         onConfirm={handleConfirmSubmit}
+        loading={isSubmitting}
       />
     </>
   );

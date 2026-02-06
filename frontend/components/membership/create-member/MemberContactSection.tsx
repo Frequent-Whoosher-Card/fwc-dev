@@ -41,7 +41,8 @@ export function MemberContactSection({
   return (
     <>
       <MemberFormField label="Nationality" required>
-        <Select
+        <div id="field-nationality">
+          <Select
           options={countryOptions}
           placeholder="Pilih negara"
           value={countryOptions.find((c) => c.value === form.nationality) ?? null}
@@ -56,6 +57,7 @@ export function MemberContactSection({
           }}
           styles={reactSelectStyles}
         />
+        </div>
       </MemberFormField>
 
       <MemberFormField label="Phone Number" required>
@@ -69,6 +71,7 @@ export function MemberContactSection({
             |
           </div>
           <input
+            id="field-phone"
             value={form.phone}
             onChange={(e) => {
               const val = e.target.value.replace(/\D/g, "");
@@ -92,6 +95,7 @@ export function MemberContactSection({
           <input
             type="email"
             name="email"
+            id="field-email"
             value={form.email}
             onChange={handleChange}
             placeholder="Masukkan alamat email"
@@ -109,6 +113,7 @@ export function MemberContactSection({
           />
           <input
             name="address"
+            id="field-address"
             value={form.address}
             onChange={handleChange}
             placeholder="Masukkan alamat lengkap"
@@ -120,7 +125,8 @@ export function MemberContactSection({
 
       {form.nationality === "ID" && (
         <MemberFormField label="Kota / Kabupaten">
-          <Select
+          <div id="field-cityId">
+            <Select
             options={cityOptions}
             placeholder={
               loadingCities ? "Loading..." : "Cari kota/kabupaten..."
@@ -138,12 +144,14 @@ export function MemberContactSection({
             noOptionsMessage={() => "Tidak ada hasil"}
             styles={reactSelectStyles}
           />
-        </MemberFormField>
+        </div>
+      </MemberFormField>
       )}
 
       {programType === "VOUCHER" && (
         <MemberFormField label="Perusahaan">
           <input
+            id="field-companyName"
             name="companyName"
             value={form.companyName}
             onChange={handleChange}
