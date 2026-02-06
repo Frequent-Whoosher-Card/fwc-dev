@@ -12,8 +12,8 @@ export class LowStockCron {
 
     try {
       // 0. Perform Full Inventory Scan first (to create new alerts if any)
-      console.log("[LowStockCron] Scanning inventory for new low stock...");
-      await LowStockService.scanAllInventory();
+      // console.log("[LowStockCron] Scanning inventory for new low stock...");
+      // await LowStockService.scanAllInventory();
 
       // 1. Fetch all active alerts (including newly created ones)
       console.log("[LowStockCron] Fetching active alerts from DB...");
@@ -30,7 +30,7 @@ export class LowStockCron {
         return;
       }
 
-      const REMINDER_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours interval for reminders
+      const REMINDER_INTERVAL_MS = 1 * 60 * 60 * 1000; // 6 hours interval for reminders
       const now = new Date();
 
       for (const alert of activeAlerts) {
@@ -106,6 +106,7 @@ export class LowStockCron {
             if (token && chatId) {
               const telegramMsg =
                 `🔔 *REMINDER: STOK MASIH RENDAH*\n\n` +
+                `⏰ Waktu: *${now.toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}*\n` +
                 `📍 Stasiun: *${stationName}*\n` +
                 `📦 Produk: *${productName}*\n\n` +
                 `📊 Status Stok Aktual:\n` +
