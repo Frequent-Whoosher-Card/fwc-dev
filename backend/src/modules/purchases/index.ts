@@ -48,18 +48,35 @@ const baseRoutes = new Elysia()
           return isNaN(parsed) ? undefined : parsed;
         };
 
+        // Handle array query params (for multiple filter selections)
+        // Parse comma-separated string into array
+        const parseArrayParam = (value: any): string[] | undefined => {
+          if (!value) return undefined;
+          if (Array.isArray(value)) {
+            return value.filter((v: any) => v && cleanParam(v)) as string[];
+          }
+          const cleaned = cleanParam(value);
+          if (!cleaned) return undefined;
+          // Split by comma and filter out empty strings
+          return cleaned.split(",").map((v: string) => v.trim()).filter((v: string) => v.length > 0);
+        };
+
         const result = await PurchaseService.getAll({
           page: safeParseInt(query.page),
           limit: safeParseInt(query.limit),
           startDate: cleanParam(query.startDate),
           endDate: cleanParam(query.endDate),
           stationId: cleanParam(query.stationId),
+          stationIds: parseArrayParam(query.stationIds),
           categoryId: cleanParam(query.categoryId),
+          categoryIds: parseArrayParam(query.categoryIds),
           typeId: cleanParam(query.typeId),
+          typeIds: parseArrayParam(query.typeIds),
           operatorId: cleanParam(query.operatorId),
           search: cleanParam(query.search),
           transactionType: cleanParam(query.transactionType) as "fwc" | "voucher" | undefined,
           employeeTypeId: cleanParam(query.employeeTypeId),
+          employeeTypeIds: parseArrayParam(query.employeeTypeIds),
           isDeleted: query.isDeleted === "true",
           // Pass user context for role-based filtering
           userRole: user.role.roleCode,
@@ -171,6 +188,70 @@ Supports searching by:
 **Program Types:**
 - **FWC**: \`card\` field contains card details, \`bulkPurchaseItems\` is empty array
 - **VOUCHER**: \`card\` field is null, \`bulkPurchaseItems\` contains array of all purchased cards`,
+      },
+    },
+  )
+  .get(
+    "/:id/bulk-items",
+    async (context) => {
+      const { params, query, set } = context;
+      try {
+        // Helper to safely parse integer
+        const safeParseInt = (value: any) => {
+          if (value === undefined || value === null || value === "") return undefined;
+          const parsed = parseInt(value);
+          return isNaN(parsed) ? undefined : parsed;
+        };
+
+        const result = await PurchaseService.getBulkPurchaseItems(
+          params.id,
+          safeParseInt(query.page) || 1,
+          safeParseInt(query.limit) || 100,
+        );
+        return {
+          success: true,
+          data: result,
+          message: "Bulk purchase items retrieved successfully",
+        };
+      } catch (error) {
+        set.status =
+          error instanceof Error && "statusCode" in error
+            ? (error as any).statusCode
+            : 500;
+        return formatErrorResponse(error);
+      }
+    },
+    {
+      params: t.Object({
+        id: t.String(),
+      }),
+      query: t.Object({
+        page: t.Optional(t.String()),
+        limit: t.Optional(t.String()),
+      }),
+      response: {
+        200: PurchaseModel.getBulkPurchaseItemsResponse,
+        401: PurchaseModel.errorResponse,
+        403: PurchaseModel.errorResponse,
+        404: PurchaseModel.errorResponse,
+        500: PurchaseModel.errorResponse,
+      },
+      detail: {
+        tags: ["Purchases"],
+        summary: "Get bulk purchase items with pagination",
+        description: `Retrieve bulk purchase items (vouchers) for a specific purchase with pagination.
+        
+This endpoint is optimized for purchases with large numbers of items (e.g., 10,000+ vouchers).
+Instead of loading all items at once, use pagination to fetch items in batches.
+
+**Parameters:**
+- **purchaseId**: UUID of the purchase
+- **page**: Page number (default: 1)
+- **limit**: Items per page (default: 100, max recommended: 1000)
+
+**Response includes:**
+- Array of bulk purchase items with card details (serialNumber, category, type, price)
+- Pagination metadata (total, page, limit, totalPages)`,
       },
     },
   );

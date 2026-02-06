@@ -273,6 +273,8 @@ export class StockOutVoucherService {
       cardProduct.typeId,
       null, // Office Scope
       currentStock,
+      db,
+      false, // Web Alert Only
     );
 
     // 2. Send Push Notification to Supervisor
@@ -566,15 +568,20 @@ export class StockOutVoucherService {
           },
         });
 
-        // --- PUSH NOTIFICATION TO ADMINS ---
-        const { PushNotificationService } =
-          await import("../../notification/push-service");
-        PushNotificationService.sendToRole(
-          ["admin", "superadmin"],
-          title,
-          message,
-        );
-        // -----------------------------------
+        // --- PUSH NOTIFICATION TO ADMINS (Moved Outside) ---
+        return {
+          movementId,
+          status: "APPROVED",
+          receivedCount: finalReceived.length,
+          lostCount: finalLost.length,
+          damagedCount: finalDamaged.length,
+           // metadata for notification
+           notification: {
+             trigger: true,
+             title,
+             message
+          }
+        };
       }
 
       return {
@@ -585,6 +592,15 @@ export class StockOutVoucherService {
         damagedCount: finalDamaged.length,
       };
     });
+
+    // --- POST-TRANSACTION NOTIFICATION ---
+    if ((transaction as any).notification?.trigger) {
+      const { title, message } = (transaction as any).notification;
+      // Fire and forget
+      const { PushNotificationService } = await import("../../notification/push-service");
+      PushNotificationService.sendToRole(["admin", "superadmin"], title, message);
+    }
+    // -------------------------------------
 
     // Logging
     await ActivityLogService.createActivityLog(

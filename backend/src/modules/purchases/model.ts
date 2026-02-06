@@ -44,6 +44,9 @@ export namespace PurchaseModel {
     edcReferenceNumber: t.String(),
     purchaseDate: t.String({ format: "date-time" }),
     price: t.Number(),
+    subtotal: t.Optional(t.Union([t.Number(), t.Null()])),
+    discountAmount: t.Optional(t.Union([t.Number(), t.Null()])),
+    discountPercentage: t.Optional(t.Union([t.Number(), t.Null()])),
     notes: t.Union([t.String(), t.Null()]),
     programType: t.Union([t.Literal("FWC"), t.Literal("VOUCHER"), t.Null()]),
     createdAt: t.String({ format: "date-time" }),
@@ -79,6 +82,9 @@ export namespace PurchaseModel {
       t.Null(),
     ]),
     bulkPurchaseItems: t.Array(bulkPurchaseItemData),
+    bulkPurchaseItemsCount: t.Optional(t.Number()), // Actual total count (for display when only 1 item is returned for preview)
+    firstSerialNumber: t.Optional(t.Union([t.String(), t.Null()])), // First serial number for bulk purchase
+    lastSerialNumber: t.Optional(t.Union([t.String(), t.Null()])), // Last serial number for bulk purchase
     member: t.Union([
       t.Object({
         id: t.String({ format: "uuid" }),
@@ -278,16 +284,34 @@ export namespace PurchaseModel {
         examples: ["123e4567-e89b-12d3-a456-426614174000"],
       }),
     ),
+    stationIds: t.Optional(
+      t.String({
+        description: "Filter by multiple station IDs (comma-separated)",
+        examples: ["123e4567-e89b-12d3-a456-426614174000,987e6543-e21b-43d2-b654-321987654321"],
+      }),
+    ),
     categoryId: t.Optional(
       t.String({
         description: "Filter by card category ID",
         examples: ["123e4567-e89b-12d3-a456-426614174000"],
       }),
     ),
+    categoryIds: t.Optional(
+      t.String({
+        description: "Filter by multiple card category IDs (comma-separated)",
+        examples: ["123e4567-e89b-12d3-a456-426614174000,987e6543-e21b-43d2-b654-321987654321"],
+      }),
+    ),
     typeId: t.Optional(
       t.String({
         description: "Filter by card type ID",
         examples: ["123e4567-e89b-12d3-a456-426614174000"],
+      }),
+    ),
+    typeIds: t.Optional(
+      t.String({
+        description: "Filter by multiple card type IDs (comma-separated)",
+        examples: ["123e4567-e89b-12d3-a456-426614174000,987e6543-e21b-43d2-b654-321987654321"],
       }),
     ),
     operatorId: t.Optional(
@@ -316,6 +340,12 @@ export namespace PurchaseModel {
         format: "uuid",
         description: "Filter by employee type UUID (tipe karyawan)",
         examples: ["123e4567-e89b-12d3-a456-426614174000"],
+      }),
+    ),
+    employeeTypeIds: t.Optional(
+      t.String({
+        description: "Filter by multiple employee type UUIDs (comma-separated)",
+        examples: ["123e4567-e89b-12d3-a456-426614174000,987e6543-e21b-43d2-b654-321987654321"],
       }),
     ),
     isDeleted: t.Optional(
@@ -386,6 +416,20 @@ export namespace PurchaseModel {
   export const getDetailPurchaseResponse = t.Object({
     success: t.Boolean(),
     data: purchaseData,
+    message: t.Optional(t.String()),
+  });
+
+  export const getBulkPurchaseItemsResponse = t.Object({
+    success: t.Boolean(),
+    data: t.Object({
+      items: t.Array(bulkPurchaseItemData),
+      pagination: t.Object({
+        total: t.Number(),
+        page: t.Number(),
+        limit: t.Number(),
+        totalPages: t.Number(),
+      }),
+    }),
     message: t.Optional(t.String()),
   });
 

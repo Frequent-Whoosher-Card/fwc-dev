@@ -159,10 +159,12 @@ model User {
 
 model Shift {
   id        String    @id @default(uuid()) @map("shift_id") @db.Uuid
+  shiftName String?   @map("shift_name")
   userId    String    @map("user_id") @db.Uuid
   startDate DateTime  @map("start_date")
   endDate   DateTime  @map("end_date")
   notes     String?
+  stationId String    @map("station_id") @db.Uuid
   createdAt DateTime  @default(now()) @map("created_at")
   createdBy String?   @map("created_by") @db.Uuid
   updatedAt DateTime  @default(now()) @map("updated_at")
@@ -170,7 +172,8 @@ model Shift {
   deletedAt DateTime? @map("deleted_at")
   deletedBy String?   @map("deleted_by") @db.Uuid
 
-  user User @relation(fields: [userId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+  station Station @relation(fields: [stationId], references: [id])
 
   @@map("shifts")
 }
@@ -246,6 +249,7 @@ model Station {
   inboxes              Inbox[]
   users                User[]
   lowStockAlerts       LowStockAlert[]
+  shifts               Shift[]
 
   @@map("stations")
 }
@@ -322,6 +326,7 @@ model ProductType {
   id           String       @id @default(uuid()) @map("product_type_id") @db.Uuid
   programId    String       @map("program_id") // 2 serial awal
   description  String?
+  prefix       String?      @map("prefix")
   abbreviation String?
   programType  ProgramType? @map("program_type")
   notes        String?
@@ -331,6 +336,8 @@ model ProductType {
   updatedBy    String?      @map("updated_by") @db.Uuid
   deletedAt    DateTime?    @map("deleted_at")
   deletedBy    String?      @map("deleted_by") @db.Uuid
+
+  members Member[]
 
   @@map("product_types")
 }
@@ -355,27 +362,29 @@ model EmployeeType {
 }
 
 model Member {
-  id              String    @id @default(uuid()) @map("member_id") @db.Uuid
-  name            String    @map("member_name")
-  identityNumber  String    @unique @map("identity_number")
+  id              String       @id @default(uuid()) @map("member_id") @db.Uuid
+  name            String       @map("member_name")
+  identityNumber  String       @unique @map("identity_number")
   nationality     String?
   email           String?
   phone           String?
-  nippKai         String?   @map("nipp_kai")
-  birthDate       DateTime? @map("birth_date")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  createdBy       String?   @map("created_by") @db.Uuid
-  updatedAt       DateTime  @default(now()) @map("updated_at")
-  updatedBy       String?   @map("updated_by") @db.Uuid
-  deletedAt       DateTime? @map("deleted_at")
-  deletedBy       String?   @map("deleted_by") @db.Uuid
+  nippKai         String?      @map("nipp_kai")
+  birthDate       DateTime?    @map("birth_date")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  createdBy       String?      @map("created_by") @db.Uuid
+  updatedAt       DateTime     @default(now()) @map("updated_at")
+  updatedBy       String?      @map("updated_by") @db.Uuid
+  deletedAt       DateTime?    @map("deleted_at")
+  deletedBy       String?      @map("deleted_by") @db.Uuid
   gender          Gender?
   alamat          String?
   notes           String?
-  companyName     String?   @map("company_name")
-  employeeTypeId  String?   @map("employee_type_id") @db.Uuid
-  cityId          String?   @map("city_id") @db.Uuid
-  paymentMethodId String?   @map("payment_method_id") @db.Uuid
+  companyName     String?      @map("company_name")
+  employeeTypeId  String?      @map("employee_type_id") @db.Uuid
+  cityId          String?      @map("city_id") @db.Uuid
+  paymentMethodId String?      @map("payment_method_id") @db.Uuid
+  productTypeId   String?      @map("product_type_id") @db.Uuid
+  programType     ProgramType? @map("program_type")
 
   // Relations
   employeeType  EmployeeType?  @relation(fields: [employeeTypeId], references: [id])
@@ -383,6 +392,7 @@ model Member {
   cards         Card[]
   city          City?          @relation(fields: [cityId], references: [id])
   paymentMethod PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
+  productType   ProductType?   @relation(fields: [productTypeId], references: [id])
 
   @@map("members")
 }
@@ -486,15 +496,21 @@ model CardStockMovement {
   typeId                String              @map("type_id") @db.Uuid
   stationId             String?             @map("station_id") @db.Uuid
   toStationId           String?             @map("to_station_id") @db.Uuid
-  batchId               String?             @map("batch_id")
+  quantity              Int                 @map("quantity")
+  note                  String?             @map("note")
   // Untuk upload dokumen setelah generate
   fileObjectId          String?             @map("file_object_id") @db.Uuid
+  // Khusus stock in
+  vendorName            String?             @map("vendor_name")
+  vcrSettle             String?             @map("vcr_settle")
+  // Khusus stock out
+  batchId               String?             @map("batch_id")
   notaDinas             String?             @map("nota_dinas")
   notaDinasFileId       String?             @map("nota_dinas_file_id") @db.Uuid
   bast                  String?             @map("bast")
   bastFileId            String?             @map("bast_file_id") @db.Uuid
-  quantity              Int                 @map("quantity")
-  note                  String?             @map("note")
+  sender                String?             @map("sender") @db.Uuid
+  receiver              String?             @map("receiver") @db.Uuid
   createdAt             DateTime            @default(now()) @map("created_at")
   createdBy             String?             @map("created_by")
   lostSerialNumbers     String[]            @default([]) @map("lost_serial_numbers")
@@ -578,6 +594,8 @@ model CardPurchase {
   edcReferenceNumber String       @unique @map("edc_reference_number")
   purchaseDate       DateTime     @map("purchase_date")
   price              Decimal      @map("price")
+  subtotal           Decimal?     @map("subtotal")
+  discountAmount     Decimal?     @map("discount_amount")
   notes              String?      @map("notes")
   programType        ProgramType? @map("program_type")
   createdAt          DateTime     @default(now()) @map("created_at")
