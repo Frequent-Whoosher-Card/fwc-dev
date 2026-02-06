@@ -139,6 +139,7 @@ export class InboxService {
         {
           OR: [{ sentTo: userId }, broadcastFilter],
         },
+        { type: { not: "LOW_STOCK_ALERT" } }, // Systematically exclude hidden alerts
       ],
     };
 
@@ -308,18 +309,23 @@ export class InboxService {
       ? {}
       : { OR: [{ stationId: null }, { stationId: userStationId }] };
 
-    const unreadWhere = {
-      OR: [
-        { sentTo: userId, isRead: false },
+    const unreadWhere: any = {
+      AND: [
         {
-          AND: [
-            { targetRoles: { has: roleCode } },
-            unreadScope,
+          OR: [
+            { sentTo: userId, isRead: false },
             {
-              NOT: { readByUserIds: { has: userId } },
+              AND: [
+                { targetRoles: { has: roleCode } },
+                unreadScope,
+                {
+                  NOT: { readByUserIds: { has: userId } },
+                },
+              ],
             },
           ],
         },
+        { type: { not: "LOW_STOCK_ALERT" } }, // Sync unread count with filtered list
       ],
     };
     const unreadCount = await db.inbox.count({ where: unreadWhere });
@@ -402,16 +408,16 @@ export class InboxService {
     }
 
     const whereBase: any = {
-       type: { not: "LOW_STOCK_ALERT" }, // Exclude Hidden Low Stock Alerts from Badge
-       OR: [
-          { sentTo: userId, isRead: false },
-          {
-            AND: [
-              broadcastFilter,
-              { NOT: { readByUserIds: { has: userId } } }, // Broadcast specific read check
-            ],
-          },
-       ]
+      type: { not: "LOW_STOCK_ALERT" }, // Exclude Hidden Low Stock Alerts from Badge
+      OR: [
+        { sentTo: userId, isRead: false },
+        {
+          AND: [
+            broadcastFilter,
+            { NOT: { readByUserIds: { has: userId } } }, // Broadcast specific read check
+          ],
+        },
+      ],
     };
 
     const [fwc, voucher] = await Promise.all([
@@ -747,7 +753,8 @@ export class InboxService {
 
     const where: any = {
       type: "STOCK_DISTRIBUTION",
-      targetRoles: { has: "supervisor" }, // Must be targeted to supervisors
+      targetRoles: { has: "supervisor" },
+      NOT: { type: "LOW_STOCK_ALERT" }, // Double safety
     };
 
     if (params.stationId) {

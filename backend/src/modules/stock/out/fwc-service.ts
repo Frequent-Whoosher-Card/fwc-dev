@@ -265,6 +265,8 @@ export class StockOutFwcService {
                 movementId: movement.id,
                 cardProductId: cardProductId,
                 quantity: sentCount,
+                batchId: movement.batchId,
+                cardType: `${cardProduct.category.categoryName} - ${cardProduct.type.typeName}`,
                 status: "PENDING",
                 serials: finalSerials, // CORRECTED: Use actual serials
               },
@@ -395,6 +397,10 @@ export class StockOutFwcService {
     // 1) Ambil movement (Read Only)
     const movement = await db.cardStockMovement.findUnique({
       where: { id: movementId },
+      include: {
+        category: true,
+        type: true,
+      },
     });
 
     if (!movement) throw new ValidationError("Movement tidak ditemukan");
@@ -747,6 +753,8 @@ export class StockOutFwcService {
                 movementId: movementId,
                 stationId: validatorStationId,
                 reporterName: validatedByName, // REUSED HERE
+                batchId: movement.batchId,
+                cardType: `${movement.category.categoryName} - ${movement.type.typeName}`,
                 lostCount: finalLost.length,
                 damagedCount: finalDamaged.length,
                 receivedCount: finalReceived.length,

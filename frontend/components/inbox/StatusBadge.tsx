@@ -5,7 +5,7 @@ const LABELS: Record<string, string> = {
   CARD_MISSING: "Kartu Hilang",
   CARD_DAMAGED: "Kartu Rusak",
   PENDING_VALIDATION: "Menunggu Validasi",
-  UNKNOWN: "Info", // Fallback better than Unknown
+  UNKNOWN: "Info",
   APPROVED: "Disetujui",
   REJECTED: "Ditolak",
   COMPLETED: "Selesai",
@@ -15,17 +15,17 @@ const LABELS: Record<string, string> = {
 };
 
 const STYLES: Record<string, string> = {
-  ACCEPTED: "bg-green-100 text-green-700",
-  CARD_MISSING: "bg-yellow-100 text-yellow-700",
-  CARD_DAMAGED: "bg-red-100 text-red-700",
-  PENDING_VALIDATION: "bg-blue-100 text-blue-700",
-  UNKNOWN: "bg-gray-100 text-gray-600",
-  APPROVED: "bg-green-100 text-green-700",
-  REJECTED: "bg-red-100 text-red-700",
-  COMPLETED: "bg-green-100 text-green-700",
-  PENDING: "bg-yellow-100 text-yellow-700",
-  PENDING_APPROVAL: "bg-orange-100 text-orange-700",
-  ALERT: "bg-red-100 text-red-700",
+  ACCEPTED: "bg-[#E7F7EF] text-[#0A6C3A] border-[#C3EAD3]",
+  CARD_MISSING: "bg-[#FFFBEB] text-[#92400E] border-[#FEF3C7]",
+  CARD_DAMAGED: "bg-[#FEF1F2] text-[#991B1B] border-[#FEE2E2]",
+  PENDING_VALIDATION: "bg-[#E0F2FE] text-[#075985] border-[#BAE6FD]",
+  UNKNOWN: "bg-gray-50 text-gray-600 border-gray-200",
+  APPROVED: "bg-[#E7F7EF] text-[#0A6C3A] border-[#C3EAD3]",
+  REJECTED: "bg-[#FEF1F2] text-[#991B1B] border-[#FEE2E2]",
+  COMPLETED: "bg-[#E7F7EF] text-[#0A6C3A] border-[#C3EAD3]",
+  PENDING: "bg-[#FFFBEB] text-[#92400E] border-[#FEF3C7]",
+  PENDING_APPROVAL: "bg-[#FFF7ED] text-[#9A3412] border-[#FFEDD5]",
+  ALERT: "bg-[#FEF1F2] text-[#991B1B] border-[#FEE2E2]",
 };
 
 export default function StatusBadge({ status }: { status?: string }) {
@@ -39,14 +39,18 @@ export default function StatusBadge({ status }: { status?: string }) {
         max-w-fit
         whitespace-nowrap
         items-center
-        rounded-full
+        rounded-lg
         px-3 py-1
-        text-xs
-        font-medium
-        ${STYLES[status]}
+        text-[11px]
+        font-bold
+        uppercase
+        tracking-wider
+        border
+        shadow-sm
+        ${STYLES[status] || STYLES.UNKNOWN}
       `}
     >
-      {LABELS[status]}
+      {LABELS[status] || LABELS.UNKNOWN}
     </span>
   );
 }
