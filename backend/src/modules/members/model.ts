@@ -319,7 +319,7 @@ export namespace MemberModel {
   /** Body for POST /members/cards/:cardId/block */
   export const blockCardBody = t.Object({
     notes: t.Optional(
-      t.String({
+      t.Union([t.String(), t.Null()], {
         description: "Reason for blocking the card",
       }),
     ),
@@ -328,7 +328,7 @@ export namespace MemberModel {
   /** Body for POST /members/cards/:cardId/unblock */
   export const unblockCardBody = t.Object({
     notes: t.Optional(
-      t.String({
+      t.Union([t.String(), t.Null()], {
         description: "Reason for unblocking the card",
       }),
     ),

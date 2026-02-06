@@ -7,6 +7,8 @@ import db from "../../../config/db";
 import { ValidationError } from "../../../utils/errors";
 import { ActivityLogService } from "../../activity-log/service";
 import { LowStockService } from "../../../services/lowStockService";
+import { uploadStockFile } from "../../../utils/fileUpload";
+import { FilePurpose } from "@prisma/client";
 
 export class StockInVoucherService {
   /**
@@ -18,8 +20,12 @@ export class StockInVoucherService {
     startSerial: string, // Suffix
     endSerial: string, // Suffix
     userId: string,
-    serialDateInput?: string, // Optional Date YYYY-MM-DD for serial construction
+    serialDateInput?: string, // Optional Date YYYY-MM-DD for serial reconstruction
     note?: string | null,
+    vendorName?: string,
+    vcrSettle?: string,
+    vcrSettleFileId?: string,
+    vcrSettleFile?: File,
   ) {
     // 1. Validate Input: Digits only
     if (!/^\d+$/.test(startSerial) || !/^\d+$/.test(endSerial)) {
@@ -40,6 +46,18 @@ export class StockInVoucherService {
     const quantityRequested = endNum - startNum + 1;
     if (quantityRequested > 1000) {
       throw new ValidationError("Maksimal 1000 voucher per transaksi.");
+    }
+
+    // --- HANDLE FILE UPLOAD ---
+    let finalFileId = vcrSettleFileId;
+    if (vcrSettleFile) {
+      finalFileId = await uploadStockFile(
+        vcrSettleFile,
+        userId,
+        FilePurpose.STOCK_IN_VOUCHER_SETTLE,
+        "stock-in",
+        vcrSettle,
+      );
     }
 
     return await db.$transaction(async (tx) => {
@@ -148,6 +166,9 @@ export class StockInVoucherService {
             sentSerialNumbers: toProcessSerials, // Prisma supports String[]
             createdBy: userId,
             note: note,
+            vendorName: vendorName,
+            vcrSettle: vcrSettle,
+            vcrSettleFileId: finalFileId,
             status: "APPROVED", // "APPROVED" is the correct enum for valid/completed stock-in
           },
           include: {
@@ -238,11 +259,10 @@ export class StockInVoucherService {
       },
       ...parseSmartSearch(params.search || "", [
         "note",
-        "station.stationName",
+        "vendorName",
+        "vcrSettle",
         "category.categoryName",
         "type.typeName",
-        "notaDinas",
-        "bast",
         "category.categoryCode",
         "type.typeCode",
       ]),
@@ -349,6 +369,9 @@ export class StockInVoucherService {
           status: item.status,
           batchId: item.batchId,
           note: item.note,
+          vendorName: item.vendorName,
+          vcrSettle: item.vcrSettle,
+          vcrSettleFileId: item.vcrSettleFileId,
           createdByName: item.createdBy ? userMap.get(item.createdBy) : null,
           cardCategory: {
             id: item.category.id,
@@ -392,6 +415,7 @@ export class StockInVoucherService {
       include: {
         category: true,
         type: true,
+        vcrSettleFile: true,
       },
     });
 
@@ -418,6 +442,10 @@ export class StockInVoucherService {
         status: movement.status,
         batchId: movement.batchId,
         note: movement.note,
+        vendorName: movement.vendorName,
+        vcrSettle: movement.vcrSettle,
+        vcrSettleFileId: movement.vcrSettleFileId,
+        vcrSettleFile: movement.vcrSettleFile,
         createdAt: movement.createdAt.toISOString(),
         createdByName: null, // Placeholder or fetch if needed
         cardCategory: {
@@ -517,7 +545,13 @@ export class StockInVoucherService {
    */
   static async update(
     id: string,
-    updates: { movementAt?: string; note?: string },
+    updates: {
+      movementAt?: string;
+      note?: string;
+      vendorName?: string;
+      vcrSettle?: string;
+      vcrSettleFileId?: string;
+    },
     userId: string,
   ) {
     const movement = await db.cardStockMovement.findUnique({ where: { id } });
@@ -533,6 +567,9 @@ export class StockInVoucherService {
           ? new Date(updates.movementAt)
           : undefined,
         note: updates.note,
+        vendorName: updates.vendorName,
+        vcrSettle: updates.vcrSettle,
+        vcrSettleFileId: updates.vcrSettleFileId,
         updatedAt: new Date(),
       },
     });

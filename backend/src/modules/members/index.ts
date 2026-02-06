@@ -677,7 +677,7 @@ const cardStatusRoutes = new Elysia()
     "/:id/cards/:cardId/block",
     async (context) => {
       const { params, body, set, user } = context as typeof context &
-        AuthContextUser;
+        AuthContextUser & { body: { notes?: string } };
       try {
         const result = await MemberService.blockCard(
           params.id,
@@ -719,7 +719,7 @@ const cardStatusRoutes = new Elysia()
     "/:id/cards/:cardId/unblock",
     async (context) => {
       const { params, body, set, user } = context as typeof context &
-        AuthContextUser;
+        AuthContextUser & { body: { notes?: string } };
       try {
         const result = await MemberService.unblockCard(
           params.id,

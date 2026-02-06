@@ -137,6 +137,7 @@ export namespace StockOutFwcModel {
         page: t.Number(),
         limit: t.Number(),
         totalPages: t.Number(),
+        totalQuantity: t.Number(),
       }),
     }),
   });

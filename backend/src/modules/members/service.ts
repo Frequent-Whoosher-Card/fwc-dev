@@ -588,9 +588,7 @@ export class MemberService {
           status: "BLOCKED",
           updatedBy: userId,
           updatedAt: new Date(),
-          notes: notes
-            ? `${card.notes ? card.notes + "\n" : ""}[BLOCKED]: ${notes}`
-            : card.notes,
+          notes: `${card.notes ? card.notes + "\n" : ""}[BLOCKED]${notes ? ": " + notes : ""}`,
         },
       });
 
@@ -641,9 +639,7 @@ export class MemberService {
           status: "SOLD_ACTIVE",
           updatedBy: userId,
           updatedAt: new Date(),
-          notes: notes
-            ? `${card.notes ? card.notes + "\n" : ""}[UNBLOCKED]: ${notes}`
-            : card.notes,
+          notes: `${card.notes ? card.notes + "\n" : ""}[UNBLOCKED]${notes ? ": " + notes : ""}`,
         },
       });
 

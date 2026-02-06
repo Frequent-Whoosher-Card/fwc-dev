@@ -896,7 +896,7 @@ export class StockOutFwcService {
       where.movementAt = { lte: endDate };
     }
 
-    const [items, total] = await Promise.all([
+    const [items, total, agg] = await Promise.all([
       db.cardStockMovement.findMany({
         where,
         skip,
@@ -911,11 +911,19 @@ export class StockOutFwcService {
         },
       }),
       db.cardStockMovement.count({ where }),
+      db.cardStockMovement.aggregate({
+        where,
+        _sum: {
+          quantity: true,
+        },
+      }),
     ]);
 
-    const userIds = [...new Set(items.map((i) => i.createdBy).filter(Boolean))];
+    const userIds = [
+      ...new Set(items.map((i) => i.createdBy).filter(Boolean)),
+    ] as string[];
     const users = await db.user.findMany({
-      where: { id: { in: userIds as string[] } },
+      where: { id: { in: userIds } },
       select: { id: true, fullName: true },
     });
     const userMap = new Map(users.map((u) => [u.id, u.fullName]));
@@ -970,6 +978,7 @@ export class StockOutFwcService {
         page,
         limit,
         totalPages: Math.ceil(total / limit),
+        totalQuantity: agg._sum.quantity || 0,
       },
     };
   }
