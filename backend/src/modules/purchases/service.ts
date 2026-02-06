@@ -619,9 +619,19 @@ export class PurchaseService {
 
     // Only set where.card if we have at least one filter
     if (Object.keys(cardProductFilter).length > 0) {
-      where.card = {
-        cardProduct: cardProductFilter,
-      };
+      if (transactionType === "voucher") {
+        where.bulkPurchaseItems = {
+          some: {
+            card: {
+              cardProduct: cardProductFilter,
+            },
+          },
+        };
+      } else {
+        where.card = {
+          cardProduct: cardProductFilter,
+        };
+      }
     }
 
     // Operator filter (only apply if not already set by role-based filter)
@@ -673,6 +683,16 @@ export class PurchaseService {
         {
           operator: {
             fullName: { contains: search, mode: "insensitive" },
+          },
+        },
+        // Search in bulk items (voucher)
+        {
+          bulkPurchaseItems: {
+            some: {
+              card: {
+                serialNumber: { contains: search, mode: "insensitive" },
+              },
+            },
           },
         },
       ];
