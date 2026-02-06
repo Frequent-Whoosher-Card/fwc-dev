@@ -51,18 +51,30 @@ export function useCreateMemberSubmit({
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
+    const focusError = (id: string, message: string) => {
+      toast.error(message);
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.focus({ preventScroll: true });
+      }
+    };
+
     if (!form.name.trim()) {
-      toast.error("Membership Name wajib diisi");
+      focusError("field-name", "Membership Name wajib diisi");
       return;
     }
 
     if (!form.nik.trim()) {
-      toast.error(identityType === "NIK" ? "NIK wajib diisi" : "Passport wajib diisi");
+      focusError("field-nik", identityType === "NIK" ? "NIK wajib diisi" : "Passport wajib diisi");
       return;
     }
 
     if (programType === "FWC") {
       if (!cardId) {
+        // Serial number selection usually has a search input or similar. 
+        // We can focus the input if in manual or recommendation mode.
+        // For now just toast as checking visual component is complex
         toast.error("Serial Number wajib dipilih");
         return;
       }
@@ -72,7 +84,7 @@ export function useCreateMemberSubmit({
         return;
       }
       if (!voucherForm.getValues("edcReferenceNumber")?.trim()) {
-        toast.error("No. Reference EDC wajib diisi");
+        focusError("field-edcReferenceNumber-voucher", "No. Reference EDC wajib diisi");
         return;
       }
     }
@@ -91,43 +103,43 @@ export function useCreateMemberSubmit({
 
     if (identityType === "NIK") {
       if (form.nik.length !== 16) {
-        toast.error("NIK harus 16 digit angka");
+        focusError("field-nik", "NIK harus 16 digit angka");
         return;
       }
     } else {
       if (form.nik.length < 1 || form.nik.length > 9) {
-        toast.error("Passport maksimal 9 karakter (huruf/angka)");
+        focusError("field-nik", "Passport maksimal 9 karakter (huruf/angka)");
         return;
       }
     }
 
     if (!form.nationality.trim()) {
-      toast.error("Nationality wajib diisi");
+      focusError("field-nationality", "Nationality wajib diisi");
       return;
     }
 
     if (!form.gender) {
-      toast.error("Gender wajib dipilih");
+      focusError("field-gender", "Gender wajib dipilih");
       return;
     }
 
     if (!form.birthDate.trim()) {
-      toast.error("Tanggal Lahir wajib diisi");
+      focusError("field-birthDate", "Tanggal Lahir wajib diisi");
       return;
     }
 
     if (!form.phone.trim()) {
-      toast.error("Phone Number wajib diisi");
+      focusError("field-phone", "Phone Number wajib diisi");
       return;
     }
 
     if (!form.email.trim()) {
-      toast.error("Email Address wajib diisi");
+      focusError("field-email", "Email Address wajib diisi");
       return;
     }
 
     if (!form.address.trim()) {
-      toast.error("Alamat wajib diisi");
+      focusError("field-address", "Alamat wajib diisi");
       return;
     }
 
@@ -162,12 +174,12 @@ export function useCreateMemberSubmit({
     }
 
     if (programType === "FWC" && !form.edcReferenceNumber.trim()) {
-      toast.error("No. Reference EDC wajib diisi");
+      focusError("field-edcReferenceNumber", "No. Reference EDC wajib diisi");
       return;
     }
 
     if (!form.paymentMethodId?.trim()) {
-      toast.error("Metode pembayaran wajib dipilih");
+      focusError("field-paymentMethodId", "Metode pembayaran wajib dipilih");
       return;
     }
 

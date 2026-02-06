@@ -5,8 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getPurchases } from "@/lib/services/purchase.service";
 import TransactionToolbar from "./components/TransactionToolbar";
 import TransactionFilter from "./components/TransactionFilter";
-import TransactionTableFWC from "./components/TransactionTableFWC";
-import TransactionTableVoucher from "./components/TransactionTableVoucher";
+import TransactionTable from "./components/TransactionTable";
 import DeletedPurchaseTable, {
   type DeletedPurchaseItem,
 } from "./components/DeletedPurchaseTable";
@@ -15,6 +14,8 @@ import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
 import html2canvas from "html2canvas";
 import axios from "@/lib/axios";
+import ProductTypeSelector from "@/components/ProductTypeSelector";
+import { ProductType } from "@/lib/services/product-type.service";
 
 /* ======================
    TYPES
@@ -63,6 +64,7 @@ export default function TransactionPage({ role }: TransactionPageProps) {
      TAB STATE
   ===================== */
   const [activeTab, setActiveTab] = useState<TabType>("");
+  const [selectedProductType, setSelectedProductType] = useState<ProductType | undefined>();
 
   /* =====================
      FILTER STATE
@@ -294,6 +296,26 @@ export default function TransactionPage({ role }: TransactionPageProps) {
   const handleAddMember = () => {
     const programType = activeTab === "voucher" ? "voucher" : "fwc";
     router.push(`${basePath}/membership/create?programType=${programType}`);
+  };
+
+  const handleProductTypeChange = (val: string, type?: ProductType) => {
+    setSelectedProductType(type);
+    if (type?.programType) {
+      const newTab = type.programType.toLowerCase() as TabType;
+      setActiveTab(newTab);
+      
+      // Update URL param without full reload
+      const params = new URLSearchParams(searchParams.toString());
+      if (newTab) {
+        params.set("tab", newTab);
+      } else {
+        params.delete("tab");
+      }
+      router.push(`?${params.toString()}`);
+    } else {
+      setActiveTab("");
+    }
+    resetFilter();
   };
 
   /** Open Laporan Transaksi export modal (fetch data first) - data sesuai tab: FWC atau Voucher */
@@ -2094,6 +2116,14 @@ export default function TransactionPage({ role }: TransactionPageProps) {
           setActiveTab(tab);
           resetFilter();
         }}
+        productSelector={
+          <ProductTypeSelector
+            value={selectedProductType?.id}
+            onChange={handleProductTypeChange}
+            placeholder="Pilih Produk"
+            className="w-[180px] border-[#8D1231] text-[#8D1231] placeholder:text-[#8D1231]/50 focus:ring-[#8D1231] bg-white font-medium"
+          />
+        }
       />
 
       {activeTab && (
@@ -2141,35 +2171,22 @@ export default function TransactionPage({ role }: TransactionPageProps) {
             onExportShiftPDF={handleExportShiftPDF}
           />
 
-          {activeTab === "fwc" ? (
-            <TransactionTableFWC
-              data={fwcData}
-              loading={loading}
-              pagination={pagination}
-              onPageChange={(page) => setPagination((p) => ({ ...p, page }))}
-              onEdit={(id) =>
-                router.push(`${basePath}/${transactionPath}/edit/${id}`)
-              }
-              onDelete={() => {
-                fetchData();
-                loadDeletedPurchases();
-              }}
-              canEdit
-              canDelete={true}
-            />
-          ) : (
-            <TransactionTableVoucher
-              data={voucherData}
-              loading={loading}
-              pagination={pagination}
-              onPageChange={(page) => setPagination((p) => ({ ...p, page }))}
-              onDelete={() => {
-                fetchData();
-                loadDeletedPurchases();
-              }}
-              canDelete={true}
-            />
-          )}
+          <TransactionTable
+            data={activeTab === "voucher" ? voucherData : fwcData}
+            loading={loading}
+            pagination={pagination}
+            onPageChange={(page) => setPagination((p) => ({ ...p, page }))}
+            onEdit={(id) =>
+              router.push(`${basePath}/${transactionPath}/edit/${id}`)
+            }
+            onDelete={() => {
+              fetchData();
+              loadDeletedPurchases();
+            }}
+            canEdit={activeTab === "fwc"}
+            canDelete={true}
+            programType={activeTab === "voucher" ? "VOUCHER" : "FWC"}
+          />
 
           {/* Riwayat Penghapusan - sama seperti di Redeem */}
           {/* {activeTab === "fwc" || activeTab === "voucher" ? (

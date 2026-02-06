@@ -194,9 +194,11 @@ export class LowStockService {
             `[LowStock] Telegram Dispatch -> Suffix: ${configSuffix} | Token Found: ${!!token} | ChatID Found: ${!!chatId}`,
           );
 
+          const now = new Date();
           if (token && chatId) {
             const telegramMsg =
               `⚠️ *PERINGATAN STOK MENIPIS*\n\n` +
+              `⏰ Waktu: *${now.toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}*\n` +
               `📍 Stasiun: *${stationName}*\n` +
               `📦 Produk: *${productName}*\n\n` +
               `📊 Status Stok:\n` +
@@ -206,14 +208,17 @@ export class LowStockService {
 
             console.log(`[LowStock] Sending Telegram message to ${chatId}...`);
 
-            TelegramService.sendMessage(token, chatId, telegramMsg)
-              .then(() => console.log(`[LowStock] Telegram sent successfully.`))
-              .catch((err) =>
-                console.error(
-                  `[LowStock] Telegram alert failed for ${stationName}:`,
-                  err,
-                ),
+            try {
+              await TelegramService.sendMessage(token, chatId, telegramMsg);
+              console.log(`[LowStock] Telegram sent successfully.`);
+              // Rate limit delay ONLY after sending
+              await new Promise((resolve) => setTimeout(resolve, 300));
+            } catch (err) {
+              console.error(
+                `[LowStock] Telegram alert failed for ${stationName}:`,
+                err,
               );
+            }
           } else {
             console.warn(
               `[LowStock] Telegram skipped. Missing config for TELEGRAM_BOT_TOKEN_${configSuffix} or CHAT_ID.`,
@@ -282,7 +287,12 @@ export class LowStockService {
         select: { id: true, categoryId: true, typeId: true },
       });
 
+      console.log(
+        `[LowStockService] Found ${stations.length} stations and ${products.length} active products.`,
+      );
+
       // 2. Aggregate Stock Counts (Station Scope)
+      console.log("[LowStockService] Aggregating station stock counts...");
       const stationStockCounts = await db.card.groupBy({
         by: ["stationId", "cardProductId"],
         where: {
@@ -301,6 +311,7 @@ export class LowStockService {
       });
 
       // 3. Aggregate Office Stock Counts (Office Scope)
+      console.log("[LowStockService] Aggregating office stock counts...");
       const officeStockCounts = await db.card.groupBy({
         by: ["cardProductId"],
         where: { status: "IN_OFFICE" },
@@ -311,6 +322,7 @@ export class LowStockService {
         officeMap.set(item.cardProductId, item._count.id);
       });
 
+      console.log("[LowStockService] Starting per-item checks...");
       let processedCount = 0;
 
       // 4. Check Stations
