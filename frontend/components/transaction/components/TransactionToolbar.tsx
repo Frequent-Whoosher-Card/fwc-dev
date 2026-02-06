@@ -1,6 +1,7 @@
 "use client";
 
 import { Plus, Search } from "lucide-react";
+import { ReactNode } from "react";
 
 interface Props {
   search: string;
@@ -8,7 +9,8 @@ interface Props {
   onAdd: () => void;
   onAddMember: () => void;
   activeTab: 'fwc' | 'voucher' | '';
-  onTabChange: (tab: 'fwc' | 'voucher' | '') => void;
+  onTabChange?: (tab: 'fwc' | 'voucher' | '') => void; // Made optional as productSelector might drive this
+  productSelector?: ReactNode; // New prop for the custom selector
 }
 
 export default function TransactionToolbar({
@@ -18,6 +20,7 @@ export default function TransactionToolbar({
   onAddMember,
   activeTab,
   onTabChange,
+  productSelector,
 }: Props) {
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -28,15 +31,19 @@ export default function TransactionToolbar({
         </h1>
         
         {/* PRODUCT SWITCHER */}
-        <select
-          value={activeTab}
-          onChange={(e) => onTabChange(e.target.value as 'fwc' | 'voucher' | '')}
-          className="h-10 w-full sm:w-auto rounded-md border px-3 text-sm font-semibold text-[#8D1231] bg-red-50 border-[#8D1231] focus:outline-none focus:ring-2 focus:ring-[#8D1231]"
-        >
-          <option value="">Pilih Produk</option>
-          <option value="fwc">FWC</option>
-          <option value="voucher">VOUCHER</option>
-        </select>
+        {productSelector ? (
+          productSelector
+        ) : (
+          <select
+            value={activeTab}
+            onChange={(e) => onTabChange?.(e.target.value as 'fwc' | 'voucher' | '')}
+            className="h-10 w-full sm:w-auto rounded-md border px-3 text-sm font-semibold text-[#8D1231] bg-red-50 border-[#8D1231] focus:outline-none focus:ring-2 focus:ring-[#8D1231]"
+          >
+            <option value="">Pilih Produk</option>
+            <option value="fwc">FWC</option>
+            <option value="voucher">VOUCHER</option>
+          </select>
+        )}
       </div>
 
       {/* ACTION */}
