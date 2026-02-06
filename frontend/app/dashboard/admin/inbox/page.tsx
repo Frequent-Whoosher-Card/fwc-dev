@@ -228,9 +228,10 @@ export default function InboxPage() {
       {selectedIssue && (
           <IssueApprovalModal 
             data={selectedIssue} 
+            programType={selectedIssue.programType}
             onClose={() => setSelectedIssue(null)}
             onSuccess={() => {
-                fetchInbox(); // Refresh list
+                fetchInbox(currentFilters); // Refresh list
             }}
           />
       )}

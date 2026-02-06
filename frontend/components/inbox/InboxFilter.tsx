@@ -72,7 +72,7 @@ export default function InboxFilter({
   };
 
   return (
-    <div className="flex flex-col md:flex-row md:flex-wrap items-start md:items-center gap-4 w-full">
+    <div className="flex flex-col md:flex-row md:items-center gap-4 w-full">
       {/* SEARCH INPUT */}
       <div className="relative w-full md:w-auto">
         <input
@@ -80,7 +80,7 @@ export default function InboxFilter({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Cari..."
-          className="h-9 w-full md:w-[200px] rounded-md border px-3 pl-9 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
+          className="h-9 w-full md:w-[200px] rounded-md border px-3 pl-9 text-sm focus:outline-none focus:ring-2 focus:ring-[#8D1231]/10 focus:border-[#8D1231]"
         />
         <Search
           size={16}
@@ -93,48 +93,29 @@ export default function InboxFilter({
         <DateInput label="End" value={endDate} onChange={setEndDate} />
       </div>
 
-      {/* OPTIONAL: STATION FILTER */}
-      {stations && onStationChange && (
-        <div className="flex flex-col md:flex-row md:items-center gap-2 w-full md:w-auto">
-          <span className="text-sm font-medium hidden md:inline">Station</span>
-          <select
-            value={selectedStation}
-            onChange={(e) => onStationChange(e.target.value)}
-            className="h-9 w-full md:w-[160px] rounded-md border px-3 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
-          >
-            <option value="">Semua Stasiun</option>
-            {stations.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.stationName}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      <div className="flex flex-col md:flex-row md:items-center gap-2 w-full md:w-auto">
-        <span className="text-sm font-medium hidden md:inline">Status</span>
+      <div className="flex items-center gap-2 w-full md:w-auto">
+        <span className="text-sm font-medium text-gray-700">Status</span>
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          className="h-9 w-full md:w-[160px] rounded-md border px-3 text-sm focus:outline-none border-[#8D1231] bg-[#8D1231] text-white"
+          className="h-9 w-full md:w-[160px] rounded-md border px-3 text-sm focus:outline-none bg-[#8D1231] text-white font-medium"
         >
           <option value="">Semua Status</option>
-          <option value="PENDING_VALIDATION">Pending Validation</option>
-          <option value="ACCEPTED">Accepted</option>
-          <option value="CARD_MISSING">Missing</option>
-          <option value="CARD_DAMAGED">Damaged</option>
+          <option value="PENDING_VALIDATION">Menunggu Validasi</option>
+          <option value="ACCEPTED">Diterima</option>
+          <option value="CARD_MISSING">Hilang</option>
+          <option value="CARD_DAMAGED">Rusak</option>
         </select>
       </div>
 
       <div className="flex gap-2 ml-auto">
         {onRefresh && (
             <button
-              onClick={reset}
-              title="Refresh & Reset"
-              className="p-2.5 border rounded-xl text-gray-400 hover:bg-red-50 hover:text-[#8D1231] active:bg-[#8D1231] active:text-white transition-colors border-gray-300"
+              onClick={onRefresh}
+              title="Refresh"
+              className="p-2 border rounded-lg text-gray-400 hover:bg-gray-50 transition-colors border-gray-200"
             >
-              <RefreshCw size={20} />
+              <RefreshCw size={18} />
             </button>
         )}
       </div>

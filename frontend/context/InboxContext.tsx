@@ -56,14 +56,19 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
       
       // SHOW TOAST (Foreground Notification)
       if (payload.data && payload.data.title) {
-          toast(payload.data.title + "\n" + (payload.data.body || ''), {
-              icon: '🔔',
+      toast(payload.data.title + "\n" + (payload.data.body || ''), {
+              icon: '📢', // Changed to Loudspeaker for better context
               duration: 5000,
               position: 'top-right',
               style: {
-                  background: '#333',
-                  color: '#fff',
-                  border: '1px solid #8D1231'
+                  background: '#FFFFFF',
+                  color: '#1F2937', // Dark Grey for readability
+                  borderLeft: '5px solid #8D1231', // Corporate Maroon Accent
+                  boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.1)', // Soft Drop Shadow
+                  borderRadius: '6px',
+                  fontWeight: '500',
+                  padding: '12px 16px',
+                  minWidth: '300px'
               }
           });
       }
