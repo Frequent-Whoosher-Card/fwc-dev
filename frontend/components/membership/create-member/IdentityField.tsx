@@ -1,6 +1,7 @@
 "use client";
 
 import type { Dispatch, SetStateAction } from "react";
+import React from "react";
 import type { CreateMemberFormState } from "./types";
 
 interface IdentityFieldProps {
@@ -97,6 +98,7 @@ export function IdentityField({
         )}
         <input
           name="nik"
+          id="field-nik"
           value={form.nik}
           onChange={(e) => {
             const raw = e.target.value;
