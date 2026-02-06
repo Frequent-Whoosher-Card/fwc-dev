@@ -22,6 +22,7 @@ export default function BaseStockInAdd({ programType }: BaseStockInAddProps) {
     maxAvailableSerial,
     handleQuantityChange,
     handleEndSerialChange,
+    isOverLimit, // Get flag
   } = useStockInForm({ programType });
 
   const sopItems = [
@@ -126,13 +127,20 @@ export default function BaseStockInAdd({ programType }: BaseStockInAddProps) {
             <div>
               <label className="text-sm font-medium">Last Serial</label>
               <input
-                className="w-full rounded-lg border px-4 py-2"
+                className={`w-full rounded-lg border px-4 py-2 ${
+                  isOverLimit ? "border-red-500 bg-red-50 text-red-700" : ""
+                }`}
                 value={form.lastSerial}
                 onChange={(e) => handleEndSerialChange(e.target.value)}
                 disabled={!form.productId}
                 placeholder="Masukkan full serial atau suffix"
               />
-              {maxAvailableSerial && (
+              {isOverLimit && (
+                <p className="mt-1 text-xs text-red-600 font-medium">
+                  Last serial melebihi ketersediaan.
+                </p>
+              )}
+              {maxAvailableSerial && !isOverLimit && (
                 <p className="mt-1 text-xs text-gray-500">
                   Tersedia sampai serial:{" "}
                   <span className="font-mono">{maxAvailableSerial}</span>
@@ -145,7 +153,7 @@ export default function BaseStockInAdd({ programType }: BaseStockInAddProps) {
           <div className="flex justify-end pt-4">
             <button
               onClick={handleSubmit}
-              disabled={saving}
+              disabled={saving || isOverLimit}
               className="rounded-lg bg-[#8D1231] px-8 py-2 text-white hover:opacity-90 disabled:opacity-50"
             >
               {saving ? "Loading..." : "Add Stock"}

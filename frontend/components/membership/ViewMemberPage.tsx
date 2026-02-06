@@ -4,10 +4,16 @@ import { useEffect, useState, useContext, Fragment } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 
-import { getMemberById } from "@/lib/services/membership.service";
+import {
+  getMemberById,
+  blockCard,
+  unblockCard,
+} from "@/lib/services/membership.service";
 import { getPurchases } from "@/lib/services/purchase.service";
 import { UserContext } from "@/app/dashboard/superadmin/dashboard/dashboard-layout";
 import { getEmployeeTypes } from "@/lib/services/employee-type.service";
+import toast from "react-hot-toast";
+import { X } from "lucide-react";
 
 /* ======================
    TYPES
@@ -23,10 +29,13 @@ interface Membership {
   phone: string | null;
   gender: string | null;
   alamat: string | null;
+  birthDate?: string | null; // Added
+  city?: string | null; // Added
   createdAt: string;
   updatedAt: string;
   createdByName: string;
   updatedByName: string;
+  cards?: { id: string; notes?: string; status: string }[]; // ✅ Added cards field
 }
 
 interface BulkCardItem {
@@ -45,7 +54,8 @@ interface Transaction {
   purchaseDate: string;
   duration: string;
   expiredDate: string;
-  status: "Active" | "Expired" | "-";
+  status: "Active" | "Expired" | "Blocked" | "-"; // Added Blocked
+  notes?: string; // Reason for block/unblock
   cardCategory: string;
   cardType: string;
   quota: number;
@@ -58,6 +68,7 @@ interface Transaction {
   station: string;
   bulkCount?: number;
   bulkItems?: BulkCardItem[];
+  cardId?: string; // Need card ID for action
 }
 
 /* ======================
@@ -73,8 +84,25 @@ export default function MembershipDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [employeeTypeName, setEmployeeTypeName] = useState<string>("-");
-  const [viewFilter, setViewFilter] = useState<"all" | "FWC" | "VOUCHER">("all");
+  const [viewFilter, setViewFilter] = useState<"all" | "FWC" | "VOUCHER">(
+    "all",
+  );
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  // Block/Unblock State
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    cardId: string;
+    action: "block" | "unblock";
+    notes: string;
+    loading: boolean;
+  }>({
+    isOpen: false,
+    cardId: "",
+    action: "block",
+    notes: "",
+    loading: false,
+  });
 
   const toggleExpanded = (id: string) => {
     setExpandedRows((prev) => {
@@ -85,163 +113,226 @@ export default function MembershipDetailPage() {
     });
   };
 
-  /* ======================
-     FETCH DATA
-  ====================== */
-  useEffect(() => {
-    if (!id) return;
+  const fetchDetail = async () => {
+    try {
+      setLoading(true);
 
-    const fetchDetail = async () => {
-      try {
-        setLoading(true);
+      // 1️⃣ GET MEMBER
+      const memberRes = await getMemberById(id);
+      const memberData: Membership = memberRes.data;
+      setMember(memberData);
 
-        // 1️⃣ GET MEMBER
-        const memberRes = await getMemberById(id);
-        const memberData: Membership = memberRes.data;
-        setMember(memberData);
+      // Resolve employee type name if exists
+      if (memberData.employeeTypeId) {
+        try {
+          const employeeTypesRes = await getEmployeeTypes();
+          const employeeType = employeeTypesRes.data?.find(
+            (type) => type.id === memberData.employeeTypeId,
+          );
+          setEmployeeTypeName(employeeType?.name || "-");
+        } catch (err) {
+          console.error("Failed to load employee type:", err);
+        }
+      }
 
-        // Resolve employee type name if exists
-        if (memberData.employeeTypeId) {
-          try {
-            const employeeTypesRes = await getEmployeeTypes();
-            const employeeType = employeeTypesRes.data?.find(
-              (type) => type.id === memberData.employeeTypeId,
-            );
-            setEmployeeTypeName(employeeType?.name || "-");
-          } catch (err) {
-            console.error("Failed to load employee type:", err);
-          }
+      // 2️⃣ GET PURCHASES BY NIK
+      const purchaseRes = await getPurchases({
+        search: memberData.identityNumber,
+        limit: 50,
+      });
+
+      const items = purchaseRes.data?.items ?? [];
+
+      const mapped: Transaction[] = items.map((p: any) => {
+        const programType = p.programType ?? "FWC";
+        const isVoucher = programType === "VOUCHER";
+        const bulkItems = p.bulkPurchaseItems ?? [];
+        const hasBulk = isVoucher && bulkItems.length > 0;
+
+        const purchaseDate = p.purchaseDate;
+        const firstCard = p.card ?? bulkItems[0]?.card;
+        const masaBerlaku = firstCard?.cardProduct?.masaBerlaku ?? 0;
+
+        const expiredDate =
+          purchaseDate && masaBerlaku
+            ? new Date(
+                new Date(purchaseDate).getTime() +
+                  masaBerlaku * 24 * 60 * 60 * 1000,
+              ).toISOString()
+            : "";
+
+        const duration = masaBerlaku ? `${masaBerlaku} Days` : "-";
+
+        const price =
+          typeof p.price === "number" ? p.price.toLocaleString("id-ID") : "-";
+
+        let totalQuota = p.card?.cardProduct?.totalQuota ?? 0;
+        let remainingQuota = p.card?.quotaTicket ?? 0;
+        if (hasBulk) {
+          totalQuota = bulkItems.reduce(
+            (s: number, b: any) => s + (b.card?.cardProduct?.totalQuota ?? 0),
+            0,
+          );
+          remainingQuota = bulkItems.reduce(
+            (s: number, b: any) => s + (b.card?.quotaTicket ?? 0),
+            0,
+          );
         }
 
-        // 2️⃣ GET PURCHASES BY NIK
-        const purchaseRes = await getPurchases({
-          search: memberData.identityNumber,
-          limit: 50,
-        });
-
-        const items = purchaseRes.data?.items ?? [];
-
-        const mapped: Transaction[] = items.map((p: any) => {
-          const programType = p.programType ?? "FWC";
-          const isVoucher = programType === "VOUCHER";
-          const bulkItems = p.bulkPurchaseItems ?? [];
-          const hasBulk = isVoucher && bulkItems.length > 0;
-
-          const purchaseDate = p.purchaseDate;
-          const firstCard = p.card ?? bulkItems[0]?.card;
-          const masaBerlaku = firstCard?.cardProduct?.masaBerlaku ?? 0;
-
-          const expiredDate =
-            purchaseDate && masaBerlaku
-              ? new Date(
-                  new Date(purchaseDate).getTime() +
-                    masaBerlaku * 24 * 60 * 60 * 1000,
-                ).toISOString()
-              : "";
-
-          const duration = masaBerlaku ? `${masaBerlaku} Days` : "-";
-
-          const price =
-            typeof p.price === "number" ? p.price.toLocaleString("id-ID") : "-";
-
-          let totalQuota = p.card?.cardProduct?.totalQuota ?? 0;
-          let remainingQuota = p.card?.quotaTicket ?? 0;
-          if (hasBulk) {
-            totalQuota = bulkItems.reduce(
-              (s: number, b: any) => s + (b.card?.cardProduct?.totalQuota ?? 0),
-              0,
-            );
-            remainingQuota = bulkItems.reduce(
-              (s: number, b: any) => s + (b.card?.quotaTicket ?? 0),
-              0,
-            );
-          }
-
-          let status: "Active" | "Expired" | "-" = "-";
-          if (p.card) {
+        let status: "Active" | "Expired" | "Blocked" | "-" = "-";
+        if (p.card) {
+          // Check block status from status string
+          if (p.card.status === "BLOCKED" || p.card.isBlocked) {
+            status = "Blocked";
+          } else {
             status =
               p.card.status === "SOLD_ACTIVE"
                 ? "Active"
                 : p.card.status === "SOLD_EXPIRED"
                   ? "Expired"
                   : "-";
-          } else if (hasBulk) {
-            const anyActive = bulkItems.some(
-              (b: any) => b.card?.status === "SOLD_ACTIVE",
-            );
-            const anyExpired = bulkItems.some(
-              (b: any) => b.card?.status === "SOLD_EXPIRED",
-            );
-            if (anyActive) status = "Active";
-            else if (anyExpired) status = "Expired";
           }
+        } else if (hasBulk) {
+          // For bulk, simple check
+          const anyActive = bulkItems.some(
+            (b: any) =>
+              b.card?.status === "SOLD_ACTIVE" &&
+              b.card?.status !== "BLOCKED" &&
+              !b.card?.isBlocked,
+          );
+          const anyBlocked = bulkItems.some(
+            (b: any) => b.card?.status === "BLOCKED" || b.card?.isBlocked,
+          );
 
-          const cardCategory = hasBulk
-            ? bulkItems[0]?.card?.cardProduct?.category?.categoryName ?? "-"
-            : p.card?.cardProduct?.category?.categoryName ?? "-";
-          const cardType = hasBulk
-            ? bulkItems[0]?.card?.cardProduct?.type?.typeName ?? "-"
-            : p.card?.cardProduct?.type?.typeName ?? "-";
+          if (anyBlocked)
+            status = "Blocked"; // Or handle partial? For now let's simple
+          else if (anyActive) status = "Active";
+          else status = "Expired";
+        }
 
-          const serialNumber = hasBulk
-            ? bulkItems.length > 1
-              ? `${bulkItems.length} items`
-              : bulkItems[0]?.card?.serialNumber ?? "-"
-            : p.card?.serialNumber ?? "-";
+        const cardCategory = hasBulk
+          ? (bulkItems[0]?.card?.cardProduct?.category?.categoryName ?? "-")
+          : (p.card?.cardProduct?.category?.categoryName ?? "-");
+        const cardType = hasBulk
+          ? (bulkItems[0]?.card?.cardProduct?.type?.typeName ?? "-")
+          : (p.card?.cardProduct?.type?.typeName ?? "-");
 
-          const bulkItemsMapped: BulkCardItem[] = hasBulk
-            ? bulkItems.map((b: any) => ({
-                serialNumber: b.card?.serialNumber ?? "-",
-                categoryName:
-                  b.card?.cardProduct?.category?.categoryName ?? "-",
-                typeName: b.card?.cardProduct?.type?.typeName ?? "-",
-                totalQuota: b.card?.cardProduct?.totalQuota ?? 0,
-                remaining: b.card?.quotaTicket ?? 0,
-                price:
-                  typeof b.price === "number"
-                    ? b.price.toLocaleString("id-ID")
-                    : "-",
-                status:
-                  b.card?.status === "SOLD_ACTIVE"
+        const serialNumber = hasBulk
+          ? bulkItems.length > 1
+            ? `${bulkItems.length} items`
+            : (bulkItems[0]?.card?.serialNumber ?? "-")
+          : (p.card?.serialNumber ?? "-");
+
+        const bulkItemsMapped: BulkCardItem[] = hasBulk
+          ? bulkItems.map((b: any) => ({
+              serialNumber: b.card?.serialNumber ?? "-",
+              categoryName: b.card?.cardProduct?.category?.categoryName ?? "-",
+              typeName: b.card?.cardProduct?.type?.typeName ?? "-",
+              totalQuota: b.card?.cardProduct?.totalQuota ?? 0,
+              remaining: b.card?.quotaTicket ?? 0,
+              price:
+                typeof b.price === "number"
+                  ? b.price.toLocaleString("id-ID")
+                  : "-",
+              status:
+                b.card?.status === "BLOCKED" || b.card?.isBlocked
+                  ? "Blocked"
+                  : b.card?.status === "SOLD_ACTIVE"
                     ? "Active"
                     : b.card?.status === "SOLD_EXPIRED"
                       ? "Expired"
                       : "-",
-              }))
-            : [];
+            }))
+          : [];
 
-          return {
-            id: p.id,
-            programType,
-            purchaseDate,
-            expiredDate,
-            duration,
-            status,
-            cardCategory,
-            cardType,
-            quota: totalQuota,
-            remaining: remainingQuota,
-            serialNumber,
-            referenceEdc: p.edcReferenceNumber ?? "-",
-            price,
-            shiftDate: purchaseDate,
-            operatorName: p.operator?.fullName ?? p.createdByName ?? "-",
-            station: p.station?.stationName ?? "-",
-            bulkCount: hasBulk ? bulkItems.length : undefined,
-            bulkItems: bulkItemsMapped.length > 0 ? bulkItemsMapped : undefined,
-          };
-        });
+        return {
+          id: p.id,
+          programType,
+          purchaseDate,
+          expiredDate,
+          duration,
+          status,
+          notes:
+            p.card?.notes ||
+            memberData?.cards?.find((c) => c.id === p.card?.id)?.notes ||
+            undefined, // ✅ Map notes from backend (member.cards) OR purchase (if available)
+          cardCategory,
+          cardType,
+          quota: totalQuota,
+          remaining: remainingQuota,
+          serialNumber,
+          referenceEdc: p.edcReferenceNumber ?? "-",
+          price,
+          shiftDate: purchaseDate,
+          operatorName: p.operator?.fullName ?? p.createdByName ?? "-",
+          station: p.station?.stationName ?? "-",
+          bulkCount: hasBulk ? bulkItems.length : undefined,
+          bulkItems: bulkItemsMapped.length > 0 ? bulkItemsMapped : undefined,
+          cardId: p.card?.id, // Store card ID
+        };
+      });
 
-        setTransactions(mapped);
-      } catch (err: any) {
-        setError(err.message || "Failed to load data");
-      } finally {
-        setLoading(false);
-      }
-    };
+      setTransactions(mapped);
+    } catch (err: any) {
+      setError(err.message || "Failed to load data");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  /* ======================
+     FETCH DATA
+  ====================== */
+  useEffect(() => {
+    if (!id) return;
     fetchDetail();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  /* ======================
+     HANDLERS
+  ====================== */
+  const handleAction = (cardId: string, currentStatus: string) => {
+    if (!cardId) return;
+
+    // Logic: If Blocked -> Unblock, If Active/Expired -> Block
+    const action = currentStatus === "Blocked" ? "unblock" : "block";
+    setConfirmModal({
+      isOpen: true,
+      cardId,
+      action,
+      notes: "",
+      loading: false,
+    });
+  };
+
+  const submitAction = async () => {
+    const { cardId, action, notes } = confirmModal;
+    if (!cardId || !id) return;
+
+    if (!notes.trim()) {
+      toast.error("Alasan (notes) wajib diisi");
+      return;
+    }
+
+    try {
+      setConfirmModal((prev) => ({ ...prev, loading: true }));
+      if (action === "block") {
+        await blockCard(id, cardId, notes);
+        toast.success("Kartu berhasil diblokir");
+      } else {
+        await unblockCard(id, cardId, notes);
+        toast.success("Kartu berhasil di-unblock");
+      }
+      setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+      // Refresh data
+      fetchDetail();
+    } catch (err: any) {
+      toast.error(err.message || `Gagal ${action} kartu`);
+    } finally {
+      setConfirmModal((prev) => ({ ...prev, loading: false }));
+    }
+  };
 
   /* ======================
      STATE
@@ -298,8 +389,8 @@ export default function MembershipDetailPage() {
   const isVoucherView = viewFilter === "VOUCHER";
   const cardBg = isVoucherView
     ? "bg-teal-600 text-white"
-    : CARD_COLOR_MAP[activeTransaction?.cardCategory ?? ""] ??
-    "bg-blue-400 text-white";
+    : (CARD_COLOR_MAP[activeTransaction?.cardCategory ?? ""] ??
+      "bg-blue-400 text-white");
 
   /* ======================
      RENDER
@@ -335,12 +426,12 @@ export default function MembershipDetailPage() {
                 </>
               ) : (
                 <>
-              <span className="text-base font-semibold">
-                {capitalize(activeTransaction.cardType)}
-              </span>
-              <span className="text-xs font-normal">
-                {capitalize(activeTransaction.cardCategory)}
-              </span>
+                  <span className="text-base font-semibold">
+                    {capitalize(activeTransaction.cardType)}
+                  </span>
+                  <span className="text-xs font-normal">
+                    {capitalize(activeTransaction.cardCategory)}
+                  </span>
                 </>
               )}
             </div>
@@ -364,7 +455,7 @@ export default function MembershipDetailPage() {
               <span className="text-gray-500">Identity Number</span>
               <span>: {member.identityNumber}</span>
 
-              {/* ✅ NIP / NIPP KAI — hanya tampil jika ada */}
+              {/* ✅ NIP / NIPP KAI */}
               {member.nippKai && (
                 <>
                   <span className="text-gray-500">NIP / NIPP KAI</span>
@@ -374,6 +465,22 @@ export default function MembershipDetailPage() {
 
               <span className="text-gray-500">Employee Type</span>
               <span>: {employeeTypeName}</span>
+
+              <span className="text-gray-500">Nationality</span>
+              <span>: {member.nationality || "-"}</span>
+
+              <span className="text-gray-500">Birth Date</span>
+              <span>
+                : {member.birthDate ? formatDate(member.birthDate) : "-"}
+              </span>
+
+              <span className="text-gray-500">City</span>
+              <span>
+                :{" "}
+                {typeof member.city === "object" && member.city !== null
+                  ? (member.city as any).name
+                  : member.city || "-"}
+              </span>
 
               <span className="text-gray-500">Gender</span>
               <span>: {genderLabel}</span>
@@ -397,12 +504,12 @@ export default function MembershipDetailPage() {
         <div className="text-right text-sm">
           {viewFilter !== "VOUCHER" && (
             <>
-          <p>
-            Total Quota (Trips): <b>{totalQuota}</b>
-          </p>
-          <p>
-            Redeemed: <b>{redeemed}</b>
-          </p>
+              <p>
+                Total Quota (Trips): <b>{totalQuota}</b>
+              </p>
+              <p>
+                Redeemed: <b>{redeemed}</b>
+              </p>
             </>
           )}
           {viewFilter === "VOUCHER" && (
@@ -412,7 +519,8 @@ export default function MembershipDetailPage() {
           )}
           {viewFilter === "all" && (
             <p className="text-gray-500">
-              FWC: {transactions.filter((t) => t.programType === "FWC").length} | Voucher:{" "}
+              FWC: {transactions.filter((t) => t.programType === "FWC").length}{" "}
+              | Voucher:{" "}
               {transactions.filter((t) => t.programType === "VOUCHER").length}
             </p>
           )}
@@ -444,24 +552,28 @@ export default function MembershipDetailPage() {
             <thead className="bg-gray-50 text-xs text-gray-600">
               <tr>
                 <th className="w-10 px-2 py-3"></th>
-                <th className="px-4 py-3 text-left w-[140px]">Purchase Date</th>
-                <th className="px-4 py-3 text-left">Masa Berlaku</th>
-                <th className="px-4 py-3 text-left">Expired Date</th>
+                <th className="px-4 py-3 text-center w-[140px]">
+                  Purchase Date
+                </th>
+                <th className="px-4 py-3 text-center">Masa Berlaku</th>
+                <th className="px-4 py-3 text-center">Expired Date</th>
                 <th className="px-4 py-3 text-center w-[110px]">Status Card</th>
-                <th className="px-4 py-3 text-left">Card Category</th>
-                <th className="px-4 py-3 text-left">
+                <th className="px-4 py-3 text-center w-[160px]">Notes</th>
+                <th className="px-4 py-3 text-center">Card Category</th>
+                <th className="px-4 py-3 text-center">
                   {isVoucherView ? "Class" : "Card Type"}
                 </th>
-                <th className="px-4 py-3 text-right">Total Quota</th>
-                <th className="px-4 py-3 text-right">Remaining Quota</th>
-                <th className="px-4 py-3 text-left">Serial Number</th>
-                <th className="px-4 py-3 text-left">No. Reference EDC</th>
-                <th className="px-4 py-3 text-right w-[120px]">
+                <th className="px-4 py-3 text-center">Total Quota</th>
+                <th className="px-4 py-3 text-center">Remaining Quota</th>
+                <th className="px-4 py-3 text-center">Serial Number</th>
+                <th className="px-4 py-3 text-center">No. Reference EDC</th>
+                <th className="px-4 py-3 text-center w-[120px]">
                   {isVoucherView ? "Harga" : "FWC Price"}
                 </th>
-                <th className="px-4 py-3 text-left">Shift Date</th>
-                <th className="px-4 py-3 text-left">Operator Name</th>
-                <th className="px-4 py-3 text-left">Stasiun</th>
+                <th className="px-4 py-3 text-center">Shift Date</th>
+                <th className="px-4 py-3 text-center">Operator Name</th>
+                <th className="px-4 py-3 text-center">Stasiun</th>
+                <th className="px-4 py-3 text-center w-[120px]">Action</th>
               </tr>
             </thead>
 
@@ -495,59 +607,92 @@ export default function MembershipDetailPage() {
                           </button>
                         ) : null}
                       </td>
-                  <td className="px-4 py-3 text-left">
-                    {formatDate(trx.purchaseDate)}
-                  </td>
+                      <td className="px-4 py-3 text-center">
+                        {formatDate(trx.purchaseDate)}
+                      </td>
 
-                  <td className="px-4 py-3 text-left">{trx.duration}</td>
+                      <td className="px-4 py-3 text-center">{trx.duration}</td>
 
-                  <td className="px-4 py-3 text-left">
-                    {formatDate(trx.expiredDate)}
-                  </td>
+                      <td className="px-4 py-3 text-center">
+                        {formatDate(trx.expiredDate)}
+                      </td>
 
-                  <td className="px-4 py-3 text-center">
-                    <span
-                      className={`inline-flex min-w-[72px] justify-center rounded px-2 py-1 text-xs font-medium
+                      <td className="px-4 py-3 text-center">
+                        <span
+                          className={`inline-flex min-w-[72px] justify-center rounded px-2 py-1 text-xs font-medium
             ${
               trx.status === "Active"
                 ? "bg-green-100 text-green-700"
                 : trx.status === "Expired"
                   ? "bg-red-100 text-red-700"
-                  : "bg-gray-100 text-gray-600"
+                  : trx.status === "Blocked"
+                    ? "bg-gray-800 text-white"
+                    : "bg-gray-100 text-gray-600"
             }`}
-                    >
-                      {trx.status}
-                    </span>
-                  </td>
+                        >
+                          {trx.status}
+                        </span>
+                      </td>
 
-                  <td className="px-4 py-3 text-left">{trx.cardCategory}</td>
-                  <td className="px-4 py-3 text-left">{trx.cardType}</td>
+                      <td className="px-4 py-3 text-center text-xs italic text-gray-500">
+                        {trx.notes || "-"}
+                      </td>
 
-                  <td className="px-4 py-3 text-right font-semibold">
-                    {trx.quota}
-                  </td>
+                      <td className="px-4 py-3 text-center">
+                        {trx.cardCategory}
+                      </td>
+                      <td className="px-4 py-3 text-center">{trx.cardType}</td>
 
-                  <td className="px-4 py-3 text-right font-semibold">
-                    {trx.remaining}
-                  </td>
+                      <td className="px-4 py-3 text-center font-semibold">
+                        {trx.quota}
+                      </td>
 
-                  <td className="px-4 py-3 text-left">{trx.serialNumber}</td>
-                  <td className="px-4 py-3 text-left">{trx.referenceEdc}</td>
+                      <td className="px-4 py-3 text-center font-semibold">
+                        {trx.remaining}
+                      </td>
 
-                  <td className="px-4 py-3 text-right">{trx.price}</td>
+                      <td className="px-4 py-3 text-center">
+                        {trx.serialNumber}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {trx.referenceEdc}
+                      </td>
 
-                  <td className="px-4 py-3 text-left">
-                    {formatDate(trx.shiftDate)}
-                  </td>
+                      <td className="px-4 py-3 text-center">{trx.price}</td>
 
-                  <td className="px-4 py-3 text-left">{trx.operatorName}</td>
-                  <td className="px-4 py-3 text-left">{trx.station}</td>
-                </tr>
+                      <td className="px-4 py-3 text-center">
+                        {formatDate(trx.shiftDate)}
+                      </td>
 
-                    {/* Expanded: daftar semua kartu voucher dengan kuota (sama seperti di transaksi) */}
+                      <td className="px-4 py-3 text-center">
+                        {trx.operatorName}
+                      </td>
+                      <td className="px-4 py-3 text-center">{trx.station}</td>
+
+                      {/* ACTION BUTTON */}
+                      <td className="px-4 py-3 text-center">
+                        {!isVoucherBulk &&
+                          trx.cardId && ( // Only individual cards can be blocked here for now
+                            <button
+                              onClick={() =>
+                                handleAction(trx.cardId!, trx.status)
+                              }
+                              className={`rounded px-3 py-1.5 text-xs font-semibold text-white transition-colors duration-200 ${
+                                trx.status === "Blocked"
+                                  ? "bg-green-600 hover:bg-green-700"
+                                  : "bg-red-600 hover:bg-red-700"
+                              }`}
+                            >
+                              {trx.status === "Blocked" ? "Unblock" : "Block"}
+                            </button>
+                          )}
+                      </td>
+                    </tr>
+
+                    {/* Expanded: daftar semua kartu voucher dengan kuota */}
                     {isVoucherBulk && isExpanded && trx.bulkItems && (
                       <tr className="bg-gray-50">
-                        <td colSpan={15} className="px-4 py-3">
+                        <td colSpan={17} className="px-4 py-3">
                           <div className="space-y-2">
                             <div className="mb-2 text-xs font-semibold text-gray-600">
                               Voucher Items ({quantity}):
@@ -571,7 +716,9 @@ export default function MembershipDetailPage() {
                                     </span>
                                   </div>
                                   <div className="mt-1 flex items-center justify-between">
-                                    <span className="text-gray-500">Status</span>
+                                    <span className="text-gray-500">
+                                      Status
+                                    </span>
                                     <span
                                       className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
                                         card.status === "Active"
@@ -605,6 +752,74 @@ export default function MembershipDetailPage() {
           Scroll horizontally to see more details →
         </div>
       </div>
+
+      {/* MODAL CONFIRMATION */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold capitalize">
+                {confirmModal.action} Member Card
+              </h3>
+              <button
+                onClick={() =>
+                  setConfirmModal((prev) => ({ ...prev, isOpen: false }))
+                }
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <p className="mb-4 text-sm text-gray-600">
+              Apakah Anda yakin ingin melakukan tindakan ini? Masukkan alasan di
+              bawah ini.
+            </p>
+            <div className="mb-4">
+              <label className="mb-1 block text-sm font-medium">
+                Alasan (Notes)
+              </label>
+              <textarea
+                className="w-full rounded border px-3 py-2 text-sm focus:border-[#8D1231] focus:outline-none"
+                rows={3}
+                placeholder="Contoh: Kartu hilang, rusak, atau salah input..."
+                value={confirmModal.notes}
+                onChange={(e) =>
+                  setConfirmModal((prev) => ({
+                    ...prev,
+                    notes: e.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() =>
+                  setConfirmModal((prev) => ({ ...prev, isOpen: false }))
+                }
+                className="rounded px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
+                disabled={confirmModal.loading}
+              >
+                Batal
+              </button>
+              <button
+                onClick={submitAction}
+                disabled={confirmModal.loading}
+                className={`rounded px-4 py-2 text-sm font-medium text-white hover:opacity-90 ${
+                  confirmModal.action === "block"
+                    ? "bg-red-600"
+                    : "bg-green-600"
+                }`}
+              >
+                {confirmModal.loading
+                  ? "Loading..."
+                  : confirmModal.action === "block"
+                    ? "Block Card"
+                    : "Unblock Card"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

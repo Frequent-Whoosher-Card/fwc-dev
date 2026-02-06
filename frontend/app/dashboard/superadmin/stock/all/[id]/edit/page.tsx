@@ -67,6 +67,10 @@ export default function EditCardPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!status) return;
+    if (!note.trim()) {
+      toast.error("Catatan (notes) wajib diisi");
+      return;
+    }
 
     setSaving(true);
     try {
@@ -186,12 +190,12 @@ export default function EditCardPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Catatan
+                  Catatan <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  className="w-full rounded-lg border-gray-300 focus:border-[#8D1231] focus:ring-[#8D1231]"
+                  className="w-full rounded-lg border border-gray-300 p-3 focus:border-[#8D1231] focus:ring-[#8D1231]"
                   rows={4}
                   placeholder="Tambahkan catatan perubahan status..."
                 />

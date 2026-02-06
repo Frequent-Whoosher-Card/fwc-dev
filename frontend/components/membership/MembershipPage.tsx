@@ -13,15 +13,9 @@ import ConfirmDeleteModal from "./components/ui/ConfirmDeleteModal";
 import SuccessModal from "./components/ui/SuccessModal";
 import toast from "react-hot-toast";
 import { useProductTypes } from "@/hooks/useProductTypes";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { FileText } from "lucide-react";
+import ProductTypeSelector from "@/components/ProductTypeSelector";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { initPDFReport } from "@/lib/utils/pdf-export";
@@ -194,7 +188,7 @@ export default function MembershipPage({ role }: MembershipPageProps) {
         startDate: startDate || undefined,
         endDate: endDate || undefined,
         hasNippKai: cardCategory === "NIPKAI" ? true : undefined,
-        programType: programTypeParam,
+        // programType: programTypeParam,
         productTypeId: productTypeId || undefined,
       });
 
@@ -495,48 +489,28 @@ export default function MembershipPage({ role }: MembershipPageProps) {
   ===================== */
   return (
     <div className="space-y-6">
-      <MembershipToolbar
-        search={search}
-        onSearchChange={(v) => {
-          setSearch(v);
-          setPagination((p) => ({ ...p, page: 1 }));
-        }}
-      >
-        <div className="w-[300px]">
-          <Select
+      <MembershipToolbar>
+        <div className="w-full sm:w-[300px]">
+          <ProductTypeSelector
             value={productTypeId}
-            onValueChange={(val) => {
+            onChange={(val) => {
               setProductTypeId(val);
               setPagination((p) => ({ ...p, page: 1 }));
             }}
-            disabled={productTypesLoading}
-          >
-            <SelectTrigger>
-              <SelectValue
-                placeholder={
-                  productTypesLoading ? "Loading..." : "Pilih Tipe Produk"
-                }
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {productTypes.map((type) => (
-                <SelectItem key={type.id} value={type.id}>
-                  {type.description || type.programId} ({type.programId})
-                </SelectItem>
-              ))}
-              {productTypes.length === 0 && !productTypesLoading && (
-                <div className="p-2 text-sm text-center text-gray-500">
-                  Tidak ada tipe produk
-                </div>
-              )}
-            </SelectContent>
-          </Select>
+            placeholder="Pilih Tipe Produk"
+            className="w-full border-[#8D1231] text-[#8D1231] placeholder:text-[#8D1231]/50 focus:ring-[#8D1231]"
+          />
         </div>
       </MembershipToolbar>
 
       {productTypeId && (
         <>
           <MembershipFilter
+            search={search}
+            onSearchChange={(v) => {
+              setSearch(v);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
             cardCategory={cardCategory}
             gender={gender}
             employeeTypeId={employeeTypeId}

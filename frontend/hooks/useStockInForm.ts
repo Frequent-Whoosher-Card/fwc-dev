@@ -237,6 +237,21 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
     }
   };
 
+  // Check if last serial exceeds max available
+  let isOverLimit = false;
+  if (form.lastSerial && maxAvailableSerial) {
+    const lastMatch = form.lastSerial.match(/^(.*?)(\d+)$/);
+    const maxMatch = maxAvailableSerial.match(/^(.*?)(\d+)$/);
+
+    if (lastMatch && maxMatch) {
+      const lastNum = parseInt(lastMatch[2], 10);
+      const maxNum = parseInt(maxMatch[2], 10);
+      if (lastNum > maxNum) {
+        isOverLimit = true;
+      }
+    }
+  }
+
   return {
     form,
     setForm,
@@ -249,5 +264,6 @@ export const useStockInForm = ({ programType }: UseStockInFormProps) => {
     maxAvailableSerial,
     handleQuantityChange,
     handleEndSerialChange,
+    isOverLimit, // Export flag
   };
 };
