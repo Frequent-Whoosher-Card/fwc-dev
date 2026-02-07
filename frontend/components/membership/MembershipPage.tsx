@@ -12,6 +12,14 @@ import DeletedMemberTable, {
 import ConfirmDeleteModal from "./components/ui/ConfirmDeleteModal";
 import SuccessModal from "./components/ui/SuccessModal";
 import toast from "react-hot-toast";
+import { useProductTypes } from "@/hooks/useProductTypes";
+import { Button } from "@/components/ui/button";
+import { FileText } from "lucide-react";
+import ProductTypeSelector from "@/components/ProductTypeSelector";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { initPDFReport } from "@/lib/utils/pdf-export";
+import { useAuthClient } from "@/hooks/useAuthClient";
 
 /* ======================
    TYPES
@@ -59,6 +67,7 @@ const formatDate = (iso?: string) => {
 export default function MembershipPage({ role }: MembershipPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const user = useAuthClient(); // Corrected: returns the user object directly
   const LIMIT = 10;
 
   const basePath = `/dashboard/${role}`;
@@ -68,6 +77,9 @@ export default function MembershipPage({ role }: MembershipPageProps) {
   ===================== */
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  // New States
+  const [productTypeId, setProductTypeId] = useState("");
+
   const [cardCategory, setCardCategory] = useState<"all" | "NIPKAI">("all");
   const [gender, setGender] = useState<"all" | "L" | "P">("all");
   const [employeeTypeId, setEmployeeTypeId] = useState("");
@@ -130,6 +142,8 @@ export default function MembershipPage({ role }: MembershipPageProps) {
     setEmployeeTypeId("");
     setStartDate("");
     setEndDate("");
+    // setProgramType("FWC"); // Optional: reset program type or keep it? user usually wants to stay in same context
+    setProductTypeId(""); // Reset product type selection
     if (startDateRef.current) startDateRef.current.value = "";
     if (endDateRef.current) endDateRef.current.value = "";
     setPagination((p) => ({ ...p, page: 1 }));
@@ -138,9 +152,32 @@ export default function MembershipPage({ role }: MembershipPageProps) {
   /* =====================
      FETCH DATA
   ===================== */
+  const { productTypes, loading: productTypesLoading } = useProductTypes();
+
   const fetchMembers = async (page: number) => {
+    // START: Empty page rule
+    if (!productTypeId) {
+      setData([]);
+      setPagination({
+        page: 1,
+        limit: LIMIT,
+        totalPages: 1,
+        total: 0,
+      });
+      setLoading(false);
+      return;
+    }
+    // END: Empty page rule
+
     try {
       setLoading(true);
+
+      // Calculate programType from selected productTypeId if needed,
+      // or rely on backend to filter by productTypeId alone.
+      // User likely wants to filter by productTypeId.
+      // If we need to send programType, we can find it:
+      const selectedProduct = productTypes.find((p) => p.id === productTypeId);
+      const programTypeParam = selectedProduct?.programType;
 
       const res = await getMembers({
         page,
@@ -151,6 +188,8 @@ export default function MembershipPage({ role }: MembershipPageProps) {
         startDate: startDate || undefined,
         endDate: endDate || undefined,
         hasNippKai: cardCategory === "NIPKAI" ? true : undefined,
+        programType: programTypeParam,
+        // productTypeId: productTypeId || undefined, // Replaced by programType per request
       });
 
       const mapped: Membership[] = res.data.items.map((item: any) => ({
@@ -197,12 +236,14 @@ export default function MembershipPage({ role }: MembershipPageProps) {
       });
       if (res?.data?.items) {
         setDeletedMembers((res.data.items as DeletedMemberItem[]) || []);
-        setDeletedPagination(res.data.pagination || {
-          page: 1,
-          limit: 10,
-          total: 0,
-          totalPages: 1,
-        });
+        setDeletedPagination(
+          res.data.pagination || {
+            page: 1,
+            limit: 10,
+            total: 0,
+            totalPages: 1,
+          },
+        );
       } else {
         setDeletedMembers([]);
         setDeletedPagination({ page: 1, limit: 10, total: 0, totalPages: 1 });
@@ -225,7 +266,15 @@ export default function MembershipPage({ role }: MembershipPageProps) {
       fetchMembers(1);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, cardCategory, gender, employeeTypeId, startDate, endDate]);
+  }, [
+    debouncedSearch,
+    cardCategory,
+    gender,
+    employeeTypeId,
+    startDate,
+    endDate,
+    productTypeId,
+  ]);
 
   useEffect(() => {
     fetchMembers(pagination.page);
@@ -235,7 +284,14 @@ export default function MembershipPage({ role }: MembershipPageProps) {
   /* Reset deleted page when filters change */
   useEffect(() => {
     setDeletedPage(1);
-  }, [debouncedSearch, cardCategory, gender, employeeTypeId, startDate, endDate]);
+  }, [
+    debouncedSearch,
+    cardCategory,
+    gender,
+    employeeTypeId,
+    startDate,
+    endDate,
+  ]);
 
   /* Load riwayat penghapusan when page or filters change */
   useEffect(() => {
@@ -277,67 +333,244 @@ export default function MembershipPage({ role }: MembershipPageProps) {
     }
   };
 
+  const handleExportPDF = async () => {
+    try {
+      // 1. Siapkan Filter Text untuk Header PDF
+      const filtersArr = [];
+      if (startDate || endDate) {
+        const start = startDate
+          ? startDate.split("-").reverse().join("-")
+          : "...";
+        const end = endDate ? endDate.split("-").reverse().join("-") : "...";
+        filtersArr.push(`Periode: ${start} s/d ${end}`);
+      }
+      if (cardCategory !== "all") {
+        filtersArr.push(
+          `Kategori: ${cardCategory === "NIPKAI" ? "NIP KAI" : cardCategory}`,
+        );
+      }
+      if (gender !== "all") {
+        filtersArr.push(
+          `Gender: ${gender === "L" ? "Laki-laki" : "Perempuan"}`,
+        );
+      }
+      const selectedProduct = productTypes.find((p) => p.id === productTypeId);
+      if (selectedProduct) {
+        filtersArr.push(
+          `Produk: ${selectedProduct.description || selectedProduct.programId}`,
+        );
+      }
+
+      // 2. Init Report (Landscape, Kop Surat, dll dari utility)
+      // Gunakan "Membership Data" sebagai judul default
+      const { doc, startY } = await initPDFReport({
+        title: "Laporan Data Membership",
+        filters: filtersArr,
+        userName: user?.name || "Admin", // Bisa ambil dari context/auth jika ada
+      });
+
+      // 3. Fetch SEMUA data (unpaginated / limit besar)
+      // Kita perlu parameter yang sama dengan fetchMembers tapi limit besar
+      // Reuse logic params
+      const programTypeParam = selectedProduct?.programType;
+
+      const res = await getMembers({
+        page: 1,
+        limit: 100000, // Ambil semua
+        search: debouncedSearch || undefined,
+        gender: gender !== "all" ? gender : undefined,
+        employeeTypeId: employeeTypeId || undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        hasNippKai: cardCategory === "NIPKAI" ? true : undefined,
+        programType: programTypeParam,
+        productTypeId: productTypeId || undefined,
+      });
+
+      const allItems = res.data.items || [];
+
+      if (allItems.length === 0) {
+        toast.error("Tidak ada data untuk diexport");
+        return;
+      }
+
+      // 4. Mapping Data ke Array Rows
+      const tableRows = allItems.map((item: any, index: number) => {
+        return [
+          formatDate(item.createdAt),
+          item.name || "-",
+          item.nippKai || "-",
+          item.identityNumber || "-",
+          item.nationality || "-",
+          item.gender || "-",
+          item.employeeType?.name || "-",
+          item.email || "-",
+          item.phone || "-",
+          item.alamat || "-",
+          item.companyName || "-",
+          formatDate(item.updatedAt),
+        ];
+      });
+
+      // 5. Generate Table using autoTable
+      autoTable(doc, {
+        startY: startY,
+        margin: { left: 10, right: 10 },
+        head: [
+          [
+            "Membership Date",
+            "Full Name",
+            "NIP",
+            "Identity Number",
+            "Nationality",
+            "Gender",
+            "Tipe Karyawan",
+            "Email",
+            "Phone",
+            "Address",
+            "Perusahaan",
+            "Last Updated",
+          ],
+        ],
+        body: tableRows,
+        styles: {
+          font: "helvetica",
+          fontSize: 8, // Slightly reduced from 9 to fit 12 columns better, but still readable
+          cellPadding: 3,
+          halign: "center",
+          valign: "middle",
+          overflow: "linebreak", // Ensure text wraps instead of cutting off
+        },
+        headStyles: {
+          fillColor: [141, 18, 49], // #8D1231 (KCIC Red)
+          textColor: 255,
+          fontStyle: "bold",
+          halign: "center",
+        },
+        columnStyles: {
+          0: { cellWidth: 26 }, // Membership Date (Increased to fix wrapping)
+          1: { cellWidth: 28 }, // Full Name
+          2: { cellWidth: 18 }, // NIP
+          3: { cellWidth: 22 }, // Identity Number
+          4: { cellWidth: 23 }, // Nationality
+          5: { cellWidth: 18 }, // Gender
+          6: { cellWidth: 20 }, // Tipe Karyawan
+          7: { cellWidth: 26 }, // Email
+          8: { cellWidth: 20 }, // Phone
+          9: { cellWidth: 30 }, // Address
+          10: { cellWidth: 25 }, // Perusahaan
+          11: { cellWidth: 20 }, // Last Updated
+        },
+        didDrawPage: (data) => {
+          // Add Page Number at the bottom
+          const str = "Page " + data.pageNumber;
+
+          doc.setFontSize(8);
+          doc.setFont("helvetica", "normal");
+          const pageSize = doc.internal.pageSize;
+          const pageHeight = pageSize.height
+            ? pageSize.height
+            : pageSize.getHeight();
+          doc.text(str, data.settings.margin.left, pageHeight - 10);
+        },
+      });
+
+      // 6. Save
+      doc.save(`laporan-membership-${new Date().getTime()}.pdf`);
+      toast.success("PDF berhasil didownload");
+    } catch (err: any) {
+      console.error("Export PDF Error:", err);
+      toast.error("Gagal export PDF");
+    }
+  };
+
   /* =====================
      RENDER
   ===================== */
   return (
     <div className="space-y-6">
-      <MembershipToolbar
-        search={search}
-        onSearchChange={(v) => {
-          setSearch(v);
-          setPagination((p) => ({ ...p, page: 1 }));
-        }}
-      />
+      <MembershipToolbar>
+        <div className="w-full sm:w-[300px]">
+          <ProductTypeSelector
+            value={productTypeId}
+            onChange={(val) => {
+              setProductTypeId(val);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            placeholder="Pilih Tipe Produk"
+            className="w-full border-[#8D1231] text-[#8D1231] placeholder:text-[#8D1231]/50 focus:ring-[#8D1231]"
+          />
+        </div>
+      </MembershipToolbar>
 
-      <MembershipFilter
-        cardCategory={cardCategory}
-        gender={gender}
-        employeeTypeId={employeeTypeId}
-        startDate={startDate}
-        endDate={endDate}
-        startDateRef={startDateRef}
-        endDateRef={endDateRef}
-        onCardCategoryChange={(v) => {
-          setCardCategory(v);
-          setPagination((p) => ({ ...p, page: 1 }));
-        }}
-        onGenderChange={(v) => {
-          setGender(v);
-          setPagination((p) => ({ ...p, page: 1 }));
-        }}
-        onEmployeeTypeChange={(v) => {
-          setEmployeeTypeId(v);
-          setPagination((p) => ({ ...p, page: 1 }));
-        }}
-        onStartDateChange={setStartDate}
-        onEndDateChange={setEndDate}
-        onReset={resetFilter}
-      />
+      {productTypeId && (
+        <>
+          <MembershipFilter
+            search={search}
+            onSearchChange={(v) => {
+              setSearch(v);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            cardCategory={cardCategory}
+            gender={gender}
+            employeeTypeId={employeeTypeId}
+            startDate={startDate}
+            endDate={endDate}
+            startDateRef={startDateRef}
+            endDateRef={endDateRef}
+            onCardCategoryChange={(v) => {
+              setCardCategory(v);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            onGenderChange={(v) => {
+              setGender(v);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            onEmployeeTypeChange={(v) => {
+              setEmployeeTypeId(v);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            onStartDateChange={setStartDate}
+            onEndDateChange={setEndDate}
+            onReset={resetFilter}
+            actions={
+              <Button
+                variant="outline"
+                onClick={handleExportPDF}
+                disabled={loading || !productTypeId}
+                className="h-9 gap-2 border-[#8D1231] text-[#8D1231] hover:bg-[#8D1231] hover:text-white"
+              >
+                <FileText className="h-4 w-4" />
+                Export PDF
+              </Button>
+            }
+          />
 
-      <MembershipTable
-        data={data}
-        loading={loading}
-        pagination={pagination}
-        onPageChange={(page) => setPagination((p) => ({ ...p, page }))}
-        onView={handleView}
-        onEdit={handleEdit}
-        onDelete={(member) => {
-          setSelectedMember(member);
-          setShowDeleteModal(true);
-        }}
-      />
+          <MembershipTable
+            data={data}
+            loading={loading}
+            pagination={pagination}
+            onPageChange={(page) => setPagination((p) => ({ ...p, page }))}
+            onView={handleView}
+            onEdit={handleEdit}
+            onDelete={(member) => {
+              setSelectedMember(member);
+              setShowDeleteModal(true);
+            }}
+          />
 
-      {/* Riwayat Penghapusan - sama seperti di Transaksi & Redeem */}
-      <DeletedMemberTable
-        data={deletedMembers}
-        isLoading={isLoadingDeleted}
-        noDataMessage="Tidak ada data yang dihapus"
-        currentPage={deletedPagination.page}
-        totalPages={deletedPagination.totalPages ?? 1}
-        totalCount={deletedPagination.total ?? 0}
-        onPageChange={setDeletedPage}
-      />
+          {/* Riwayat Penghapusan - sama seperti di Transaksi & Redeem */}
+          <DeletedMemberTable
+            data={deletedMembers}
+            isLoading={isLoadingDeleted}
+            noDataMessage="Tidak ada data yang dihapus"
+            currentPage={deletedPagination.page}
+            totalPages={deletedPagination.totalPages ?? 1}
+            totalCount={deletedPagination.total ?? 0}
+            onPageChange={setDeletedPage}
+          />
+        </>
+      )}
 
       {/* Delete Confirmation Modal */}
       <ConfirmDeleteModal

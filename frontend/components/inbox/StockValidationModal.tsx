@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import StatusBadge from "./StatusBadge";
 import { InboxItemProps } from "./InboxItem";
 import { API_BASE_URL } from "@/lib/apiConfig";
@@ -14,18 +14,38 @@ export default function StockValidationModal({
   onSuccess: () => void;
 }) {
   const [loading, setLoading] = useState(false);
-  const [lostCount, setLostCount] = useState(0);
-  const [damagedCount, setDamagedCount] = useState(0);
-  // received implicitly = total - lost - damaged? 
-  // Wait, backend logic: receives "receviedSerialNumbers", "lostSerialNumbers", "damagedSerialNumbers".
-  // Frontend needs valid serials.
-  // The 'payload' from inbox usually contains 'serials' (all distibuted serials).
+  const [stockDetail, setStockDetail] = useState<any | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
   
-  // If payload has serials, we can offer selection.
-  // Implementation simple version:
-  // Show list of serials. Allow marking specific serials as Lost or Damaged.
-  // If no serials in payload, maybe just numeric input?
-  // Current backend 'StockOutFwcService.validate' expects SERIAL NUMBERS.
+  useEffect(() => {
+    const movementId = (data.payload as any)?.movementId;
+    if (movementId) {
+        fetchStockDetail(movementId, data.programType || "FWC");
+    }
+  }, [data]);
+
+  const fetchStockDetail = async (id: string, programType: string) => {
+    try {
+        setLoadingDetail(true);
+        const token = localStorage.getItem("fwc_token");
+        if(!token) return;
+
+        const path = programType.toLowerCase() === 'voucher' ? 'voucher' : 'fwc';
+        const res = await fetch(`${API_BASE_URL}/stock/out/${path}/${id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) return;
+
+        const json = await res.json();
+        if(json.success && json.data) {
+            setStockDetail(json.data.movement || json.data);
+        }
+    } catch(err) {
+        // Silently fail
+    } finally {
+        setLoadingDetail(false);
+    }
+  };
   
   const serials = (data.payload as any)?.serials || [];
   
@@ -78,6 +98,18 @@ export default function StockValidationModal({
             })
         });
         
+        if (!res.ok) {
+            const errorText = await res.text();
+            console.warn("Validation request failed:", errorText);
+            
+            if (res.status === 403) {
+                alert("Akses Ditolak: Anda tidak memiliki izin untuk melakukan validasi ini (stock.out.validate).");
+            } else {
+                alert(`Gagal menyimpan: ${errorText || "Server error"}`);
+            }
+            return;
+        }
+
         const result = await res.json();
         if (result.success) {
             onSuccess();
@@ -107,20 +139,26 @@ export default function StockValidationModal({
                 </div>
                 <p className="text-sm text-gray-600 mb-3">{data.message}</p>
                 
-                <div className="flex flex-wrap gap-4 text-xs text-gray-500 bg-white p-2 rounded-lg border border-gray-100">
+                <div className="flex flex-wrap gap-4 text-xs text-gray-500 bg-white p-2.5 rounded-xl border border-gray-100 shadow-sm">
                     <div className="flex flex-col">
-                        <span className="text-gray-400">Pengirim</span>
-                        <span className="font-medium text-gray-700">{data.sender?.fullName || "Unknown"}</span>
+                        <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-0.5">Pengirim</span>
+                        <span className="font-semibold text-gray-700">{data.sender?.fullName || "Unknown"}</span>
                     </div>
-                    <div className="flex flex-col border-l pl-4">
-                        <span className="text-gray-400">Total Kartu</span>
-                        <span className="font-medium text-gray-700">{serials.length} pcs</span>
+                    <div className="flex flex-col border-l border-gray-100 pl-4">
+                        <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-0.5">Total Kartu</span>
+                        <span className="font-semibold text-gray-700">{serials.length} pcs</span>
                     </div>
-                    {(data.payload as any)?.serialDate && (
-                        <div className="flex flex-col border-l pl-4">
-                            <span className="text-gray-400">Tgl Produksi</span>
-                            <span className="font-medium text-gray-700">{new Date((data.payload as any).serialDate).toLocaleDateString("id-ID")}</span>
+                    {stockDetail?.batchId && (
+                        <div className="flex flex-col border-l border-gray-100 pl-4">
+                            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-0.5">Batch Card</span>
+                            <span className="font-semibold text-[#8D1231]">{stockDetail.batchId}</span>
                         </div>
+                    )}
+                    {stockDetail?.notaDinas && (
+                         <div className="flex flex-col border-l border-gray-100 pl-4">
+                            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-0.5">Nota Dinas</span>
+                            <span className="font-semibold text-gray-700">{stockDetail.notaDinas}</span>
+                         </div>
                     )}
                 </div>
              </div>

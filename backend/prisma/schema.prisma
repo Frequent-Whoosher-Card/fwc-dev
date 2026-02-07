@@ -29,6 +29,7 @@ enum CardStatus {
   DELETED
   SOLD_ACTIVE
   SOLD_INACTIVE
+  SOLD_REDEEMED
   LOST_BY_PASSANGER
 }
 
@@ -58,6 +59,7 @@ enum FilePurpose {
   GENERATION_DOCUMENT
   STOCK_OUT_NOTA
   STOCK_OUT_BAST
+  STOCK_IN_VOUCHER_SETTLE
 }
 
 enum Gender {
@@ -419,6 +421,7 @@ model FileObject {
   generateFile  CardStockMovement[] @relation("generateFile")
   notaDinasFile CardStockMovement[] @relation("notaDinasFile")
   bastFile      CardStockMovement[] @relation("bastFile")
+  vcrSettleFile CardStockMovement[] @relation("vcrSettleFile")
 
   @@map("file_object")
 }
@@ -503,6 +506,8 @@ model CardStockMovement {
   // Khusus stock in
   vendorName            String?             @map("vendor_name")
   vcrSettle             String?             @map("vcr_settle")
+  vcrSettleFileId       String?             @map("vcr_settle_file_id") @db.Uuid
+  costs                 String?             @map("costs")
   // Khusus stock out
   batchId               String?             @map("batch_id")
   notaDinas             String?             @map("nota_dinas")
@@ -531,6 +536,7 @@ model CardStockMovement {
   fileObject    FileObject?  @relation("generateFile", fields: [fileObjectId], references: [id])
   notaDinasFile FileObject?  @relation("notaDinasFile", fields: [notaDinasFileId], references: [id])
   bastFile      FileObject?  @relation("bastFile", fields: [bastFileId], references: [id])
+  vcrSettleFile FileObject?  @relation("vcrSettleFile", fields: [vcrSettleFileId], references: [id])
 
   @@map("card_stock_movements")
 }
@@ -822,13 +828,19 @@ model temp_fwc_reconciliation {
 }
 
 model MenuAccess {
-  id          String  @id @default(uuid()) @map("menu_access_id") @db.Uuid
-  label       String  @map("label") // e.g. "Stock Kartu"
-  route       String? @map("route") // e.g. "/dashboard/stock" (nullable for parent menus)
-  icon        String? @map("icon")
-  ordering    Int     @default(0)
-  parentId    String? @map("parent_id") @db.Uuid
-  description String? @map("description")
+  id          String    @id @default(uuid()) @map("menu_access_id") @db.Uuid
+  label       String    @map("label") // e.g. "Stock Kartu"
+  route       String?   @map("route") // e.g. "/dashboard/stock" (nullable for parent menus)
+  icon        String?   @map("icon")
+  ordering    Int       @default(0)
+  parentId    String?   @map("parent_id") @db.Uuid
+  description String?   @map("description")
+  createdAt   DateTime? @default(now()) @map("created_at")
+  createdBy   String?   @map("created_by") @db.Uuid
+  updatedAt   DateTime? @updatedAt @map("updated_at")
+  updatedBy   String?   @map("updated_by") @db.Uuid
+  deletedAt   DateTime? @map("deleted_at")
+  deletedBy   String?   @map("deleted_by") @db.Uuid
 
   // Relations
   parent      MenuAccess?  @relation("MenuHierarchy", fields: [parentId], references: [id])
@@ -839,10 +851,16 @@ model MenuAccess {
 }
 
 model Permission {
-  id           String  @id @default(uuid()) @map("permission_id") @db.Uuid
-  menuAccessId String? @map("menu_access_id") @db.Uuid // Nullable for global permissions
-  actionCode   String  @unique @map("action_code") // e.g. "stock.view"
-  actionName   String  @map("action_name") // e.g. "View Stock Data"
+  id           String    @id @default(uuid()) @map("permission_id") @db.Uuid
+  menuAccessId String?   @map("menu_access_id") @db.Uuid // Nullable for global permissions
+  actionCode   String    @unique @map("action_code") // e.g. "stock.view"
+  actionName   String    @map("action_name") // e.g. "View Stock Data"
+  createdAt    DateTime? @default(now()) @map("created_at")
+  createdBy    String?   @map("created_by") @db.Uuid
+  updatedAt    DateTime? @updatedAt @map("updated_at")
+  updatedBy    String?   @map("updated_by") @db.Uuid
+  deletedAt    DateTime? @map("deleted_at")
+  deletedBy    String?   @map("deleted_by") @db.Uuid
 
   // Relations
   menuAccess MenuAccess?      @relation(fields: [menuAccessId], references: [id])
@@ -852,9 +870,15 @@ model Permission {
 }
 
 model RolePermission {
-  id           String @id @default(uuid()) @map("role_permission_id") @db.Uuid
-  roleId       String @map("role_id") @db.Uuid
-  permissionId String @map("permission_id") @db.Uuid
+  id           String    @id @default(uuid()) @map("role_permission_id") @db.Uuid
+  roleId       String    @map("role_id") @db.Uuid
+  permissionId String    @map("permission_id") @db.Uuid
+  createdAt    DateTime? @default(now()) @map("created_at")
+  createdBy    String?   @map("created_by") @db.Uuid
+  updatedAt    DateTime? @updatedAt @map("updated_at")
+  updatedBy    String?   @map("updated_by") @db.Uuid
+  deletedAt    DateTime? @map("deleted_at")
+  deletedBy    String?   @map("deleted_by") @db.Uuid
 
   // Relations
   role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)

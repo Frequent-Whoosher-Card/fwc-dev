@@ -216,6 +216,34 @@ export namespace CardInventoryModel {
     }),
   });
 
+  export const getCombinedSummaryResponse = t.Object({
+    success: t.Boolean(),
+    data: t.Object({
+      totalSummary: t.Object({
+        totalStock: t.Number(),
+        totalInOffice: t.Number(),
+        totalInStation: t.Number(),
+        totalInTransfer: t.Number(),
+        totalSold: t.Number(),
+        totalDamaged: t.Number(),
+      }),
+      categoryTypeSummary: t.Array(
+        t.Object({
+          categoryId: t.String(),
+          categoryName: t.String(),
+          typeId: t.String(),
+          typeName: t.String(),
+          totalStock: t.Number(),
+          totalInOffice: t.Number(),
+          totalInStation: t.Number(),
+          totalInTransfer: t.Number(),
+          totalSold: t.Number(),
+          totalDamaged: t.Number(),
+        }),
+      ),
+    }),
+  });
+
   export const errorResponse = t.Object({
     success: t.Boolean(),
     error: t.Object({

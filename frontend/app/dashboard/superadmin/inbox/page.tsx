@@ -113,7 +113,6 @@ export default function InboxPage() {
           }
 
           let mappedItems = result.data.items
-            .filter((item: any) => item.type !== 'LOW_STOCK_ALERT')
             .map((item: any) => {
             const sentDate = new Date(item.sentAt);
 
@@ -290,6 +289,7 @@ export default function InboxPage() {
       {selectedIssue && (
           <IssueApprovalModal 
             data={selectedIssue} 
+            programType={selectedIssue.programType}
             onClose={() => setSelectedIssue(null)}
             onSuccess={() => {
                 fetchInbox(page, currentFilters); // Refresh list

@@ -34,6 +34,8 @@ export class StockOutVoucherService {
     bast?: string,
     notaDinasFile?: File,
     bastFile?: File,
+    sender?: string, // [NEW]
+    receiver?: string, // [NEW]
   ) {
     // 1. Validate Input
     if (!/^\d+$/.test(startSerial) || !/^\d+$/.test(endSerial)) {
@@ -194,6 +196,29 @@ export class StockOutVoucherService {
               bast: bast ?? null,
               notaDinasFileId, // New
               bastFileId, // New
+              sender: sender
+                ? (
+                    await tx.user.findFirst({
+                      where: {
+                        fullName: {
+                          equals: sender,
+                          mode: "insensitive",
+                        },
+                      },
+                      select: { id: true },
+                    })
+                  )?.id
+                : null,
+              receiver: receiver
+                ? (
+                    await tx.user.findFirst({
+                      where: {
+                        fullName: { equals: receiver, mode: "insensitive" },
+                      },
+                      select: { id: true },
+                    })
+                  )?.id
+                : null,
               sentSerialNumbers: finalSerials, // CORRECTED: Use actual serials
               receivedSerialNumbers: [],
               lostSerialNumbers: [],
@@ -220,6 +245,8 @@ export class StockOutVoucherService {
                 movementId: movement.id,
                 cardProductId,
                 quantity: sentCount,
+                batchId: movement.batchId,
+                cardType: productName,
                 status: "PENDING",
                 serialDate: d.toISOString(),
                 serials: finalSerials, // CORRECTED: Use actual serials
@@ -327,6 +354,10 @@ export class StockOutVoucherService {
     // Fetch Movement
     const movement = await db.cardStockMovement.findUnique({
       where: { id: movementId },
+      include: {
+        category: true,
+        type: true,
+      },
     });
     if (!movement) throw new ValidationError("Movement not found");
     if (movement.movementType !== "OUT" || movement.status !== "PENDING") {
@@ -555,6 +586,8 @@ export class StockOutVoucherService {
               movementId,
               stationId: validatorStationId,
               reporterName: localReporterName,
+              batchId: movement.batchId,
+              cardType: `${movement.category?.categoryName || "-"} - ${movement.type?.typeName || "-"}`,
               lostCount: finalLost.length,
               damagedCount: finalDamaged.length,
               receivedCount: finalReceived.length,
@@ -575,12 +608,12 @@ export class StockOutVoucherService {
           receivedCount: finalReceived.length,
           lostCount: finalLost.length,
           damagedCount: finalDamaged.length,
-           // metadata for notification
-           notification: {
-             trigger: true,
-             title,
-             message
-          }
+          // metadata for notification
+          notification: {
+            trigger: true,
+            title,
+            message,
+          },
         };
       }
 
@@ -597,8 +630,13 @@ export class StockOutVoucherService {
     if ((transaction as any).notification?.trigger) {
       const { title, message } = (transaction as any).notification;
       // Fire and forget
-      const { PushNotificationService } = await import("../../notification/push-service");
-      PushNotificationService.sendToRole(["admin", "superadmin"], title, message);
+      const { PushNotificationService } =
+        await import("../../notification/push-service");
+      PushNotificationService.sendToRole(
+        ["admin", "superadmin"],
+        title,
+        message,
+      );
     }
     // -------------------------------------
 
@@ -719,7 +757,7 @@ export class StockOutVoucherService {
       where.movementAt = { lte: endDate };
     }
 
-    const [items, total] = await Promise.all([
+    const [items, total, agg] = await Promise.all([
       db.cardStockMovement.findMany({
         where,
         skip,
@@ -734,10 +772,22 @@ export class StockOutVoucherService {
         },
       }),
       db.cardStockMovement.count({ where }),
+      db.cardStockMovement.aggregate({
+        where,
+        _sum: {
+          quantity: true,
+        },
+      }),
     ]);
 
     const userIds = [
-      ...new Set(items.map((i) => i.createdBy).filter(Boolean)),
+      ...new Set(
+        [
+          ...items.map((i) => i.createdBy),
+          ...items.map((i) => i.sender),
+          ...items.map((i) => i.receiver),
+        ].filter(Boolean),
+      ),
     ] as string[];
     const users = await db.user.findMany({
       where: { id: { in: userIds } },
@@ -755,6 +805,8 @@ export class StockOutVoucherService {
       note: item.note,
       notaDinas: item.notaDinas,
       bast: item.bast,
+      requesterName: item.sender ? userMap.get(item.sender) || null : null, // [NEW]
+      receiverName: item.receiver ? userMap.get(item.receiver) || null : null, // [NEW]
       notaDinasFile: item.notaDinasFile
         ? {
             id: item.notaDinasFile.id,
@@ -789,7 +841,13 @@ export class StockOutVoucherService {
 
     return {
       items: mapped,
-      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        totalQuantity: agg._sum.quantity || 0,
+      },
     };
   }
 
@@ -823,6 +881,24 @@ export class StockOutVoucherService {
       validatedByName = u?.fullName;
     }
 
+    const requesterName = movement.sender
+      ? (
+          await db.user.findUnique({
+            where: { id: movement.sender },
+            select: { fullName: true },
+          })
+        )?.fullName || null
+      : null;
+
+    const receiverName = movement.receiver
+      ? (
+          await db.user.findUnique({
+            where: { id: movement.receiver },
+            select: { fullName: true },
+          })
+        )?.fullName || null
+      : null;
+
     return {
       movement: {
         id: movement.id,
@@ -833,6 +909,8 @@ export class StockOutVoucherService {
         note: movement.note,
         notaDinas: movement.notaDinas,
         bast: movement.bast,
+        requesterName, // [NEW]
+        receiverName, // [NEW]
         notaDinasFile: movement.notaDinasFile
           ? {
               id: movement.notaDinasFile.id,
@@ -896,6 +974,26 @@ export class StockOutVoucherService {
         bast: body.bast,
         updatedAt: new Date(),
         updatedBy: userId,
+        sender: body.sender
+          ? (
+              await db.user.findFirst({
+                where: {
+                  fullName: { equals: body.sender, mode: "insensitive" },
+                },
+                select: { id: true },
+              })
+            )?.id
+          : undefined,
+        receiver: body.receiver
+          ? (
+              await db.user.findFirst({
+                where: {
+                  fullName: { equals: body.receiver, mode: "insensitive" },
+                },
+                select: { id: true },
+              })
+            )?.id
+          : undefined,
       },
     });
 

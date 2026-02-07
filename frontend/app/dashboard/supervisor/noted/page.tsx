@@ -101,6 +101,21 @@ export default function InboxPage() {
           return router.push("/");
         }
 
+        if (!res.ok) {
+            const errorText = await res.text();
+            console.warn("Fetch inbox failed:", errorText);
+            
+            if (res.status === 403) {
+                // Silently show empty state or specific message
+                setItems([]);
+                setTotalItems(0);
+                setTotalPages(1);
+            } else {
+                console.error(`Gagal mengambil inbox: ${errorText || "Server error"}`);
+            }
+            return;
+        }
+
         const result = await res.json();
 
         // MAP DATA FROM BACKEND TO FRONTEND FORMAT
@@ -234,21 +249,7 @@ export default function InboxPage() {
   };
 
   return (
-    <div className="space-y-6 h-full flex flex-col">
-      {/* HEADER */}
-      <div className="flex items-center justify-between flex-none">
-        <h1 className="text-xl font-semibold text-gray-900">Noted History</h1>
-
-        <SwitchTab 
-          activeValue={activeTab} 
-          onValueChange={handleTabChange}
-          items={[
-            { label: "FWC", value: "FWC", count: unreadCounts.fwc },
-            { label: "Voucher", value: "VOUCHER", count: unreadCounts.voucher }
-          ]}
-        />
-      </div>
-
+    <div className="space-y-4 h-full flex flex-col">
       {/* FILTER */}
       <div className="rounded-xl border bg-white px-4 py-3 shadow-sm flex-none">
         <InboxFilter onFilter={handleFilter} onAddNote={handleAddNote} onRefresh={() => fetchInbox(page, currentFilters)} />
@@ -259,11 +260,23 @@ export default function InboxPage() {
          {/* Table Toolbar / Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b">
            <h3 className="text-sm font-semibold text-gray-700">Messages List</h3>
-           <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">Total Data:</span>
-              <span className="px-2.5 py-0.5 rounded-md bg-[#8D1231]/10 text-[#8D1231] text-xs font-medium border border-[#8D1231]/20">
-                {totalItems}
-              </span>
+           
+           <div className="flex items-center gap-4">
+              <SwitchTab 
+                activeValue={activeTab} 
+                onValueChange={handleTabChange}
+                items={[
+                  { label: "FWC", value: "FWC", count: unreadCounts.fwc },
+                  { label: "Voucher", value: "VOUCHER", count: unreadCounts.voucher }
+                ]}
+              />
+
+              <div className="flex items-center gap-2">
+                 <span className="text-xs text-gray-500">Total Data:</span>
+                 <span className="px-2.5 py-0.5 rounded-md bg-[#8D1231]/10 text-[#8D1231] text-xs font-medium border border-[#8D1231]/20">
+                   {totalItems}
+                 </span>
+              </div>
            </div>
         </div>
 

@@ -43,7 +43,26 @@ export default function BaseStockSummary({
       {/* Header removed, controlled by parent page */}
 
       {/* SUMMARY */}
-      <StockSummary programType={programType} />
+      <StockSummary
+        programType={programType}
+        filters={{
+          ...filters,
+          // Fix: StockFilterReusable uses NAMES for values, not IDs.
+          // Map to categoryName/typeName parameters to avoid UUID errors in backend.
+          stationId:
+            filters.station.length > 0 ? filters.station.join(",") : undefined,
+          categoryName:
+            filters.category.length > 0
+              ? filters.category.join(",")
+              : undefined,
+          typeName:
+            filters.type.length > 0 ? filters.type.join(",") : undefined,
+          categoryId: undefined,
+          typeId: undefined,
+          startDate: filters.startDate || undefined,
+          endDate: filters.endDate || undefined,
+        }}
+      />
 
       {/* FILTER & MODE SWITCH */}
       <div className="flex flex-col gap-4">
